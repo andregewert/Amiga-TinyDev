@@ -6,6 +6,7 @@
 #include <proto/dos.h>
 #include <proto/exec.h>
 #include <proto/intuition.h>
+#include <proto/layout.h>
 #include <clib/alib_protos.h>
 #include <gadgets/texteditor.h>
 
@@ -54,6 +55,11 @@ int file_load(EditorApp *app, Document *doc, const char *path)
     SetAttrs(doc->editor, GA_TEXTEDITOR_HasChanged, FALSE,
              GA_TEXTEDITOR_LineEndingExport, LINEENDING_ASIMPORT, TAG_END);
     document_set_dirty(app, doc, 0); ok = 1;
+    if (app->window != NULL) {
+        RefreshPageGadget((struct Gadget *)doc->page, app->pages,
+                          app->window, NULL);
+        ui_relayout(app);
+    }
 done:
     if (data != NULL) FreeVec(data);
     if (fib != NULL) FreeDosObject(DOS_FIB, fib);

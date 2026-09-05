@@ -6,6 +6,7 @@
 #include <proto/exec.h>
 #include <proto/intuition.h>
 #include <proto/graphics.h>
+#include <proto/layout.h>
 #include <intuition/gadgetclass.h>
 
 #include <string.h>
@@ -48,8 +49,14 @@ void font_apply_all(EditorApp *app)
 {
     Document *doc;
     for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ;
-         doc = (Document *)doc->node.ln_Succ)
-        SetAttrs(doc->editor, GA_TextAttr, (ULONG)&app->font_attr, TAG_END);
+         doc = (Document *)doc->node.ln_Succ) {
+        SetAttrs(doc->editor, GA_TextAttr,
+                 (ULONG)&app->font_attr, TAG_END);
+    }
+    ui_relayout(app);
+    if (app->window != NULL && app->active != NULL)
+        RefreshPageGadget((struct Gadget *)app->active->page, app->pages,
+                          app->window, NULL);
 }
 
 int font_request(EditorApp *app)

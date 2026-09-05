@@ -1,7 +1,7 @@
 TARGET_CC ?= /opt/amiga/bin/m68k-amigaos-gcc
 HOST_CC ?= cc
 TARGET := AmiEditor
-SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/font.c src/syntax.c
+SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/font.c src/tree.c src/syntax.c
 OBJECTS := $(SOURCES:.c=.o)
 DEPS := $(OBJECTS:.o=.d)
 CPPFLAGS := -Iinclude
