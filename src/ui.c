@@ -172,6 +172,7 @@ static struct NewMenu menus[] = {
     {NM_TITLE, "View", NULL, 0, 0, NULL},
     {NM_ITEM, "Folder Tree", NULL, CHECKIT | MENUTOGGLE | CHECKED, 0, UD(MID_FOLDER_TREE)},
     {NM_ITEM, "Line Numbers", NULL, CHECKIT | MENUTOGGLE | CHECKED, 0, UD(MID_LINE_NUMBERS)},
+    {NM_ITEM, "Minimap", NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_MINIMAP)},
     {NM_END, NULL, NULL, 0, 0, NULL}
 };
 
@@ -349,6 +350,7 @@ int ui_create(EditorApp *app)
         LISTBROWSER_AutoWheel, TRUE,
         TAG_END);
     if (app->tree == NULL) return 0;
+    if (minimap_create_gadget(app) == NULL) return 0;
     if (!create_toolbar(app)) return 0;
     app->content_layout = NewObject(LAYOUT_GetClass(), NULL,
         LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
@@ -358,6 +360,10 @@ int ui_create(EditorApp *app)
         CHILD_WeightBar, TRUE,
         LAYOUT_AddChild, (ULONG)app->tabs,
         CHILD_WeightedWidth, 75,
+        LAYOUT_AddChild, (ULONG)app->minimap,
+        CHILD_MinWidth, 0,
+        CHILD_MaxWidth, 0,
+        CHILD_WeightedWidth, 0,
         TAG_END);
     if (app->content_layout == NULL) return 0;
     app->statusbar = NewObject(BUTTON_GetClass(), NULL,
@@ -384,6 +390,11 @@ int ui_create(EditorApp *app)
     app->window_object = NewObject(WINDOW_GetClass(), NULL,
         WA_Title, (ULONG)"AmiEditor", WA_DragBar, TRUE, WA_DepthGadget, TRUE,
         WA_CloseGadget, TRUE, WA_SizeGadget, TRUE, WA_Activate, TRUE,
+        /* The window.class only enables the IDCMP flags its gadgets need, so
+         * request IDCMP_NEWSIZE explicitly; without it WMHI_NEWSIZE is never
+         * delivered and the minimap is not re-rendered after a resize (the
+         * space.gadget is only cleared to its background pen). */
+        WA_IDCMP, IDCMP_NEWSIZE,
         WA_PubScreen, (ULONG)app->screen,
         WA_Width, 640, WA_Height, 400,
         WINDOW_Position, WPOS_CENTERSCREEN,
@@ -403,6 +414,8 @@ int ui_create(EditorApp *app)
     ui_relayout(app);
     document_activate(app, app->active);
     ui_update_status(app);
+    minimap_start(app);
+    minimap_set_visible(app, 0);
     return 1;
 }
 
@@ -422,6 +435,7 @@ static void editor_command(EditorApp *app, const char *command)
                                  NULL, (ULONG)(100 + app->active->number));
     }
     document_sync_scrollers(app, app->active);
+    minimap_request(app);
 }
 
 static int save_active(EditorApp *app, int save_as)
@@ -460,6 +474,10 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_PASTE: editor_command(app, "PASTE"); break;
         case MID_SELECT_ALL: editor_command(app, "SELECTALL"); break;
         case MID_FOLDER_TREE: tree_set_visible(app, !app->tree_visible); break;
+        case MID_MINIMAP:
+            minimap_set_visible(app, !app->minimap_visible);
+            if (app->minimap_visible) minimap_request(app);
+            break;
         case MID_LINE_NUMBERS:
             app->line_numbers = !app->line_numbers;
             for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ;
@@ -537,6 +555,9 @@ static void tab_event(EditorApp *app)
                 RefreshPageGadget((struct Gadget *)doc->page, app->pages,
                                   app->window, NULL);
             document_sync_scrollers(app, doc);
+            /* Switching tabs changes the active document, so the minimap must
+             * be re-rendered from the newly selected document's contents. */
+            minimap_request(app);
         }
     }
 }
@@ -545,10 +566,13 @@ int ui_run(EditorApp *app)
 {
     ULONG signals = 0, result, code, mask;
     ULONG scroll_mask = 1UL << (ULONG)app->scroll_signal;
+    ULONG minimap_mask = minimap_signal_mask(app);
     GetAttr(WINDOW_SigMask, app->window_object, &mask);
     app->running = 1;
     while (app->running) {
-        signals = Wait(mask | scroll_mask | SIGBREAKF_CTRL_C);
+        signals = Wait(mask | scroll_mask | minimap_mask | SIGBREAKF_CTRL_C);
+        if (minimap_mask != 0 && (signals & minimap_mask) != 0)
+            minimap_handle_reply(app);
         if ((signals & scroll_mask) != 0) document_scroll_live(app);
         if (signals & SIGBREAKF_CTRL_C) { if (close_all(app)) break; }
         while ((result = DoMethod(app->window_object, WM_HANDLEINPUT, &code)) != WMHI_LASTMSG) {
@@ -558,6 +582,7 @@ int ui_run(EditorApp *app)
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_TREE) tree_handle_event(app);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_VSCROLL) document_scroll_finish(app, 0);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_HSCROLL) document_scroll_finish(app, 1);
+            else if (kind == WMHI_NEWSIZE) minimap_request(app);
             else if (kind == WMHI_GADGETUP) toolbar_action(app, result & WMHI_GADGETMASK);
             else if (kind == WMHI_MENUPICK) {
                 struct Menu *strip = NULL; struct MenuItem *item;
@@ -576,13 +601,14 @@ int ui_run(EditorApp *app)
         if (app->active != NULL) {
             ULONG changed = 0;
             GetAttr(GA_TEXTEDITOR_HasChanged, app->active->editor, &changed);
-            if (changed) document_set_dirty(app, app->active, 1);
+            if (changed) { document_set_dirty(app, app->active, 1); minimap_request(app); }
         }
         /* The close gadgets on the tabs do not generate a dedicated event, so
          * check for a pending tab close on every wake-up as well. */
         tab_check_closed(app);
         document_sync_scrollers(app, app->active);
         ui_update_status(app);
+        minimap_poll(app);
     }
     return 1;
 }
@@ -590,6 +616,7 @@ int ui_run(EditorApp *app)
 void ui_destroy(EditorApp *app)
 {
     size_t i;
+    minimap_stop(app);
     tree_clear(app);
     document_free_all(app);
     if (app->window_object != NULL) {
@@ -602,6 +629,7 @@ void ui_destroy(EditorApp *app)
         if (app->toolbar != NULL) DisposeObject(app->toolbar);
         if (app->content_layout != NULL) DisposeObject(app->content_layout);
         else {
+            if (app->minimap != NULL) DisposeObject(app->minimap);
             if (app->tree != NULL) DisposeObject(app->tree);
             if (app->tabs != NULL) DisposeObject(app->tabs);
             else if (app->pages != NULL) DisposeObject(app->pages);
@@ -616,6 +644,7 @@ void ui_destroy(EditorApp *app)
     if (app->screen != NULL) UnlockPubScreen(NULL, app->screen);
     app->window_object = app->layout = app->toolbar = app->content_layout = NULL;
     app->statusbar = NULL;
+    app->minimap = NULL;
     app->tree = app->tabs = app->pages = NULL;
     app->tree_show_image = app->tree_hide_image = NULL;
     app->tab_close_image = NULL;

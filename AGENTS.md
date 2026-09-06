@@ -15,6 +15,8 @@ The codebase intentionally handles file contents as 8-bit text.
   scroll-time highlighting suspension.
 - `src/fileio.c`: loading, line-ending preservation, requesters, and safe saves.
 - `src/tree.c`: lazy, bounded directory tree loading.
+- `src/minimap.c`: background render task, message-port handshake, and the
+  off-screen colored minimap of the active document.
 - `src/syntax.c`: language detection, scanners, and TextEditor highlighting hook.
 - `include/editor.h`: shared application types and cross-module declarations.
 - `include/syntax.h`: portable syntax-scanner interface.
@@ -73,6 +75,10 @@ make test
   test binary can compile.
 - Syntax highlighting is suspended while a scrollbar is actively dragged and
   must be restored (with a redraw) when the drag ends.
+- The minimap renders in a separate task and only while it is visible; no
+  rendering happens when it is hidden. Updates must stay coalesced (a single
+  outstanding job) and the render task must be stopped and joined before the
+  window (and its `space.gadget`) is disposed.
 
 ## Change discipline
 

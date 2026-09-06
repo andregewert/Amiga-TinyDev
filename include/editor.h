@@ -36,7 +36,7 @@ enum GadgetId {
 enum MenuId {
     MID_NEW = 1, MID_OPEN, MID_OPEN_DIRECTORY, MID_SAVE, MID_SAVE_AS, MID_CLOSE, MID_QUIT,
     MID_UNDO, MID_REDO, MID_CUT, MID_COPY, MID_PASTE, MID_SELECT_ALL,
-    MID_FOLDER_TREE, MID_LINE_NUMBERS
+    MID_FOLDER_TREE, MID_LINE_NUMBERS, MID_MINIMAP
 };
 
 typedef enum LineEnding { EOL_LF = 0, EOL_CR = 1, EOL_CRLF = 2 } LineEnding;
@@ -59,6 +59,8 @@ typedef struct Document {
     SyntaxHookContext highlight;
 } Document;
 
+struct Minimap;
+
 typedef struct EditorApp {
     struct List documents;
     struct List tab_nodes;
@@ -75,6 +77,8 @@ typedef struct EditorApp {
     Object *tabs;
     Object *pages;
     Object *statusbar;
+    Object *minimap;
+    struct Minimap *minimap_ctx;
     Object *toolbar_images[8];
     struct Window *window;
     struct Screen *screen;
@@ -91,13 +95,14 @@ typedef struct EditorApp {
     long scroll_signal;
     int line_numbers;
     int tree_visible;
+    int minimap_visible;
     int scrolling;
     int running;
 } EditorApp;
 
 extern struct Library *AslBase, *GadToolsBase, *IconBase, *UtilityBase;
 extern struct Library *WindowBase, *LayoutBase, *ClickTabBase, *TextFieldBase;
-extern struct Library *ButtonBase, *BitMapBase;
+extern struct Library *ButtonBase, *BitMapBase, *SpaceBase;
 extern struct Library *ListBrowserBase;
 extern struct Library *GlyphBase;
 extern struct Library *ScrollerBase;
@@ -125,6 +130,15 @@ void document_sync_scrollers(EditorApp *app, Document *doc);
 void document_scroll(EditorApp *app, int horizontal);
 void document_scroll_live(EditorApp *app);
 void document_scroll_finish(EditorApp *app, int horizontal);
+
+Object *minimap_create_gadget(EditorApp *app);
+int minimap_start(EditorApp *app);
+void minimap_stop(EditorApp *app);
+void minimap_set_visible(EditorApp *app, int visible);
+void minimap_request(EditorApp *app);
+void minimap_poll(EditorApp *app);
+void minimap_handle_reply(EditorApp *app);
+ULONG minimap_signal_mask(EditorApp *app);
 
 int file_load(EditorApp *app, Document *doc, const char *path);
 int file_save(EditorApp *app, Document *doc, const char *path);

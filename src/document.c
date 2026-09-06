@@ -227,6 +227,7 @@ void document_activate(EditorApp *app, Document *doc)
                           app->window, NULL);
     ui_refresh(app);
     document_sync_scrollers(app, doc);
+    minimap_request(app);
 }
 
 void document_set_dirty(EditorApp *app, Document *doc, int dirty)

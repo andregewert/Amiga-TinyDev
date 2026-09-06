@@ -21,8 +21,8 @@ with optional file arguments, or launch it from Workbench with project icons.
 ## Target requirements
 
 - AmigaOS 3.2 and V47 `window.class`, `layout.gadget`, `clicktab.gadget`, and
-  `texteditor.gadget`; editor scrollbars use `scroller.gadget`, and the folder
-  tree additionally uses `listbrowser.gadget`.
+  `texteditor.gadget`; editor scrollbars use `scroller.gadget`, the folder
+  tree uses `listbrowser.gadget`, and the minimap uses `space.gadget`.
 - `asl.library` and normal ReAction dependencies.
 - AISS with its standard `TBImages:` assignment for toolbar imagery. If an
   individual image cannot be created, the corresponding toolbar action falls
@@ -42,6 +42,13 @@ comments. AmigaDOS keyword matching is case-insensitive and `;` begins a comment
 To keep scrollbar dragging as smooth as the gadget's own mouse-wheel scrolling,
 syntax highlighting is suspended while a scrollbar is actively dragged and
 restored (with a full redraw) once the drag ends.
+An optional colored minimap can be toggled from the View menu. It appears as a
+column on the right of the window (below the toolbar, beside the editor) and
+renders the active document using the same syntax colors on the same grey
+background the editor shows (the screen's `BACKGROUNDPEN`). Rendering runs in a
+separate background task so the editor stays responsive; nothing is rendered
+while the minimap is hidden, updates are coalesced to the minimum (a single job
+is ever outstanding), and the task is stopped cleanly on exit.
 Every editor installs a white `GA_BackFill` hook plus an editor-local
 `DrawInfo` whose background pen is white, and reserves black for normal text
 with dark screen pens for keywords, strings, comments, and preprocessor lines.
@@ -60,4 +67,5 @@ The visible tree is bounded to 16 directory levels and 2048 entries.
 Version one intentionally treats contents as 8-bit text. UTF-8 decoding,
 Unicode shaping, search/replace UI, user-configurable colors, sessions, font
 selection, and arbitrary raw TrueType loading are not promised. A missing V47
-class prevents startup.
+class prevents startup. The minimap is a scaled color overview only, without
+click-to-scroll navigation.
