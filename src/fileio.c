@@ -59,6 +59,12 @@ int file_load(EditorApp *app, Document *doc, const char *path)
         RefreshPageGadget((struct Gadget *)doc->page, app->pages,
                           app->window, NULL);
         ui_relayout(app);
+        /* Loading into the currently active document (e.g. the initial empty
+         * tab reused for the first file opened from the tree) does not go
+         * through document_activate(), and the ui_relayout() above repaints the
+         * minimap's space.gadget grey.  Request a re-render so the freshly
+         * loaded contents are drawn instead of leaving a grey area. */
+        minimap_request(app);
     }
 done:
     if (data != NULL) FreeVec(data);

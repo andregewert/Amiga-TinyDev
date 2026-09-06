@@ -15,6 +15,14 @@
 #define EDITOR_TITLE_MAX 128
 #define EDITOR_COLOR_COUNT 6
 
+/* Content-layout column sizing, shared by the folder tree (tree.c) and the
+ * minimap (minimap.c) so both collapse/restore their columns consistently. */
+#define TREE_MIN_WIDTH        140
+#define TREE_DEFAULT_WEIGHT   25
+#define MINIMAP_MIN_WIDTH     48
+#define MINIMAP_DEFAULT_WEIGHT 20
+#define EDITOR_DEFAULT_WEIGHT 75
+
 enum EditorColor {
     EDITOR_COLOR_BACKGROUND = 0,
     EDITOR_COLOR_TEXT,
@@ -97,6 +105,7 @@ typedef struct EditorApp {
     int line_numbers;
     int tree_visible;
     int minimap_visible;
+    int minimap_attached;
     int scrolling;
     int running;
 } EditorApp;

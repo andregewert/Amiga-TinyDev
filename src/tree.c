@@ -16,7 +16,6 @@
 
 #define TREE_MAX_DEPTH 16
 #define TREE_MAX_NODES 2048
-#define TREE_MIN_WIDTH 140
 
 typedef struct TreeEntry {
     int directory;
@@ -109,7 +108,6 @@ static void attach_tree(EditorApp *app)
                        LISTBROWSER_Labels, (ULONG)&app->tree_nodes, TAG_END);
     else SetAttrs(app->tree, LISTBROWSER_Labels,
                   (ULONG)&app->tree_nodes, TAG_END);
-    ui_relayout(app);
 }
 
 static void free_tree_node(struct Node *node)
@@ -292,6 +290,15 @@ static int load_directory(EditorApp *app, const char *path)
         if (entry != NULL) entry->expanded = 1;
     }
     attach_tree(app);
+    /* The tree is populated for the first time here, so lay the window out
+     * once.  Later expand/collapse operations only change the listbrowser's
+     * label list, which the gadget refreshes itself, and must NOT trigger a
+     * full RethinkLayout: that would reflow the whole window and clear the
+     * minimap's space.gadget to grey without re-rendering it. */
+    ui_relayout(app);
+    /* The relayout above repaints the minimap's space.gadget grey, so ask for a
+     * re-render; otherwise opening a directory leaves the minimap grey. */
+    minimap_request(app);
     ok = 1;
 done:
     if (fib != NULL) FreeDosObject(DOS_FIB, fib);
@@ -343,18 +350,20 @@ void tree_set_visible(EditorApp *app, int visible)
 {
     app->tree_visible = visible;
     if (app->content_layout == NULL || app->tree == NULL) return;
+    /* Showing the tree always uses the default column width; the previous
+     * on-screen width is intentionally not remembered or restored. */
     if (app->window != NULL)
         SetGadgetAttrs((struct Gadget *)app->content_layout, app->window, NULL,
             LAYOUT_ModifyChild, (ULONG)app->tree,
             CHILD_MinWidth, visible ? TREE_MIN_WIDTH : 0,
             CHILD_MaxWidth, visible ? ~0UL : 0,
-            CHILD_WeightedWidth, visible ? 25 : 0,
+            CHILD_WeightedWidth, visible ? TREE_DEFAULT_WEIGHT : 0,
             TAG_END);
     else SetAttrs(app->content_layout,
         LAYOUT_ModifyChild, (ULONG)app->tree,
         CHILD_MinWidth, visible ? TREE_MIN_WIDTH : 0,
         CHILD_MaxWidth, visible ? ~0UL : 0,
-        CHILD_WeightedWidth, visible ? 25 : 0,
+        CHILD_WeightedWidth, visible ? TREE_DEFAULT_WEIGHT : 0,
         TAG_END);
     ui_relayout(app);
 }

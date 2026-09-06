@@ -370,12 +370,23 @@ int ui_create(EditorApp *app)
         CHILD_WeightBar, TRUE,
         LAYOUT_AddChild, (ULONG)app->tabs,
         CHILD_WeightedWidth, 75,
+        /* A WeightBar between the editor and the minimap lets the user resize
+         * the minimap column the same way the folder tree is resized.  It is
+         * declared statically and never toggled at runtime (layout.gadget does
+         * not remove a toggled weight bar, so toggling would accumulate stray
+         * bars).  minimap_set_visible() only collapses the minimap child to
+         * zero width when hidden, exactly like the folder tree. */
+        CHILD_WeightBar, TRUE,
         LAYOUT_AddChild, (ULONG)app->minimap,
         CHILD_MinWidth, 0,
         CHILD_MaxWidth, 0,
         CHILD_WeightedWidth, 0,
         TAG_END);
     if (app->content_layout == NULL) return 0;
+    /* The minimap is a permanent child of the content layout; it is only
+     * collapsed to zero width when hidden (like the folder tree), never removed
+     * at runtime, so it stays attached for the whole lifetime of the layout. */
+    app->minimap_attached = 1;
     app->statusbar = NewObject(BUTTON_GetClass(), NULL,
         GA_ReadOnly, TRUE,
         GA_Text, (ULONG)"Documents: 0  Lines: 0",
@@ -639,11 +650,18 @@ void ui_destroy(EditorApp *app)
         if (app->toolbar != NULL) DisposeObject(app->toolbar);
         if (app->content_layout != NULL) DisposeObject(app->content_layout);
         else {
-            if (app->minimap != NULL) DisposeObject(app->minimap);
+            if (app->minimap != NULL) { DisposeObject(app->minimap); app->minimap = NULL; }
             if (app->tree != NULL) DisposeObject(app->tree);
             if (app->tabs != NULL) DisposeObject(app->tabs);
             else if (app->pages != NULL) DisposeObject(app->pages);
         }
+    }
+    /* When the minimap column is hidden its space.gadget has been removed from
+     * the content layout, so the layout/window disposal above did not free it.
+     * Dispose the still-detached gadget here to avoid leaking it. */
+    if (!app->minimap_attached && app->minimap != NULL) {
+        DisposeObject(app->minimap);
+        app->minimap = NULL;
     }
     for (i = 0; i < sizeof(app->toolbar_images) / sizeof(app->toolbar_images[0]); ++i)
         if (app->toolbar_images[i] != NULL) DisposeObject(app->toolbar_images[i]);

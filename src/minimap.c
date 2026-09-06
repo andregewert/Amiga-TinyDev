@@ -21,10 +21,14 @@
 
 #include <string.h>
 
-/* Fixed on-screen width of the minimap column and the horizontal source range
- * (in characters) that is mapped across that width. */
+/* Default on-screen width of the minimap column and the horizontal source range
+ * (in characters) that is mapped across that width.  The width is only a
+ * starting point; the user can resize the column with the WeightBar. */
 #define MINIMAP_WIDTH   96
 #define MINIMAP_COLUMNS 128
+/* MINIMAP_MIN_WIDTH and MINIMAP_DEFAULT_WEIGHT (the smallest width the column
+ * may be shrunk to and its initial relative layout weight) are shared with the
+ * folder tree and declared in editor.h. */
 
 /* Commands exchanged with the render task. */
 enum { MINIMAP_RENDER = 0, MINIMAP_QUIT = 1 };
@@ -302,7 +306,7 @@ static void minimap_task(void)
 Object *minimap_create_gadget(EditorApp *app)
 {
     app->minimap = NewObject(SPACE_GetClass(), NULL,
-        SPACE_MinWidth, MINIMAP_WIDTH,
+        SPACE_MinWidth, MINIMAP_MIN_WIDTH,
         SPACE_MinHeight, 1,
         SPACE_Transparent, FALSE,
         TAG_END);
@@ -382,7 +386,14 @@ void minimap_stop(EditorApp *app)
     app->minimap_ctx = NULL;
 }
 
-/* Toggle the visibility of the minimap column in the content layout. */
+/* Toggle the visibility of the minimap column in the content layout.
+ *
+ * Show/hide works exactly like the folder tree: the minimap child always stays
+ * in the layout and is only collapsed to zero width when hidden (never added or
+ * removed at runtime, which used to corrupt the cached layout domains and
+ * crash, and never by toggling the WeightBar, which left a growing stack of
+ * stray bars).  Showing the minimap always uses the default column width; the
+ * previous on-screen width is intentionally not remembered or restored. */
 void minimap_set_visible(EditorApp *app, int visible)
 {
     app->minimap_visible = visible;
@@ -390,16 +401,17 @@ void minimap_set_visible(EditorApp *app, int visible)
     if (app->window != NULL)
         SetGadgetAttrs((struct Gadget *)app->content_layout, app->window, NULL,
             LAYOUT_ModifyChild, (ULONG)app->minimap,
-            CHILD_MinWidth, visible ? MINIMAP_WIDTH : 0,
-            CHILD_MaxWidth, visible ? MINIMAP_WIDTH : 0,
-            CHILD_WeightedWidth, 0,
+            CHILD_MinWidth, visible ? MINIMAP_MIN_WIDTH : 0,
+            CHILD_MaxWidth, visible ? ~0UL : 0,
+            CHILD_WeightedWidth, visible ? MINIMAP_DEFAULT_WEIGHT : 0,
             TAG_END);
     else SetAttrs(app->content_layout,
         LAYOUT_ModifyChild, (ULONG)app->minimap,
-        CHILD_MinWidth, visible ? MINIMAP_WIDTH : 0,
-        CHILD_MaxWidth, visible ? MINIMAP_WIDTH : 0,
-        CHILD_WeightedWidth, 0,
+        CHILD_MinWidth, visible ? MINIMAP_MIN_WIDTH : 0,
+        CHILD_MaxWidth, visible ? ~0UL : 0,
+        CHILD_WeightedWidth, visible ? MINIMAP_DEFAULT_WEIGHT : 0,
         TAG_END);
+    app->minimap_attached = 1;
     ui_relayout(app);
 }
 
@@ -488,6 +500,41 @@ void minimap_poll(EditorApp *app)
     PutMsg(mm->request_port, &mm->request.msg);
 }
 
+/* Draw a simple raised bevel around the minimap's drawing area so the
+ * space.gadget looks like a framed panel.  The top and left edges use the
+ * screen's SHINEPEN and the bottom and right edges use its SHADOWPEN, which is
+ * the standard AmigaOS look for a raised border.  It is drawn on the window's
+ * RastPort after every blit (the blit fills the whole box first), so it always
+ * sits on top of the freshly rendered minimap contents. */
+static void minimap_draw_raised_border(EditorApp *app, struct IBox *box)
+{
+    struct RastPort *rp;
+    UWORD shine, shadow;
+    WORD left, top, right, bottom;
+    if (app->window == NULL || box == NULL) return;
+    if (box->Width < 2 || box->Height < 2) return;
+    rp = app->window->RPort;
+    shine = app->screen_draw_info != NULL
+        ? app->screen_draw_info->dri_Pens[SHINEPEN]
+        : (UWORD)app->editor_pens[EDITOR_COLOR_TEXT];
+    shadow = app->screen_draw_info != NULL
+        ? app->screen_draw_info->dri_Pens[SHADOWPEN]
+        : (UWORD)app->editor_pens[EDITOR_COLOR_TEXT];
+    left = box->Left;
+    top = box->Top;
+    right = (WORD)(box->Left + box->Width - 1);
+    bottom = (WORD)(box->Top + box->Height - 1);
+    /* Top and left highlighted edges. */
+    SetAPen(rp, (UBYTE)shine);
+    Move(rp, left, bottom);
+    Draw(rp, left, top);
+    Draw(rp, right, top);
+    /* Bottom and right shadowed edges. */
+    SetAPen(rp, (UBYTE)shadow);
+    Draw(rp, right, bottom);
+    Draw(rp, left, bottom);
+}
+
 /* Signal mask for the render task's replies, folded into the main Wait(). */
 ULONG minimap_signal_mask(EditorApp *app)
 {
@@ -510,9 +557,14 @@ void minimap_handle_reply(EditorApp *app)
             app->window != NULL) {
             struct IBox *box = NULL;
             GetAttr(SPACE_AreaBox, app->minimap, (ULONG *)&box);
-            if (box != NULL && box->Width > 0 && box->Height > 0)
+            if (box != NULL && box->Width > 0 && box->Height > 0) {
                 BltBitMapRastPort(req->result, 0, 0, app->window->RPort,
                     box->Left, box->Top, box->Width, box->Height, 0xC0);
+                /* The blit above fills the whole drawing area, so redraw the
+                 * raised border on top so the space.gadget keeps its framed
+                 * panel look. */
+                minimap_draw_raised_border(app, box);
+            }
         }
     }
     if (app->minimap_visible && mm->dirty && !mm->busy) minimap_poll(app);

@@ -53,7 +53,12 @@ scrolling operation completes (not while a scrollbar is being dragged) and
 after a window layout change. Rendering runs in a
 separate background task so the editor stays responsive; nothing is rendered
 while the minimap is hidden, updates are coalesced to the minimum (a single job
-is ever outstanding), and the task is stopped cleanly on exit.
+is ever outstanding), and the task is stopped cleanly on exit. Like the folder
+tree, the minimap column is resizable: a WeightBar between the editor and the
+minimap lets its width be dragged, and the render scales to whatever width the
+column is given. The minimap
+drawing area is framed by a raised bevel (drawn
+with the screen's `SHINEPEN` and `SHADOWPEN`) so it reads as a distinct panel.
 Every editor installs a white `GA_BackFill` hook plus an editor-local
 `DrawInfo` whose background pen is white, and reserves black for normal text
 with dark screen pens for keywords, strings, comments, and preprocessor lines.
