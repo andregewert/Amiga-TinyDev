@@ -335,6 +335,21 @@ void document_sync_scrollers(EditorApp *app, Document *doc)
     set_scroller_state(app, doc->hscroll, total, visible, top);
 }
 
+/* Enable or disable the TextEditor's syntax highlighting hook.  Highlighting is
+ * switched off while the user is actively dragging a scrollbar so that the
+ * per-line scanner does not run on every intermediate redraw, which otherwise
+ * makes scrollbar scrolling much slower than the gadget's own mouse-wheel
+ * scrolling. */
+static void set_highlight_enabled(EditorApp *app, Document *doc, int enabled)
+{
+    ULONG hook = enabled ? (ULONG)&doc->highlight.hook : 0;
+    if (doc == NULL) return;
+    if (app->window != NULL)
+        SetGadgetAttrs((struct Gadget *)doc->editor, app->window, NULL,
+            GA_TEXTEDITOR_HighlighterHook, hook, TAG_END);
+    else SetAttrs(doc->editor, GA_TEXTEDITOR_HighlighterHook, hook, TAG_END);
+}
+
 void document_scroll(EditorApp *app, int horizontal)
 {
     Document *doc = app->active;
@@ -350,4 +365,35 @@ void document_scroll(EditorApp *app, int horizontal)
     RefreshPageGadget((struct Gadget *)doc->page, app->pages,
                       app->window, NULL);
     document_sync_scrollers(app, doc);
+}
+
+/* Handle an intermediate scrollbar drag update.  On the first live update the
+ * highlighter hook is switched off so the rapid redraws that follow the mouse
+ * stay fast; the position of both axes is then mirrored onto the editor. */
+void document_scroll_live(EditorApp *app)
+{
+    if (app->active != NULL && !app->scrolling) {
+        set_highlight_enabled(app, app->active, 0);
+        app->scrolling = 1;
+    }
+    document_scroll(app, 0);
+    document_scroll(app, 1);
+}
+
+/* Handle the end of a scrollbar interaction (button release / arrow / page
+ * click).  After applying the final position, re-enable highlighting if it was
+ * disabled during a drag and force a full redraw so the visible lines are
+ * highlighted again. */
+void document_scroll_finish(EditorApp *app, int horizontal)
+{
+    document_scroll(app, horizontal);
+    if (app->scrolling) {
+        app->scrolling = 0;
+        if (app->active != NULL) {
+            set_highlight_enabled(app, app->active, 1);
+            if (app->window != NULL)
+                RefreshPageGadget((struct Gadget *)app->active->page,
+                                  app->pages, app->window, NULL);
+        }
+    }
 }

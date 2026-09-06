@@ -39,6 +39,9 @@ currently displayed document. The AISS toolbar provides New, Open, Save,
 Undo, Redo, Cut, Copy, and Paste. C highlighting recognizes standard C99 keywords,
 strings/character constants, preprocessor lines, `//` comments, and block
 comments. AmigaDOS keyword matching is case-insensitive and `;` begins a comment.
+To keep scrollbar dragging as smooth as the gadget's own mouse-wheel scrolling,
+syntax highlighting is suspended while a scrollbar is actively dragged and
+restored (with a full redraw) once the drag ends.
 Every editor installs a white `GA_BackFill` hook plus an editor-local
 `DrawInfo` whose background pen is white, and reserves black for normal text
 with dark screen pens for keywords, strings, comments, and preprocessor lines.

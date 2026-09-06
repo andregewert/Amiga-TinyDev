@@ -91,6 +91,7 @@ typedef struct EditorApp {
     long scroll_signal;
     int line_numbers;
     int tree_visible;
+    int scrolling;
     int running;
 } EditorApp;
 
@@ -122,6 +123,8 @@ void document_set_dirty(EditorApp *app, Document *doc, int dirty);
 void document_set_path(EditorApp *app, Document *doc, const char *path);
 void document_sync_scrollers(EditorApp *app, Document *doc);
 void document_scroll(EditorApp *app, int horizontal);
+void document_scroll_live(EditorApp *app);
+void document_scroll_finish(EditorApp *app, int horizontal);
 
 int file_load(EditorApp *app, Document *doc, const char *path);
 int file_save(EditorApp *app, Document *doc, const char *path);

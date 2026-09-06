@@ -11,7 +11,8 @@ The codebase intentionally handles file contents as 8-bit text.
 - `src/main.c`: library lifecycle, CLI/Workbench startup, and application entry.
 - `src/ui.c`: ReAction window, menus, toolbar, status line, event loop, and
   editor colors.
-- `src/document.c`: document/tab lifecycle and scrollbar synchronization.
+- `src/document.c`: document/tab lifecycle, scrollbar synchronization, and
+  scroll-time highlighting suspension.
 - `src/fileio.c`: loading, line-ending preservation, requesters, and safe saves.
 - `src/tree.c`: lazy, bounded directory tree loading.
 - `src/syntax.c`: language detection, scanners, and TextEditor highlighting hook.
@@ -70,6 +71,8 @@ make test
   selection.
 - Syntax scanning must remain usable independently of Amiga headers so the host
   test binary can compile.
+- Syntax highlighting is suspended while a scrollbar is actively dragged and
+  must be restored (with a redraw) when the drag ends.
 
 ## Change discipline
 

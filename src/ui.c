@@ -549,18 +549,15 @@ int ui_run(EditorApp *app)
     app->running = 1;
     while (app->running) {
         signals = Wait(mask | scroll_mask | SIGBREAKF_CTRL_C);
-        if ((signals & scroll_mask) != 0) {
-            document_scroll(app, 0);
-            document_scroll(app, 1);
-        }
+        if ((signals & scroll_mask) != 0) document_scroll_live(app);
         if (signals & SIGBREAKF_CTRL_C) { if (close_all(app)) break; }
         while ((result = DoMethod(app->window_object, WM_HANDLEINPUT, &code)) != WMHI_LASTMSG) {
             ULONG kind = result & WMHI_CLASSMASK;
             if (kind == WMHI_CLOSEWINDOW) { if (close_all(app)) app->running = 0; }
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_TABS) tab_event(app);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_TREE) tree_handle_event(app);
-            else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_VSCROLL) document_scroll(app, 0);
-            else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_HSCROLL) document_scroll(app, 1);
+            else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_VSCROLL) document_scroll_finish(app, 0);
+            else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_HSCROLL) document_scroll_finish(app, 1);
             else if (kind == WMHI_GADGETUP) toolbar_action(app, result & WMHI_GADGETMASK);
             else if (kind == WMHI_MENUPICK) {
                 struct Menu *strip = NULL; struct MenuItem *item;
