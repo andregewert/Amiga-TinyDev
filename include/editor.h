@@ -13,6 +13,16 @@
 #define EDITOR_MAX_FILE (8UL * 1024UL * 1024UL)
 #define EDITOR_PATH_MAX 1024
 #define EDITOR_TITLE_MAX 128
+#define EDITOR_COLOR_COUNT 6
+
+enum EditorColor {
+    EDITOR_COLOR_BACKGROUND = 0,
+    EDITOR_COLOR_TEXT,
+    EDITOR_COLOR_KEYWORD,
+    EDITOR_COLOR_STRING,
+    EDITOR_COLOR_COMMENT,
+    EDITOR_COLOR_PREPROCESSOR
+};
 
 enum GadgetId {
     GID_TABS = 1,
@@ -26,7 +36,7 @@ enum GadgetId {
 enum MenuId {
     MID_NEW = 1, MID_OPEN, MID_OPEN_DIRECTORY, MID_SAVE, MID_SAVE_AS, MID_CLOSE, MID_QUIT,
     MID_UNDO, MID_REDO, MID_CUT, MID_COPY, MID_PASTE, MID_SELECT_ALL,
-    MID_FOLDER_TREE, MID_LINE_NUMBERS, MID_FONT
+    MID_FOLDER_TREE, MID_LINE_NUMBERS
 };
 
 typedef enum LineEnding { EOL_LF = 0, EOL_CR = 1, EOL_CRLF = 2 } LineEnding;
@@ -64,12 +74,18 @@ typedef struct EditorApp {
     Object *tab_close_image;
     Object *tabs;
     Object *pages;
+    Object *statusbar;
     Object *toolbar_images[8];
     struct Window *window;
     struct Screen *screen;
-    struct TextFont *font;
-    struct TextAttr font_attr;
-    char *font_name;
+    struct DrawInfo *screen_draw_info;
+    struct DrawInfo editor_draw_info;
+    UWORD editor_draw_pens[NUMDRIPENS];
+    struct Hook editor_backfill_hook;
+    struct Hook tab_idcmp_hook;
+    struct Node *pending_close;
+    long editor_pens[EDITOR_COLOR_COUNT];
+    int editor_colors_open;
     char *tree_root;
     unsigned long next_document;
     long scroll_signal;
@@ -78,7 +94,7 @@ typedef struct EditorApp {
     int running;
 } EditorApp;
 
-extern struct Library *AslBase, *DiskfontBase, *GadToolsBase, *IconBase, *UtilityBase;
+extern struct Library *AslBase, *GadToolsBase, *IconBase, *UtilityBase;
 extern struct Library *WindowBase, *LayoutBase, *ClickTabBase, *TextFieldBase;
 extern struct Library *ButtonBase, *BitMapBase;
 extern struct Library *ListBrowserBase;
@@ -91,6 +107,7 @@ int ui_create(EditorApp *app);
 int ui_run(EditorApp *app);
 void ui_destroy(EditorApp *app);
 void ui_refresh(EditorApp *app);
+void ui_update_status(EditorApp *app);
 void ui_relayout(EditorApp *app);
 void ui_error(EditorApp *app, const char *title, const char *message);
 int ui_confirm_close(EditorApp *app, Document *doc);
@@ -110,11 +127,6 @@ int file_load(EditorApp *app, Document *doc, const char *path);
 int file_save(EditorApp *app, Document *doc, const char *path);
 int file_request_open(EditorApp *app);
 int file_request_save(EditorApp *app, Document *doc);
-
-int font_open_default(EditorApp *app);
-int font_request(EditorApp *app);
-void font_apply_all(EditorApp *app);
-void font_close(EditorApp *app);
 
 int tree_request_directory(EditorApp *app);
 void tree_clear(EditorApp *app);

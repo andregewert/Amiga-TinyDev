@@ -41,8 +41,17 @@ typedef struct SyntaxHookContext {
     struct Hook hook;
     SyntaxLanguage language;
     void *object;
+    unsigned short normal_pen;
+    unsigned short keyword_pen;
+    unsigned short string_pen;
+    unsigned short comment_pen;
+    unsigned short preprocessor_pen;
 } SyntaxHookContext;
 void syntax_init_hook(SyntaxHookContext *hook, SyntaxLanguage language);
+void syntax_set_pens(SyntaxHookContext *hook, unsigned short normal_pen,
+                     unsigned short keyword_pen, unsigned short string_pen,
+                     unsigned short comment_pen,
+                     unsigned short preprocessor_pen);
 #endif
 
 #endif

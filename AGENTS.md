@@ -9,10 +9,10 @@ The codebase intentionally handles file contents as 8-bit text.
 ## Repository layout
 
 - `src/main.c`: library lifecycle, CLI/Workbench startup, and application entry.
-- `src/ui.c`: ReAction window, menus, toolbar, event loop, and editor colors.
+- `src/ui.c`: ReAction window, menus, toolbar, status line, event loop, and
+  editor colors.
 - `src/document.c`: document/tab lifecycle and scrollbar synchronization.
 - `src/fileio.c`: loading, line-ending preservation, requesters, and safe saves.
-- `src/font.c`: fixed-width font selection and application.
 - `src/tree.c`: lazy, bounded directory tree loading.
 - `src/syntax.c`: language detection, scanners, and TextEditor highlighting hook.
 - `include/editor.h`: shared application types and cross-module declarations.
@@ -55,6 +55,7 @@ make test
   must remain guarded (for example, with `SYNTAX_HOST_TEST`).
 - Maintain the current 68000, 8-bit-text, and AmigaOS 3.2 compatibility unless
   a task explicitly changes those requirements.
+- Add documentation comments to functions, methods and type declarations
 
 ## Behavioral constraints
 
@@ -65,8 +66,8 @@ make test
 - Directory traversal must remain lazy and bounded to 16 levels and 2048
   visible entries; do not eagerly scan complete subtrees.
 - Toolbar images may be unavailable and must retain their text-button fallback.
-- Missing outline fonts must leave the previous font active; Topaz 8 remains
-  the default fallback.
+- The editor control always uses the default screen font; there is no font
+  selection.
 - Syntax scanning must remain usable independently of Amiga headers so the host
   test binary can compile.
 

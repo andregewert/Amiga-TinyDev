@@ -13,6 +13,7 @@
 #include <gadgets/layout.h>
 #include <gadgets/scroller.h>
 #include <gadgets/texteditor.h>
+#include <intuition/icclass.h>
 #include <clib/alib_protos.h>
 
 #include <stdio.h>
@@ -39,7 +40,9 @@ static Object *create_editor(EditorApp *app, Document *doc,
     return NewObject(TEXTEDITOR_GetClass(), NULL,
         GA_ID, (ULONG)(100 + doc->number),
         GA_RelVerify, TRUE,
-        GA_TextAttr, (ULONG)(app->font != NULL ? &app->font_attr : NULL),
+        ICA_TARGET, (ULONG)ICTARGET_IDCMP,
+        GA_BackFill, (ULONG)&app->editor_backfill_hook,
+        GA_DrawInfo, (ULONG)&app->editor_draw_info,
         GA_TEXTEDITOR_Contents, (ULONG)contents,
         GA_TEXTEDITOR_FixedFont, TRUE,
         GA_TEXTEDITOR_WrapBorder, 0,
@@ -89,6 +92,12 @@ Document *document_new(EditorApp *app)
     doc->eol = EOL_LF;
     doc->language = SYNTAX_PLAIN;
     syntax_init_hook(&doc->highlight, doc->language);
+    syntax_set_pens(&doc->highlight,
+        (UWORD)app->editor_pens[EDITOR_COLOR_TEXT],
+        (UWORD)app->editor_pens[EDITOR_COLOR_KEYWORD],
+        (UWORD)app->editor_pens[EDITOR_COLOR_STRING],
+        (UWORD)app->editor_pens[EDITOR_COLOR_COMMENT],
+        (UWORD)app->editor_pens[EDITOR_COLOR_PREPROCESSOR]);
     doc->editor = create_editor(app, doc, "");
     if (doc->editor == NULL) { FreeVec(doc); ui_error(app, "AmiEditor", "Could not create TextEditor gadget."); return NULL; }
     doc->vscroll = NewObject(SCROLLER_GetClass(), NULL,

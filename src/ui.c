@@ -8,15 +8,21 @@
 #include <images/bitmap.h>
 #include <images/glyph.h>
 #include <libraries/gadtools.h>
+#include <graphics/gfx.h>
+#include <graphics/rastport.h>
+#include <graphics/view.h>
+#include <intuition/icclass.h>
 #include <proto/clicktab.h>
 #include <proto/button.h>
 #include <proto/bitmap.h>
 #include <proto/glyph.h>
 #include <proto/exec.h>
+#include <proto/graphics.h>
 #include <proto/intuition.h>
 #include <proto/layout.h>
 #include <proto/listbrowser.h>
 #include <proto/texteditor.h>
+#include <proto/utility.h>
 #include <proto/window.h>
 #include <clib/alib_protos.h>
 #include <reaction/reaction.h>
@@ -26,6 +32,125 @@
 
 #define UD(id) ((APTR)(ULONG)(id))
 #define TOOLBAR_ICON_SPACING 4
+
+typedef struct EditorBackFillMessage {
+    struct Layer *layer;
+    struct Rectangle bounds;
+    LONG offset_x;
+    LONG offset_y;
+} EditorBackFillMessage;
+
+static ULONG editor_backfill_entry(struct Hook *hook, struct RastPort *rast_port,
+                                   EditorBackFillMessage *message)
+{
+    EditorApp *app = (EditorApp *)hook->h_Data;
+    UBYTE old_pen;
+    if (app == NULL || rast_port == NULL || message == NULL) return 0;
+    old_pen = (UBYTE)GetAPen(rast_port);
+    SetAPen(rast_port,
+            (UBYTE)app->editor_pens[EDITOR_COLOR_BACKGROUND]);
+    RectFill(rast_port, message->bounds.MinX, message->bounds.MinY,
+             message->bounds.MaxX, message->bounds.MaxY);
+    SetAPen(rast_port, old_pen);
+    return 0;
+}
+
+/* window.class IDCMP hook.  The clicktab.gadget delivers a tab close only as
+ * an IDCMP_IDCMPUPDATE notification (see the ICA_TARGET tag on the clicktab
+ * object); enabling the IDCMPUPDATE class through WINDOW_IDCMPHookBits lets us
+ * receive it here and extract the closed node directly from the message tag
+ * list.  Reading CLICKTAB_NodeClosed via GetAttr is not reliable, hence the
+ * hook.  We only remember the node and defer the actual document_close() to
+ * the event loop, because disposing gadgets from within input handling is
+ * unsafe. */
+static ULONG tab_idcmp_entry(struct Hook *hook, Object *win,
+                             struct IntuiMessage *msg)
+{
+    EditorApp *app = (EditorApp *)hook->h_Data;
+    (void)win;
+    if (app != NULL && msg != NULL && msg->Class == IDCMP_IDCMPUPDATE) {
+        struct TagItem *tags = (struct TagItem *)msg->IAddress;
+        struct Node *node =
+            (struct Node *)GetTagData(CLICKTAB_NodeClosed, 0, tags);
+        if (node != NULL) app->pending_close = node;
+    }
+    return (ULONG)msg;
+}
+
+static int open_editor_colors(EditorApp *app)
+{
+    static const ULONG rgb[EDITOR_COLOR_COUNT][3] = {
+        {0xffffffffUL, 0xffffffffUL, 0xffffffffUL},
+        {0x00000000UL, 0x00000000UL, 0x00000000UL},
+        {0x10101010UL, 0x30303030UL, 0xa0a0a0a0UL},
+        {0x10101010UL, 0x70707070UL, 0x10101010UL},
+        {0x50505050UL, 0x60606060UL, 0x50505050UL},
+        {0x80808080UL, 0x20202020UL, 0x70707070UL}
+    };
+    struct TagItem tags[] = {
+        {OBP_Precision, PRECISION_GUI},
+        {OBP_FailIfBad, FALSE},
+        {TAG_END, 0}
+    };
+    struct TagItem white_tags[] = {
+        {OBP_Precision, (ULONG)PRECISION_EXACT},
+        {OBP_FailIfBad, TRUE},
+        {TAG_END, 0}
+    };
+    int i;
+    struct ColorMap *color_map = app->screen->ViewPort.ColorMap;
+
+    for (i = 0; i < EDITOR_COLOR_COUNT; ++i) app->editor_pens[i] = -1;
+    for (i = 0; i < EDITOR_COLOR_COUNT; ++i) {
+        app->editor_pens[i] = ObtainBestPenA(color_map, rgb[i][0], rgb[i][1],
+                                             rgb[i][2], i == EDITOR_COLOR_BACKGROUND
+                                             ? white_tags : tags);
+        if (app->editor_pens[i] < 0) {
+            while (--i >= 0) ReleasePen(color_map, (ULONG)app->editor_pens[i]);
+            return 0;
+        }
+    }
+    app->screen_draw_info = GetScreenDrawInfo(app->screen);
+    if (app->screen_draw_info == NULL ||
+        app->screen_draw_info->dri_NumPens < NUMDRIPENS) {
+        if (app->screen_draw_info != NULL) {
+            FreeScreenDrawInfo(app->screen, app->screen_draw_info);
+            app->screen_draw_info = NULL;
+        }
+        for (i = EDITOR_COLOR_COUNT - 1; i >= 0; --i)
+            ReleasePen(color_map, (ULONG)app->editor_pens[i]);
+        return 0;
+    }
+    app->editor_draw_info = *app->screen_draw_info;
+    memcpy(app->editor_draw_pens, app->screen_draw_info->dri_Pens,
+           sizeof(app->editor_draw_pens));
+    app->editor_draw_pens[BACKGROUNDPEN] =
+        (UWORD)app->editor_pens[EDITOR_COLOR_BACKGROUND];
+    app->editor_draw_pens[TEXTPEN] =
+        (UWORD)app->editor_pens[EDITOR_COLOR_TEXT];
+    app->editor_draw_info.dri_Pens = app->editor_draw_pens;
+    app->editor_draw_info.dri_NumPens = NUMDRIPENS;
+    memset(&app->editor_backfill_hook, 0, sizeof(app->editor_backfill_hook));
+    app->editor_backfill_hook.h_Entry = (ULONG (*)())HookEntry;
+    app->editor_backfill_hook.h_SubEntry = (ULONG (*)())editor_backfill_entry;
+    app->editor_backfill_hook.h_Data = app;
+    app->editor_colors_open = 1;
+    return 1;
+}
+
+static void close_editor_colors(EditorApp *app)
+{
+    int i;
+    if (!app->editor_colors_open || app->screen == NULL) return;
+    if (app->screen_draw_info != NULL) {
+        FreeScreenDrawInfo(app->screen, app->screen_draw_info);
+        app->screen_draw_info = NULL;
+    }
+    for (i = EDITOR_COLOR_COUNT - 1; i >= 0; --i)
+        ReleasePen(app->screen->ViewPort.ColorMap, (ULONG)app->editor_pens[i]);
+    app->editor_colors_open = 0;
+}
+
 static struct NewMenu menus[] = {
     {NM_TITLE, "Project", NULL, 0, 0, NULL},
     {NM_ITEM, "New", "N", 0, 0, UD(MID_NEW)},
@@ -47,8 +172,6 @@ static struct NewMenu menus[] = {
     {NM_TITLE, "View", NULL, 0, 0, NULL},
     {NM_ITEM, "Folder Tree", NULL, CHECKIT | MENUTOGGLE | CHECKED, 0, UD(MID_FOLDER_TREE)},
     {NM_ITEM, "Line Numbers", NULL, CHECKIT | MENUTOGGLE | CHECKED, 0, UD(MID_LINE_NUMBERS)},
-    {NM_TITLE, "Settings", NULL, 0, 0, NULL},
-    {NM_ITEM, "Font...", NULL, 0, 0, UD(MID_FONT)},
     {NM_END, NULL, NULL, 0, 0, NULL}
 };
 
@@ -82,6 +205,28 @@ void ui_refresh(EditorApp *app)
     else snprintf(window_title, sizeof(window_title), "AmiEditor - %s%s",
                   app->active->title, app->active->dirty ? "*" : "");
     if (app->window_object != NULL) SetAttrs(app->window_object, WA_Title, (ULONG)window_title, TAG_END);
+}
+
+/* Refresh the bottom status line with the number of open documents and the
+ * line count of the currently displayed document. */
+void ui_update_status(EditorApp *app)
+{
+    static char status_text[64];
+    unsigned long doc_count = 0;
+    ULONG lines = 0;
+    Document *doc;
+    for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ;
+         doc = (Document *)doc->node.ln_Succ)
+        ++doc_count;
+    if (app->active != NULL)
+        GetAttr(GA_TEXTEDITOR_Prop_Entries, app->active->editor, &lines);
+    snprintf(status_text, sizeof(status_text),
+             "Documents: %lu  Lines: %lu", doc_count, (unsigned long)lines);
+    if (app->statusbar == NULL) return;
+    if (app->window != NULL)
+        SetGadgetAttrs((struct Gadget *)app->statusbar, app->window, NULL,
+            GA_Text, (ULONG)status_text, TAG_END);
+    else SetAttrs(app->statusbar, GA_Text, (ULONG)status_text, TAG_END);
 }
 
 void ui_relayout(EditorApp *app)
@@ -157,10 +302,14 @@ int ui_create(EditorApp *app)
 {
     app->screen = LockPubScreen(NULL);
     if (app->screen == NULL) return 0;
+    if (!open_editor_colors(app)) {
+        ui_error(app, "AmiEditor", "Could not reserve editor colors on the public screen.");
+        return 0;
+    }
     app->pages = NewObject(PAGE_GetClass(), NULL, PAGE_NoDispose, TRUE, TAG_END);
     if (app->pages == NULL) return 0;
     app->tab_close_image = NewObject(BITMAP_GetClass(), NULL,
-        BITMAP_SourceFile, (ULONG)"TBImages:Close",
+        BITMAP_SourceFile, (ULONG)"TBImages:list_remove",
         BITMAP_Screen, (ULONG)app->screen,
         BITMAP_Masking, TRUE,
         BITMAP_Transparent, TRUE,
@@ -174,12 +323,18 @@ int ui_create(EditorApp *app)
         CLICKTAB_AutoFit, TRUE,
         CLICKTAB_CloseImage, (ULONG)app->tab_close_image,
         CLICKTAB_ClosePlacement, PLACECLOSE_LEFT,
+        /* The clicktab.gadget does NOT emit a GADGETUP when a tab close
+         * gadget is used (the autodocs are wrong on this point).  The
+         * close event is only delivered through the interconnection
+         * (icclass) notification chain, so target the window IDCMP to
+         * receive it as a WMHI_GADGETUP that tab_event() can react to. */
+        ICA_TARGET, (ULONG)ICTARGET_IDCMP,
         TAG_END);
     if (app->tabs == NULL) return 0;
     app->tree_show_image = NewObject(GLYPH_GetClass(), NULL,
-        GLYPH_Glyph, GLYPH_DOWNARROW, TAG_END);
-    app->tree_hide_image = NewObject(GLYPH_GetClass(), NULL,
         GLYPH_Glyph, GLYPH_RIGHTARROW, TAG_END);
+    app->tree_hide_image = NewObject(GLYPH_GetClass(), NULL,
+        GLYPH_Glyph, GLYPH_DOWNARROW, TAG_END);
     if (app->tree_show_image == NULL || app->tree_hide_image == NULL) return 0;
     app->tree = NewObject(LISTBROWSER_GetClass(), NULL,
         GA_ID, GID_TREE,
@@ -205,14 +360,27 @@ int ui_create(EditorApp *app)
         CHILD_WeightedWidth, 75,
         TAG_END);
     if (app->content_layout == NULL) return 0;
+    app->statusbar = NewObject(BUTTON_GetClass(), NULL,
+        GA_ReadOnly, TRUE,
+        GA_Text, (ULONG)"Documents: 0  Lines: 0",
+        BUTTON_BevelStyle, BVS_DISPLAY,
+        BUTTON_Justification, BCJ_LEFT,
+        TAG_END);
+    if (app->statusbar == NULL) return 0;
     app->layout = NewObject(LAYOUT_GetClass(), NULL,
         LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
         LAYOUT_AddChild, (ULONG)app->toolbar,
         CHILD_WeightedHeight, 0,
         LAYOUT_AddChild, (ULONG)app->content_layout,
         CHILD_WeightedHeight, 100,
+        LAYOUT_AddChild, (ULONG)app->statusbar,
+        CHILD_WeightedHeight, 0,
         TAG_END);
     if (app->layout == NULL) return 0;
+    memset(&app->tab_idcmp_hook, 0, sizeof(app->tab_idcmp_hook));
+    app->tab_idcmp_hook.h_Entry = (ULONG (*)())HookEntry;
+    app->tab_idcmp_hook.h_SubEntry = (ULONG (*)())tab_idcmp_entry;
+    app->tab_idcmp_hook.h_Data = app;
     app->window_object = NewObject(WINDOW_GetClass(), NULL,
         WA_Title, (ULONG)"AmiEditor", WA_DragBar, TRUE, WA_DepthGadget, TRUE,
         WA_CloseGadget, TRUE, WA_SizeGadget, TRUE, WA_Activate, TRUE,
@@ -222,6 +390,11 @@ int ui_create(EditorApp *app)
         WINDOW_NewMenu, (ULONG)menus,
         WINDOW_MenuUserData, WGUD_IGNORE,
         WINDOW_ParentGroup, (ULONG)app->layout,
+        /* Enable the IDCMPUPDATE class so the clicktab close notification
+         * (routed to the window IDCMP via ICA_TARGET) actually reaches us
+         * through this hook. */
+        WINDOW_IDCMPHook, (ULONG)&app->tab_idcmp_hook,
+        WINDOW_IDCMPHookBits, (ULONG)IDCMP_IDCMPUPDATE,
         TAG_END);
     if (app->window_object == NULL) return 0;
     if (IsListEmpty(&app->documents) && document_new(app) == NULL) return 0;
@@ -229,12 +402,26 @@ int ui_create(EditorApp *app)
     if (app->window == NULL) return 0;
     ui_relayout(app);
     document_activate(app, app->active);
+    ui_update_status(app);
     return 1;
 }
 
 static void editor_command(EditorApp *app, const char *command)
 {
-    if (app->active != NULL) DoMethod(app->active->editor, GM_TEXTEDITOR_ARexxCmd, NULL, (STRPTR)command);
+    if (app->active == NULL) return;
+    DoMethod(app->active->editor, GM_TEXTEDITOR_ARexxCmd, NULL, (STRPTR)command);
+    /* Toolbar buttons and menu picks steal the input focus from the editor
+     * gadget, so a command issued through them (Undo/Redo/Cut/Copy/Paste)
+     * changes the buffer without the gadget redrawing right away.  Force an
+     * immediate refresh and hand the focus back to the editor so the new
+     * contents and caret appear at once. */
+    if (app->window != NULL) {
+        RefreshGList((struct Gadget *)app->active->editor, app->window, NULL, 1);
+        if (app->layout != NULL)
+            ActivateLayoutGadget((struct Gadget *)app->layout, app->window,
+                                 NULL, (ULONG)(100 + app->active->number));
+    }
+    document_sync_scrollers(app, app->active);
 }
 
 static int save_active(EditorApp *app, int save_as)
@@ -285,7 +472,6 @@ static void menu_action(EditorApp *app, ULONG id)
                 RefreshPageGadget((struct Gadget *)app->active->page,
                                   app->pages, app->window, NULL);
             break;
-        case MID_FONT: font_request(app); break;
     }
 }
 
@@ -303,17 +489,42 @@ static void toolbar_action(EditorApp *app, ULONG id)
     }
 }
 
+/* Close the document whose tab close gadget was used.  The close node is
+ * captured by tab_idcmp_entry() from the clicktab's IDCMPUPDATE notification;
+ * this is called on every event-loop wake-up (and before a tab switch) to act
+ * on a pending close outside of raw input handling. */
+static void tab_check_closed(EditorApp *app)
+{
+    ULONG value = 0; struct Node *node; Document *doc = NULL;
+    if (app->tabs == NULL) return;
+    /* The IDCMP hook records a closed node from the clicktab's IDCMPUPDATE
+     * notification; fall back to querying the attribute directly in case a
+     * value was set without a delivered notification. */
+    node = app->pending_close;
+    app->pending_close = NULL;
+    if (node == NULL) {
+        GetAttr(CLICKTAB_NodeClosed, app->tabs, &value);
+        node = (struct Node *)value;
+    }
+    if (node == NULL) return;
+    GetClickTabNodeAttrs(node, TNA_UserData, (ULONG)&doc, TAG_END);
+    /* Clear the close-node right away: the gadget keeps returning the last
+     * closed node until it is reset, which would otherwise make us close the
+     * same document again and dereference a node that document_close() has
+     * already freed. */
+    if (app->window != NULL)
+        SetGadgetAttrs((struct Gadget *)app->tabs, app->window, NULL,
+            CLICKTAB_NodeClosed, (ULONG)NULL, TAG_END);
+    else SetAttrs(app->tabs, CLICKTAB_NodeClosed, (ULONG)NULL, TAG_END);
+    if (doc != NULL) document_close(app, doc, 1);
+}
+
 static void tab_event(EditorApp *app)
 {
     ULONG value = 0; struct Node *node = NULL; Document *doc;
-    GetAttr(CLICKTAB_NodeClosed, app->tabs, &value);
-    node = (struct Node *)value;
-    if (node != NULL) {
-        doc = NULL;
-        GetClickTabNodeAttrs(node, TNA_UserData, (ULONG)&doc, TAG_END);
-        if (doc != NULL) document_close(app, doc, 1);
-        return;
-    }
+    /* A close gadget click may arrive together with a tab switch; handle a
+     * pending close first so we never switch to a tab that is about to go. */
+    tab_check_closed(app);
     GetAttr(CLICKTAB_CurrentNode, app->tabs, &value);
     node = (struct Node *)value;
     if (node != NULL) {
@@ -325,6 +536,7 @@ static void tab_event(EditorApp *app)
             if (app->window != NULL)
                 RefreshPageGadget((struct Gadget *)doc->page, app->pages,
                                   app->window, NULL);
+            document_sync_scrollers(app, doc);
         }
     }
 }
@@ -356,9 +568,24 @@ int ui_run(EditorApp *app)
                 item = strip != NULL ? ItemAddress(strip, (UWORD)(result & WMHI_MENUMASK)) : NULL;
                 if (item != NULL) menu_action(app, (ULONG)GTMENUITEM_USERDATA(item));
             }
-            if (app->active != NULL) { ULONG changed = 0; GetAttr(GA_TEXTEDITOR_HasChanged, app->active->editor, &changed); if (changed) document_set_dirty(app, app->active, 1); }
-            document_sync_scrollers(app, app->active);
         }
+        /* The texteditor gadget does not notify listeners when the user
+         * scrolls it from the keyboard or mouse, so re-read its scroll
+         * position after every batch of input events (the window wakes us
+         * for each key/mouse event) and mirror it onto the scrollbars.  The
+         * sync has to happen here instead of inside the WM_HANDLEINPUT loop
+         * because that loop body is skipped once WM_HANDLEINPUT returns
+         * WMHI_LASTMSG. */
+        if (app->active != NULL) {
+            ULONG changed = 0;
+            GetAttr(GA_TEXTEDITOR_HasChanged, app->active->editor, &changed);
+            if (changed) document_set_dirty(app, app->active, 1);
+        }
+        /* The close gadgets on the tabs do not generate a dedicated event, so
+         * check for a pending tab close on every wake-up as well. */
+        tab_check_closed(app);
+        document_sync_scrollers(app, app->active);
+        ui_update_status(app);
     }
     return 1;
 }
@@ -374,6 +601,7 @@ void ui_destroy(EditorApp *app)
     }
     else if (app->layout != NULL) DisposeObject(app->layout);
     else {
+        if (app->statusbar != NULL) DisposeObject(app->statusbar);
         if (app->toolbar != NULL) DisposeObject(app->toolbar);
         if (app->content_layout != NULL) DisposeObject(app->content_layout);
         else {
@@ -387,8 +615,10 @@ void ui_destroy(EditorApp *app)
     if (app->tree_show_image != NULL) DisposeObject(app->tree_show_image);
     if (app->tree_hide_image != NULL) DisposeObject(app->tree_hide_image);
     if (app->tab_close_image != NULL) DisposeObject(app->tab_close_image);
+    close_editor_colors(app);
     if (app->screen != NULL) UnlockPubScreen(NULL, app->screen);
     app->window_object = app->layout = app->toolbar = app->content_layout = NULL;
+    app->statusbar = NULL;
     app->tree = app->tabs = app->pages = NULL;
     app->tree_show_image = app->tree_hide_image = NULL;
     app->tab_close_image = NULL;

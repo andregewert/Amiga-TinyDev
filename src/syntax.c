@@ -169,10 +169,22 @@ static void format_span(void *context, const SyntaxSpan *span)
     SyntaxHookContext *hc = (SyntaxHookContext *)context;
     UWORD style = 0;
     switch (span->style) {
-        case SYNTAX_KEYWORD: style = TBSTYLE_BOLD | TBSTYLE_SETCOLOR | (2U << 8); break;
-        case SYNTAX_STRING: style = TBSTYLE_SETCOLOR | (3U << 8); break;
-        case SYNTAX_COMMENT: style = TBSTYLE_ITALIC | TBSTYLE_SETCOLOR | (4U << 8); break;
-        case SYNTAX_PREPROCESSOR: style = TBSTYLE_BOLD | TBSTYLE_SETCOLOR | (5U << 8); break;
+        case SYNTAX_KEYWORD:
+            style = (UWORD)(TBSTYLE_BOLD | TBSTYLE_SETCOLOR |
+                            ((hc->keyword_pen & 0xffU) << 8));
+            break;
+        case SYNTAX_STRING:
+            style = (UWORD)(TBSTYLE_SETCOLOR |
+                            ((hc->string_pen & 0xffU) << 8));
+            break;
+        case SYNTAX_COMMENT:
+            style = (UWORD)(TBSTYLE_ITALIC | TBSTYLE_SETCOLOR |
+                            ((hc->comment_pen & 0xffU) << 8));
+            break;
+        case SYNTAX_PREPROCESSOR:
+            style = (UWORD)(TBSTYLE_BOLD | TBSTYLE_SETCOLOR |
+                            ((hc->preprocessor_pen & 0xffU) << 8));
+            break;
         default: style = 0; break;
     }
     HighlightSetFormat(hc->object, (ULONG)span->start, (ULONG)span->end, style);
@@ -182,8 +194,11 @@ static ULONG highlight_entry(struct Hook *hook, APTR object, APTR message)
 {
     SyntaxHookContext *hc = (SyntaxHookContext *)hook;
     struct HighlightMessage *hm = (struct HighlightMessage *)message;
+    UWORD normal_style;
     hc->object = object;
-    HighlightSetFormat(object, 0, (ULONG)strlen(hm->Text), 0);
+    normal_style = (UWORD)(TBSTYLE_SETCOLOR |
+                           ((hc->normal_pen & 0xffU) << 8));
+    HighlightSetFormat(object, 0, (ULONG)strlen(hm->Text), normal_style);
     return (ULONG)syntax_scan_line(hc->language, hm->Text,
         (SyntaxState)hm->StatusOfPrevBlock, format_span, hc);
 }
@@ -194,5 +209,17 @@ void syntax_init_hook(SyntaxHookContext *hc, SyntaxLanguage language)
     hc->hook.h_Entry = (ULONG (*)())HookEntry;
     hc->hook.h_SubEntry = (ULONG (*)())highlight_entry;
     hc->language = language;
+}
+
+void syntax_set_pens(SyntaxHookContext *hc, unsigned short normal_pen,
+                     unsigned short keyword_pen, unsigned short string_pen,
+                     unsigned short comment_pen,
+                     unsigned short preprocessor_pen)
+{
+    hc->normal_pen = normal_pen;
+    hc->keyword_pen = keyword_pen;
+    hc->string_pen = string_pen;
+    hc->comment_pen = comment_pen;
+    hc->preprocessor_pen = preprocessor_pen;
 }
 #endif

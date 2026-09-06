@@ -15,7 +15,6 @@
 #include <string.h>
 
 struct Library *AslBase = NULL;
-struct Library *DiskfontBase = NULL;
 struct Library *GadToolsBase = NULL;
 struct Library *IconBase = NULL;
 struct Library *UtilityBase = NULL;
@@ -69,7 +68,6 @@ int app_open_libraries(int from_workbench)
     }
     return open_one(&UtilityBase, "utility.library", 47) &&
            open_one(&AslBase, "asl.library", 47) &&
-           open_one(&DiskfontBase, "diskfont.library", 47) &&
            open_one(&GadToolsBase, "gadtools.library", 47) &&
            open_one(&IconBase, "icon.library", 47) &&
            open_one(&WindowBase, "window.class", 47) &&
@@ -90,7 +88,7 @@ void app_close_libraries(void)
     CLOSE_BASE(ScrollerBase); CLOSE_BASE(GlyphBase); CLOSE_BASE(BitMapBase);
     CLOSE_BASE(ButtonBase); CLOSE_BASE(LayoutBase);
     CLOSE_BASE(WindowBase); CLOSE_BASE(IconBase); CLOSE_BASE(GadToolsBase);
-    CLOSE_BASE(DiskfontBase); CLOSE_BASE(AslBase); CLOSE_BASE(UtilityBase);
+    CLOSE_BASE(AslBase); CLOSE_BASE(UtilityBase);
     if (GfxBase != NULL && GfxBase != old_gfx_base) CloseLibrary((struct Library *)GfxBase);
     if (IntuitionBase != NULL && IntuitionBase != old_intuition_base) CloseLibrary((struct Library *)IntuitionBase);
     GfxBase = old_gfx_base; IntuitionBase = old_intuition_base;
@@ -128,14 +126,13 @@ int main(int argc, char **argv)
         fprintf(stderr, "AmiEditor: no free signal for live scrolling\n");
         goto done;
     }
-    if (!font_open_default(&app)) fprintf(stderr, "AmiEditor: topaz.font unavailable; using the screen font\n");
     if (!ui_create(&app)) { fprintf(stderr, "AmiEditor: could not create the ReAction window\n"); goto done; }
     if (argc == 0) open_workbench_files(&app, (struct WBStartup *)argv);
     else open_cli_files(&app, argc, argv);
     if (IsListEmpty(&app.documents)) document_new(&app);
     ui_run(&app); status = 0;
 done:
-    ui_destroy(&app); font_close(&app);
+    ui_destroy(&app);
     if (app.scroll_signal >= 0) FreeSignal((BYTE)app.scroll_signal);
     app_close_libraries();
     return status;
