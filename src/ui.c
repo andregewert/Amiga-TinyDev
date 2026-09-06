@@ -100,6 +100,7 @@ static int open_editor_colors(EditorApp *app)
     int i;
     struct ColorMap *color_map = app->screen->ViewPort.ColorMap;
 
+    app->minimap_view_pen = -1;
     for (i = 0; i < EDITOR_COLOR_COUNT; ++i) app->editor_pens[i] = -1;
     for (i = 0; i < EDITOR_COLOR_COUNT; ++i) {
         app->editor_pens[i] = ObtainBestPenA(color_map, rgb[i][0], rgb[i][1],
@@ -130,6 +131,11 @@ static int open_editor_colors(EditorApp *app)
         (UWORD)app->editor_pens[EDITOR_COLOR_TEXT];
     app->editor_draw_info.dri_Pens = app->editor_draw_pens;
     app->editor_draw_info.dri_NumPens = NUMDRIPENS;
+    /* A grey slightly darker than the editor's BACKGROUNDPEN, used to tint the
+     * minimap's visible-area viewport rectangle.  Obtaining it is non-fatal:
+     * if it fails the minimap falls back to its plain background. */
+    app->minimap_view_pen = ObtainBestPenA(color_map, 0x88888888UL,
+                                           0x88888888UL, 0x88888888UL, tags);
     memset(&app->editor_backfill_hook, 0, sizeof(app->editor_backfill_hook));
     app->editor_backfill_hook.h_Entry = (ULONG (*)())HookEntry;
     app->editor_backfill_hook.h_SubEntry = (ULONG (*)())editor_backfill_entry;
@@ -145,6 +151,10 @@ static void close_editor_colors(EditorApp *app)
     if (app->screen_draw_info != NULL) {
         FreeScreenDrawInfo(app->screen, app->screen_draw_info);
         app->screen_draw_info = NULL;
+    }
+    if (app->minimap_view_pen >= 0) {
+        ReleasePen(app->screen->ViewPort.ColorMap, (ULONG)app->minimap_view_pen);
+        app->minimap_view_pen = -1;
     }
     for (i = EDITOR_COLOR_COUNT - 1; i >= 0; --i)
         ReleasePen(app->screen->ViewPort.ColorMap, (ULONG)app->editor_pens[i]);

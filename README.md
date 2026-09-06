@@ -45,7 +45,12 @@ restored (with a full redraw) once the drag ends.
 An optional colored minimap can be toggled from the View menu. It appears as a
 column on the right of the window (below the toolbar, beside the editor) and
 renders the active document using the same syntax colors on the same grey
-background the editor shows (the screen's `BACKGROUNDPEN`). Rendering runs in a
+background the editor shows (the screen's `BACKGROUNDPEN`). It also draws a
+simple frame with a slightly darker background that marks the vertically
+visible portion of the editor; only the vertical range matters, so the box
+always spans the full minimap width. This viewport is refreshed after a
+scrolling operation completes (not while a scrollbar is being dragged) and
+after a window layout change. Rendering runs in a
 separate background task so the editor stays responsive; nothing is rendered
 while the minimap is hidden, updates are coalesced to the minimum (a single job
 is ever outstanding), and the task is stopped cleanly on exit.

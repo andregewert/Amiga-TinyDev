@@ -89,6 +89,7 @@ typedef struct EditorApp {
     struct Hook tab_idcmp_hook;
     struct Node *pending_close;
     long editor_pens[EDITOR_COLOR_COUNT];
+    long minimap_view_pen;
     int editor_colors_open;
     char *tree_root;
     unsigned long next_document;

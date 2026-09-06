@@ -41,6 +41,11 @@ typedef struct MinimapRequest {
     SyntaxLanguage language;
     UWORD pens[EDITOR_COLOR_COUNT];
     UWORD background;               /* screen BACKGROUNDPEN, matches the editor */
+    UWORD view_fill;                /* slightly darker tint of the viewport box */
+    UWORD view_border;              /* frame colour around the viewport box */
+    ULONG view_first;               /* first visible line (Prop units) */
+    ULONG view_visible;             /* visible line span (Prop units) */
+    ULONG view_total;               /* total document extent (Prop units) */
     LONG width;
     LONG height;
     ULONG depth;
@@ -69,6 +74,14 @@ struct Minimap {
     struct BitMap *bitmap;
     LONG bm_width;
     LONG bm_height;
+    /* Last drawing-area size seen by the main task, used to notice layout
+     * changes (e.g. WeightBar drags) that resize the space.gadget without a
+     * WMHI_NEWSIZE event. */
+    LONG last_width;
+    LONG last_height;
+    /* Last vertical scroll position seen by the main task, used to re-render the
+     * viewport overlay after (not during) a scrolling operation. */
+    LONG last_first;
     char *linebuf;
     size_t linebuf_size;
     unsigned char *stylebuf;
@@ -148,6 +161,8 @@ static void minimap_render(struct Minimap *mm, MinimapRequest *req)
     ULONG total_lines;
     ULONG line = 0;
     LONG width = req->width, height = req->height;
+    LONG view_top = 0, view_bottom = 0;
+    int have_view = 0;
     SyntaxState state = SYNTAX_STATE_NORMAL;
 
     req->result = NULL;
@@ -170,6 +185,24 @@ static void minimap_render(struct Minimap *mm, MinimapRequest *req)
      * that same pen to match the editor's grey background rather than the
      * reserved white EDITOR_COLOR_BACKGROUND pen. */
     SetRast(&rp, (UBYTE)req->background);
+
+    /* Compute the vertical extent of the editor's currently visible region and
+     * tint it with a slightly darker background before the text is drawn, so the
+     * viewport rectangle shows through behind the rendered lines.  Only the
+     * vertical range matters; the box always spans the full width. */
+    if (req->view_total > 0 && req->view_visible > 0) {
+        view_top = (LONG)((unsigned long long)req->view_first * (ULONG)height /
+                          req->view_total);
+        view_bottom = (LONG)((unsigned long long)(req->view_first +
+                             req->view_visible) * (ULONG)height / req->view_total);
+        if (view_bottom > height) view_bottom = height;
+        if (view_bottom <= view_top) view_bottom = view_top + 1;
+        if (view_bottom > height) view_bottom = height;
+        have_view = 1;
+        SetAPen(&rp, (UBYTE)req->view_fill);
+        RectFill(&rp, 0, (WORD)view_top, (WORD)(width - 1),
+                 (WORD)(view_bottom - 1));
+    }
 
     total_lines = minimap_count_lines(req->text);
     p = req->text != NULL ? req->text : "";
@@ -203,6 +236,16 @@ static void minimap_render(struct Minimap *mm, MinimapRequest *req)
         }
         p = next;
         ++line;
+    }
+    /* Draw the simple frame around the visible-area viewport on top of the text
+     * so it stays visible regardless of the rendered content. */
+    if (have_view) {
+        SetAPen(&rp, (UBYTE)req->view_border);
+        Move(&rp, 0, (WORD)view_top);
+        Draw(&rp, (WORD)(width - 1), (WORD)view_top);
+        Draw(&rp, (WORD)(width - 1), (WORD)(view_bottom - 1));
+        Draw(&rp, 0, (WORD)(view_bottom - 1));
+        Draw(&rp, 0, (WORD)view_top);
     }
     req->result = mm->bitmap;
     req->ok = 1;
@@ -376,12 +419,37 @@ void minimap_poll(EditorApp *app)
     struct Minimap *mm = app->minimap_ctx;
     struct IBox *box = NULL;
     STRPTR text;
+    ULONG view_first = 0, view_visible = 1, view_total = 1;
     int i;
     if (mm == NULL || !mm->ready || !app->minimap_visible) return;
-    if (!mm->dirty || mm->busy) return;
     if (app->minimap == NULL || app->window == NULL) return;
     GetAttr(SPACE_AreaBox, app->minimap, (ULONG *)&box);
     if (box == NULL || box->Width <= 0 || box->Height <= 0) return;
+    /* Dragging the WeightBar between the tree and the editor changes the layout
+     * and resizes the space.gadget without generating a WMHI_NEWSIZE, so notice
+     * a changed drawing area here and force a re-render. */
+    if (box->Width != mm->last_width || box->Height != mm->last_height) {
+        mm->last_width = box->Width;
+        mm->last_height = box->Height;
+        mm->dirty = 1;
+    }
+    /* Read the editor's vertical visible range.  A change while the user is not
+     * actively dragging a scrollbar means a scrolling operation has finished
+     * (keyboard, wheel, arrow or the end of a drag), so re-render the viewport
+     * overlay; positions seen mid-drag are ignored so nothing updates during
+     * scrolling. */
+    if (app->active != NULL) {
+        GetAttr(GA_TEXTEDITOR_Prop_First, app->active->editor, &view_first);
+        GetAttr(GA_TEXTEDITOR_Prop_Visible, app->active->editor, &view_visible);
+        GetAttr(GA_TEXTEDITOR_Prop_Entries, app->active->editor, &view_total);
+    }
+    if (view_total == 0) view_total = 1;
+    if (view_visible == 0) view_visible = 1;
+    if (!app->scrolling && (LONG)view_first != mm->last_first) {
+        mm->last_first = (LONG)view_first;
+        mm->dirty = 1;
+    }
+    if (!mm->dirty || mm->busy) return;
 
     text = NULL;
     if (app->active != NULL)
@@ -397,6 +465,15 @@ void minimap_poll(EditorApp *app)
     mm->request.background = app->screen_draw_info != NULL
         ? app->screen_draw_info->dri_Pens[BACKGROUNDPEN]
         : (UWORD)app->editor_pens[EDITOR_COLOR_BACKGROUND];
+    mm->request.view_fill = app->minimap_view_pen >= 0
+        ? (UWORD)app->minimap_view_pen
+        : mm->request.background;
+    mm->request.view_border = app->screen_draw_info != NULL
+        ? app->screen_draw_info->dri_Pens[SHADOWPEN]
+        : (UWORD)app->editor_pens[EDITOR_COLOR_TEXT];
+    mm->request.view_first = view_first;
+    mm->request.view_visible = view_visible;
+    mm->request.view_total = view_total;
     mm->request.width = box->Width;
     mm->request.height = box->Height;
     mm->request.friend = app->window->RPort->BitMap;
