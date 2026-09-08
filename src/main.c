@@ -32,6 +32,16 @@ static struct IntuitionBase *old_intuition_base;
 static struct GfxBase *old_gfx_base;
 static int workbench_launch;
 
+/**
+ * @brief Report a failed library or class open to the user.
+ *
+ * Always writes a message to stderr. When the program was started from
+ * Workbench and intuition.library is available, the same message is also
+ * shown in an EasyRequest so a GUI user sees the failure.
+ *
+ * @param name The name of the library or class that failed to open.
+ * @param version The minimum required version reported to the user.
+ */
 static void report_library_error(const char *name, ULONG version)
 {
     char message[160];
@@ -46,6 +56,14 @@ static void report_library_error(const char *name, ULONG version)
     }
 }
 
+/**
+ * @brief Open one library/class and report failure if it cannot be opened.
+ *
+ * @param base Address of the library base pointer to fill in.
+ * @param name The library or class name to open.
+ * @param version The minimum required version.
+ * @return Non-zero on success, zero if the library could not be opened.
+ */
 static int open_one(struct Library **base, const char *name, ULONG version)
 {
     *base = OpenLibrary(name, version);
@@ -53,6 +71,18 @@ static int open_one(struct Library **base, const char *name, ULONG version)
     return *base != NULL;
 }
 
+/**
+ * @brief Open every library and ReAction class required by the editor.
+ *
+ * Opens intuition.library and graphics.library first (saving the previous
+ * global bases so they can be restored on shutdown), verifies dos.library,
+ * then opens the remaining ReAction gadget/image classes. Any failure is
+ * reported via report_library_error() and aborts the sequence.
+ *
+ * @param from_workbench Non-zero when launched from Workbench, which enables
+ *        GUI error requesters.
+ * @return Non-zero if all required libraries opened successfully, zero otherwise.
+ */
 int app_open_libraries(int from_workbench)
 {
     struct Library *base;
@@ -83,6 +113,14 @@ int app_open_libraries(int from_workbench)
            open_one(&TextFieldBase, "gadgets/texteditor.gadget", 47);
 }
 
+/**
+ * @brief Close all libraries and classes opened by app_open_libraries().
+ *
+ * Closes the ReAction classes and helper libraries in reverse order, then
+ * restores the intuition.library and graphics.library global bases to the
+ * values captured at startup. Safe to call even if opening only partially
+ * succeeded.
+ */
 void app_close_libraries(void)
 {
 #define CLOSE_BASE(x) do { if ((x) != NULL) { CloseLibrary((x)); (x) = NULL; } } while (0)
@@ -97,12 +135,28 @@ void app_close_libraries(void)
 #undef CLOSE_BASE
 }
 
+/**
+ * @brief Open every file named on the Shell/CLI command line.
+ *
+ * @param app The application state.
+ * @param argc The CLI argument count.
+ * @param argv The CLI argument vector; entries 1..argc-1 are opened as files.
+ */
 static void open_cli_files(EditorApp *app, int argc, char **argv)
 {
     int i;
     for (i = 1; i < argc; ++i) document_open(app, argv[i]);
 }
 
+/**
+ * @brief Open every file passed as a Workbench startup argument.
+ *
+ * Resolves each WBArg lock/name pair into a full path and opens it. A path
+ * that is too long is reported through ui_error() and skipped.
+ *
+ * @param app The application state.
+ * @param startup The Workbench startup message.
+ */
 static void open_workbench_files(EditorApp *app, struct WBStartup *startup)
 {
     LONG i; char path[EDITOR_PATH_MAX];
@@ -115,6 +169,20 @@ static void open_workbench_files(EditorApp *app, struct WBStartup *startup)
     }
 }
 
+/**
+ * @brief Program entry point for both Shell and Workbench launches.
+ *
+ * Initialises the application state, opens the required libraries, allocates
+ * the live-scroll signal, creates the ReAction window and opens any files
+ * requested on the command line (or via Workbench). If no document ends up
+ * open, a fresh empty one is created. Finally runs the event loop and tears
+ * everything down on exit. A Workbench launch is detected by @p argc being 0,
+ * in which case @p argv is really a struct WBStartup pointer.
+ *
+ * @param argc The argument count, or 0 when started from Workbench.
+ * @param argv The argument vector, or the WBStartup message when @p argc is 0.
+ * @return 0 on success, or a non-zero DOS return code on startup failure.
+ */
 int main(int argc, char **argv)
 {
     EditorApp app; int status = 20;

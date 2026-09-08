@@ -4,17 +4,44 @@
 #include <stdio.h>
 
 typedef struct Capture { SyntaxSpan spans[16]; size_t count; } Capture;
+/**
+ * @brief SyntaxEmit callback that records emitted spans for inspection.
+ *
+ * Appends @p span to the ::Capture buffer, asserting that the fixed capacity
+ * is not exceeded.
+ *
+ * @param context The ::Capture buffer (as a void pointer) to append to.
+ * @param span The span emitted by the scanner.
+ */
 static void capture(void *context, const SyntaxSpan *span)
 {
     Capture *c = context;
     assert(c->count < 16);
     c->spans[c->count++] = *span;
 }
+/**
+ * @brief Assert that a captured span matches the expected bounds and style.
+ *
+ * @param c The capture buffer to check.
+ * @param n Index of the span within @p c.
+ * @param a Expected start offset.
+ * @param b Expected end offset.
+ * @param s Expected ::SyntaxStyle.
+ */
 static void expect(const Capture *c, size_t n, size_t a, size_t b, SyntaxStyle s)
 {
     assert(n < c->count);
     assert(c->spans[n].start == a && c->spans[n].end == b && c->spans[n].style == s);
 }
+/**
+ * @brief Host-native test entry point for the portable syntax scanner.
+ *
+ * Exercises language detection and the C and AmigaDOS scanners, asserting
+ * that the expected keyword, string, comment and preprocessor spans (and the
+ * multi-line C block-comment state) are produced.
+ *
+ * @return 0 when all assertions pass.
+ */
 int main(void)
 {
     Capture c = {{{0, 0, SYNTAX_NORMAL}}, 0}; SyntaxState state;

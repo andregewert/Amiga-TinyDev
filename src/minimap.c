@@ -109,7 +109,19 @@ typedef struct FillContext {
     size_t length;
 } FillContext;
 
-/* syntax emit callback: record the style of every character of the line. */
+/**
+ * @brief Syntax emit callback that records the style of each character.
+ *
+ * Invoked by the syntax scanner for every styled span of a line.  It writes
+ * the span's style value into the per-character style buffer supplied through
+ * the FillContext, clamping the span end to the buffer length so it never
+ * writes past the end of the buffer.
+ *
+ * @param context Opaque pointer to a FillContext holding the style buffer and
+ *                its length.
+ * @param span    Styled span describing the [start, end) character range and
+ *                the style to apply.
+ */
 static void minimap_fill_styles(void *context, const SyntaxSpan *span)
 {
     FillContext *fc = (FillContext *)context;
@@ -119,7 +131,16 @@ static void minimap_fill_styles(void *context, const SyntaxSpan *span)
         fc->styles[i] = (unsigned char)span->style;
 }
 
-/* Map a syntax style onto the matching reserved editor colour pen. */
+/**
+ * @brief Map a syntax style onto the matching reserved editor colour pen.
+ *
+ * Translates a SyntaxStyle value into the corresponding pen from the request's
+ * pen table, falling back to the plain text pen for any unrecognised style.
+ *
+ * @param req   Render request carrying the resolved editor colour pens.
+ * @param style Syntax style value to translate.
+ * @return The pen number to use when drawing characters of that style.
+ */
 static UWORD minimap_pen_for_style(const MinimapRequest *req, unsigned char style)
 {
     switch ((SyntaxStyle)style) {
@@ -131,9 +152,18 @@ static UWORD minimap_pen_for_style(const MinimapRequest *req, unsigned char styl
     }
 }
 
-/* Advance over a single physical line, honouring LF, CR and CRLF endings.
- * Returns the length of the line and updates *next to the start of the line
- * that follows (or the terminating NUL). */
+/**
+ * @brief Advance over a single physical line, honouring LF, CR and CRLF.
+ *
+ * Scans from @p p up to the next line terminator or the terminating NUL,
+ * treating LF, CR and CRLF sequences as line endings, and reports where the
+ * following line begins.
+ *
+ * @param p    Pointer to the start of the current line.
+ * @param next Output pointer set to the start of the next line, or to the
+ *             terminating NUL when the last line has been reached.
+ * @return The length of the line in characters, excluding its line ending.
+ */
 static size_t minimap_line_length(const char *p, const char **next)
 {
     const char *start = p;
@@ -145,8 +175,16 @@ static size_t minimap_line_length(const char *p, const char **next)
       return length; }
 }
 
-/* Count the physical lines in the snapshot so line numbers can be scaled onto
- * the available pixel height. */
+/**
+ * @brief Count the physical lines in the text snapshot.
+ *
+ * Walks the whole snapshot line by line so line numbers can later be scaled
+ * onto the available pixel height.  An empty or NULL snapshot is reported as a
+ * single line, and the result is never zero.
+ *
+ * @param text The document text snapshot, which may be NULL.
+ * @return The number of physical lines, always at least one.
+ */
 static ULONG minimap_count_lines(const char *text)
 {
     ULONG lines = 0;
@@ -156,7 +194,19 @@ static ULONG minimap_count_lines(const char *text)
     return lines != 0 ? lines : 1;
 }
 
-/* Ensure a reusable buffer is at least "need" bytes; returns 0 on failure. */
+/**
+ * @brief Ensure a reusable buffer is at least @p need bytes large.
+ *
+ * If the current buffer is already big enough it is kept; otherwise any
+ * existing allocation is freed and a fresh one is made with AllocVec().  On
+ * failure the size is reset to zero.
+ *
+ * @param buffer In/out pointer to the buffer allocation, updated on reallocation.
+ * @param size   In/out current capacity of the buffer, updated to match.
+ * @param need   Required minimum capacity in bytes.
+ * @return 1 if the buffer is available at the requested size, 0 on allocation
+ *         failure.
+ */
 static int minimap_grow(void **buffer, size_t *size, size_t need)
 {
     if (*size >= need && *buffer != NULL) return 1;
@@ -166,8 +216,21 @@ static int minimap_grow(void **buffer, size_t *size, size_t need)
     return *buffer != NULL;
 }
 
-/* Draw the exported text into the off-screen bitmap using the syntax colours.
- * Runs entirely in the render task and never touches Intuition. */
+/**
+ * @brief Render the exported document text into the off-screen bitmap.
+ *
+ * Runs entirely in the render task and never touches Intuition.  It allocates
+ * or reuses the off-screen bitmap sized to the request, clears it to the
+ * editor's background pen, tints and frames the viewport rectangle for the
+ * currently visible region, then plots one scaled pixel per non-blank source
+ * character coloured by its syntax style.  On success it stores the bitmap in
+ * @p req->result and sets @p req->ok; on any failure result stays NULL and ok
+ * stays 0.
+ *
+ * @param mm  Shared minimap state owning the reusable bitmap and line buffers.
+ * @param req Render request describing the text, colours, dimensions and
+ *            viewport, and receiving the result bitmap and ok flag.
+ */
 static void minimap_render(struct Minimap *mm, MinimapRequest *req)
 {
     struct RastPort rp;
@@ -265,7 +328,16 @@ static void minimap_render(struct Minimap *mm, MinimapRequest *req)
     req->ok = 1;
 }
 
-/* Entry point of the background render task. */
+/**
+ * @brief Entry point of the background render task.
+ *
+ * Waits for the startup handshake message, creates the task's request port and
+ * replies with success or failure.  It then loops servicing render requests
+ * until a MINIMAP_QUIT command arrives, freeing each request's exported text
+ * after use.  On quit it frees everything the task owns (bitmap, line and style
+ * buffers, request port) before replying to the quit message so the main task
+ * can safely tear down the shared state.
+ */
 static void minimap_task(void)
 {
     struct Process *self = (struct Process *)FindTask(NULL);
@@ -316,13 +388,20 @@ static void minimap_task(void)
 static void minimap_draw_raised_border(EditorApp *app, struct RastPort *rp,
                                        struct IBox *box);
 
-/* Render hook attached to the minimap space.gadget (SPACE_RenderHook).  It is
- * invoked by the gadget whenever it refreshes - crucially, this includes the
- * relayouts triggered while a WeightBar is dragged, when the layout would
- * otherwise just clear the space.gadget to its grey background.  Re-drawing the
- * last rendered minimap bitmap here (synchronously, in the same refresh pass)
- * keeps the minimap visible during and after any layout change without racing
- * the layout the way an asynchronous re-render request did. */
+/**
+ * @brief SPACE_RenderHook callback for the minimap space.gadget.
+ *
+ * Invoked by the gadget whenever it refreshes, including the relayouts
+ * triggered while a WeightBar is dragged, when the layout would otherwise clear
+ * the space.gadget to its grey background.  It synchronously blits the last
+ * rendered minimap bitmap (clamped to the drawing box) into the refresh
+ * RastPort and redraws the raised border, keeping the minimap visible during
+ * and after any layout change without racing the layout.
+ *
+ * @param hook The hook whose h_Data points to the EditorApp.
+ * @param obj  The space.gadget object being refreshed (unused).
+ * @param gpr  The gadget render message carrying the target RastPort.
+ */
 static void minimap_space_render(struct Hook *hook, Object *obj,
                                  struct gpRender *gpr)
 {
@@ -348,7 +427,19 @@ static void minimap_space_render(struct Hook *hook, Object *obj,
     minimap_draw_raised_border(app, rp, box);
 }
 
-/* Create the space.gadget that reserves the drawing area for the minimap. */
+/**
+ * @brief Create the space.gadget that reserves the minimap drawing area.
+ *
+ * Initialises the app's render hook (pointing at minimap_space_render) and
+ * creates a plain, passive space.gadget that renders through that hook.  The
+ * gadget is left non-interactive so that clicks over the minimap fall through
+ * to the window as IDCMP_MOUSEBUTTONS events, which the drag handling relies
+ * on.
+ *
+ * @param app The editor application whose minimap gadget and render hook are
+ *            set up.
+ * @return The created space.gadget object, or NULL on failure.
+ */
 Object *minimap_create_gadget(EditorApp *app)
 {
     /* The space.gadget is left as a plain, passive spacer (no GA_RelVerify /
@@ -373,10 +464,18 @@ Object *minimap_create_gadget(EditorApp *app)
     return app->minimap;
 }
 
-/* Scroll the active document so its visible region is centred on the minimap
- * line under the given window-relative mouse Y coordinate.  Only the vertical
- * position matters; the horizontal scroll is left untouched.  Runs on the main
- * task and updates the editor and its scrollbars directly. */
+/**
+ * @brief Scroll the active document to the minimap line under the cursor.
+ *
+ * Maps the window-relative mouse Y coordinate onto a document line and scrolls
+ * the active editor so its visible region is centred on that line, clamping to
+ * the valid range.  Only the vertical position changes; horizontal scroll is
+ * untouched.  Runs on the main task and refreshes the page gadget and
+ * scrollbars directly.
+ *
+ * @param app     The editor application owning the active document and window.
+ * @param mouse_y Window-relative mouse Y coordinate to scroll to.
+ */
 static void minimap_scroll_to(EditorApp *app, LONG mouse_y)
 {
     Document *doc = app->active;
@@ -404,8 +503,17 @@ static void minimap_scroll_to(EditorApp *app, LONG mouse_y)
     document_sync_scrollers(app, doc);
 }
 
-/* Report whether the given window-relative point lies inside the minimap
- * drawing area. */
+/**
+ * @brief Report whether a window-relative point lies inside the minimap.
+ *
+ * Queries the space.gadget's current drawing box and tests the point against
+ * it.
+ *
+ * @param app The editor application owning the minimap gadget.
+ * @param mx  Window-relative X coordinate of the point.
+ * @param my  Window-relative Y coordinate of the point.
+ * @return 1 if the point is inside the minimap drawing area, 0 otherwise.
+ */
 static int minimap_point_inside(EditorApp *app, WORD mx, WORD my)
 {
     struct IBox *box = NULL;
@@ -416,16 +524,21 @@ static int minimap_point_inside(EditorApp *app, WORD mx, WORD my)
            my >= box->Top && my < box->Top + box->Height;
 }
 
-/* Handle an IDCMP_MOUSEBUTTONS event delivered to the window.  A left-button
- * press (SELECTDOWN) inside the minimap area starts a drag: the highlighter is
- * suspended for speed (as with a scrollbar drag), ReportMouse() is switched on
- * so the window delivers IDCMP_MOUSEMOVE events for the duration of the drag,
- * and the editor jumps to the clicked line.  The matching release (SELECTUP)
- * ends the drag, switches ReportMouse() back off, restores the highlighter and
- * requests a fresh render so the viewport overlay is redrawn (only now, not
- * during the drag).  Anchoring the drag to real button events - rather than to
- * mouse moves - is what keeps unrelated clicks elsewhere in the UI from
- * triggering a phantom scroll. */
+/**
+ * @brief Handle an IDCMP_MOUSEBUTTONS event delivered to the window.
+ *
+ * A left-button press (SELECTDOWN) inside the minimap area starts a drag: the
+ * highlighter is suspended for speed, ReportMouse() is enabled so the window
+ * delivers IDCMP_MOUSEMOVE events for the drag, and the editor jumps to the
+ * clicked line.  The matching release (SELECTUP) ends the drag, disables
+ * ReportMouse(), restores the highlighter and requests a fresh render so the
+ * viewport overlay is redrawn only after the drag.  Anchoring the drag to real
+ * button events keeps unrelated clicks elsewhere in the UI from triggering a
+ * phantom scroll.
+ *
+ * @param app  The editor application whose window and drag state are updated.
+ * @param code The IDCMP_MOUSEBUTTONS code, either SELECTDOWN or SELECTUP.
+ */
 void minimap_handle_buttons(EditorApp *app, UWORD code)
 {
     if (app->window == NULL) return;
@@ -446,10 +559,16 @@ void minimap_handle_buttons(EditorApp *app, UWORD code)
     }
 }
 
-/* Handle an IDCMP_MOUSEMOVE event.  While a minimap drag is in progress (see
- * minimap_handle_buttons) the editor is scrolled to follow the cursor; moves at
- * any other time are ignored so the minimap only reacts to a genuine drag that
- * started with a press inside it. */
+/**
+ * @brief Handle an IDCMP_MOUSEMOVE event for minimap dragging.
+ *
+ * While a minimap drag is in progress (started by minimap_handle_buttons) the
+ * editor is scrolled to follow the cursor.  Moves at any other time are ignored
+ * so the minimap only reacts to a genuine drag that began with a press inside
+ * it.
+ *
+ * @param app The editor application whose active document may be scrolled.
+ */
 void minimap_handle_mouse(EditorApp *app)
 {
     if (!app->minimap_dragging) return;
@@ -457,7 +576,17 @@ void minimap_handle_mouse(EditorApp *app)
     minimap_scroll_to(app, app->window->MouseY);
 }
 
-/* Spawn the background render task and complete the startup handshake. */
+/**
+ * @brief Spawn the background render task and complete the startup handshake.
+ *
+ * Allocates the shared Minimap state and its reply port, launches the render
+ * process, and exchanges the startup message so the task can create its request
+ * port.  On any failure all partially acquired resources are released and the
+ * app's minimap context is left NULL.
+ *
+ * @param app The editor application receiving the created minimap context.
+ * @return 1 if the render task started successfully, 0 on failure.
+ */
 int minimap_start(EditorApp *app)
 {
     struct Minimap *mm;
@@ -498,7 +627,15 @@ int minimap_start(EditorApp *app)
     return 1;
 }
 
-/* Wait for any outstanding reply and drain the reply port. */
+/**
+ * @brief Wait for any outstanding reply and drain the reply port.
+ *
+ * If a render job is in flight, blocks until its reply arrives, removes all
+ * pending messages from the reply port and clears the busy flag.  Does nothing
+ * when no job is outstanding.
+ *
+ * @param mm The shared minimap state whose reply port is drained.
+ */
 static void minimap_drain(struct Minimap *mm)
 {
     if (!mm->busy) return;
@@ -507,8 +644,17 @@ static void minimap_drain(struct Minimap *mm)
     mm->busy = 0;
 }
 
-/* Stop the render task and release all shared resources.  Must run before the
- * window (and therefore the space.gadget) is disposed. */
+/**
+ * @brief Stop the render task and release all shared resources.
+ *
+ * Drains any in-flight job, sends a MINIMAP_QUIT request and waits for the task
+ * to acknowledge it (by which point the task has freed its own resources), then
+ * deletes the reply port and frees the shared state.  Must run before the
+ * window (and therefore the space.gadget) is disposed.
+ *
+ * @param app The editor application whose minimap context is torn down and set
+ *            to NULL.
+ */
 void minimap_stop(EditorApp *app)
 {
     struct Minimap *mm = app->minimap_ctx;
@@ -530,14 +676,19 @@ void minimap_stop(EditorApp *app)
     app->minimap_ctx = NULL;
 }
 
-/* Toggle the visibility of the minimap column in the content layout.
+/**
+ * @brief Toggle the visibility of the minimap column in the content layout.
  *
- * Show/hide works exactly like the folder tree: the minimap child always stays
- * in the layout and is only collapsed to zero width when hidden (never added or
- * removed at runtime, which used to corrupt the cached layout domains and
- * crash, and never by toggling the WeightBar, which left a growing stack of
- * stray bars).  Showing the minimap always uses the default column width; the
- * previous on-screen width is intentionally not remembered or restored. */
+ * Show/hide works like the folder tree: the minimap child always stays in the
+ * layout and is only collapsed to zero width when hidden, never added or
+ * removed at runtime and never via the WeightBar.  Showing the minimap always
+ * uses the default column width; the previous on-screen width is intentionally
+ * not remembered.  Applies the change live when a window exists, otherwise sets
+ * it on the layout directly, and triggers a relayout.
+ *
+ * @param app     The editor application whose content layout is updated.
+ * @param visible Non-zero to show the minimap column, zero to collapse it.
+ */
 void minimap_set_visible(EditorApp *app, int visible)
 {
     app->minimap_visible = visible;
@@ -559,7 +710,14 @@ void minimap_set_visible(EditorApp *app, int visible)
     ui_relayout(app);
 }
 
-/* Flag that the minimap contents are stale and should be re-rendered. */
+/**
+ * @brief Flag that the minimap contents are stale and need re-rendering.
+ *
+ * Marks the shared state dirty so the next poll posts a fresh render job.  Does
+ * nothing if the minimap context is absent or the render task is not ready.
+ *
+ * @param app The editor application whose minimap is marked dirty.
+ */
 void minimap_request(EditorApp *app)
 {
     struct Minimap *mm = app->minimap_ctx;
@@ -567,9 +725,19 @@ void minimap_request(EditorApp *app)
     mm->dirty = 1;
 }
 
-/* Post a render job to the background task if one is warranted.  Rendering is
- * skipped entirely while the minimap is hidden, and only a single job is ever
- * outstanding so updates coalesce to the minimum. */
+/**
+ * @brief Post a render job to the background task when one is warranted.
+ *
+ * Skipped entirely while the minimap is hidden.  Detects layout moves/resizes
+ * of the drawing area and finished (non-dragging) scroll changes, marking the
+ * state dirty accordingly.  When dirty and no job is outstanding, it exports a
+ * private snapshot of the active document, fills the shared request with the
+ * current colours, viewport and dimensions, and posts it to the render task so
+ * only a single job is ever in flight at a time.
+ *
+ * @param app The editor application whose active document is snapshotted and
+ *            queued for rendering.
+ */
 void minimap_poll(EditorApp *app)
 {
     struct Minimap *mm = app->minimap_ctx;
@@ -656,12 +824,19 @@ void minimap_poll(EditorApp *app)
     PutMsg(mm->request_port, &mm->request.msg);
 }
 
-/* Draw a simple raised bevel around the minimap's drawing area so the
- * space.gadget looks like a framed panel.  The top and left edges use the
- * screen's SHINEPEN and the bottom and right edges use its SHADOWPEN, which is
- * the standard AmigaOS look for a raised border.  It is drawn on the window's
- * RastPort after every blit (the blit fills the whole box first), so it always
- * sits on top of the freshly rendered minimap contents. */
+/**
+ * @brief Draw a raised bevel around the minimap's drawing area.
+ *
+ * Draws the standard AmigaOS raised border with the screen's SHINEPEN on the
+ * top and left edges and SHADOWPEN on the bottom and right edges (falling back
+ * to the editor text pen when no screen draw info is available).  Intended to
+ * run after each blit so it sits on top of the freshly rendered contents; does
+ * nothing for boxes smaller than 2x2.
+ *
+ * @param rp  The RastPort to draw the border on.
+ * @param box The drawing area whose border is drawn.
+ * @param app The editor application supplying the screen draw info and pens.
+ */
 static void minimap_draw_raised_border(EditorApp *app, struct RastPort *rp,
                                        struct IBox *box)
 {
@@ -690,7 +865,16 @@ static void minimap_draw_raised_border(EditorApp *app, struct RastPort *rp,
     Draw(rp, left, bottom);
 }
 
-/* Signal mask for the render task's replies, folded into the main Wait(). */
+/**
+ * @brief Signal mask for the render task's replies.
+ *
+ * Returns the reply port's signal bit as a mask so it can be folded into the
+ * main event loop's Wait().  Returns 0 when the minimap context or its reply
+ * port is unavailable.
+ *
+ * @param app The editor application owning the minimap reply port.
+ * @return The signal mask for the reply port, or 0 if unavailable.
+ */
 ULONG minimap_signal_mask(EditorApp *app)
 {
     struct Minimap *mm = app->minimap_ctx;
@@ -698,8 +882,16 @@ ULONG minimap_signal_mask(EditorApp *app)
     return 1UL << mm->reply_port->mp_SigBit;
 }
 
-/* Blit a finished render into the window and dispatch a follow-up job if the
- * contents changed again while this one was being produced. */
+/**
+ * @brief Blit a finished render into the window and chain any follow-up job.
+ *
+ * Drains completed render replies, clears the busy flag, and (while the minimap
+ * is visible and the render succeeded) blits the result bitmap into the window
+ * over the current drawing box and redraws the raised border.  If the contents
+ * became dirty again while this job was rendering, it kicks off another poll.
+ *
+ * @param app The editor application whose window receives the finished render.
+ */
 void minimap_handle_reply(EditorApp *app)
 {
     struct Minimap *mm = app->minimap_ctx;

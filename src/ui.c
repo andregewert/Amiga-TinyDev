@@ -40,6 +40,18 @@ typedef struct EditorBackFillMessage {
     LONG offset_y;
 } EditorBackFillMessage;
 
+/**
+ * @brief Backfill hook that paints layout backgrounds with the editor color.
+ *
+ * Invoked by the layout/window classes to fill exposed areas.  It fills the
+ * requested rectangle with the editor background pen and preserves the
+ * RastPort's previous foreground pen so subsequent rendering is unaffected.
+ *
+ * @param hook The hook whose h_Data points to the owning EditorApp.
+ * @param rast_port The RastPort to render into.
+ * @param message The backfill message describing the rectangle to fill.
+ * @return Always 0.
+ */
 static ULONG editor_backfill_entry(struct Hook *hook, struct RastPort *rast_port,
                                    EditorBackFillMessage *message)
 {
@@ -63,6 +75,20 @@ static ULONG editor_backfill_entry(struct Hook *hook, struct RastPort *rast_port
  * hook.  We only remember the node and defer the actual document_close() to
  * the event loop, because disposing gadgets from within input handling is
  * unsafe. */
+/**
+ * @brief window.class IDCMP hook capturing clicktab tab-close notifications.
+ *
+ * The clicktab.gadget delivers a tab close only as an IDCMP_IDCMPUPDATE
+ * notification carrying the closed node in its tag list.  This hook extracts
+ * that node and stores it in app->pending_close, deferring the actual
+ * document_close() to the event loop because disposing gadgets from within
+ * input handling is unsafe.
+ *
+ * @param hook The hook whose h_Data points to the owning EditorApp.
+ * @param win The window object receiving the message (unused).
+ * @param msg The IntuiMessage; only IDCMP_IDCMPUPDATE messages are handled.
+ * @return The original message pointer cast to ULONG.
+ */
 static ULONG tab_idcmp_entry(struct Hook *hook, Object *win,
                              struct IntuiMessage *msg)
 {
@@ -77,6 +103,19 @@ static ULONG tab_idcmp_entry(struct Hook *hook, Object *win,
     return (ULONG)msg;
 }
 
+/**
+ * @brief Reserve and configure the pens used for editor rendering.
+ *
+ * Obtains the fixed set of editor colors (background, text, and syntax pens)
+ * from the public screen's ColorMap, validates that the screen provides the
+ * required number of DrawInfo pens, and builds a private DrawInfo whose
+ * background and text pens are overridden.  Also obtains an optional minimap
+ * viewport-tint pen (non-fatal on failure) and initializes the backfill hook.
+ * On any fatal failure all pens obtained so far are released.
+ *
+ * @param app The application whose screen and pen state are set up.
+ * @return 1 on success, 0 on failure.
+ */
 static int open_editor_colors(EditorApp *app)
 {
     static const ULONG rgb[EDITOR_COLOR_COUNT][3] = {
@@ -144,6 +183,15 @@ static int open_editor_colors(EditorApp *app)
     return 1;
 }
 
+/**
+ * @brief Release the pens and DrawInfo reserved by open_editor_colors().
+ *
+ * Frees the screen DrawInfo, releases the optional minimap view pen and all
+ * editor pens back to the screen ColorMap, and clears the colors-open flag.
+ * Does nothing if colors were never opened or the screen is gone.
+ *
+ * @param app The application whose editor colors are released.
+ */
 static void close_editor_colors(EditorApp *app)
 {
     int i;
@@ -203,12 +251,28 @@ static const ToolbarSpec toolbar_specs[] = {
     {GID_PASTE, "TBImages:Paste", "Paste"}
 };
 
+/**
+ * @brief Display a simple modal error/notification requester with an OK button.
+ *
+ * @param app The application; its window is used as the requester parent (may
+ *            be NULL).
+ * @param title The requester title text.
+ * @param message The requester body text.
+ */
 void ui_error(EditorApp *app, const char *title, const char *message)
 {
     struct EasyStruct es = {sizeof(es), 0, (STRPTR)title, (STRPTR)message, "OK"};
     EasyRequestArgs(app != NULL ? app->window : NULL, &es, NULL, NULL);
 }
 
+/**
+ * @brief Update the window title to reflect the active document.
+ *
+ * Sets the title to "AmiEditor" when no document is active, otherwise to
+ * "AmiEditor - <title>" with a trailing '*' when the active document is dirty.
+ *
+ * @param app The application whose window title is refreshed.
+ */
 void ui_refresh(EditorApp *app)
 {
     static char window_title[EDITOR_TITLE_MAX + 24];
@@ -218,8 +282,16 @@ void ui_refresh(EditorApp *app)
     if (app->window_object != NULL) SetAttrs(app->window_object, WA_Title, (ULONG)window_title, TAG_END);
 }
 
-/* Refresh the bottom status line with the number of open documents and the
- * line count of the currently displayed document. */
+/**
+ * @brief Refresh the bottom status line with document and line counts.
+ *
+ * Counts the open documents and reads the line count of the active document
+ * from its texteditor gadget, then updates the status bar text.  Uses
+ * SetGadgetAttrs when a window is open so the gadget redraws, otherwise
+ * SetAttrs.  Does nothing if the status bar does not exist.
+ *
+ * @param app The application whose status line is updated.
+ */
 void ui_update_status(EditorApp *app)
 {
     static char status_text[64];
@@ -240,12 +312,32 @@ void ui_update_status(EditorApp *app)
     else SetAttrs(app->statusbar, GA_Text, (ULONG)status_text, TAG_END);
 }
 
+/**
+ * @brief Recompute the window's layout after a structural change.
+ *
+ * Calls RethinkLayout on the root layout when both the window and layout
+ * exist; otherwise does nothing.
+ *
+ * @param app The application whose layout is recomputed.
+ */
 void ui_relayout(EditorApp *app)
 {
     if (app->window != NULL && app->layout != NULL)
         RethinkLayout((struct Gadget *)app->layout, app->window, NULL, TRUE);
 }
 
+/**
+ * @brief Confirm closing a document, prompting to save unsaved changes.
+ *
+ * Returns immediately allowing the close for a document that is not dirty.
+ * Otherwise presents a Save/Discard/Cancel requester: Discard allows the
+ * close, Cancel blocks it, and Save saves to the document's existing path or
+ * prompts for one before allowing the close.
+ *
+ * @param app The application owning the window used for the requester.
+ * @param doc The document being closed.
+ * @return Nonzero if the document may be closed, 0 to cancel the close.
+ */
 int ui_confirm_close(EditorApp *app, Document *doc)
 {
     char text[EDITOR_TITLE_MAX + 80]; int answer;
@@ -258,6 +350,19 @@ int ui_confirm_close(EditorApp *app, Document *doc)
     return doc->path != NULL ? file_save(app, doc, doc->path) : file_request_save(app, doc);
 }
 
+/**
+ * @brief Create a single toolbar button object from a toolbar spec.
+ *
+ * Attempts to load the spec's image via bitmap.image (masked/transparent) and
+ * build an image button; if the image is unavailable it falls back to a
+ * text-labeled button.  If the image loads but the button fails to build, the
+ * image is disposed.  The created image (if any) is stored in
+ * app->toolbar_images[index].
+ *
+ * @param app The application whose screen and toolbar-image array are used.
+ * @param index Index into the toolbar spec/image arrays.
+ * @return The created button object, or NULL on failure.
+ */
 static Object *toolbar_button(EditorApp *app, size_t index)
 {
     const ToolbarSpec *spec = &toolbar_specs[index];
@@ -285,6 +390,16 @@ static Object *toolbar_button(EditorApp *app, size_t index)
     return button;
 }
 
+/**
+ * @brief Build the horizontal toolbar layout and its buttons.
+ *
+ * Creates a shrink-wrapped horizontal layout and adds one button per toolbar
+ * spec, each with zero weighted width/height.  Stores the layout in
+ * app->toolbar.
+ *
+ * @param app The application whose toolbar is created.
+ * @return 1 on success, 0 if the layout or any button could not be created.
+ */
 static int create_toolbar(EditorApp *app)
 {
     size_t i;
@@ -310,6 +425,20 @@ static int create_toolbar(EditorApp *app)
 }
 
 
+/**
+ * @brief Build the application's screen resources, gadgets, and main window.
+ *
+ * Locks the public screen, reserves editor colors, and creates the page group,
+ * click tabs (with a masked close image and IDCMP-targeted close notification),
+ * folder tree, minimap gadget, toolbar, content and root layouts, and the
+ * status bar.  Sets up the tab IDCMP hook, creates the window (requesting the
+ * IDCMP flags needed for resizing and minimap interaction), ensures at least
+ * one document exists, opens the window, performs the initial layout and
+ * activation, starts the minimap task, and hides the minimap by default.
+ *
+ * @param app The application to initialize.
+ * @return 1 on success, 0 on any failure.
+ */
 int ui_create(EditorApp *app)
 {
     app->screen = LockPubScreen(NULL);
@@ -448,6 +577,18 @@ int ui_create(EditorApp *app)
     return 1;
 }
 
+/**
+ * @brief Send an ARexx-style command to the active document's editor gadget.
+ *
+ * Issues the command (e.g. UNDO/REDO/CUT/COPY/PASTE/SELECTALL) via the
+ * texteditor gadget.  Because toolbar/menu picks steal input focus, it forces
+ * an immediate refresh of the editor gadget and reactivates it so the updated
+ * contents and caret appear at once, then resyncs the scrollbars and requests
+ * a minimap update.  Does nothing if no document is active.
+ *
+ * @param app The application whose active document receives the command.
+ * @param command The ARexx command string to execute.
+ */
 static void editor_command(EditorApp *app, const char *command)
 {
     if (app->active == NULL) return;
@@ -467,6 +608,17 @@ static void editor_command(EditorApp *app, const char *command)
     minimap_request(app);
 }
 
+/**
+ * @brief Save the active document, optionally forcing a Save As prompt.
+ *
+ * Saves directly to the existing path when save_as is false and a path is
+ * known; otherwise prompts the user for a destination path.
+ *
+ * @param app The application whose active document is saved.
+ * @param save_as Nonzero to force a Save As file requester.
+ * @return Nonzero on a successful save, 0 on failure or if no document is
+ *         active.
+ */
 static int save_active(EditorApp *app, int save_as)
 {
     Document *doc = app->active;
@@ -475,6 +627,15 @@ static int save_active(EditorApp *app, int save_as)
     return file_request_save(app, doc);
 }
 
+/**
+ * @brief Confirm closing every open document.
+ *
+ * Iterates over all documents and runs ui_confirm_close() on each; aborts as
+ * soon as the user cancels one.
+ *
+ * @param app The application whose documents are checked.
+ * @return 1 if all documents may be closed, 0 if the user cancelled.
+ */
 static int close_all(EditorApp *app)
 {
     Document *doc, *next;
@@ -485,6 +646,17 @@ static int close_all(EditorApp *app)
     return 1;
 }
 
+/**
+ * @brief Dispatch a menu item selection to the corresponding action.
+ *
+ * Handles the Project, Edit, and View menu commands: creating/opening/saving/
+ * closing documents, quitting (after confirming all closes), editor commands,
+ * toggling the folder tree and minimap, and toggling line numbers (updating
+ * every document's editor gadget and relaying out).
+ *
+ * @param app The application acting on the command.
+ * @param id The menu command identifier (MID_*).
+ */
 static void menu_action(EditorApp *app, ULONG id)
 {
     Document *doc;
@@ -522,6 +694,12 @@ static void menu_action(EditorApp *app, ULONG id)
     }
 }
 
+/**
+ * @brief Map a toolbar button id to the equivalent menu action.
+ *
+ * @param app The application acting on the command.
+ * @param id The toolbar gadget identifier (GID_*).
+ */
 static void toolbar_action(EditorApp *app, ULONG id)
 {
     switch (id) {
@@ -536,10 +714,19 @@ static void toolbar_action(EditorApp *app, ULONG id)
     }
 }
 
-/* Close the document whose tab close gadget was used.  The close node is
- * captured by tab_idcmp_entry() from the clicktab's IDCMPUPDATE notification;
- * this is called on every event-loop wake-up (and before a tab switch) to act
- * on a pending close outside of raw input handling. */
+/**
+ * @brief Close the document whose tab close gadget was used.
+ *
+ * The closed node is normally captured by tab_idcmp_entry() into
+ * app->pending_close; if none is pending it falls back to querying
+ * CLICKTAB_NodeClosed.  It resolves the associated Document from the node's
+ * user data, resets the gadget's close-node (to avoid closing the same
+ * document twice and dereferencing a freed node), and closes the document.
+ * Called on every event-loop wake-up and before a tab switch so gadget
+ * disposal happens outside raw input handling.
+ *
+ * @param app The application whose pending tab close is processed.
+ */
 static void tab_check_closed(EditorApp *app)
 {
     ULONG value = 0; struct Node *node; Document *doc = NULL;
@@ -566,6 +753,16 @@ static void tab_check_closed(EditorApp *app)
     if (doc != NULL) document_close(app, doc, 1);
 }
 
+/**
+ * @brief Handle a click on the tab bar (switch and/or close).
+ *
+ * First processes any pending tab close so a tab about to be removed is never
+ * switched to, then reads the current tab node and, if it maps to a document,
+ * makes it active: refreshes the title, redraws its page, resyncs the
+ * scrollbars, and requests a minimap re-render from the new contents.
+ *
+ * @param app The application whose active tab may change.
+ */
 static void tab_event(EditorApp *app)
 {
     ULONG value = 0; struct Node *node = NULL; Document *doc;
@@ -591,6 +788,20 @@ static void tab_event(EditorApp *app)
     }
 }
 
+/**
+ * @brief Run the main event loop until the application should quit.
+ *
+ * Waits on the window, live-scroll, and minimap signals plus CTRL-C, then
+ * services minimap replies, live scrolling, and break requests.  Drains
+ * WM_HANDLEINPUT, dispatching close, tab/tree/scrollbar/toolbar/menu gadget
+ * events and minimap mouse/resize handling.  After each input batch it mirrors
+ * keyboard/mouse-driven editor scrolling onto the scrollbars, marks the active
+ * document dirty when it changed, processes pending tab closes, and refreshes
+ * the status line and minimap.
+ *
+ * @param app The application to run.
+ * @return Always 1 when the loop exits.
+ */
 int ui_run(EditorApp *app)
 {
     ULONG signals = 0, result, mask;
@@ -662,6 +873,18 @@ int ui_run(EditorApp *app)
     return 1;
 }
 
+/**
+ * @brief Tear down the window, gadgets, and screen resources.
+ *
+ * Stops and joins the minimap task before disposing the window (and its
+ * space.gadget), clears the folder tree, and frees all documents.  Disposes
+ * the window/layout/gadget hierarchy following the established ownership and
+ * cleanup ordering, disposes a detached minimap gadget if the column was
+ * hidden, frees toolbar and tree images and the tab close image, releases the
+ * editor colors, unlocks the public screen, and clears all cached pointers.
+ *
+ * @param app The application to tear down.
+ */
 void ui_destroy(EditorApp *app)
 {
     size_t i;

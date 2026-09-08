@@ -13,6 +13,18 @@
 #include <stdio.h>
 #include <string.h>
 
+/**
+ * @brief Resolve a path to its canonical AmigaDOS form.
+ *
+ * Locks @p path and derives the full name from the lock. If the path cannot
+ * be locked (for example a not-yet-existing save target) the input path is
+ * copied verbatim, truncated to fit @p size.
+ *
+ * @param path The path to canonicalise.
+ * @param out Destination buffer for the resolved (NUL-terminated) path.
+ * @param size Size of @p out in bytes.
+ * @return Non-zero on success, zero if the name could not be obtained.
+ */
 static int canonical_path(const char *path, char *out, size_t size)
 {
     BPTR lock = Lock(path, ACCESS_READ);
@@ -24,6 +36,21 @@ static int canonical_path(const char *path, char *out, size_t size)
     UnLock(lock); return 1;
 }
 
+/**
+ * @brief Load a file's contents into a document.
+ *
+ * Canonicalises @p path, rejects files that are already open in another tab
+ * (activating that tab instead), directories, oversized files (> 8 MiB) and
+ * files containing embedded NUL bytes. On success the text is imported into
+ * the TextEditor gadget, the imported line-ending style is recorded, the
+ * document path is set and the dirty flag cleared. When a window exists the
+ * tab page and minimap are refreshed.
+ *
+ * @param app The application state.
+ * @param doc The document to load into.
+ * @param path The file path to load.
+ * @return Non-zero on success, zero on failure (an error requester is shown).
+ */
 int file_load(EditorApp *app, Document *doc, const char *path)
 {
     BPTR file = 0; struct FileInfoBlock *fib = NULL; char *data = NULL;
@@ -73,6 +100,16 @@ done:
     return ok;
 }
 
+/**
+ * @brief Write an entire buffer to a DOS file handle, handling short writes.
+ *
+ * Loops until all @p length bytes are written or an error occurs.
+ *
+ * @param file The open DOS file handle to write to.
+ * @param text The buffer to write.
+ * @param length The number of bytes to write.
+ * @return Non-zero if every byte was written, zero on a write error.
+ */
 static int write_complete(BPTR file, const char *text, LONG length)
 {
     LONG total = 0;
@@ -84,6 +121,20 @@ static int write_complete(BPTR file, const char *text, LONG length)
     return 1;
 }
 
+/**
+ * @brief Save a document to a path using a safe temporary-file scheme.
+ *
+ * Exports the TextEditor contents, writes them to a sibling temporary file,
+ * optionally renames any existing target to a backup, then renames the
+ * temporary file into place and removes the backup. If any step fails the
+ * original file is left untouched. Refuses to overwrite a file already open
+ * in another tab and guards against pre-existing temporary/backup siblings.
+ *
+ * @param app The application state.
+ * @param doc The document being saved.
+ * @param path The destination path.
+ * @return Non-zero on success, zero on failure (an error requester is shown).
+ */
 int file_save(EditorApp *app, Document *doc, const char *path)
 {
     char canonical[EDITOR_PATH_MAX], resolved[EDITOR_PATH_MAX];
@@ -131,6 +182,17 @@ replace_failed:
     return 0;
 }
 
+/**
+ * @brief Present an ASL file requester and act on the chosen file.
+ *
+ * Builds the full path from the requester's drawer and file name, then either
+ * saves @p doc or opens a new document depending on @p save.
+ *
+ * @param app The application state.
+ * @param doc The document to save (used only when @p save is non-zero).
+ * @param save Non-zero for a save requester, zero for an open requester.
+ * @return Non-zero if a file was successfully saved or opened, zero otherwise.
+ */
 static int request_file(EditorApp *app, Document *doc, int save)
 {
     struct FileRequester *fr; char path[EDITOR_PATH_MAX]; int result = 0;
@@ -146,5 +208,18 @@ static int request_file(EditorApp *app, Document *doc, int save)
     FreeAslRequest(fr); return result;
 }
 
+/**
+ * @brief Prompt the user for a file to open via an ASL requester.
+ *
+ * @param app The application state.
+ * @return Non-zero if a document was opened, zero otherwise.
+ */
 int file_request_open(EditorApp *app) { return request_file(app, NULL, 0); }
+/**
+ * @brief Prompt the user for a destination and save a document via ASL.
+ *
+ * @param app The application state.
+ * @param doc The document to save.
+ * @return Non-zero if the document was saved, zero otherwise.
+ */
 int file_request_save(EditorApp *app, Document *doc) { return request_file(app, doc, 1); }
