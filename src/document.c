@@ -398,3 +398,30 @@ void document_scroll_finish(EditorApp *app, int horizontal)
         }
     }
 }
+
+/* Suspend the syntax highlighter during an interactive minimap drag, exactly
+ * like a scrollbar drag does, so the rapid re-scrolls that follow the mouse
+ * stay fast; the shared app->scrolling flag also tells minimap_poll() not to
+ * re-render the viewport overlay until the drag has finished. */
+void document_suspend_highlight(EditorApp *app)
+{
+    if (app->active != NULL && !app->scrolling) {
+        set_highlight_enabled(app, app->active, 0);
+        app->scrolling = 1;
+    }
+}
+
+/* Restore the syntax highlighter after an interactive minimap drag and force a
+ * full redraw so the now-visible lines are highlighted again. */
+void document_resume_highlight(EditorApp *app)
+{
+    if (app->scrolling) {
+        app->scrolling = 0;
+        if (app->active != NULL) {
+            set_highlight_enabled(app, app->active, 1);
+            if (app->window != NULL)
+                RefreshPageGadget((struct Gadget *)app->active->page,
+                                  app->pages, app->window, NULL);
+        }
+    }
+}

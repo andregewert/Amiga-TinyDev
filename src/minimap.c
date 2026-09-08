@@ -74,13 +74,23 @@ struct Minimap {
     int busy;                       /* a render job is in flight */
     int dirty;                      /* a fresh render is needed */
     int ready;                      /* the render task started up */
-    /* The following members are only ever touched by the render task. */
+    /* The render task allocates and fills these; the main task additionally
+     * reads bitmap/bm_width/bm_height from the SPACE_RenderHook to repaint the
+     * last render on a layout refresh.  Only one render is outstanding at a
+     * time, so a hook firing mid-render can at worst show a harmless transient
+     * that the completing render immediately supersedes. */
     struct BitMap *bitmap;
     LONG bm_width;
     LONG bm_height;
-    /* Last drawing-area size seen by the main task, used to notice layout
-     * changes (e.g. WeightBar drags) that resize the space.gadget without a
-     * WMHI_NEWSIZE event. */
+    /* Last drawing-area position and size seen by the main task, used to notice
+     * layout changes (e.g. WeightBar drags) that move or resize the
+     * space.gadget without a WMHI_NEWSIZE event.  The position must be tracked
+     * as well as the size: dragging the left WeightBar (between the folder tree
+     * and the editor) shifts the minimap column sideways without changing its
+     * width or height, so watching the size alone would miss it and leave the
+     * moved drawing area cleared to its grey background. */
+    LONG last_left;
+    LONG last_top;
     LONG last_width;
     LONG last_height;
     /* Last vertical scroll position seen by the main task, used to re-render the
@@ -302,15 +312,149 @@ static void minimap_task(void)
 
 /* -- main task side ----------------------------------------------------- */
 
+/* Draw a raised bevel around the minimap drawing area on the given RastPort. */
+static void minimap_draw_raised_border(EditorApp *app, struct RastPort *rp,
+                                       struct IBox *box);
+
+/* Render hook attached to the minimap space.gadget (SPACE_RenderHook).  It is
+ * invoked by the gadget whenever it refreshes - crucially, this includes the
+ * relayouts triggered while a WeightBar is dragged, when the layout would
+ * otherwise just clear the space.gadget to its grey background.  Re-drawing the
+ * last rendered minimap bitmap here (synchronously, in the same refresh pass)
+ * keeps the minimap visible during and after any layout change without racing
+ * the layout the way an asynchronous re-render request did. */
+static void minimap_space_render(struct Hook *hook, Object *obj,
+                                 struct gpRender *gpr)
+{
+    EditorApp *app = (EditorApp *)hook->h_Data;
+    struct Minimap *mm;
+    struct RastPort *rp;
+    struct IBox *box = NULL;
+    (void)obj;
+    if (app == NULL || gpr == NULL || app->minimap == NULL) return;
+    rp = gpr->gpr_RPort;
+    if (rp == NULL) return;
+    GetAttr(SPACE_AreaBox, app->minimap, (ULONG *)&box);
+    if (box == NULL || box->Width <= 0 || box->Height <= 0) return;
+    mm = app->minimap_ctx;
+    if (mm != NULL && mm->bitmap != NULL && mm->bm_width > 0 &&
+        mm->bm_height > 0) {
+        LONG w = box->Width, h = box->Height;
+        if (w > mm->bm_width) w = mm->bm_width;
+        if (h > mm->bm_height) h = mm->bm_height;
+        BltBitMapRastPort(mm->bitmap, 0, 0, rp, box->Left, box->Top,
+            (WORD)w, (WORD)h, 0xC0);
+    }
+    minimap_draw_raised_border(app, rp, box);
+}
+
 /* Create the space.gadget that reserves the drawing area for the minimap. */
 Object *minimap_create_gadget(EditorApp *app)
 {
+    /* The space.gadget is left as a plain, passive spacer (no GA_RelVerify /
+     * GA_Immediate / GA_FollowMouse).  A bare space.gadget does not consume the
+     * mouse button, so a click over the minimap area falls through to the
+     * window as an IDCMP_MOUSEBUTTONS event, which is what the drag handling
+     * relies on.  Making it interactive here proved unreliable: the spacer did
+     * not deliver a dependable WMHI_GADGETUP for GID_MINIMAP, so the drag never
+     * ended and later mouse moves from other active gadgets scrolled the editor
+     * from unrelated places in the UI. */
+    memset(&app->minimap_render_hook, 0, sizeof(app->minimap_render_hook));
+    app->minimap_render_hook.h_Entry = (ULONG (*)())HookEntry;
+    app->minimap_render_hook.h_SubEntry = (ULONG (*)())minimap_space_render;
+    app->minimap_render_hook.h_Data = app;
     app->minimap = NewObject(SPACE_GetClass(), NULL,
+        GA_ID, GID_MINIMAP,
         SPACE_MinWidth, MINIMAP_MIN_WIDTH,
         SPACE_MinHeight, 1,
         SPACE_Transparent, FALSE,
+        SPACE_RenderHook, (ULONG)&app->minimap_render_hook,
         TAG_END);
     return app->minimap;
+}
+
+/* Scroll the active document so its visible region is centred on the minimap
+ * line under the given window-relative mouse Y coordinate.  Only the vertical
+ * position matters; the horizontal scroll is left untouched.  Runs on the main
+ * task and updates the editor and its scrollbars directly. */
+static void minimap_scroll_to(EditorApp *app, LONG mouse_y)
+{
+    Document *doc = app->active;
+    struct IBox *box = NULL;
+    ULONG total = 1, visible = 1;
+    LONG rel, first;
+    if (doc == NULL || app->minimap == NULL || app->window == NULL) return;
+    GetAttr(SPACE_AreaBox, app->minimap, (ULONG *)&box);
+    if (box == NULL || box->Height <= 0) return;
+    GetAttr(GA_TEXTEDITOR_Prop_Entries, doc->editor, &total);
+    GetAttr(GA_TEXTEDITOR_Prop_Visible, doc->editor, &visible);
+    if (total == 0) total = 1;
+    if (visible == 0) visible = 1;
+    rel = mouse_y - box->Top;
+    if (rel < 0) rel = 0;
+    if (rel >= box->Height) rel = box->Height - 1;
+    first = (LONG)(((unsigned long long)(ULONG)rel * total) /
+                   (unsigned long long)(ULONG)box->Height);
+    first -= (LONG)visible / 2;      /* centre the viewport on the cursor */
+    if ((ULONG)first + visible > total) first = (LONG)total - (LONG)visible;
+    if (first < 0) first = 0;
+    SetGadgetAttrs((struct Gadget *)doc->editor, app->window, NULL,
+        GA_TEXTEDITOR_Prop_First, (ULONG)first, TAG_END);
+    RefreshPageGadget((struct Gadget *)doc->page, app->pages, app->window, NULL);
+    document_sync_scrollers(app, doc);
+}
+
+/* Report whether the given window-relative point lies inside the minimap
+ * drawing area. */
+static int minimap_point_inside(EditorApp *app, WORD mx, WORD my)
+{
+    struct IBox *box = NULL;
+    if (app->minimap == NULL) return 0;
+    GetAttr(SPACE_AreaBox, app->minimap, (ULONG *)&box);
+    if (box == NULL) return 0;
+    return mx >= box->Left && mx < box->Left + box->Width &&
+           my >= box->Top && my < box->Top + box->Height;
+}
+
+/* Handle an IDCMP_MOUSEBUTTONS event delivered to the window.  A left-button
+ * press (SELECTDOWN) inside the minimap area starts a drag: the highlighter is
+ * suspended for speed (as with a scrollbar drag), ReportMouse() is switched on
+ * so the window delivers IDCMP_MOUSEMOVE events for the duration of the drag,
+ * and the editor jumps to the clicked line.  The matching release (SELECTUP)
+ * ends the drag, switches ReportMouse() back off, restores the highlighter and
+ * requests a fresh render so the viewport overlay is redrawn (only now, not
+ * during the drag).  Anchoring the drag to real button events - rather than to
+ * mouse moves - is what keeps unrelated clicks elsewhere in the UI from
+ * triggering a phantom scroll. */
+void minimap_handle_buttons(EditorApp *app, UWORD code)
+{
+    if (app->window == NULL) return;
+    if (code == SELECTDOWN) {
+        if (!app->minimap_visible || app->active == NULL) return;
+        if (!minimap_point_inside(app, app->window->MouseX, app->window->MouseY))
+            return;
+        app->minimap_dragging = 1;
+        document_suspend_highlight(app);
+        ReportMouse(TRUE, app->window);
+        minimap_scroll_to(app, app->window->MouseY);
+    } else if (code == SELECTUP) {
+        if (!app->minimap_dragging) return;
+        app->minimap_dragging = 0;
+        ReportMouse(FALSE, app->window);
+        document_resume_highlight(app);
+        minimap_request(app);
+    }
+}
+
+/* Handle an IDCMP_MOUSEMOVE event.  While a minimap drag is in progress (see
+ * minimap_handle_buttons) the editor is scrolled to follow the cursor; moves at
+ * any other time are ignored so the minimap only reacts to a genuine drag that
+ * started with a press inside it. */
+void minimap_handle_mouse(EditorApp *app)
+{
+    if (!app->minimap_dragging) return;
+    if (app->window == NULL || app->active == NULL) return;
+    minimap_scroll_to(app, app->window->MouseY);
 }
 
 /* Spawn the background render task and complete the startup handshake. */
@@ -437,10 +581,18 @@ void minimap_poll(EditorApp *app)
     if (app->minimap == NULL || app->window == NULL) return;
     GetAttr(SPACE_AreaBox, app->minimap, (ULONG *)&box);
     if (box == NULL || box->Width <= 0 || box->Height <= 0) return;
-    /* Dragging the WeightBar between the tree and the editor changes the layout
-     * and resizes the space.gadget without generating a WMHI_NEWSIZE, so notice
-     * a changed drawing area here and force a re-render. */
-    if (box->Width != mm->last_width || box->Height != mm->last_height) {
+    /* Dragging a WeightBar changes the layout and moves and/or resizes the
+     * space.gadget without generating a WMHI_NEWSIZE, so notice a changed
+     * drawing area here and force a re-render.  Both the origin and the size
+     * are checked: the right WeightBar (between the editor and the minimap)
+     * changes the width, while the left WeightBar (between the folder tree and
+     * the editor) only shifts the column sideways, leaving the width and height
+     * unchanged - watching the size alone would miss that and leave the moved
+     * area cleared to grey. */
+    if (box->Left != mm->last_left || box->Top != mm->last_top ||
+        box->Width != mm->last_width || box->Height != mm->last_height) {
+        mm->last_left = box->Left;
+        mm->last_top = box->Top;
         mm->last_width = box->Width;
         mm->last_height = box->Height;
         mm->dirty = 1;
@@ -448,8 +600,11 @@ void minimap_poll(EditorApp *app)
     /* Read the editor's vertical visible range.  A change while the user is not
      * actively dragging a scrollbar means a scrolling operation has finished
      * (keyboard, wheel, arrow or the end of a drag), so re-render the viewport
-     * overlay; positions seen mid-drag are ignored so nothing updates during
-     * scrolling. */
+     * overlay; positions seen mid-drag of a scrollbar are ignored so nothing
+     * updates during scrolling.  A minimap drag is the exception: even though it
+     * shares the app->scrolling flag (to suspend the editor highlighter), the
+     * viewport overlay must follow the cursor and be re-rendered live while the
+     * overlay itself is being dragged. */
     if (app->active != NULL) {
         GetAttr(GA_TEXTEDITOR_Prop_First, app->active->editor, &view_first);
         GetAttr(GA_TEXTEDITOR_Prop_Visible, app->active->editor, &view_visible);
@@ -457,7 +612,8 @@ void minimap_poll(EditorApp *app)
     }
     if (view_total == 0) view_total = 1;
     if (view_visible == 0) view_visible = 1;
-    if (!app->scrolling && (LONG)view_first != mm->last_first) {
+    if ((!app->scrolling || app->minimap_dragging) &&
+        (LONG)view_first != mm->last_first) {
         mm->last_first = (LONG)view_first;
         mm->dirty = 1;
     }
@@ -506,14 +662,13 @@ void minimap_poll(EditorApp *app)
  * the standard AmigaOS look for a raised border.  It is drawn on the window's
  * RastPort after every blit (the blit fills the whole box first), so it always
  * sits on top of the freshly rendered minimap contents. */
-static void minimap_draw_raised_border(EditorApp *app, struct IBox *box)
+static void minimap_draw_raised_border(EditorApp *app, struct RastPort *rp,
+                                       struct IBox *box)
 {
-    struct RastPort *rp;
     UWORD shine, shadow;
     WORD left, top, right, bottom;
-    if (app->window == NULL || box == NULL) return;
+    if (rp == NULL || box == NULL) return;
     if (box->Width < 2 || box->Height < 2) return;
-    rp = app->window->RPort;
     shine = app->screen_draw_info != NULL
         ? app->screen_draw_info->dri_Pens[SHINEPEN]
         : (UWORD)app->editor_pens[EDITOR_COLOR_TEXT];
@@ -563,7 +718,7 @@ void minimap_handle_reply(EditorApp *app)
                 /* The blit above fills the whole drawing area, so redraw the
                  * raised border on top so the space.gadget keeps its framed
                  * panel look. */
-                minimap_draw_raised_border(app, box);
+                minimap_draw_raised_border(app, app->window->RPort, box);
             }
         }
     }

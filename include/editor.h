@@ -37,6 +37,7 @@ enum GadgetId {
     GID_TREE = 2,
     GID_VSCROLL = 3,
     GID_HSCROLL = 4,
+    GID_MINIMAP = 5,
     GID_NEW = 10, GID_OPEN, GID_SAVE, GID_UNDO, GID_REDO,
     GID_CUT, GID_COPY, GID_PASTE,
     GID_LAST
@@ -81,6 +82,9 @@ typedef struct EditorApp {
     Object *tree;
     Object *tree_show_image;
     Object *tree_hide_image;
+    /* Close glyph used by the tab close gadgets: the external
+     * TBImages:list_remove image, loaded through the bitmap.image class and
+     * handed to CLICKTAB_CloseImage. */
     Object *tab_close_image;
     Object *tabs;
     Object *pages;
@@ -95,6 +99,10 @@ typedef struct EditorApp {
     UWORD editor_draw_pens[NUMDRIPENS];
     struct Hook editor_backfill_hook;
     struct Hook tab_idcmp_hook;
+    /* Render hook attached to the minimap space.gadget so the last rendered
+     * minimap bitmap is redrawn by the gadget itself on every layout refresh
+     * (e.g. WeightBar drags), instead of leaving the area cleared to grey. */
+    struct Hook minimap_render_hook;
     struct Node *pending_close;
     long editor_pens[EDITOR_COLOR_COUNT];
     long minimap_view_pen;
@@ -106,6 +114,7 @@ typedef struct EditorApp {
     int tree_visible;
     int minimap_visible;
     int minimap_attached;
+    int minimap_dragging;
     int scrolling;
     int running;
 } EditorApp;
@@ -140,6 +149,8 @@ void document_sync_scrollers(EditorApp *app, Document *doc);
 void document_scroll(EditorApp *app, int horizontal);
 void document_scroll_live(EditorApp *app);
 void document_scroll_finish(EditorApp *app, int horizontal);
+void document_suspend_highlight(EditorApp *app);
+void document_resume_highlight(EditorApp *app);
 
 Object *minimap_create_gadget(EditorApp *app);
 int minimap_start(EditorApp *app);
@@ -148,6 +159,8 @@ void minimap_set_visible(EditorApp *app, int visible);
 void minimap_request(EditorApp *app);
 void minimap_poll(EditorApp *app);
 void minimap_handle_reply(EditorApp *app);
+void minimap_handle_mouse(EditorApp *app);
+void minimap_handle_buttons(EditorApp *app, UWORD code);
 ULONG minimap_signal_mask(EditorApp *app);
 
 int file_load(EditorApp *app, Document *doc, const char *path);

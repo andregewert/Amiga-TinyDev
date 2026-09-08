@@ -309,6 +309,7 @@ static int create_toolbar(EditorApp *app)
     return 1;
 }
 
+
 int ui_create(EditorApp *app)
 {
     app->screen = LockPubScreen(NULL);
@@ -319,6 +320,9 @@ int ui_create(EditorApp *app)
     }
     app->pages = NewObject(PAGE_GetClass(), NULL, PAGE_NoDispose, TRUE, TAG_END);
     if (app->pages == NULL) return 0;
+    /* The tab close gadgets use the external TBImages:list_remove image,
+     * loaded through the bitmap.image class with a transparent (masked)
+     * background so it blends into the tab. */
     app->tab_close_image = NewObject(BITMAP_GetClass(), NULL,
         BITMAP_SourceFile, (ULONG)"TBImages:list_remove",
         BITMAP_Screen, (ULONG)app->screen,
@@ -414,8 +418,12 @@ int ui_create(EditorApp *app)
         /* The window.class only enables the IDCMP flags its gadgets need, so
          * request IDCMP_NEWSIZE explicitly; without it WMHI_NEWSIZE is never
          * delivered and the minimap is not re-rendered after a resize (the
-         * space.gadget is only cleared to its background pen). */
-        WA_IDCMP, IDCMP_NEWSIZE,
+         * space.gadget is only cleared to its background pen).  IDCMP_MOUSEBUTTONS
+         * is requested so a press/release over the passive minimap space.gadget
+         * (which does not consume the button) is delivered to the window, and
+         * IDCMP_MOUSEMOVE so the drag can be tracked once ReportMouse() is
+         * enabled for the duration of the drag. */
+        WA_IDCMP, IDCMP_NEWSIZE | IDCMP_MOUSEBUTTONS | IDCMP_MOUSEMOVE,
         WA_PubScreen, (ULONG)app->screen,
         WA_Width, 640, WA_Height, 400,
         WINDOW_Position, WPOS_CENTERSCREEN,
@@ -585,7 +593,12 @@ static void tab_event(EditorApp *app)
 
 int ui_run(EditorApp *app)
 {
-    ULONG signals = 0, result, code, mask;
+    ULONG signals = 0, result, mask;
+    /* WM_HANDLEINPUT stores the gadget/IDCMP code through a WORD* (wmh_Code),
+     * so this must be a 16-bit WORD.  Using a ULONG here made the returned
+     * value land in the high word on the big-endian 68000, so (UWORD)code was
+     * always zero and the minimap never saw a real SELECTDOWN/SELECTUP. */
+    WORD code = 0;
     ULONG scroll_mask = 1UL << (ULONG)app->scroll_signal;
     ULONG minimap_mask = minimap_signal_mask(app);
     GetAttr(WINDOW_SigMask, app->window_object, &mask);
@@ -603,6 +616,21 @@ int ui_run(EditorApp *app)
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_TREE) tree_handle_event(app);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_VSCROLL) document_scroll_finish(app, 0);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_HSCROLL) document_scroll_finish(app, 1);
+            else if (kind == WMHI_MOUSEBUTTONS) minimap_handle_buttons(app, (UWORD)code);
+            else if (kind == WMHI_MOUSEMOVE) {
+                minimap_handle_mouse(app);
+                /* A WeightBar drag repeatedly relayouts the content group and
+                 * clears the minimap's space.gadget to grey without ever
+                 * changing the minimap box geometry (dragging the left
+                 * WeightBar shifts only the tree/editor split, leaving the
+                 * right-hand minimap column at the same Left/Top/Width/Height).
+                 * Geometry watching in minimap_poll() therefore cannot notice
+                 * it.  The layout does, however, request mouse reports while a
+                 * bar is being dragged, so those moves reach us here; force a
+                 * re-render on every one so the freshly cleared area is redrawn
+                 * (coalesced to a single outstanding job). */
+                if (app->minimap_visible) minimap_request(app);
+            }
             else if (kind == WMHI_NEWSIZE) minimap_request(app);
             else if (kind == WMHI_GADGETUP) toolbar_action(app, result & WMHI_GADGETMASK);
             else if (kind == WMHI_MENUPICK) {
@@ -667,7 +695,7 @@ void ui_destroy(EditorApp *app)
         if (app->toolbar_images[i] != NULL) DisposeObject(app->toolbar_images[i]);
     if (app->tree_show_image != NULL) DisposeObject(app->tree_show_image);
     if (app->tree_hide_image != NULL) DisposeObject(app->tree_hide_image);
-    if (app->tab_close_image != NULL) DisposeObject(app->tab_close_image);
+    if (app->tab_close_image != NULL) { DisposeObject(app->tab_close_image); app->tab_close_image = NULL; }
     close_editor_colors(app);
     if (app->screen != NULL) UnlockPubScreen(NULL, app->screen);
     app->window_object = app->layout = app->toolbar = app->content_layout = NULL;
@@ -675,6 +703,5 @@ void ui_destroy(EditorApp *app)
     app->minimap = NULL;
     app->tree = app->tabs = app->pages = NULL;
     app->tree_show_image = app->tree_hide_image = NULL;
-    app->tab_close_image = NULL;
     app->window = NULL; app->screen = NULL;
 }

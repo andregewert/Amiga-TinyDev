@@ -50,7 +50,12 @@ simple frame with a slightly darker background that marks the vertically
 visible portion of the editor; only the vertical range matters, so the box
 always spans the full minimap width. This viewport is refreshed after a
 scrolling operation completes (not while a scrollbar is being dragged) and
-after a window layout change. Rendering runs in a
+after a window layout change. The viewport overlay can also be dragged with the
+mouse to scroll the editor: pressing and dragging inside the minimap moves the
+visible region so it is centred on the cursor line, and (as with scrollbar
+dragging) syntax highlighting is suspended while the drag is in progress and
+restored, together with a viewport redraw, once the mouse button is released.
+Rendering runs in a
 separate background task so the editor stays responsive; nothing is rendered
 while the minimap is hidden, updates are coalesced to the minimum (a single job
 is ever outstanding), and the task is stopped cleanly on exit. Like the folder
@@ -77,5 +82,5 @@ The visible tree is bounded to 16 directory levels and 2048 entries.
 Version one intentionally treats contents as 8-bit text. UTF-8 decoding,
 Unicode shaping, search/replace UI, user-configurable colors, sessions, font
 selection, and arbitrary raw TrueType loading are not promised. A missing V47
-class prevents startup. The minimap is a scaled color overview only, without
-click-to-scroll navigation.
+class prevents startup. The minimap is a scaled color overview with
+drag-to-scroll navigation via its viewport overlay.
