@@ -1,5 +1,5 @@
-#ifndef AMIEDITOR_SYNTAX_H
-#define AMIEDITOR_SYNTAX_H
+#ifndef TINYDE_SYNTAX_H
+#define TINYDE_SYNTAX_H
 
 #include <stddef.h>
 

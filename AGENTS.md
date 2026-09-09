@@ -2,7 +2,7 @@
 
 ## Project overview
 
-AmiEditor is a native AmigaOS 3.2 multi-document text editor written in C. It
+tinyDE is a native AmigaOS 3.2 multi-document text editor written in C. It
 uses ReAction classes and targets 68000 systems with soft-float and no ixemul.
 The codebase intentionally handles file contents as 8-bit text.
 
@@ -30,7 +30,7 @@ The target compiler defaults to `/opt/amiga/bin/m68k-amigaos-gcc`.
 ```sh
 make
 make test
-/opt/amiga/bin/m68k-amigaos-objdump -f AmiEditor
+/opt/amiga/bin/m68k-amigaos-objdump -f build/tinyDE
 ```
 
 - Run `make test` for all changes that affect the portable syntax scanner.
@@ -39,9 +39,11 @@ make test
 - A successful host test does not validate ReAction or AmigaOS integration.
 - Do not claim target-build verification if the cross-toolchain or SDK is
   unavailable; report that limitation explicitly.
-- `make clean` removes the target binary, target objects/dependency files, and
-  the host test binary. Do not run it when unrelated generated-file changes
-  need to be preserved.
+- All build artifacts (the target binary `build/tinyDE`, target
+  objects/dependency files, and the host test binary) are placed in the `build`
+  directory.
+- `make clean` removes the entire `build` directory. Do not run it when
+  unrelated generated-file changes need to be preserved.
 
 ## Coding conventions
 

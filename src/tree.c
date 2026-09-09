@@ -533,7 +533,7 @@ int tree_request_directory(EditorApp *app)
         ASLFR_TitleText, (ULONG)"Open directory",
         ASLFR_DrawersOnly, TRUE, TAG_END);
     char path[EDITOR_PATH_MAX]; int result = 0;
-    if (fr == NULL) { ui_error(app, "AmiEditor", "Could not allocate the directory requester."); return 0; }
+    if (fr == NULL) { ui_error(app, "tinyDE", "Could not allocate the directory requester."); return 0; }
     if (AslRequestTags(fr, ASLFR_Window, (ULONG)app->window,
                        ASLFR_SleepWindow, TRUE, TAG_END)) {
         strncpy(path, fr->fr_Drawer, sizeof(path) - 1); path[sizeof(path) - 1] = '\0';

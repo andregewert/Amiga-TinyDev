@@ -268,16 +268,16 @@ void ui_error(EditorApp *app, const char *title, const char *message)
 /**
  * @brief Update the window title to reflect the active document.
  *
- * Sets the title to "AmiEditor" when no document is active, otherwise to
- * "AmiEditor - <title>" with a trailing '*' when the active document is dirty.
+ * Sets the title to "tinyDE" when no document is active, otherwise to
+ * "tinyDE - <title>" with a trailing '*' when the active document is dirty.
  *
  * @param app The application whose window title is refreshed.
  */
 void ui_refresh(EditorApp *app)
 {
     static char window_title[EDITOR_TITLE_MAX + 24];
-    if (app->active == NULL) strcpy(window_title, "AmiEditor");
-    else snprintf(window_title, sizeof(window_title), "AmiEditor - %s%s",
+    if (app->active == NULL) strcpy(window_title, "tinyDE");
+    else snprintf(window_title, sizeof(window_title), "tinyDE - %s%s",
                   app->active->title, app->active->dirty ? "*" : "");
     if (app->window_object != NULL) SetAttrs(app->window_object, WA_Title, (ULONG)window_title, TAG_END);
 }
@@ -444,7 +444,7 @@ int ui_create(EditorApp *app)
     app->screen = LockPubScreen(NULL);
     if (app->screen == NULL) return 0;
     if (!open_editor_colors(app)) {
-        ui_error(app, "AmiEditor", "Could not reserve editor colors on the public screen.");
+        ui_error(app, "tinyDE", "Could not reserve editor colors on the public screen.");
         return 0;
     }
     app->pages = NewObject(PAGE_GetClass(), NULL, PAGE_NoDispose, TRUE, TAG_END);
@@ -542,7 +542,7 @@ int ui_create(EditorApp *app)
     app->tab_idcmp_hook.h_SubEntry = (ULONG (*)())tab_idcmp_entry;
     app->tab_idcmp_hook.h_Data = app;
     app->window_object = NewObject(WINDOW_GetClass(), NULL,
-        WA_Title, (ULONG)"AmiEditor", WA_DragBar, TRUE, WA_DepthGadget, TRUE,
+        WA_Title, (ULONG)"tinyDE", WA_DragBar, TRUE, WA_DepthGadget, TRUE,
         WA_CloseGadget, TRUE, WA_SizeGadget, TRUE, WA_Activate, TRUE,
         /* The window.class only enables the IDCMP flags its gadgets need, so
          * request IDCMP_NEWSIZE explicitly; without it WMHI_NEWSIZE is never

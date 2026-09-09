@@ -1,5 +1,5 @@
-#ifndef AMIEDITOR_EDITOR_H
-#define AMIEDITOR_EDITOR_H
+#ifndef TINYDE_EDITOR_H
+#define TINYDE_EDITOR_H
 
 #include <exec/lists.h>
 #include <exec/libraries.h>
