@@ -199,10 +199,10 @@ static int request_file(EditorApp *app, Document *doc, int save)
     fr = AllocAslRequestTags(ASL_FileRequest, ASLFR_TitleText,
         (ULONG)(save ? "Save document" : "Open document"), ASLFR_DoSaveMode, (ULONG)save,
         ASLFR_RejectIcons, TRUE, TAG_END);
-    if (fr == NULL) { ui_error(app, "tinyDE", "Could not allocate the file requester."); return 0; }
+    if (fr == NULL) { ui_error(app, "TinyDev", "Could not allocate the file requester."); return 0; }
     if (AslRequestTags(fr, ASLFR_Window, (ULONG)app->window, ASLFR_SleepWindow, TRUE, TAG_END)) {
         strncpy(path, fr->fr_Drawer, sizeof(path) - 1); path[sizeof(path) - 1] = '\0';
-        if (!AddPart(path, fr->fr_File, sizeof(path))) ui_error(app, "tinyDE", "Selected path is too long.");
+        if (!AddPart(path, fr->fr_File, sizeof(path))) ui_error(app, "TinyDev", "Selected path is too long.");
         else result = save ? file_save(app, doc, path) : document_open(app, path) != NULL;
     }
     FreeAslRequest(fr); return result;

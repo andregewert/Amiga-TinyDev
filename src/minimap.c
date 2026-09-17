@@ -599,7 +599,7 @@ int minimap_start(EditorApp *app)
     if (mm->reply_port == NULL) { FreeVec(mm); return 0; }
     mm->proc = CreateNewProcTags(
         NP_Entry, (ULONG)minimap_task,
-        NP_Name, (ULONG)"tinyDE Minimap",
+        NP_Name, (ULONG)"TinyDev Minimap",
         NP_StackSize, 16384,
         NP_Priority, (ULONG)-1,
         TAG_END);

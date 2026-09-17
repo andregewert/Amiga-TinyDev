@@ -45,12 +45,12 @@ static int workbench_launch;
 static void report_library_error(const char *name, ULONG version)
 {
     char message[160];
-    snprintf(message, sizeof(message), "tinyDE requires %s version %lu or newer.",
+    snprintf(message, sizeof(message), "TinyDev requires %s version %lu or newer.",
              name, (unsigned long)version);
     fprintf(stderr, "%s\n", message);
     if (workbench_launch && IntuitionBase != NULL) {
         struct EasyStruct requester = {
-            sizeof(requester), 0, "tinyDE startup error", message, "OK"
+            sizeof(requester), 0, "TinyDev startup error", message, "OK"
         };
         EasyRequestArgs(NULL, &requester, NULL, NULL);
     }
@@ -193,10 +193,10 @@ int main(int argc, char **argv)
     if (!app_open_libraries(argc == 0)) goto done;
     app.scroll_signal = AllocSignal(-1);
     if (app.scroll_signal < 0) {
-        fprintf(stderr, "tinyDE: no free signal for live scrolling\n");
+        fprintf(stderr, "TinyDev: no free signal for live scrolling\n");
         goto done;
     }
-    if (!ui_create(&app)) { fprintf(stderr, "tinyDE: could not create the ReAction window\n"); goto done; }
+    if (!ui_create(&app)) { fprintf(stderr, "TinyDev: could not create the ReAction window\n"); goto done; }
     if (argc == 0) open_workbench_files(&app, (struct WBStartup *)argv);
     else open_cli_files(&app, argc, argv);
     if (IsListEmpty(&app.documents)) document_new(&app);
