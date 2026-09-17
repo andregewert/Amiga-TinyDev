@@ -6,6 +6,15 @@ clipboard, undo/redo, scrolling and line numbers. Built-in highlighting covers
 C/C headers (`.c`, `.h`) and AmigaDOS scripts (`.script`, `.dos`). Other files
 remain plain text.
 
+In the future, TinyDev aims to be a simple but complete development environment
+for AmigaOS 3.2.
+It should support multiple languages via AmigaOS catalogues,
+and multiple syntax parsers. It will also include features such as template system,
+running build tools, and other external tools.
+
+As you can guess, much of the code is AI-generated (using different models).
+I will try to manually check and improve the generated code.
+
 ## Build and test
 
 The default toolchain prefix is `/opt/amiga/bin/m68k-amigaos-`. Build with:
