@@ -1,0 +1,26 @@
+# Makefile to be run on AmigaOS with vbcc
+
+CC := vc
+BUILD_DIR := build
+TARGET := $(BUILD_DIR)/TinyDev
+SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/syntax.c src/minimap.c
+OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
+DEPS := $(OBJECTS:.o=.d)
+CPPFLAGS := -Iinclude
+CFLAGS := -c99
+LDFLAGS := -lmsoft -lamiga -lauto
+
+.PHONY: all clean test
+all: $(TARGET)
+
+$(TARGET): $(OBJECTS)
+	$(CC) $(LDFLAGS) -o $@ $(OBJECTS)
+
+$(BUILD_DIR)/%.o: src/%.c
+	makedir $(BUILD_DIR)
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
+
+clean:
+	delete ALL $(BUILD_DIR)
+
+-include $(DEPS)
