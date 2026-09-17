@@ -1,5 +1,5 @@
-#ifndef TINYDE_SYNTAX_H
-#define TINYDE_SYNTAX_H
+#ifndef TINYDEV_SYNTAX_H
+#define TINYDEV_SYNTAX_H
 
 #include <stddef.h>
 

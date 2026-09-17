@@ -2,7 +2,7 @@
 
 ## Project overview
 
-tinyDE is a native AmigaOS 3.2 multi-document text editor written in C. It
+TinyDev is a native AmigaOS 3.2 multi-document text editor written in C. It
 uses ReAction classes and targets 68000 systems with soft-float and no ixemul.
 The codebase intentionally handles file contents as 8-bit text.
 
@@ -30,7 +30,7 @@ The target compiler defaults to `/opt/amiga/bin/m68k-amigaos-gcc`.
 ```sh
 make
 make test
-/opt/amiga/bin/m68k-amigaos-objdump -f build/tinyDE
+/opt/amiga/bin/m68k-amigaos-objdump -f build/TinyDev
 ```
 
 - Run `make test` for all changes that affect the portable syntax scanner.
@@ -39,7 +39,7 @@ make test
 - A successful host test does not validate ReAction or AmigaOS integration.
 - Do not claim target-build verification if the cross-toolchain or SDK is
   unavailable; report that limitation explicitly.
-- All build artifacts (the target binary `build/tinyDE`, target
+- All build artifacts (the target binary `build/TinyDev`, target
   objects/dependency files, and the host test binary) are placed in the `build`
   directory.
 - `make clean` removes the entire `build` directory. Do not run it when

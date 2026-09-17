@@ -1,6 +1,6 @@
-# tinyDE
+# TinyDev
 
-tinyDE is a compact native AmigaOS 3.2 multi-document text editor. Each
+TinyDev is a compact native AmigaOS 3.2 multi-document text editor. Each
 closable tab owns a ReAction `texteditor.gadget`, providing native selection,
 clipboard, undo/redo, scrolling and line numbers. Built-in highlighting covers
 C/C headers (`.c`, `.h`) and AmigaDOS scripts (`.script`, `.dos`). Other files
@@ -12,10 +12,10 @@ The default toolchain prefix is `/opt/amiga/bin/m68k-amigaos-`. Build with:
 
     make clean && make
     make test
-    /opt/amiga/bin/m68k-amigaos-objdump -f build/tinyDE
+    /opt/amiga/bin/m68k-amigaos-objdump -f build/TinyDev
 
 The Makefile explicitly selects `-m68000 -msoft-float -noixemul` and creates the
-Hunk executable `build/tinyDE`. All build artifacts are placed in the `build`
+Hunk executable `build/TinyDev`. All build artifacts are placed in the `build`
 directory. Copy that file to the target and run it from Shell
 with optional file arguments, or launch it from Workbench with project icons.
 
