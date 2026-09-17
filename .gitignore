@@ -1,4 +1,6 @@
 *.o
 *.d
-build/
-.cache/
+/build/
+/.air/
+/.cache/
+/.junie/
