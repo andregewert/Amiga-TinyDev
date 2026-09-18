@@ -44,7 +44,7 @@ with optional file arguments, or launch it from Workbench with project icons.
 - The editor area always uses the default screen font; there is no font
   selection.
 
-Project supports New/Open/Save/Save As/Close/Quit, native edit commands,
+Project supports New/Open/Save/Save As/Close/About/Quit, native edit commands,
 horizontal scrolling without automatic line wrapping, line-number toggling,
 safe temporary-file saves, duplicate-path tab activation,
 and LF/CR/CRLF preservation. A status line spanning the full window width at

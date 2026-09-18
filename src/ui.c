@@ -218,6 +218,8 @@ static struct NewMenu menus[] = {
     {NM_ITEM, "Save As...", NULL, 0, 0, UD(MID_SAVE_AS)},
     {NM_ITEM, "Close", "W", 0, 0, UD(MID_CLOSE)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
+    {NM_ITEM, "About...", "?", 0, 0, UD(MID_ABOUT)},
+    {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, "Quit", "Q", 0, 0, UD(MID_QUIT)},
     {NM_TITLE, "Edit", NULL, 0, 0, NULL},
     {NM_ITEM, "Undo", "Z", 0, 0, UD(MID_UNDO)},
@@ -262,6 +264,26 @@ static const ToolbarSpec toolbar_specs[] = {
 void ui_error(EditorApp *app, const char *title, const char *message)
 {
     struct EasyStruct es = {sizeof(es), 0, (STRPTR)title, (STRPTR)message, "OK"};
+    EasyRequestArgs(app != NULL ? app->window : NULL, &es, NULL, NULL);
+}
+
+/**
+ * @brief Display the modal About requester with application information.
+ *
+ * @param app The application owning the window used for the requester.
+ */
+void ui_about(EditorApp *app)
+{
+    struct EasyStruct es = {
+        sizeof(es),
+        0,
+        "About TinyDev",
+        "TinyDev\n"
+        "A native AmigaOS 3.2 text editor.\n\n"
+        "Copyright (c) 2026 Andre Gewert\n"
+        "<agewert@ubergeek.de>",
+        "OK"
+    };
     EasyRequestArgs(app != NULL ? app->window : NULL, &es, NULL, NULL);
 }
 
@@ -650,9 +672,10 @@ static int close_all(EditorApp *app)
  * @brief Dispatch a menu item selection to the corresponding action.
  *
  * Handles the Project, Edit, and View menu commands: creating/opening/saving/
- * closing documents, quitting (after confirming all closes), editor commands,
- * toggling the folder tree and minimap, and toggling line numbers (updating
- * every document's editor gadget and relaying out).
+ * closing documents, showing the About requester, quitting (after confirming
+ * all closes), editor commands, toggling the folder tree and minimap, and
+ * toggling line numbers (updating every document's editor gadget and relaying
+ * out).
  *
  * @param app The application acting on the command.
  * @param id The menu command identifier (MID_*).
@@ -667,6 +690,7 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_SAVE: save_active(app, 0); break;
         case MID_SAVE_AS: save_active(app, 1); break;
         case MID_CLOSE: document_close(app, app->active, 1); break;
+        case MID_ABOUT: ui_about(app); break;
         case MID_QUIT: if (close_all(app)) app->running = 0; break;
         case MID_UNDO: editor_command(app, "UNDO"); break;
         case MID_REDO: editor_command(app, "REDO"); break;

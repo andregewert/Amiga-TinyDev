@@ -45,7 +45,8 @@ enum GadgetId {
 enum MenuId {
     MID_NEW = 1, MID_OPEN, MID_OPEN_DIRECTORY, MID_SAVE, MID_SAVE_AS, MID_CLOSE, MID_QUIT,
     MID_UNDO, MID_REDO, MID_CUT, MID_COPY, MID_PASTE, MID_SELECT_ALL,
-    MID_FOLDER_TREE, MID_LINE_NUMBERS, MID_MINIMAP
+    MID_FOLDER_TREE, MID_LINE_NUMBERS, MID_MINIMAP,
+    MID_ABOUT
 };
 
 typedef enum LineEnding { EOL_LF = 0, EOL_CR = 1, EOL_CRLF = 2 } LineEnding;
@@ -173,6 +174,11 @@ void ui_relayout(EditorApp *app);
  * @param message The message body.
  */
 void ui_error(EditorApp *app, const char *title, const char *message);
+/**
+ * @brief Show the modal About requester with application information.
+ * @param app The application state.
+ */
+void ui_about(EditorApp *app);
 /**
  * @brief Ask the user whether to close a document with unsaved changes.
  * @param app The application state.
