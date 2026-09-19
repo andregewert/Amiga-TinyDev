@@ -1,0 +1,115 @@
+; $VER: test_c_parser.script 1.1 (19.09.2026)
+; Demonstration and automated test script for the standalone C parser (c_parser)
+;
+; Usage: Execute scripts/test_c_parser.script [PARSER=<path>] [FILE=<path>]
+
+.key PARSER,FILE
+.bra [
+.ket ]
+
+Echo "============================================================"
+Echo " TinyDev Standalone C Parser (c_parser) Demonstration"
+Echo "============================================================"
+
+; Locate parser executable
+Set ParserProg "[PARSER]"
+IF "$ParserProg" EQ ""
+    IF EXISTS "build/parsers/c_parser"
+        Set ParserProg "build/parsers/c_parser"
+    ELSE
+        IF EXISTS "parsers/c_parser"
+            Set ParserProg "parsers/c_parser"
+        ELSE
+            IF EXISTS "PROGDIR:parsers/c_parser"
+                Set ParserProg "PROGDIR:parsers/c_parser"
+            ELSE
+                Set ParserProg "c_parser"
+            ENDIF
+        ENDIF
+    ENDIF
+ENDIF
+
+Echo "Using Parser: $ParserProg"
+
+; Target source file to analyze
+Set TargetFile "[FILE]"
+IF "$TargetFile" EQ ""
+    Set TargetFile "T:c_parser_demo_temp.c"
+    Echo "Creating sample C test file ($TargetFile)..."
+    
+    Echo "#include <stdio.h>" >$TargetFile
+    Echo "#define BUFFER_SIZE 1024" >>$TargetFile
+    Echo "" >>$TargetFile
+    Echo "typedef struct AppConfig {" >>$TargetFile
+    Echo "    int max_tabs*;" >>$TargetFile
+    Echo "    char *title*;" >>$TargetFile
+    Echo "} AppConfig*;" >>$TargetFile
+    Echo "" >>$TargetFile
+    Echo "int calculate_sum(int a, int b) {" >>$TargetFile
+    Echo "    return a + b*;" >>$TargetFile
+    Echo "}" >>$TargetFile
+    Echo "" >>$TargetFile
+    Echo "int main(int argc, char **argv) {" >>$TargetFile
+    Echo "    AppConfig cfg*;" >>$TargetFile
+    Echo "    int total = calculate_sum(10, 20)*;" >>$TargetFile
+    Echo "    return 0*;" >>$TargetFile
+    Echo "}" >>$TargetFile
+    Set CreatedTemp 1
+ELSE
+    Echo "Analyzing file: $TargetFile"
+    Set CreatedTemp 0
+ENDIF
+
+Echo ""
+Echo "------------------------------------------------------------"
+Echo " 1. Document Symbols Query (textDocument/documentSymbol)"
+Echo "------------------------------------------------------------"
+Echo '{"jsonrpc":"2.0","id":1,"method":"textDocument/documentSymbol","params":{"textDocument":{"uri":"file://$TargetFile"}}}' >T:c_parser_req.json
+$ParserProg <T:c_parser_req.json
+
+Echo ""
+Echo "------------------------------------------------------------"
+Echo " 2. Diagnostics Query (textDocument/publishDiagnostics)"
+Echo "------------------------------------------------------------"
+Echo '{"jsonrpc":"2.0","id":2,"method":"textDocument/publishDiagnostics","params":{"textDocument":{"uri":"file://$TargetFile"}}}' >T:c_parser_req.json
+$ParserProg <T:c_parser_req.json
+
+Echo ""
+Echo "------------------------------------------------------------"
+Echo " 3. Go-to-Definition Query (textDocument/definition)"
+Echo "    Looking up symbol 'calculate_sum' at line 14, col 17"
+Echo "------------------------------------------------------------"
+Echo '{"jsonrpc":"2.0","id":3,"method":"textDocument/definition","params":{"textDocument":{"uri":"file://$TargetFile"},"position":{"line":14,"character":16},"symbol":"calculate_sum"}}' >T:c_parser_req.json
+$ParserProg <T:c_parser_req.json
+
+Echo ""
+Echo "------------------------------------------------------------"
+Echo " 4. Code Completion Query (textDocument/completion)"
+Echo "    Suggesting completions with prefix 'calc'"
+Echo "------------------------------------------------------------"
+Echo '{"jsonrpc":"2.0","id":4,"method":"textDocument/completion","params":{"textDocument":{"uri":"file://$TargetFile"},"position":{"line":14,"character":1},"context":{"prefix":"calc"}}}' >T:c_parser_req.json
+$ParserProg <T:c_parser_req.json
+
+Echo ""
+Echo "------------------------------------------------------------"
+Echo " 5. Diagnostics on Syntax Error Sample (unclosed brace/string)"
+Echo "------------------------------------------------------------"
+Echo "int broken_func(void) {" >T:c_parser_err_sample.c
+Echo '    char *s = "unterminated string*;' >>T:c_parser_err_sample.c
+Echo '{"jsonrpc":"2.0","id":5,"method":"textDocument/publishDiagnostics","params":{"textDocument":{"uri":"file://T:c_parser_err_sample.c"}}}' >T:c_parser_req.json
+$ParserProg <T:c_parser_req.json
+
+; Clean up temporary files
+Delete >NIL: T:c_parser_req.json T:c_parser_err_sample.c
+IF "$CreatedTemp" EQ "1"
+    Delete >NIL: $TargetFile
+ENDIF
+
+Unset ParserProg
+Unset TargetFile
+Unset CreatedTemp
+
+Echo ""
+Echo "============================================================"
+Echo " Demonstration finished."
+Echo "============================================================"

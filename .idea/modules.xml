@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/Amiga-TinyDev.iml" filepath="$PROJECT_DIR$/.idea/Amiga-TinyDev.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/TinyDev.iml" filepath="$PROJECT_DIR$/.idea/TinyDev.iml" />
     </modules>
   </component>
 </project>
