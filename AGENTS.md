@@ -60,7 +60,7 @@ make test
   must remain guarded (for example, with `SYNTAX_HOST_TEST`).
 - Maintain the current 68000, 8-bit-text, and AmigaOS 3.2 compatibility unless
   a task explicitly changes those requirements.
-- Add documentation comments to functions, methods and type declarations
+- Add documentation comments to functions, methods, and type declarations
 
 ## Behavioral constraints
 
