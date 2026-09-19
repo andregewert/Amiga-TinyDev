@@ -4,6 +4,7 @@
 #include <proto/exec.h>
 #include <proto/dos.h>
 #include <dos/dostags.h>
+#include <workbench/startup.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,6 +18,94 @@ static char *lsp_strdup(const char *s)
         memcpy(copy, s, len + 1);
     }
     return copy;
+}
+
+int lsp_server_add_search_path(LspServer *srv, const char *path)
+{
+    if (!srv || !path || !*path) return 0;
+    if (srv->search_path_count >= LSP_MAX_SEARCH_PATHS) return 0;
+
+    for (size_t i = 0; i < srv->search_path_count; i++) {
+        if (srv->search_paths[i] && strcmp(srv->search_paths[i], path) == 0) {
+            return 1;
+        }
+    }
+
+    char *copy = lsp_strdup(path);
+    if (!copy) return 0;
+
+    srv->search_paths[srv->search_path_count++] = copy;
+    return 1;
+}
+
+void lsp_server_clear_search_paths(LspServer *srv)
+{
+    if (!srv) return;
+    for (size_t i = 0; i < srv->search_path_count; i++) {
+        if (srv->search_paths[i]) {
+            free(srv->search_paths[i]);
+            srv->search_paths[i] = NULL;
+        }
+    }
+    srv->search_path_count = 0;
+}
+
+/**
+ * @brief Resolves the directory containing the running executable.
+ *
+ * Supports both CLI launches (via GetProgramDir() / GetProgramName() / argv[0])
+ * and Workbench launches (via WBStartup argument lock).
+ *
+ * @param argc CLI argument count (0 if started from Workbench).
+ * @param argv CLI argument array or pointer to struct WBStartup.
+ * @param out_dir Buffer to receive the directory path.
+ * @param out_size Size of out_dir buffer in bytes.
+ * @return 1 on success, 0 on failure.
+ */
+int app_get_program_directory(int argc, char **argv, char *out_dir, size_t out_size)
+{
+    if (!out_dir || out_size == 0) return 0;
+    out_dir[0] = '\0';
+
+    if (argc == 0) {
+        /* Workbench startup: first element of sm_ArgList contains lock to program directory */
+        struct WBStartup *wb_msg = (struct WBStartup *)argv;
+        if (wb_msg && wb_msg->sm_NumArgs > 0) {
+            struct WBArg *app_arg = &wb_msg->sm_ArgList[0];
+            if (app_arg->wa_Lock) {
+                return NameFromLock(app_arg->wa_Lock, out_dir, (LONG)out_size) != 0;
+            }
+        }
+    } else {
+        /* CLI startup: GetProgramDir() returns lock to program directory if available */
+        BPTR prog_lock = GetProgramDir();
+        if (prog_lock) {
+            if (NameFromLock(prog_lock, out_dir, (LONG)out_size)) {
+                return 1;
+            }
+        }
+
+        /* Fallback when GetProgramDir() lock is unavailable */
+        char prog_name[256];
+        prog_name[0] = '\0';
+        if (GetProgramName(prog_name, sizeof(prog_name)) || (argv && argv[0])) {
+            const char *src = (prog_name[0] != '\0') ? prog_name : argv[0];
+            const char *last_sep = strrchr(src, '/');
+            const char *colon = strrchr(src, ':');
+            const char *split = (last_sep > colon) ? last_sep : colon;
+
+            if (split) {
+                size_t len = (size_t)(split - src) + (split == colon ? 1 : 0);
+                if (len < out_size) {
+                    strncpy(out_dir, src, len);
+                    out_dir[len] = '\0';
+                    return 1;
+                }
+            }
+        }
+    }
+
+    return 0;
 }
 
 int lsp_parser_register(LspServer *srv, const char *ext, const char *exec_path)
@@ -55,23 +144,54 @@ const char *lsp_parser_find(LspServer *srv, const char *filepath)
         }
     }
 
-    /* Default fallbacks for C */
+    /* Fallback search for C parser (.c / .h) */
     if (dot && (strcasecmp(dot, ".c") == 0 || strcasecmp(dot, ".h") == 0)) {
-        static const char *default_c_paths[] = {
-            "PROGDIR:parsers/c_parser",
+        static char resolved_path[256];
+
+        /* 1. Prioritized search paths configured in LspServer (e.g. program directory) */
+        for (size_t i = 0; i < srv->search_path_count; i++) {
+            if (!srv->search_paths[i]) continue;
+
+            /* Check <SearchPath>/parsers/c_parser */
+            strncpy(resolved_path, srv->search_paths[i], sizeof(resolved_path) - 1);
+            resolved_path[sizeof(resolved_path) - 1] = '\0';
+            if (AddPart(resolved_path, "parsers/c_parser", sizeof(resolved_path))) {
+                BPTR lock = Lock(resolved_path, SHARED_LOCK);
+                if (lock) {
+                    UnLock(lock);
+                    return resolved_path;
+                }
+            }
+
+            /* Check <SearchPath>/c_parser */
+            strncpy(resolved_path, srv->search_paths[i], sizeof(resolved_path) - 1);
+            resolved_path[sizeof(resolved_path) - 1] = '\0';
+            if (AddPart(resolved_path, "c_parser", sizeof(resolved_path))) {
+                BPTR lock = Lock(resolved_path, SHARED_LOCK);
+                if (lock) {
+                    UnLock(lock);
+                    return resolved_path;
+                }
+            }
+        }
+
+        /* 2. Relative fallbacks from current working directory */
+        static const char *local_fallbacks[] = {
             "build/parsers/c_parser",
             "parsers/c_parser",
             "c_parser",
             NULL
         };
-        for (size_t i = 0; default_c_paths[i]; i++) {
-            BPTR lock = Lock(default_c_paths[i], SHARED_LOCK);
+        for (size_t i = 0; local_fallbacks[i]; i++) {
+            BPTR lock = Lock(local_fallbacks[i], SHARED_LOCK);
             if (lock) {
                 UnLock(lock);
-                return default_c_paths[i];
+                return local_fallbacks[i];
             }
         }
-        return "PROGDIR:parsers/c_parser";
+
+        /* 3. Final fallback: system PATH / assign */
+        return "c_parser";
     }
 
     return NULL;

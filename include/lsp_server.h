@@ -22,6 +22,8 @@ extern "C" {
 #define LSP_RC_WARN            5
 #define LSP_RC_ERROR           10
 
+#define LSP_MAX_SEARCH_PATHS   8
+
 typedef struct ParserEntry {
     char *extension;
     char *executable_path;
@@ -51,6 +53,9 @@ typedef struct LspServer {
     ParserEntry *parsers;
     CachedFileResult *cache;
 
+    char *search_paths[LSP_MAX_SEARCH_PATHS];
+    size_t search_path_count;
+
     int running;
     int enabled;
     int request_count;
@@ -68,10 +73,14 @@ int lsp_rexx_init(LspServer *srv);
 void lsp_rexx_cleanup(LspServer *srv);
 void lsp_rexx_handle_msg(LspServer *srv);
 
-/* Parser runner and registry (lsp_parser_runner.c) */
+/* Parser runner, registry, and search paths (lsp_parser_runner.c) */
 int lsp_parser_register(LspServer *srv, const char *ext, const char *exec_path);
 const char *lsp_parser_find(LspServer *srv, const char *filepath);
 void lsp_parser_registry_cleanup(LspServer *srv);
+
+int lsp_server_add_search_path(LspServer *srv, const char *path);
+void lsp_server_clear_search_paths(LspServer *srv);
+int app_get_program_directory(int argc, char **argv, char *out_dir, size_t out_size);
 
 int lsp_parser_run_request(LspServer *srv, const char *filepath,
                            const char *method, const char *params_json,

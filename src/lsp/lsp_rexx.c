@@ -398,6 +398,19 @@ void lsp_rexx_handle_msg(LspServer *srv)
                 reply_rexx(srv, rx_msg, LSP_RC_ERROR, "Failed to register parser");
             }
         }
+        else if (strcasecmp(command, "ADD_SEARCH_PATH") == 0) {
+            char path[512];
+            if (!parse_next_arg(&p, path, sizeof(path))) {
+                reply_rexx(srv, rx_msg, LSP_RC_ERROR, "Usage: ADD_SEARCH_PATH <path>");
+                continue;
+            }
+
+            if (lsp_server_add_search_path(srv, path)) {
+                reply_rexx(srv, rx_msg, LSP_RC_OK, "OK");
+            } else {
+                reply_rexx(srv, rx_msg, LSP_RC_ERROR, "Failed to add search path (maximum reached or invalid)");
+            }
+        }
         else if (strcasecmp(command, "STATUS") == 0) {
             char status_buf[512];
             snprintf(status_buf, sizeof(status_buf),
