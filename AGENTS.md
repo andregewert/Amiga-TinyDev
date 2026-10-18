@@ -49,6 +49,9 @@ The codebase intentionally handles file contents as 8-bit text.
   Scout JSON code and the C parser.
 - `amiga-devkit/`: git submodule (pinned tag) with shared Amiga tools and AI
   guidelines; see `CLAUDE.md`. Do not edit files inside the submodule.
+- `tools/mkicons.py`: motifs of the Workbench icons (TinyDev, Scout, parsers)
+  for `amiga-devkit/tools/amigaicons.py`; `make icons` writes `icons/`. The
+  files in `icons/` are generated, never edited by hand.
 - `README.md`: supported behavior, runtime dependencies, and known limits.
 
 ## Build and verification

@@ -61,7 +61,7 @@ $(error $(DEVKIT) is missing: git submodule update --init)
 endif
 LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h sfd/*.sfd tests/*.c scripts/* tests-host/* LICENSE Makefile)
 
-.PHONY: all clean test
+.PHONY: all clean test icons
 all: charcheck $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(PARSER_C_TARGET)
 
 # Included after "all" so that charcheck does not become the default goal.
@@ -103,6 +103,11 @@ $(BUILD_DIR)/test_scout_json: src/scout/scout_json.c tests/test_scout_json.c inc
 $(BUILD_DIR)/test_c_parser: src/parsers/c_parser.c src/scout/scout_json.c tests/test_c_parser.c include/c_parser.h include/scout_json.h
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Iinclude -DC_PARSER_NO_MAIN -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/parsers/c_parser.c src/scout/scout_json.c tests/test_c_parser.c
+
+# Sample icons of every style (icons/<Style>/*.info) and icons/preview.png,
+# drawn by tools/mkicons.py with amiga-devkit/tools/amigaicons.py.
+icons:
+	python3 tools/mkicons.py
 
 clean:
 	rm -rf $(BUILD_DIR) $(BIN_DIR)

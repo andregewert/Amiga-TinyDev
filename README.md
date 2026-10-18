@@ -104,6 +104,22 @@ signal arrives); clicks and drags are reported as notifications
 Colours come from an optional per-line hook; TinyDev plugs in its syntax
 scanner there.
 
+## Icons
+
+`make icons` draws sample Workbench icons in three styles (classic 4 colour,
+GlowIcons, NewIcons) into `icons/<Style>/` and a preview `icons/preview.png`.
+The motifs are in `tools/mkicons.py`, the icon writer comes from
+`amiga-devkit/tools/amigaicons.py`:
+
+| Icon | Motif |
+|---|---|
+| `TinyDev` | Editor window with line numbers, coloured code and the minimap |
+| `TinyDev-Scout` | A page of code under a magnifying glass |
+| `c_parser` | A chip with the label of the parser's language ("C") |
+
+A new Scout parser gets its icon with `parser('<letter>')` in
+`tools/mkicons.py` (the letter needs a glyph in `GLYPHS` and `SMALL`).
+
 ## Settings (tool types)
 
 Settings are tool types of the program icon (`PROGDIR:TinyDev.info`), also
