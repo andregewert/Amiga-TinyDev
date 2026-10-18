@@ -52,18 +52,35 @@ enum GadgetId {
 /** What the toolbar buttons show (tool type TOOLBAR=IMAGES|BOTH|TEXT). */
 enum ToolbarMode { TBMODE_IMAGES = 0, TBMODE_BOTH, TBMODE_TEXT, TBMODE_COUNT };
 
-/** Settings from the tool types of the program icon (and project icons). */
+/** Configurable colours of the editor (syntax highlighting), in this order. */
+enum SettingsColour {
+    SCOL_TEXT = 0, SCOL_KEYWORD, SCOL_STRING, SCOL_COMMENT, SCOL_PREPROCESSOR,
+    SCOL_COUNT
+};
+
+/** Settings from the tool types of the program icon (and project icons),
+ *  edited in the settings window. */
 typedef struct Settings {
     int tbmode;         /* ToolbarMode, takes effect at the next start */
     int tbframes;       /* frames around the toolbar buttons (TOOLBARFRAMES) */
     int splash;         /* splash window while starting (NOSPLASH turns it off) */
+    long winwidth;      /* main window at the start: 0 = automatic */
+    long winheight;
+    long winleft;       /* -1 = centred */
+    long wintop;
+    unsigned long colours[SCOL_COUNT];  /* 0xRRGGBB, SettingsColour order */
     char icon_name[300];/* program icon without .info, for splash and About */
 } Settings;
+
+/** Default colours, SettingsColour order. */
+extern const unsigned long settings_default_colours[SCOL_COUNT];
+/** Results of prefs_dialog(). */
+enum { PREFS_CANCEL = 0, PREFS_USE, PREFS_SAVE };
 enum MenuId {
     MID_NEW = 1, MID_OPEN, MID_OPEN_DIRECTORY, MID_SAVE, MID_SAVE_AS, MID_CLOSE, MID_QUIT,
     MID_UNDO, MID_REDO, MID_CUT, MID_COPY, MID_PASTE, MID_SELECT_ALL,
     MID_FOLDER_TREE, MID_LINE_NUMBERS, MID_MINIMAP,
-    MID_ABOUT
+    MID_ABOUT, MID_SETTINGS
 };
 
 typedef enum LineEnding { EOL_LF = 0, EOL_CR = 1, EOL_CRLF = 2 } LineEnding;
@@ -146,6 +163,32 @@ extern struct Library *DiskfontBase;
  * @param s The settings to fill in.
  */
 void settings_default(Settings *s);
+/**
+ * @brief Write the settings into the tool types of the program icon. Other
+ *        tool types and the NewIcons block stay; a setting at its default
+ *        value stays as a disabled entry "(KEY=value)".
+ * @param s The settings (icon_name names the icon).
+ * @return Non-zero on success.
+ */
+int settings_save(const Settings *s);
+/**
+ * @brief Show the modal settings window (categories Window, Colours,
+ *        Toolbar).
+ * @param app The application state (main window and screen).
+ * @param s In: the current settings; out: the edited ones (not on cancel).
+ * @return PREFS_CANCEL, PREFS_USE or PREFS_SAVE.
+ */
+int prefs_dialog(EditorApp *app, Settings *s);
+/** @brief Close the classes opened by the settings window. */
+void prefs_cleanup(void);
+/**
+ * @brief Take over edited settings: colours at once, the rest at the next
+ *        start.
+ * @param app The application state.
+ * @param n The new settings.
+ */
+void ui_apply_settings(EditorApp *app, const Settings *n);
+
 /**
  * @brief Read the settings from the tool types of the program icon and, on
  *        a Workbench start, of the project icons (which take precedence).

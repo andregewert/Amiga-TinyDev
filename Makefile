@@ -6,7 +6,7 @@ HOST_CC ?= cc
 BUILD_DIR := build
 BIN_DIR := bin
 TARGET := $(BIN_DIR)/TinyDev
-SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/splash.c
+SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/splash.c src/prefswin.c
 OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
 DEPS := $(OBJECTS:.o=.d)
 CPPFLAGS := -Iinclude

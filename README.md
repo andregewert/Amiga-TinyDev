@@ -124,14 +124,23 @@ A new Scout parser gets its icon with `parser('<letter>')` in
 
 Settings are tool types of the program icon (`PROGDIR:TinyDev.info`), also
 when TinyDev is started from the Shell; when it is started from the
-Workbench, the tool types of project icons are applied afterwards. There is
-no settings window yet.
+Workbench, the tool types of project icons are applied afterwards.
+
+Project/Settings... (Amiga+,) opens the settings window with the categories
+Window, Colours and Toolbar. "Save" writes the settings into the program
+icon (other tool types and the NewIcons block stay; a setting at its default
+stays as a disabled entry such as `(TOOLBARFRAMES)`), "Use" takes them for
+this session only. The highlighting colours take effect at once, the other
+settings at the next start.
 
 | Tool type | Meaning |
 |---|---|
 | `TOOLBAR=IMAGES\|BOTH\|TEXT` | Toolbar buttons show images (default), images with text below, or text only (no image is loaded) |
 | `TOOLBARFRAMES` | Frames around the toolbar buttons (otherwise they are flat and only look recessed while pressed) |
 | `NOSPLASH` | No splash window while TinyDev starts |
+| `WIDTH=n`, `HEIGHT=n` | Size of the main window at the start (default: 90 % x 80 % of the screen) |
+| `LEFT=n`, `TOP=n` | Position of the main window at the start (default: centred) |
+| `COLOR_TEXT`, `COLOR_KEYWORD`, `COLOR_STRING`, `COLOR_COMMENT`, `COLOR_PREPROCESSOR` | Colours of the syntax highlighting as `RRGGBB` |
 
 ## Target requirements
 

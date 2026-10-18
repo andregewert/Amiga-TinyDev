@@ -184,6 +184,7 @@ int app_open_classes(void)
 void app_close_libraries(void)
 {
 #define CLOSE_BASE(x) do { if ((x) != NULL) { CloseLibrary((x)); (x) = NULL; } } while (0)
+    prefs_cleanup();
     CLOSE_BASE(TextFieldBase); CLOSE_BASE(ClickTabBase); CLOSE_BASE(DirTreeBase); CLOSE_BASE(MinimapBase);
     CLOSE_BASE(ScrollerBase); CLOSE_BASE(SpeedBarBase); CLOSE_BASE(LabelBase);
     CLOSE_BASE(ChooserBase); CLOSE_BASE(BitMapBase);

@@ -4,6 +4,7 @@
 #include <gadgets/button.h>
 #include <gadgets/layout.h>
 #include <gadgets/dirtree.h>
+#include <gadgets/minimap.h>
 #include <gadgets/listbrowser.h>
 #include <gadgets/texteditor.h>
 #include <images/bitmap.h>
@@ -103,6 +104,18 @@ static ULONG tab_idcmp_entry(struct Hook *hook, Object *win,
 }
 
 /**
+ * @brief One component of an 0xRRGGBB colour as 32 bit value for
+ *        ObtainBestPen().
+ * @param c The colour.
+ * @param shift 16 for red, 8 for green, 0 for blue.
+ * @return The component, repeated into all 4 bytes.
+ */
+static ULONG rgb32(unsigned long c, int shift)
+{
+    return (ULONG)((c >> shift) & 0xffUL) * 0x01010101UL;
+}
+
+/**
  * @brief Reserve and configure the pens used for editor rendering.
  *
  * Obtains the fixed set of editor colors (background, text, and syntax pens)
@@ -117,14 +130,6 @@ static ULONG tab_idcmp_entry(struct Hook *hook, Object *win,
  */
 static int open_editor_colors(EditorApp *app)
 {
-    static const ULONG rgb[EDITOR_COLOR_COUNT][3] = {
-        {0xffffffffUL, 0xffffffffUL, 0xffffffffUL},
-        {0x00000000UL, 0x00000000UL, 0x00000000UL},
-        {0x10101010UL, 0x30303030UL, 0xa0a0a0a0UL},
-        {0x10101010UL, 0x70707070UL, 0x10101010UL},
-        {0x50505050UL, 0x60606060UL, 0x50505050UL},
-        {0x80808080UL, 0x20202020UL, 0x70707070UL}
-    };
     struct TagItem tags[] = {
         {OBP_Precision, PRECISION_GUI},
         {OBP_FailIfBad, FALSE},
@@ -141,8 +146,11 @@ static int open_editor_colors(EditorApp *app)
     app->minimap_view_pen = -1;
     for (i = 0; i < EDITOR_COLOR_COUNT; ++i) app->editor_pens[i] = -1;
     for (i = 0; i < EDITOR_COLOR_COUNT; ++i) {
-        app->editor_pens[i] = ObtainBestPenA(color_map, rgb[i][0], rgb[i][1],
-                                             rgb[i][2], i == EDITOR_COLOR_BACKGROUND
+        /* white background, the other colours from the settings */
+        unsigned long c = i == EDITOR_COLOR_BACKGROUND
+            ? 0xffffffUL : app->settings.colours[i - EDITOR_COLOR_TEXT];
+        app->editor_pens[i] = ObtainBestPenA(color_map, rgb32(c, 16), rgb32(c, 8),
+                                             rgb32(c, 0), i == EDITOR_COLOR_BACKGROUND
                                              ? white_tags : tags);
         if (app->editor_pens[i] < 0) {
             while (--i >= 0) ReleasePen(color_map, (ULONG)app->editor_pens[i]);
@@ -217,6 +225,7 @@ static struct NewMenu menus[] = {
     {NM_ITEM, "Save As...", NULL, 0, 0, UD(MID_SAVE_AS)},
     {NM_ITEM, "Close", "W", 0, 0, UD(MID_CLOSE)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
+    {NM_ITEM, "Settings...", ",", 0, 0, UD(MID_SETTINGS)},
     {NM_ITEM, "About...", "?", 0, 0, UD(MID_ABOUT)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, "Quit", "Q", 0, 0, UD(MID_QUIT)},
@@ -385,6 +394,7 @@ int ui_confirm_close(EditorApp *app, Document *doc)
  */
 int ui_create(EditorApp *app)
 {
+    long win_width, win_height, win_left, win_top;
     app->screen = LockPubScreen(NULL);
     if (app->screen == NULL) return 0;
     if (!open_editor_colors(app)) {
@@ -478,6 +488,19 @@ int ui_create(EditorApp *app)
     app->tab_idcmp_hook.h_Entry = (ULONG (*)())HookEntry;
     app->tab_idcmp_hook.h_SubEntry = (ULONG (*)())tab_idcmp_entry;
     app->tab_idcmp_hook.h_Data = app;
+    {
+        /* size and position from the settings: size 0 = from the screen,
+         * position -1 = centred; a window that would stick out is moved in */
+        long sw = app->screen->Width, sh = app->screen->Height;
+        win_width = app->settings.winwidth > 0 ? app->settings.winwidth : sw * 9 / 10;
+        win_height = app->settings.winheight > 0 ? app->settings.winheight : sh * 4 / 5;
+        if (win_width > sw) win_width = sw;
+        if (win_height > sh) win_height = sh;
+        win_left = app->settings.winleft;
+        win_top = app->settings.wintop;
+        if (win_left > sw - win_width) win_left = sw - win_width;
+        if (win_top > sh - win_height) win_top = sh - win_height;
+    }
     app->window_object = NewObject(WINDOW_GetClass(), NULL,
         WA_Title, (ULONG)"TinyDev", WA_DragBar, TRUE, WA_DepthGadget, TRUE,
         WA_CloseGadget, TRUE, WA_SizeGadget, TRUE, WA_Activate, TRUE,
@@ -489,8 +512,11 @@ int ui_create(EditorApp *app)
          * so the toolbar follows the selection and undo state. */
         WA_IDCMP, IDCMP_NEWSIZE | IDCMP_MOUSEMOVE | IDCMP_INTUITICKS,
         WA_PubScreen, (ULONG)app->screen,
-        WA_Width, 640, WA_Height, 400,
-        WINDOW_Position, WPOS_CENTERSCREEN,
+        WA_Width, (ULONG)win_width, WA_Height, (ULONG)win_height,
+        app->settings.winleft >= 0 ? WA_Left : TAG_IGNORE, (ULONG)win_left,
+        app->settings.wintop >= 0 ? WA_Top : TAG_IGNORE, (ULONG)win_top,
+        app->settings.winleft < 0 || app->settings.wintop < 0 ? WINDOW_Position : TAG_IGNORE,
+            WPOS_CENTERSCREEN,
         WINDOW_NewMenu, (ULONG)menus,
         WINDOW_MenuUserData, WGUD_IGNORE,
         WINDOW_ParentGroup, (ULONG)app->layout,
@@ -598,6 +624,89 @@ static int close_all(EditorApp *app)
  * @param app The application acting on the command.
  * @param id The menu command identifier (MID_*).
  */
+static void menu_action(EditorApp *app, ULONG id);
+
+/**
+ * @brief Show the settings window and take over its result; "Save" also
+ *        writes the settings into the program icon.
+ * @param app The application state.
+ */
+static void edit_settings(EditorApp *app)
+{
+    Settings n = app->settings;
+    int r = prefs_dialog(app, &n);
+    if (r == PREFS_CANCEL) return;
+    ui_apply_settings(app, &n);
+    if (r == PREFS_SAVE && !settings_save(&app->settings))
+        ui_error(app, APP_NAME, "The settings could not be saved in the program icon.");
+}
+
+/**
+ * @brief Take over edited settings.
+ *
+ * New highlighting colours take effect at once: the new pens are obtained,
+ * every document's highlighter and the minimap use them, the visible editor
+ * is highlighted and drawn again, then the old pens are released. If a pen
+ * cannot be obtained the old colours stay. Window, splash and toolbar
+ * settings take effect at the next start.
+ *
+ * @param app The application state.
+ * @param n The new settings.
+ */
+void ui_apply_settings(EditorApp *app, const Settings *n)
+{
+    struct ColorMap *cm;
+    long pens[SCOL_COUNT];
+    int i, changed;
+    Document *doc;
+
+    changed = memcmp(app->settings.colours, n->colours, sizeof(n->colours)) != 0;
+    app->settings = *n;
+    if (!changed || !app->editor_colors_open || app->screen == NULL) return;
+    cm = app->screen->ViewPort.ColorMap;
+    for (i = 0; i < SCOL_COUNT; ++i) {
+        unsigned long c = n->colours[i];
+        pens[i] = ObtainBestPen(cm, rgb32(c, 16), rgb32(c, 8), rgb32(c, 0),
+                                OBP_Precision, PRECISION_GUI, OBP_FailIfBad, FALSE, TAG_END);
+        if (pens[i] < 0) {
+            while (--i >= 0) ReleasePen(cm, (ULONG)pens[i]);
+            return;
+        }
+    }
+    for (i = 0; i < SCOL_COUNT; ++i) {
+        long old = app->editor_pens[EDITOR_COLOR_TEXT + i];
+        app->editor_pens[EDITOR_COLOR_TEXT + i] = pens[i];
+        pens[i] = old;                          /* released below */
+    }
+    app->editor_draw_pens[TEXTPEN] = (UWORD)app->editor_pens[EDITOR_COLOR_TEXT];
+    for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ != NULL;
+         doc = (Document *)doc->node.ln_Succ) {
+        syntax_set_pens(&doc->highlight,
+            (UWORD)app->editor_pens[EDITOR_COLOR_TEXT],
+            (UWORD)app->editor_pens[EDITOR_COLOR_KEYWORD],
+            (UWORD)app->editor_pens[EDITOR_COLOR_STRING],
+            (UWORD)app->editor_pens[EDITOR_COLOR_COMMENT],
+            (UWORD)app->editor_pens[EDITOR_COLOR_PREPROCESSOR]);
+    }
+    if (app->active != NULL && app->window != NULL) {
+        /* setting the hook again makes the editor highlight anew */
+        SetGadgetAttrs((struct Gadget *)app->active->editor, app->window, NULL,
+            GA_TEXTEDITOR_HighlighterHook, 0, TAG_END);
+        SetGadgetAttrs((struct Gadget *)app->active->editor, app->window, NULL,
+            GA_TEXTEDITOR_HighlighterHook, (ULONG)&app->active->highlight.hook, TAG_END);
+        RefreshPageGadget((struct Gadget *)app->active->page, app->pages, app->window, NULL);
+    }
+    if (app->minimap != NULL) {
+        if (app->window != NULL)
+            SetGadgetAttrs((struct Gadget *)app->minimap, app->window, NULL,
+                MINIMAP_TextPen, (ULONG)app->editor_pens[EDITOR_COLOR_TEXT],
+                MINIMAP_TextChanged, TRUE, TAG_END);
+        else SetAttrs(app->minimap, MINIMAP_TextPen, (ULONG)app->editor_pens[EDITOR_COLOR_TEXT],
+                      MINIMAP_TextChanged, TRUE, TAG_END);
+    }
+    for (i = 0; i < SCOL_COUNT; ++i) ReleasePen(cm, (ULONG)pens[i]);
+}
+
 static void menu_action(EditorApp *app, ULONG id)
 {
     Document *doc;
@@ -609,6 +718,7 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_SAVE_AS: save_active(app, 1); break;
         case MID_CLOSE: document_close(app, app->active, 1); break;
         case MID_ABOUT: ui_about(app); break;
+        case MID_SETTINGS: edit_settings(app); break;
         case MID_QUIT: if (close_all(app)) app->running = 0; break;
         case MID_UNDO: editor_command(app, "UNDO"); break;
         case MID_REDO: editor_command(app, "REDO"); break;

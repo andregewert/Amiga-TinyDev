@@ -17,7 +17,9 @@ The codebase intentionally handles file contents as 8-bit text.
 - `src/splash.c`: splash window during start-up (Intuition/graphics only, opened
   before the classes) and the About window, both as in Kickdown.
 - `src/settings.c`: settings from the tool types of the program icon (and of
-  project icons on a Workbench start).
+  project icons on a Workbench start); writes them back into the program icon.
+- `src/prefswin.c`: the settings window (categories Window, Colours, Toolbar),
+  built like Kickdown's.
 - `src/document.c`: document/tab lifecycle, scrollbar synchronization, and
   scroll-time highlighting suspension.
 - `src/fileio.c`: loading, line-ending preservation, requesters, and safe saves.
