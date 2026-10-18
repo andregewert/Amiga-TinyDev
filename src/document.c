@@ -609,6 +609,7 @@ void document_scroll(EditorApp *app, int horizontal)
 void document_scroll_live(EditorApp *app)
 {
     app->scrollbar_dragging = 1;
+    app->scroll_idle_ticks = 0;
     if (app->active != NULL && !app->scrolling) {
         set_highlight_enabled(app, app->active, 0);
         app->scrolling = 1;
@@ -620,10 +621,11 @@ void document_scroll_live(EditorApp *app)
 /**
  * @brief Handle the end of a scrollbar interaction.
  *
- * Covers button release, arrow, and page-click events on the given axis. After
- * applying the final position, re-enables highlighting if it was disabled
- * during a drag (clearing the scrolling flag) and forces a full page redraw so
- * the now-visible lines are highlighted again.
+ * Covers button release, arrow, and page-click events on the given axis
+ * (GADGETUP) and the end found by document_scroll_tick(). After applying
+ * the final position, re-enables highlighting if it was disabled during a
+ * drag (clearing the scrolling flag) and forces a full page redraw so the
+ * now-visible lines are highlighted again.
  *
  * @param app The owning application.
  * @param horizontal Non-zero for the horizontal axis, zero for vertical.
@@ -632,6 +634,7 @@ void document_scroll_finish(EditorApp *app, int horizontal)
 {
     document_scroll(app, horizontal);
     app->scrollbar_dragging = 0;
+    app->scroll_idle_ticks = 0;
     document_sync_scrollers(app, app->active);
     if (app->scrolling) {
         app->scrolling = 0;
@@ -642,6 +645,27 @@ void document_scroll_finish(EditorApp *app, int horizontal)
                                   app->pages, app->window, NULL);
         }
     }
+}
+
+/**
+ * @brief Finish a scrollbar interaction that sent no GADGETUP.
+ *
+ * Called for every IntuiTick (about ten per second while the window is
+ * active). The scroller sends a GADGETUP only when the button is released
+ * over it, and a last "moved" signal can arrive after the GADGETUP; either
+ * left the highlighting switched off. So when two ticks pass without a
+ * scroll signal, the scrolling counts as finished: both axes are applied
+ * and the highlighting comes back. Pausing during a drag does the same,
+ * the next movement switches it off again.
+ *
+ * @param app The owning application.
+ */
+void document_scroll_tick(EditorApp *app)
+{
+    if (!app->scrollbar_dragging) return;
+    if (++app->scroll_idle_ticks < 2) return;
+    document_scroll(app, 1);
+    document_scroll_finish(app, 0);
 }
 
 /**

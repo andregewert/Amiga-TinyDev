@@ -922,6 +922,7 @@ int ui_run(EditorApp *app)
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_TREE) tree_handle_event(app);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_VSCROLL) document_scroll_finish(app, 0);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_HSCROLL) document_scroll_finish(app, 1);
+            else if (kind == WMHI_INTUITICK) document_scroll_tick(app);
             /* Clicks and drags in the minimap arrive as IDCMPUPDATE
              * notifications (window IDCMP hook); its GADGETUP needs nothing. */
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_MINIMAP) ;

@@ -127,7 +127,9 @@ make test
 - Syntax scanning must remain usable independently of Amiga headers so the host
   test binary can compile.
 - Syntax highlighting is suspended while a scrollbar is actively dragged and
-  must be restored (with a redraw) when the drag ends.
+  must be restored (with a redraw) when the drag ends. The end is the
+  scroller's GADGETUP or two IntuiTicks without a scroll signal (the scroller
+  sends no GADGETUP when the button is released outside it).
 - `minimap.gadget` renders in its own process and only while it has a size;
   no rendering happens when the column is hidden. Updates must stay coalesced
   (a single outstanding job); the gadget stops and joins its process in

@@ -181,7 +181,8 @@ strings/character constants, preprocessor lines, `//` comments, and block
 comments. AmigaDOS keyword matching is case-insensitive and `;` begins a comment.
 To keep scrollbar dragging as smooth as the gadget's own mouse-wheel scrolling,
 syntax highlighting is suspended while a scrollbar is actively dragged and
-restored (with a full redraw) once the drag ends.
+restored (with a full redraw) once the drag ends or the scrollbar has not
+moved for about a fifth of a second.
 An optional colored minimap can be toggled from the View menu. It appears as a
 column on the right of the window (below the toolbar, beside the editor) and
 renders the active document using the same syntax colors on the same grey

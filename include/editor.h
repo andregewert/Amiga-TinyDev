@@ -145,6 +145,7 @@ typedef struct EditorApp {
     ULONG minimap_top;          /* MINIMAP_Top of that notification */
     int scrolling;
     int scrollbar_dragging;     /* a scroller is being used, do not write it */
+    int scroll_idle_ticks;      /* IntuiTicks since the last scroll signal */
     int defer_depth;            /* ui_begin_update() nesting */
     int pending_layout;         /* a relayout was requested meanwhile */
     int pending_refresh;        /* a page redraw was requested meanwhile */
@@ -441,6 +442,12 @@ void document_scroll_live(EditorApp *app);
  * @param horizontal Non-zero for the horizontal scroller, zero for vertical.
  */
 void document_scroll_finish(EditorApp *app, int horizontal);
+/**
+ * @brief Finish a scrollbar interaction after two IntuiTicks without a
+ *        scroll signal (it may send no GADGETUP).
+ * @param app The application state.
+ */
+void document_scroll_tick(EditorApp *app);
 /**
  * @brief Suspend syntax highlighting during an active scrollbar drag.
  * @param app The application state.
