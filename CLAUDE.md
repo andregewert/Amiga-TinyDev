@@ -19,9 +19,11 @@ Wo `AGENTS.md` und die Devkit-Dokumente sich widersprechen, gilt Folgendes:
 - **Host-Tests** heißen `make test` (nicht `make check`), ohne ASan/UBSan und ohne
   `.expected`-Referenzausgaben. Vor einem Commit: `make` (enthält `charcheck`) und `make test`.
 - **Noch nicht vorhanden** (nur nach Absprache einführen): Kataloge/`locale.library`,
-  `README.de.md`, `package/` mit Aminet-Readme, `make dist`, `make icons`, Tooltype-Einstellungen,
-  `__stack`-Einstellung. Bis dahin stehen sichtbare Texte noch im Code; neue Texte möglichst so
+  `README.de.md`, `package/` mit Aminet-Readme, `make dist`, `make icons`, Tooltype-Einstellungen.
+  Bis dahin stehen sichtbare Texte noch im Code; neue Texte möglichst so
   anlegen, dass sie später leicht in einen Katalog wandern.
+- **Versionen:** Das erste Release von TinyDev und seinen Gadget-Klassen wird 1.0. Bis dahin
+  lädt TinyDev die Klassen aus dem Build-Verzeichnis (`PROGDIR:Classes/Gadgets/`).
 - **Schrift:** Der Editor nutzt immer die Standard-Bildschirmschrift, eine Schriftwahl gibt es
   nicht (siehe `AGENTS.md`).
 - **Zeichensatz:** Welche Dateien ISO-8859-1 sein müssen, legt `LATIN1` im `Makefile` fest
