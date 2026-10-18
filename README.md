@@ -41,7 +41,7 @@ The Makefile explicitly selects `-m68000 -msoft-float -noixemul` and creates:
   tree and the minimap as reusable ReAction classes (see below).
 
 All build artifacts are placed in the `build` directory. `make` first runs
-`make charcheck`, which refuses UTF-8 in the Amiga sources, scripts, Makefiles
+`make charcheck`, which refuses UTF-8 in the Amiga sources, scripts, the Makefile
 and `LICENSE`; these files are ISO-8859-1.
 
 ## TinyDev-Scout Commodity & ARexx Interface

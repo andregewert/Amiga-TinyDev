@@ -28,5 +28,5 @@ Wo `AGENTS.md` und die Devkit-Dokumente sich widersprechen, gilt Folgendes:
 - **Schrift:** Der Editor nutzt immer die Standard-Bildschirmschrift, eine Schriftwahl gibt es
   nicht (siehe `AGENTS.md`).
 - **Zeichensatz:** Welche Dateien ISO-8859-1 sein müssen, legt `LATIN1` im `Makefile` fest
-  (Quellen, Header, Tests, Skripte, `LICENSE`, Makefiles). `AGENTS.md`, `CLAUDE.md`,
+  (Quellen, Header, Tests, Skripte, `LICENSE`, `Makefile`). `AGENTS.md`, `CLAUDE.md`,
   `README.md` und `FUTURE.md` bleiben UTF-8.

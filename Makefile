@@ -57,7 +57,7 @@ DEVKIT := amiga-devkit
 ifeq ($(wildcard $(DEVKIT)/make/charcheck.mk),)
 $(error $(DEVKIT) is missing: git submodule update --init)
 endif
-LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h sfd/*.sfd tests/*.c scripts/* tests-host/* LICENSE Makefile Makefile-Amiga-vbcc)
+LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h sfd/*.sfd tests/*.c scripts/* tests-host/* LICENSE Makefile)
 
 .PHONY: all clean test
 all: charcheck $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(PARSER_C_TARGET)
