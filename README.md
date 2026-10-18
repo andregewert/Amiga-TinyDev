@@ -101,6 +101,19 @@ signal arrives); clicks and drags are reported as notifications
 Colours come from an optional per-line hook; TinyDev plugs in its syntax
 scanner there.
 
+## Settings (tool types)
+
+Settings are tool types of the program icon (`PROGDIR:TinyDev.info`), also
+when TinyDev is started from the Shell; when it is started from the
+Workbench, the tool types of project icons are applied afterwards. There is
+no settings window yet.
+
+| Tool type | Meaning |
+|---|---|
+| `TOOLBAR=IMAGES\|BOTH\|TEXT` | Toolbar buttons show images (default), images with text below, or text only (no image is loaded) |
+| `TOOLBARFRAMES` | Frames around the toolbar buttons (otherwise they are flat and only look recessed while pressed) |
+| `NOSPLASH` | No splash window while TinyDev starts |
+
 ## Target requirements
 
 - AmigaOS 3.2 and V47 `window.class`, `layout.gadget`, `clicktab.gadget`, and
@@ -109,11 +122,20 @@ scanner there.
   `PROGDIR:Classes/Gadgets/`); `dirtree.gadget` needs `listbrowser.gadget`
   and, for its expand arrows, `glyph.image`.
 - `asl.library` and normal ReAction dependencies.
+- `speedbar.gadget` and `label.image` for the toolbar; `chooser.gadget` for
+  its overflow list (optional).
 - AISS with its standard `TBImages:` assignment for toolbar imagery. If an
-  individual image cannot be created, the corresponding toolbar action falls
-  back to a text button.
+  individual image cannot be created, the corresponding toolbar button shows
+  its text instead.
 - The editor area always uses the default screen font; there is no font
   selection.
+
+While TinyDev starts (classes, toolbar images), a splash window shows the
+program icon, name, version and a progress bar; it uses only Intuition and
+graphics.library, so it appears before any class is loaded. Project/About
+opens a window with the same head plus the website, licence and the versions
+of TinyDev's gadget classes. Both follow Kickdown and the ReAction style
+guide of amiga-devkit.
 
 Project supports New/Open/Save/Save As/Close/About/Quit, native edit commands,
 horizontal scrolling without automatic line wrapping, line-number toggling,
@@ -121,7 +143,12 @@ safe temporary-file saves, duplicate-path tab activation,
 and LF/CR/CRLF preservation. A status line spanning the full window width at
 the bottom shows the number of open documents and the line count of the
 currently displayed document. The AISS toolbar provides New, Open, Save,
-Undo, Redo, Cut, Copy, and Paste. C highlighting recognizes standard C99 keywords,
+Undo, Redo, Cut, Copy, and Paste, each with a help bubble. Buttons that would do
+nothing are ghosted (Save for an unchanged document, Undo/Redo without steps,
+Cut/Copy without a selection); a button's ghosted image (`<name>_g`) is only
+loaded when it is ghosted for the first time. Buttons that do not fit into a
+narrow window are listed in a drop-down chooser right of the bar.
+C highlighting recognizes standard C99 keywords,
 strings/character constants, preprocessor lines, `//` comments, and block
 comments. AmigaDOS keyword matching is case-insensitive and `;` begins a comment.
 To keep scrollbar dragging as smooth as the gadget's own mouse-wheel scrolling,

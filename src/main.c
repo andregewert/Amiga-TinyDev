@@ -29,6 +29,15 @@ struct Library *BitMapBase = NULL;
 struct Library *DirTreeBase = NULL;
 struct Library *MinimapBase = NULL;
 struct Library *ScrollerBase = NULL;
+struct Library *SpeedBarBase = NULL;
+struct Library *LabelBase = NULL;
+/* Optional: without it the toolbar has no overflow list. */
+struct Library *ChooserBase = NULL;
+/* Opened when a font is needed: title of splash/About, small toolbar font. */
+struct Library *DiskfontBase = NULL;
+
+/* Version string for the Version command. */
+static const char version_tag[] __attribute__((used)) = "$VER: " APP_NAME " " APP_VERSION;
 static struct IntuitionBase *old_intuition_base;
 static struct GfxBase *old_gfx_base;
 static int workbench_launch;
@@ -52,6 +61,7 @@ unsigned long __stack = 32768;
 static void report_library_error(const char *name, ULONG version)
 {
     char message[160];
+    splash_close();                     /* not over the requester */
     snprintf(message, sizeof(message), "TinyDev requires %s version %lu or newer.",
              name, (unsigned long)version);
     fprintf(stderr, "%s\n", message);
@@ -108,18 +118,18 @@ static int open_class(struct Library **base, const char *name, ULONG version)
 }
 
 /**
- * @brief Open every library and ReAction class required by the editor.
+ * @brief Open the libraries needed before the splash window.
  *
- * Opens intuition.library and graphics.library first (saving the previous
- * global bases so they can be restored on shutdown), verifies dos.library,
- * then opens the remaining ReAction gadget/image classes. Any failure is
- * reported via report_library_error() and aborts the sequence.
+ * Opens intuition.library and graphics.library (saving the previous global
+ * bases so they can be restored on shutdown), verifies dos.library and opens
+ * utility.library and icon.library. Any failure is reported via
+ * report_library_error() and aborts the sequence.
  *
  * @param from_workbench Non-zero when launched from Workbench, which enables
  *        GUI error requesters.
- * @return Non-zero if all required libraries opened successfully, zero otherwise.
+ * @return Non-zero if all of them opened, zero otherwise.
  */
-int app_open_libraries(int from_workbench)
+int app_open_core(int from_workbench)
 {
     struct Library *base;
     workbench_launch = from_workbench;
@@ -134,14 +144,29 @@ int app_open_libraries(int from_workbench)
         report_library_error("dos.library", 47); return 0;
     }
     return open_one(&UtilityBase, "utility.library", 47) &&
-           open_one(&AslBase, "asl.library", 47) &&
+           open_one(&IconBase, "icon.library", 47);
+}
+
+/**
+ * @brief Open the remaining libraries and the ReAction and TinyDev classes.
+ *
+ * Runs while the splash window shows; any failure is reported via
+ * report_library_error() (which closes the splash window) and aborts.
+ *
+ * @return Non-zero if all required ones opened, zero otherwise.
+ */
+int app_open_classes(void)
+{
+    return open_one(&AslBase, "asl.library", 47) &&
            open_one(&GadToolsBase, "gadtools.library", 47) &&
-           open_one(&IconBase, "icon.library", 47) &&
            open_one(&WindowBase, "window.class", 47) &&
            open_one(&LayoutBase, "gadgets/layout.gadget", 47) &&
            open_one(&ButtonBase, "gadgets/button.gadget", 47) &&
            open_one(&BitMapBase, "images/bitmap.image", 47) &&
            open_one(&ScrollerBase, "gadgets/scroller.gadget", 47) &&
+           open_one(&SpeedBarBase, "gadgets/speedbar.gadget", 47) &&
+           open_one(&LabelBase, "images/label.image", 47) &&
+           (ChooserBase = OpenLibrary("gadgets/chooser.gadget", 47), 1) &&
            open_class(&DirTreeBase, "dirtree.gadget", DIRTREE_VERSION) &&
            open_class(&MinimapBase, "minimap.gadget", MINIMAP_VERSION) &&
            open_one(&ClickTabBase, "gadgets/clicktab.gadget", 47) &&
@@ -160,10 +185,11 @@ void app_close_libraries(void)
 {
 #define CLOSE_BASE(x) do { if ((x) != NULL) { CloseLibrary((x)); (x) = NULL; } } while (0)
     CLOSE_BASE(TextFieldBase); CLOSE_BASE(ClickTabBase); CLOSE_BASE(DirTreeBase); CLOSE_BASE(MinimapBase);
-    CLOSE_BASE(ScrollerBase); CLOSE_BASE(BitMapBase);
+    CLOSE_BASE(ScrollerBase); CLOSE_BASE(SpeedBarBase); CLOSE_BASE(LabelBase);
+    CLOSE_BASE(ChooserBase); CLOSE_BASE(BitMapBase);
     CLOSE_BASE(ButtonBase); CLOSE_BASE(LayoutBase);
     CLOSE_BASE(WindowBase); CLOSE_BASE(IconBase); CLOSE_BASE(GadToolsBase);
-    CLOSE_BASE(AslBase); CLOSE_BASE(UtilityBase);
+    CLOSE_BASE(AslBase); CLOSE_BASE(UtilityBase); CLOSE_BASE(DiskfontBase);
     if (GfxBase != NULL && GfxBase != old_gfx_base) CloseLibrary((struct Library *)GfxBase);
     if (IntuitionBase != NULL && IntuitionBase != old_intuition_base) CloseLibrary((struct Library *)IntuitionBase);
     GfxBase = old_gfx_base; IntuitionBase = old_intuition_base;
@@ -225,7 +251,15 @@ int main(int argc, char **argv)
     app.scroll_signal = -1;
     NewList(&app.documents); NewList(&app.tab_nodes);
     app.line_numbers = 1; app.tree_visible = 1;
-    if (!app_open_libraries(argc == 0)) goto done;
+    settings_default(&app.settings);
+    if (!app_open_core(argc == 0)) goto done;
+    settings_load(&app.settings, argc, argv);
+    /* steps of the progress bar: the classes, the toolbar buttons, the window */
+    if (app.settings.splash)
+        splash_open(app.settings.icon_name, 1 + toolbar_tool_count() + 1);
+    splash_status("Opening the ReAction classes...");
+    if (!app_open_classes()) goto done;
+    splash_step();
     app.scroll_signal = AllocSignal(-1);
     if (app.scroll_signal < 0) {
         fprintf(stderr, "TinyDev: no free signal for live scrolling\n");
@@ -237,6 +271,7 @@ int main(int argc, char **argv)
     if (IsListEmpty(&app.documents)) document_new(&app);
     ui_run(&app); status = 0;
 done:
+    splash_close();
     ui_destroy(&app);
     if (app.scroll_signal >= 0) FreeSignal((BYTE)app.scroll_signal);
     app_close_libraries();

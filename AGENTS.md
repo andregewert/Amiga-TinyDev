@@ -9,8 +9,15 @@ The codebase intentionally handles file contents as 8-bit text.
 ## Repository layout
 
 - `src/main.c`: library lifecycle, CLI/Workbench startup, and application entry.
-- `src/ui.c`: ReAction window, menus, toolbar, status line, event loop, and
-  editor colors.
+- `src/ui.c`: ReAction window, menus, status line, event loop, and editor
+  colors.
+- `src/toolbar.c`: the speedbar toolbar (modes IMAGES/BOTH/TEXT, ghosted
+  buttons with lazily loaded `_g` images, overflow chooser, help bubbles),
+  built like Kickdown's.
+- `src/splash.c`: splash window during start-up (Intuition/graphics only, opened
+  before the classes) and the About window, both as in Kickdown.
+- `src/settings.c`: settings from the tool types of the program icon (and of
+  project icons on a Workbench start).
 - `src/document.c`: document/tab lifecycle, scrollbar synchronization, and
   scroll-time highlighting suspension.
 - `src/fileio.c`: loading, line-ending preservation, requesters, and safe saves.

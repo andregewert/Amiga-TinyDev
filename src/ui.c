@@ -29,7 +29,6 @@
 #include <string.h>
 
 #define UD(id) ((APTR)(ULONG)(id))
-#define TOOLBAR_ICON_SPACING 4
 
 typedef struct EditorBackFillMessage {
     struct Layer *layer;
@@ -236,23 +235,6 @@ static struct NewMenu menus[] = {
     {NM_END, NULL, NULL, 0, 0, NULL}
 };
 
-typedef struct ToolbarSpec {
-    ULONG id;
-    const char *image;
-    const char *label;
-} ToolbarSpec;
-
-static const ToolbarSpec toolbar_specs[] = {
-    {GID_NEW,   "TBImages:New",   "New"},
-    {GID_OPEN,  "TBImages:Open",  "Open"},
-    {GID_SAVE,  "TBImages:Save",  "Save"},
-    {GID_UNDO,  "TBImages:Undo",  "Undo"},
-    {GID_REDO,  "TBImages:Redo",  "Redo"},
-    {GID_CUT,   "TBImages:Cut",   "Cut"},
-    {GID_COPY,  "TBImages:Copy",  "Copy"},
-    {GID_PASTE, "TBImages:Paste", "Paste"}
-};
-
 /**
  * @brief Display a simple modal error/notification requester with an OK button.
  *
@@ -264,27 +246,37 @@ static const ToolbarSpec toolbar_specs[] = {
 void ui_error(EditorApp *app, const char *title, const char *message)
 {
     struct EasyStruct es = {sizeof(es), 0, (STRPTR)title, (STRPTR)message, "OK"};
+    splash_close();                     /* not over the requester */
     EasyRequestArgs(app != NULL ? app->window : NULL, &es, NULL, NULL);
 }
 
 /**
- * @brief Display the modal About requester with application information.
+ * @brief Show the About window (as in Kickdown), with a requester as fallback.
  *
- * @param app The application owning the window used for the requester.
+ * The details name the website, mail address and licence and the versions
+ * of TinyDev's own gadget classes in use.
+ *
+ * @param app The application owning the main window.
  */
 void ui_about(EditorApp *app)
 {
-    struct EasyStruct es = {
-        sizeof(es),
-        0,
-        "About TinyDev",
-        "TinyDev\n"
-        "A native AmigaOS 3.2 text editor.\n\n"
-        "Copyright (c) 2026 Andre Gewert\n"
-        "<agewert@ubergeek.de>",
-        "OK"
-    };
-    EasyRequestArgs(app != NULL ? app->window : NULL, &es, NULL, NULL);
+    char details[200];
+    struct EasyStruct es = {sizeof(es), 0, "About " APP_NAME, "%s %s\n\n%s", "OK"};
+    ULONG args[3];
+    snprintf(details, sizeof(details),
+             "www.ubergeek.de - agewert@ubergeek.de\n"
+             "Released under the MIT License\n\n"
+             "dirtree.gadget %ld.%ld, minimap.gadget %ld.%ld",
+             DirTreeBase != NULL ? (long)DirTreeBase->lib_Version : 0L,
+             DirTreeBase != NULL ? (long)DirTreeBase->lib_Revision : 0L,
+             MinimapBase != NULL ? (long)MinimapBase->lib_Version : 0L,
+             MinimapBase != NULL ? (long)MinimapBase->lib_Revision : 0L);
+    if (about_window(app, details)) return;
+    /* without the window: a requester */
+    args[0] = (ULONG)APP_NAME;
+    args[1] = (ULONG)APP_VERSION;
+    args[2] = (ULONG)details;
+    EasyRequestArgs(app != NULL ? app->window : NULL, &es, NULL, args);
 }
 
 /**
@@ -316,7 +308,7 @@ void ui_refresh(EditorApp *app)
  */
 void ui_update_status(EditorApp *app)
 {
-    static char status_text[64];
+    static char status_text[64], shown_text[64];
     unsigned long doc_count = 0;
     ULONG lines = 0;
     Document *doc;
@@ -328,6 +320,9 @@ void ui_update_status(EditorApp *app)
     snprintf(status_text, sizeof(status_text),
              "Documents: %lu  Lines: %lu", doc_count, (unsigned long)lines);
     if (app->statusbar == NULL) return;
+    /* Called on every tick: only redraw the status line when it changed. */
+    if (strcmp(status_text, shown_text) == 0) return;
+    strcpy(shown_text, status_text);
     if (app->window != NULL)
         SetGadgetAttrs((struct Gadget *)app->statusbar, app->window, NULL,
             GA_Text, (ULONG)status_text, TAG_END);
@@ -372,79 +367,6 @@ int ui_confirm_close(EditorApp *app, Document *doc)
     return doc->path != NULL ? file_save(app, doc, doc->path) : file_request_save(app, doc);
 }
 
-/**
- * @brief Create a single toolbar button object from a toolbar spec.
- *
- * Attempts to load the spec's image via bitmap.image (masked/transparent) and
- * build an image button; if the image is unavailable it falls back to a
- * text-labeled button.  If the image loads but the button fails to build, the
- * image is disposed.  The created image (if any) is stored in
- * app->toolbar_images[index].
- *
- * @param app The application whose screen and toolbar-image array are used.
- * @param index Index into the toolbar spec/image arrays.
- * @return The created button object, or NULL on failure.
- */
-static Object *toolbar_button(EditorApp *app, size_t index)
-{
-    const ToolbarSpec *spec = &toolbar_specs[index];
-    Object *button;
-    app->toolbar_images[index] = NewObject(BITMAP_GetClass(), NULL,
-        BITMAP_SourceFile, (ULONG)spec->image,
-        BITMAP_Screen, (ULONG)app->screen,
-        BITMAP_Masking, TRUE,
-        BITMAP_Transparent, TRUE,
-        TAG_END);
-    if (app->toolbar_images[index] != NULL)
-        button = NewObject(BUTTON_GetClass(), NULL,
-            GA_ID, spec->id, GA_RelVerify, TRUE,
-            BUTTON_RenderImage, (ULONG)app->toolbar_images[index],
-            TAG_END);
-    else
-        button = NewObject(BUTTON_GetClass(), NULL,
-            GA_ID, spec->id, GA_RelVerify, TRUE,
-            GA_Text, (ULONG)spec->label,
-            TAG_END);
-    if (button == NULL && app->toolbar_images[index] != NULL) {
-        DisposeObject(app->toolbar_images[index]);
-        app->toolbar_images[index] = NULL;
-    }
-    return button;
-}
-
-/**
- * @brief Build the horizontal toolbar layout and its buttons.
- *
- * Creates a shrink-wrapped horizontal layout and adds one button per toolbar
- * spec, each with zero weighted width/height.  Stores the layout in
- * app->toolbar.
- *
- * @param app The application whose toolbar is created.
- * @return 1 on success, 0 if the layout or any button could not be created.
- */
-static int create_toolbar(EditorApp *app)
-{
-    size_t i;
-    app->toolbar = NewObject(LAYOUT_GetClass(), NULL,
-        LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
-        LAYOUT_ShrinkWrap, TRUE,
-        LAYOUT_HorizAlignment, LAYOUT_ALIGN_LEFT,
-        LAYOUT_SpaceInner, FALSE,
-        LAYOUT_SpaceOuter, FALSE,
-        LAYOUT_InnerSpacing, TOOLBAR_ICON_SPACING,
-        TAG_END);
-    if (app->toolbar == NULL) return 0;
-    for (i = 0; i < sizeof(toolbar_specs) / sizeof(toolbar_specs[0]); ++i) {
-        Object *button = toolbar_button(app, i);
-        if (button == NULL) return 0;
-        SetAttrs(app->toolbar,
-            LAYOUT_AddChild, (ULONG)button,
-            CHILD_WeightedWidth, 0,
-            CHILD_WeightedHeight, 0,
-            TAG_END);
-    }
-    return 1;
-}
 
 
 /**
@@ -509,7 +431,7 @@ int ui_create(EditorApp *app)
         TAG_END);
     if (app->tree == NULL) return 0;
     if (minimap_create_gadget(app) == NULL) return 0;
-    if (!create_toolbar(app)) return 0;
+    if (!toolbar_create(app)) return 0;
     app->content_layout = NewObject(LAYOUT_GetClass(), NULL,
         LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
         LAYOUT_AddChild, (ULONG)app->tree,
@@ -562,8 +484,10 @@ int ui_create(EditorApp *app)
         /* The window.class only enables the IDCMP flags its gadgets need.
          * IDCMP_NEWSIZE and IDCMP_MOUSEMOVE (reported while a WeightBar is
          * dragged) wake the event loop after the minimap's size changed, so
-         * minimap_poll() can have it re-rendered at the new size. */
-        WA_IDCMP, IDCMP_NEWSIZE | IDCMP_MOUSEMOVE,
+         * minimap_poll() can have it re-rendered at the new size.
+         * IDCMP_INTUITICKS wakes it regularly while the window is active,
+         * so the toolbar follows the selection and undo state. */
+        WA_IDCMP, IDCMP_NEWSIZE | IDCMP_MOUSEMOVE | IDCMP_INTUITICKS,
         WA_PubScreen, (ULONG)app->screen,
         WA_Width, 640, WA_Height, 400,
         WINDOW_Position, WPOS_CENTERSCREEN,
@@ -573,14 +497,20 @@ int ui_create(EditorApp *app)
         /* Enable the IDCMPUPDATE class so the clicktab close notification
          * (routed to the window IDCMP via ICA_TARGET) actually reaches us
          * through this hook. */
+        WINDOW_HintInfo, (ULONG)toolbar_hints(),
+        WINDOW_GadgetHelp, TRUE,
         WINDOW_IDCMPHook, (ULONG)&app->tab_idcmp_hook,
         WINDOW_IDCMPHookBits, (ULONG)IDCMP_IDCMPUPDATE,
         TAG_END);
     if (app->window_object == NULL) return 0;
     if (IsListEmpty(&app->documents) && document_new(app) == NULL) return 0;
+    splash_status("Opening the window...");
     app->window = (struct Window *)DoMethod(app->window_object, WM_OPEN, NULL);
     if (app->window == NULL) return 0;
+    splash_step();
+    splash_close();
     ui_relayout(app);
+    toolbar_window_opened(app);
     document_activate(app, app->active);
     ui_update_status(app);
     minimap_set_visible(app, 0);
@@ -706,25 +636,6 @@ static void menu_action(EditorApp *app, ULONG id)
     }
 }
 
-/**
- * @brief Map a toolbar button id to the equivalent menu action.
- *
- * @param app The application acting on the command.
- * @param id The toolbar gadget identifier (GID_*).
- */
-static void toolbar_action(EditorApp *app, ULONG id)
-{
-    switch (id) {
-        case GID_NEW: menu_action(app, MID_NEW); break;
-        case GID_OPEN: menu_action(app, MID_OPEN); break;
-        case GID_SAVE: menu_action(app, MID_SAVE); break;
-        case GID_UNDO: menu_action(app, MID_UNDO); break;
-        case GID_REDO: menu_action(app, MID_REDO); break;
-        case GID_CUT: menu_action(app, MID_CUT); break;
-        case GID_COPY: menu_action(app, MID_COPY); break;
-        case GID_PASTE: menu_action(app, MID_PASTE); break;
-    }
-}
 
 /**
  * @brief Close the document whose tab close gadget was used.
@@ -842,7 +753,12 @@ int ui_run(EditorApp *app)
             /* Clicks and drags in the minimap arrive as IDCMPUPDATE
              * notifications (window IDCMP hook); its GADGETUP needs nothing. */
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_MINIMAP) ;
-            else if (kind == WMHI_GADGETUP) toolbar_action(app, result & WMHI_GADGETMASK);
+            else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_TOOLBAR)
+                menu_action(app, (ULONG)(UWORD)code);
+            else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_OVERFLOW) {
+                ULONG command = toolbar_overflow_command((ULONG)(UWORD)code);
+                if (command != 0) menu_action(app, command);
+            }
             else if (kind == WMHI_MENUPICK) {
                 struct Menu *strip = NULL; struct MenuItem *item;
                 GetAttr(WINDOW_MenuStrip, app->window_object, (ULONG *)&strip);
@@ -868,6 +784,7 @@ int ui_run(EditorApp *app)
         minimap_handle_scroll(app);
         document_sync_scrollers(app, app->active);
         ui_update_status(app);
+        toolbar_update(app);
         minimap_poll(app);
     }
     return 1;
@@ -889,7 +806,6 @@ int ui_run(EditorApp *app)
  */
 void ui_destroy(EditorApp *app)
 {
-    size_t i;
     minimap_forget_document(app, NULL);
     document_free_all(app);
     if (app->window_object != NULL) {
@@ -915,8 +831,7 @@ void ui_destroy(EditorApp *app)
         DisposeObject(app->minimap);
         app->minimap = NULL;
     }
-    for (i = 0; i < sizeof(app->toolbar_images) / sizeof(app->toolbar_images[0]); ++i)
-        if (app->toolbar_images[i] != NULL) DisposeObject(app->toolbar_images[i]);
+    toolbar_dispose(app);
     if (app->tab_close_image != NULL) { DisposeObject(app->tab_close_image); app->tab_close_image = NULL; }
     close_editor_colors(app);
     if (app->screen != NULL) UnlockPubScreen(NULL, app->screen);

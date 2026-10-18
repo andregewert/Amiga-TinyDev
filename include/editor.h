@@ -10,6 +10,12 @@
 
 #include "syntax.h"
 
+struct HintInfo;
+
+/* Name and version; the version changes only with a release. */
+#define APP_NAME "TinyDev"
+#define APP_VERSION "1.0 (18.10.2026)"
+
 #define EDITOR_MAX_FILE (8UL * 1024UL * 1024UL)
 #define EDITOR_PATH_MAX 1024
 #define EDITOR_TITLE_MAX 128
@@ -38,10 +44,21 @@ enum GadgetId {
     GID_VSCROLL = 3,
     GID_HSCROLL = 4,
     GID_MINIMAP = 5,
-    GID_NEW = 10, GID_OPEN, GID_SAVE, GID_UNDO, GID_REDO,
-    GID_CUT, GID_COPY, GID_PASTE,
+    GID_TOOLBAR = 6,    /* speedbar; the GADGETUP code is the MID_ of the button */
+    GID_OVERFLOW = 7,   /* chooser with the buttons that do not fit */
     GID_LAST
 };
+
+/** What the toolbar buttons show (tool type TOOLBAR=IMAGES|BOTH|TEXT). */
+enum ToolbarMode { TBMODE_IMAGES = 0, TBMODE_BOTH, TBMODE_TEXT, TBMODE_COUNT };
+
+/** Settings from the tool types of the program icon (and project icons). */
+typedef struct Settings {
+    int tbmode;         /* ToolbarMode, takes effect at the next start */
+    int tbframes;       /* frames around the toolbar buttons (TOOLBARFRAMES) */
+    int splash;         /* splash window while starting (NOSPLASH turns it off) */
+    char icon_name[300];/* program icon without .info, for splash and About */
+} Settings;
 enum MenuId {
     MID_NEW = 1, MID_OPEN, MID_OPEN_DIRECTORY, MID_SAVE, MID_SAVE_AS, MID_CLOSE, MID_QUIT,
     MID_UNDO, MID_REDO, MID_CUT, MID_COPY, MID_PASTE, MID_SELECT_ALL,
@@ -71,6 +88,7 @@ typedef struct Document {
 } Document;
 
 typedef struct EditorApp {
+    Settings settings;
     struct List documents;
     struct List tab_nodes;
     Document *active;
@@ -88,7 +106,6 @@ typedef struct EditorApp {
     Object *statusbar;
     Object *minimap;            /* minimap.gadget */
     Object *minimap_editor;     /* editor connected to the minimap */
-    Object *toolbar_images[8];
     struct Window *window;
     struct Screen *screen;
     struct DrawInfo *screen_draw_info;
@@ -121,13 +138,99 @@ extern struct Library *ButtonBase, *BitMapBase;
 extern struct Library *DirTreeBase;
 extern struct Library *MinimapBase;
 extern struct Library *ScrollerBase;
+extern struct Library *SpeedBarBase, *LabelBase, *ChooserBase;
+extern struct Library *DiskfontBase;
 
 /**
- * @brief Open every library and ReAction class required by the editor.
- * @param from_workbench Non-zero when launched from Workbench (enables GUI errors).
- * @return Non-zero if all required libraries opened, zero otherwise.
+ * @brief Set the default settings.
+ * @param s The settings to fill in.
  */
-int app_open_libraries(int from_workbench);
+void settings_default(Settings *s);
+/**
+ * @brief Read the settings from the tool types of the program icon and, on
+ *        a Workbench start, of the project icons (which take precedence).
+ * @param s The settings, preset with settings_default().
+ * @param argc The argument count, 0 for a Workbench start.
+ * @param argv The arguments, or the WBStartup message for a Workbench start.
+ */
+void settings_load(Settings *s, int argc, char **argv);
+
+/**
+ * @brief Open the splash window (Intuition and graphics only).
+ * @param icon_name The program icon (without .info).
+ * @param steps Number of steps of the progress bar.
+ */
+void splash_open(const char *icon_name, ULONG steps);
+/**
+ * @brief Show the current start-up step in the splash window.
+ * @param text The step.
+ */
+void splash_status(const char *text);
+/** @brief Advance the splash window's progress bar by one step. */
+void splash_step(void);
+/** @brief Close the splash window if it is open. */
+void splash_close(void);
+/**
+ * @brief Show the modal About window centred over the main window.
+ * @param app The application state.
+ * @param details The details below the head, lines separated by '\n'.
+ * @return Non-zero if shown, zero if it could not be opened.
+ */
+int about_window(EditorApp *app, const char *details);
+
+/**
+ * @brief Return the number of toolbar buttons (steps of the splash window).
+ * @return The number of buttons.
+ */
+ULONG toolbar_tool_count(void);
+/**
+ * @brief Build the toolbar (speedbar plus overflow chooser) into app->toolbar.
+ * @param app The application state (screen and settings are used).
+ * @return Non-zero on success, zero on failure.
+ */
+int toolbar_create(EditorApp *app);
+/**
+ * @brief Return the help bubbles of the toolbar for WINDOW_HintInfo.
+ * @return The HintInfo array, terminated with hi_GadgetID -1.
+ */
+struct HintInfo *toolbar_hints(void);
+/**
+ * @brief Tell the toolbar its window once it is open (for help bubbles).
+ * @param app The application state.
+ */
+void toolbar_window_opened(EditorApp *app);
+/**
+ * @brief Ghost the buttons that would do nothing and refresh the overflow
+ *        list; call on every tick of the event loop.
+ * @param app The application state.
+ */
+void toolbar_update(EditorApp *app);
+/**
+ * @brief Return the menu command of an entry of the overflow chooser.
+ * @param index The entry's index (the GADGETUP code).
+ * @return The MID_ command, or 0 if none.
+ */
+ULONG toolbar_overflow_command(ULONG index);
+/**
+ * @brief Free the toolbar's nodes, images, font and pen; call after the
+ *        window (which disposes the gadgets) and before the screen is
+ *        unlocked.
+ * @param app The application state.
+ */
+void toolbar_dispose(EditorApp *app);
+
+/**
+ * @brief Open the libraries the splash window and the settings need
+ *        (intuition, graphics, utility, icon).
+ * @param from_workbench Non-zero when launched from Workbench (enables GUI errors).
+ * @return Non-zero if all of them opened, zero otherwise.
+ */
+int app_open_core(int from_workbench);
+/**
+ * @brief Open the remaining libraries and the ReAction and TinyDev classes.
+ * @return Non-zero if all required ones opened, zero otherwise.
+ */
+int app_open_classes(void);
 /** @brief Close all libraries and classes opened by app_open_libraries(). */
 void app_close_libraries(void);
 /**
