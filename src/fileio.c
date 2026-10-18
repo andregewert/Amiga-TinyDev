@@ -83,9 +83,11 @@ int file_load(EditorApp *app, Document *doc, const char *path)
              GA_TEXTEDITOR_LineEndingExport, LINEENDING_ASIMPORT, TAG_END);
     document_set_dirty(app, doc, 0); ok = 1;
     if (app->window != NULL) {
-        /* the new text: a redraw of the page is enough (collected with the
-         * other updates while a file is opened) */
-        ui_refresh_page(app, doc);
+        /* The editor takes text set without the window only with a new
+         * layout (otherwise a reused empty tab stays empty); collected with
+         * the other updates while a file is opened, so a new tab is still
+         * laid out only once. */
+        ui_relayout(app);
         /* Loading into the currently active document (e.g. the initial empty
          * tab reused for the first file opened from the tree) does not go
          * through document_activate(); tell the minimap that the text

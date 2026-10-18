@@ -362,8 +362,10 @@ void document_activate(EditorApp *app, Document *doc)
  *
  * When the state actually changes, updates the tab title to append a '*' marker
  * for dirty documents, pushes the new label to the click-tab gadget as a minor
- * label change, and relays out and refreshes the UI. Does nothing when @p doc
- * is NULL or already in the requested state.
+ * label change (the tab bar redraws itself) and updates the window title. The
+ * window is not laid out again: that redrew everything on the first change of
+ * a document and on every save. Does nothing when @p doc is NULL or already
+ * in the requested state.
  *
  * @param app The owning application.
  * @param doc The document whose dirty state changes.
@@ -377,7 +379,6 @@ void document_set_dirty(EditorApp *app, Document *doc, int dirty)
     SetClickTabNodeAttrs(doc->tab, TNA_Text, (ULONG)doc->tab_title, TAG_END);
     ui_gadget_set(app, app->tabs, CLICKTAB_MinorLabelChange, TRUE,
                   CLICKTAB_Labels, (ULONG)&app->tab_nodes);
-    ui_relayout(app);
     ui_refresh(app);
 }
 
