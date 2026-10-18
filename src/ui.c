@@ -94,8 +94,10 @@ static ULONG tab_idcmp_entry(struct Hook *hook, Object *win,
     (void)win;
     if (app != NULL && msg != NULL && msg->Class == IDCMP_IDCMPUPDATE) {
         struct TagItem *tags = (struct TagItem *)msg->IAddress;
-        struct Node *node =
-            (struct Node *)GetTagData(CLICKTAB_NodeClosed, 0, tags);
+        struct Node *node;
+        /* minimap.gadget reports clicks and drags the same way. */
+        if (minimap_handle_notify(app, tags)) return (ULONG)msg;
+        node = (struct Node *)GetTagData(CLICKTAB_NodeClosed, 0, tags);
         if (node != NULL) app->pending_close = node;
     }
     return (ULONG)msg;
@@ -557,15 +559,11 @@ int ui_create(EditorApp *app)
     app->window_object = NewObject(WINDOW_GetClass(), NULL,
         WA_Title, (ULONG)"TinyDev", WA_DragBar, TRUE, WA_DepthGadget, TRUE,
         WA_CloseGadget, TRUE, WA_SizeGadget, TRUE, WA_Activate, TRUE,
-        /* The window.class only enables the IDCMP flags its gadgets need, so
-         * request IDCMP_NEWSIZE explicitly; without it WMHI_NEWSIZE is never
-         * delivered and the minimap is not re-rendered after a resize (the
-         * space.gadget is only cleared to its background pen).  IDCMP_MOUSEBUTTONS
-         * is requested so a press/release over the passive minimap space.gadget
-         * (which does not consume the button) is delivered to the window, and
-         * IDCMP_MOUSEMOVE so the drag can be tracked once ReportMouse() is
-         * enabled for the duration of the drag. */
-        WA_IDCMP, IDCMP_NEWSIZE | IDCMP_MOUSEBUTTONS | IDCMP_MOUSEMOVE,
+        /* The window.class only enables the IDCMP flags its gadgets need.
+         * IDCMP_NEWSIZE and IDCMP_MOUSEMOVE (reported while a WeightBar is
+         * dragged) wake the event loop after the minimap's size changed, so
+         * minimap_poll() can have it re-rendered at the new size. */
+        WA_IDCMP, IDCMP_NEWSIZE | IDCMP_MOUSEMOVE,
         WA_PubScreen, (ULONG)app->screen,
         WA_Width, 640, WA_Height, 400,
         WINDOW_Position, WPOS_CENTERSCREEN,
@@ -585,7 +583,6 @@ int ui_create(EditorApp *app)
     ui_relayout(app);
     document_activate(app, app->active);
     ui_update_status(app);
-    minimap_start(app);
     minimap_set_visible(app, 0);
     return 1;
 }
@@ -823,16 +820,16 @@ int ui_run(EditorApp *app)
     /* WM_HANDLEINPUT stores the gadget/IDCMP code through a WORD* (wmh_Code),
      * so this must be a 16-bit WORD.  Using a ULONG here made the returned
      * value land in the high word on the big-endian 68000, so (UWORD)code was
-     * always zero and the minimap never saw a real SELECTDOWN/SELECTUP. */
+     * always zero. */
     WORD code = 0;
     ULONG scroll_mask = 1UL << (ULONG)app->scroll_signal;
     ULONG minimap_mask = minimap_signal_mask(app);
     GetAttr(WINDOW_SigMask, app->window_object, &mask);
     app->running = 1;
     while (app->running) {
+        /* A finished minimap render job only needs to wake the loop: the
+         * minimap_poll() at its end shows the new picture. */
         signals = Wait(mask | scroll_mask | minimap_mask | SIGBREAKF_CTRL_C);
-        if (minimap_mask != 0 && (signals & minimap_mask) != 0)
-            minimap_handle_reply(app);
         if ((signals & scroll_mask) != 0) document_scroll_live(app);
         if (signals & SIGBREAKF_CTRL_C) { if (close_all(app)) break; }
         while ((result = DoMethod(app->window_object, WM_HANDLEINPUT, &code)) != WMHI_LASTMSG) {
@@ -842,22 +839,9 @@ int ui_run(EditorApp *app)
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_TREE) tree_handle_event(app);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_VSCROLL) document_scroll_finish(app, 0);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_HSCROLL) document_scroll_finish(app, 1);
-            else if (kind == WMHI_MOUSEBUTTONS) minimap_handle_buttons(app, (UWORD)code);
-            else if (kind == WMHI_MOUSEMOVE) {
-                minimap_handle_mouse(app);
-                /* A WeightBar drag repeatedly relayouts the content group and
-                 * clears the minimap's space.gadget to grey without ever
-                 * changing the minimap box geometry (dragging the left
-                 * WeightBar shifts only the tree/editor split, leaving the
-                 * right-hand minimap column at the same Left/Top/Width/Height).
-                 * Geometry watching in minimap_poll() therefore cannot notice
-                 * it.  The layout does, however, request mouse reports while a
-                 * bar is being dragged, so those moves reach us here; force a
-                 * re-render on every one so the freshly cleared area is redrawn
-                 * (coalesced to a single outstanding job). */
-                if (app->minimap_visible) minimap_request(app);
-            }
-            else if (kind == WMHI_NEWSIZE) minimap_request(app);
+            /* Clicks and drags in the minimap arrive as IDCMPUPDATE
+             * notifications (window IDCMP hook); its GADGETUP needs nothing. */
+            else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_MINIMAP) ;
             else if (kind == WMHI_GADGETUP) toolbar_action(app, result & WMHI_GADGETMASK);
             else if (kind == WMHI_MENUPICK) {
                 struct Menu *strip = NULL; struct MenuItem *item;
@@ -881,6 +865,7 @@ int ui_run(EditorApp *app)
         /* The close gadgets on the tabs do not generate a dedicated event, so
          * check for a pending tab close on every wake-up as well. */
         tab_check_closed(app);
+        minimap_handle_scroll(app);
         document_sync_scrollers(app, app->active);
         ui_update_status(app);
         minimap_poll(app);
@@ -891,8 +876,10 @@ int ui_run(EditorApp *app)
 /**
  * @brief Tear down the window, gadgets, and screen resources.
  *
- * Stops and joins the minimap task before disposing the window (and its
- * space.gadget), clears the folder tree, and frees all documents.  Disposes
+ * Disconnects the minimap from the editors (it waits for a running render
+ * job, whose colour hook reads the document) and frees all documents; the
+ * minimap.gadget stops its render process itself when it is disposed with the
+ * window.  Disposes
  * the window/layout/gadget hierarchy following the established ownership and
  * cleanup ordering, disposes a detached minimap gadget if the column was
  * hidden, frees toolbar and tree images and the tab close image, releases the
@@ -903,7 +890,7 @@ int ui_run(EditorApp *app)
 void ui_destroy(EditorApp *app)
 {
     size_t i;
-    minimap_stop(app);
+    minimap_forget_document(app, NULL);
     document_free_all(app);
     if (app->window_object != NULL) {
         if (app->window != NULL) DoMethod(app->window_object, WM_CLOSE, NULL);
@@ -921,7 +908,7 @@ void ui_destroy(EditorApp *app)
             else if (app->pages != NULL) DisposeObject(app->pages);
         }
     }
-    /* When the minimap column is hidden its space.gadget has been removed from
+    /* When the minimap column is hidden its gadget has been removed from
      * the content layout, so the layout/window disposal above did not free it.
      * Dispose the still-detached gadget here to avoid leaking it. */
     if (!app->minimap_attached && app->minimap != NULL) {

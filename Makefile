@@ -27,10 +27,10 @@ CLASS_DIR := $(BUILD_DIR)/Classes/Gadgets
 # Objects go to build/classobj/<name>/: a build/classes directory would clash
 # with build/Classes on the case-insensitive Amiga file system.
 CLASS_OBJ_DIR := $(BUILD_DIR)/classobj
-CLASS_NAMES := dirtree
+CLASS_NAMES := dirtree minimap
 CLASS_CFLAGS := -std=gnu99 -m68000 -msoft-float -Os -fno-common -fomit-frame-pointer -fno-toplevel-reorder \
     -Wall -Wextra -Wshadow -Wconversion -Wno-pointer-sign -MMD -MP -Iinclude -Isrc/classes/common
-CLASS_LIBS := -L$(AMIGA_PREFIX)/m68k-amigaos/libnix/lib -Wl,--start-group -lgcc -lnix -Wl,--end-group
+CLASS_LIBS := -L$(AMIGA_PREFIX)/m68k-amigaos/libnix/lib -Wl,--start-group -lgcc -lnix -lnix20 -Wl,--end-group
 CLASS_GADGETS := $(foreach c,$(CLASS_NAMES),$(CLASS_DIR)/$(c).gadget)
 
 # $(1): class name

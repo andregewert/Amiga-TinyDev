@@ -67,9 +67,8 @@ typedef struct Document {
     LineEnding eol;
     SyntaxLanguage language;
     SyntaxHookContext highlight;
+    struct Hook minimap_hook;   /* MINIMAP_ColorHook, h_Data = document */
 } Document;
-
-struct Minimap;
 
 typedef struct EditorApp {
     struct List documents;
@@ -87,8 +86,8 @@ typedef struct EditorApp {
     Object *tabs;
     Object *pages;
     Object *statusbar;
-    Object *minimap;
-    struct Minimap *minimap_ctx;
+    Object *minimap;            /* minimap.gadget */
+    Object *minimap_editor;     /* editor connected to the minimap */
     Object *toolbar_images[8];
     struct Window *window;
     struct Screen *screen;
@@ -97,10 +96,6 @@ typedef struct EditorApp {
     UWORD editor_draw_pens[NUMDRIPENS];
     struct Hook editor_backfill_hook;
     struct Hook tab_idcmp_hook;
-    /* Render hook attached to the minimap space.gadget so the last rendered
-     * minimap bitmap is redrawn by the gadget itself on every layout refresh
-     * (e.g. WeightBar drags), instead of leaving the area cleared to grey. */
-    struct Hook minimap_render_hook;
     struct Node *pending_close;
     long editor_pens[EDITOR_COLOR_COUNT];
     long minimap_view_pen;
@@ -111,15 +106,19 @@ typedef struct EditorApp {
     int tree_visible;
     int minimap_visible;
     int minimap_attached;
-    int minimap_dragging;
+    int minimap_dragging;       /* highlighter suspended for a minimap drag */
+    int minimap_notified;       /* a minimap notification is pending */
+    int minimap_drag_state;     /* MINIMAP_Dragging of that notification */
+    ULONG minimap_top;          /* MINIMAP_Top of that notification */
     int scrolling;
     int running;
 } EditorApp;
 
 extern struct Library *AslBase, *GadToolsBase, *IconBase, *UtilityBase;
 extern struct Library *WindowBase, *LayoutBase, *ClickTabBase, *TextFieldBase;
-extern struct Library *ButtonBase, *BitMapBase, *SpaceBase;
+extern struct Library *ButtonBase, *BitMapBase;
 extern struct Library *DirTreeBase;
+extern struct Library *MinimapBase;
 extern struct Library *ScrollerBase;
 
 /**
@@ -270,60 +269,56 @@ void document_suspend_highlight(EditorApp *app);
 void document_resume_highlight(EditorApp *app);
 
 /**
- * @brief Create the minimap space.gadget and its render hook.
+ * @brief Create the minimap.gadget.
  * @param app The application state.
  * @return The created gadget object, or NULL on failure.
  */
 Object *minimap_create_gadget(EditorApp *app);
 /**
- * @brief Start the background minimap render task and message ports.
- * @param app The application state.
- * @return Non-zero on success, zero on failure.
+ * @brief Set up a document's minimap colour hook.
+ * @param doc The new document.
  */
-int minimap_start(EditorApp *app);
+void minimap_init_document(Document *doc);
 /**
- * @brief Stop and join the minimap render task and release its resources.
- * @param app The application state.
- */
-void minimap_stop(EditorApp *app);
-/**
- * @brief Show or hide the minimap column and enable/disable rendering.
+ * @brief Show or hide the minimap column.
  * @param app The application state.
  * @param visible Non-zero to show the minimap, zero to hide it.
  */
 void minimap_set_visible(EditorApp *app, int visible);
 /**
- * @brief Request a (coalesced) re-render of the active document's minimap.
+ * @brief Tell the minimap that the active document's text changed.
  * @param app The application state.
  */
 void minimap_request(EditorApp *app);
 /**
- * @brief Poll for and dispatch pending minimap render replies.
+ * @brief Connect the active document and let the minimap update itself.
  * @param app The application state.
  */
 void minimap_poll(EditorApp *app);
 /**
- * @brief Handle a completed render reply by adopting the new bitmap.
+ * @brief Disconnect a document from the minimap before it is closed.
  * @param app The application state.
+ * @param doc The document, or NULL to disconnect whatever is connected.
  */
-void minimap_handle_reply(EditorApp *app);
+void minimap_forget_document(EditorApp *app, Document *doc);
 /**
- * @brief Handle a mouse click inside the minimap to reposition the view.
- * @param app The application state.
- */
-void minimap_handle_mouse(EditorApp *app);
-/**
- * @brief Handle minimap-related button events identified by a gadget code.
- * @param app The application state.
- * @param code The gadget/message code to act on.
- */
-void minimap_handle_buttons(EditorApp *app, UWORD code);
-/**
- * @brief Return the exec signal mask used to wake on minimap replies.
+ * @brief Return the signal mask of finished minimap render jobs.
  * @param app The application state.
  * @return The signal mask to include in the main Wait().
  */
 ULONG minimap_signal_mask(EditorApp *app);
+/**
+ * @brief Record a minimap notification from the window's IDCMP hook.
+ * @param app The application state.
+ * @param tags The IDCMPUPDATE tag list.
+ * @return Non-zero if the notification came from the minimap.
+ */
+int minimap_handle_notify(EditorApp *app, struct TagItem *tags);
+/**
+ * @brief Scroll the editor to the line last chosen in the minimap.
+ * @param app The application state.
+ */
+void minimap_handle_scroll(EditorApp *app);
 
 /**
  * @brief Load a file's contents into a document.

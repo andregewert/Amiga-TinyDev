@@ -88,9 +88,8 @@ int file_load(EditorApp *app, Document *doc, const char *path)
         ui_relayout(app);
         /* Loading into the currently active document (e.g. the initial empty
          * tab reused for the first file opened from the tree) does not go
-         * through document_activate(), and the ui_relayout() above repaints the
-         * minimap's space.gadget grey.  Request a re-render so the freshly
-         * loaded contents are drawn instead of leaving a grey area. */
+         * through document_activate(); tell the minimap that the text
+         * changed so it shows the freshly loaded contents. */
         minimap_request(app);
     }
 done:

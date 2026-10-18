@@ -167,6 +167,7 @@ Document *document_new(EditorApp *app)
     doc->eol = EOL_LF;
     doc->language = SYNTAX_PLAIN;
     syntax_init_hook(&doc->highlight, doc->language);
+    minimap_init_document(doc);
     syntax_set_pens(&doc->highlight,
         (UWORD)app->editor_pens[EDITOR_COLOR_TEXT],
         (UWORD)app->editor_pens[EDITOR_COLOR_KEYWORD],
@@ -390,6 +391,9 @@ int document_close(EditorApp *app, Document *doc, int ask)
 {
     Document *next;
     if (doc == NULL || (ask && !ui_confirm_close(app, doc))) return 0;
+    /* The minimap must let go of the editor (and its colour hook, which reads
+     * this document) before the page with the editor is disposed. */
+    minimap_forget_document(app, doc);
     next = doc->node.ln_Succ->ln_Succ ? (Document *)doc->node.ln_Succ :
            (doc->node.ln_Pred->ln_Pred ? (Document *)doc->node.ln_Pred : NULL);
     detach_tabs(app);

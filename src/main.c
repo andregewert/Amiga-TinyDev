@@ -11,6 +11,7 @@
 #include <proto/graphics.h>
 #include <clib/alib_protos.h>
 #include <gadgets/dirtree.h>
+#include <gadgets/minimap.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -25,8 +26,8 @@ struct Library *ClickTabBase = NULL;
 struct Library *TextFieldBase = NULL;
 struct Library *ButtonBase = NULL;
 struct Library *BitMapBase = NULL;
-struct Library *SpaceBase = NULL;
 struct Library *DirTreeBase = NULL;
+struct Library *MinimapBase = NULL;
 struct Library *ScrollerBase = NULL;
 static struct IntuitionBase *old_intuition_base;
 static struct GfxBase *old_gfx_base;
@@ -139,10 +140,10 @@ int app_open_libraries(int from_workbench)
            open_one(&WindowBase, "window.class", 47) &&
            open_one(&LayoutBase, "gadgets/layout.gadget", 47) &&
            open_one(&ButtonBase, "gadgets/button.gadget", 47) &&
-           open_one(&SpaceBase, "gadgets/space.gadget", 47) &&
            open_one(&BitMapBase, "images/bitmap.image", 47) &&
            open_one(&ScrollerBase, "gadgets/scroller.gadget", 47) &&
            open_class(&DirTreeBase, "dirtree.gadget", DIRTREE_VERSION) &&
+           open_class(&MinimapBase, "minimap.gadget", MINIMAP_VERSION) &&
            open_one(&ClickTabBase, "gadgets/clicktab.gadget", 47) &&
            open_one(&TextFieldBase, "gadgets/texteditor.gadget", 47);
 }
@@ -158,9 +159,9 @@ int app_open_libraries(int from_workbench)
 void app_close_libraries(void)
 {
 #define CLOSE_BASE(x) do { if ((x) != NULL) { CloseLibrary((x)); (x) = NULL; } } while (0)
-    CLOSE_BASE(TextFieldBase); CLOSE_BASE(ClickTabBase); CLOSE_BASE(DirTreeBase);
+    CLOSE_BASE(TextFieldBase); CLOSE_BASE(ClickTabBase); CLOSE_BASE(DirTreeBase); CLOSE_BASE(MinimapBase);
     CLOSE_BASE(ScrollerBase); CLOSE_BASE(BitMapBase);
-    CLOSE_BASE(SpaceBase); CLOSE_BASE(ButtonBase); CLOSE_BASE(LayoutBase);
+    CLOSE_BASE(ButtonBase); CLOSE_BASE(LayoutBase);
     CLOSE_BASE(WindowBase); CLOSE_BASE(IconBase); CLOSE_BASE(GadToolsBase);
     CLOSE_BASE(AslBase); CLOSE_BASE(UtilityBase);
     if (GfxBase != NULL && GfxBase != old_gfx_base) CloseLibrary((struct Library *)GfxBase);

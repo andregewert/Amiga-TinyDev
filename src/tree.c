@@ -37,12 +37,9 @@ static void report_status(EditorApp *app, ULONG status, const char *failed_title
  *
  * Hands the path to dirtree.gadget, which keeps the old tree if the
  * directory cannot be read. On success the window is laid out once (the
- * tree is populated for the first time) and a minimap re-render is
- * requested, because the relayout repaints the minimap's space.gadget.
- * Later expand/collapse operations only change the listbrowser's labels,
- * which the gadget refreshes itself, and must NOT trigger a full
- * RethinkLayout: that would clear the minimap to grey without
- * re-rendering it.
+ * tree is populated for the first time). Later expand/collapse operations
+ * only change the listbrowser's labels, which the gadget redraws itself,
+ * and need no full RethinkLayout.
  *
  * @param app The editor application state.
  * @param path The directory path to open.
@@ -59,7 +56,6 @@ static int load_directory(EditorApp *app, const char *path)
                   "The directory could not be opened.");
     if (status == DIRTREE_ST_FAILED) return 0;
     ui_relayout(app);
-    minimap_request(app);
     return 1;
 }
 

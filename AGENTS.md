@@ -24,8 +24,11 @@ The codebase intentionally handles file contents as 8-bit text.
   `include/clib` with `sfdc`.
 - `src/classes/dirtree/`: `dirtree.gadget`, the lazy, bounded directory tree
   (listbrowser subclass).
-- `src/minimap.c`: background render task, message-port handshake, and the
-  off-screen colored minimap of the active document.
+- `src/classes/minimap/`: `minimap.gadget`, the scaled overview of a
+  `texteditor.gadget` with its own render process (gadgetclass subclass).
+- `src/minimap.c`: connects `minimap.gadget` to the editor (active document,
+  syntax colour hook, re-render requests, scrolling the editor on minimap
+  clicks and drags).
 - `src/syntax.c`: language detection, scanners, and TextEditor highlighting hook.
 - `src/scout/`: Scout, the source analysis commodity (`TinyDev-Scout`, ARexx
   port `TINYDEV_SCOUT`), and its JSON/JSON-RPC code. Scout talks to the parsers
@@ -110,10 +113,12 @@ make test
   test binary can compile.
 - Syntax highlighting is suspended while a scrollbar is actively dragged and
   must be restored (with a redraw) when the drag ends.
-- The minimap renders in a separate task and only while it is visible; no
-  rendering happens when it is hidden. Updates must stay coalesced (a single
-  outstanding job) and the render task must be stopped and joined before the
-  window (and its `space.gadget`) is disposed.
+- `minimap.gadget` renders in its own process and only while it has a size;
+  no rendering happens when the column is hidden. Updates must stay coalesced
+  (a single outstanding job); the gadget stops and joins its process in
+  OM_DISPOSE. Its colour hook reads the document, so TinyDev disconnects a
+  document (`minimap_forget_document()`) before the document's editor is
+  disposed.
 
 ## Change discipline
 

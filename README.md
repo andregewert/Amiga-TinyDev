@@ -37,8 +37,8 @@ The Makefile explicitly selects `-m68000 -msoft-float -noixemul` and creates:
 - `build/TinyDev`: Main ReAction GUI editor.
 - `build/TinyDev-Scout`: Scout, the source analysis commodity, with ARexx host port `TINYDEV_SCOUT`.
 - `build/parsers/c_parser`: Standalone C parser communicating via STDIN/STDOUT (JSON-RPC 2.0).
-- `build/Classes/Gadgets/dirtree.gadget`: the folder tree as a reusable
-  ReAction class (see below).
+- `build/Classes/Gadgets/dirtree.gadget` and `minimap.gadget`: the folder
+  tree and the minimap as reusable ReAction classes (see below).
 
 All build artifacts are placed in the `build` directory. `make` first runs
 `make charcheck`, which refuses UTF-8 in the Amiga sources, scripts, Makefiles
@@ -82,6 +82,7 @@ version therefore hides a fresh build; check with
 | Class | Superclass | Purpose |
 |---|---|---|
 | `dirtree.gadget` | `listbrowser.gadget` | Lazily loaded, bounded directory tree |
+| `minimap.gadget` | `gadgetclass` | Scaled, coloured overview of a `texteditor.gadget`, rendered in its own process |
 
 The public interface (tags, methods, usage) is documented in
 `include/gadgets/<name>.h`; `sfd/` holds the library descriptions from which
@@ -93,14 +94,20 @@ Because `dirtree.gadget` must not use DOS while Intuition handles input, it
 reports expand, collapse and double-click with a `GADGETUP`; the application
 then sets `DIRTREE_HandleEvent` with `SetGadgetAttrs()` to let the gadget read
 the directory from the application's process (and redraw itself).
+`minimap.gadget` likewise reads the editor and starts render jobs only when
+the application sets `MINIMAP_Update` (after event batches and when its
+signal arrives); clicks and drags are reported as notifications
+(`MINIMAP_Top`, `MINIMAP_Dragging`) and the application scrolls the editor.
+Colours come from an optional per-line hook; TinyDev plugs in its syntax
+scanner there.
 
 ## Target requirements
 
 - AmigaOS 3.2 and V47 `window.class`, `layout.gadget`, `clicktab.gadget`, and
-  `texteditor.gadget`; editor scrollbars use `scroller.gadget`, and the
-  minimap uses `space.gadget`.
-- `dirtree.gadget` (installed or in `PROGDIR:Classes/Gadgets/`), which needs
-  `listbrowser.gadget` and, for its expand arrows, `glyph.image`.
+  `texteditor.gadget`; editor scrollbars use `scroller.gadget`.
+- `dirtree.gadget` and `minimap.gadget` (installed or in
+  `PROGDIR:Classes/Gadgets/`); `dirtree.gadget` needs `listbrowser.gadget`
+  and, for its expand arrows, `glyph.image`.
 - `asl.library` and normal ReAction dependencies.
 - AISS with its standard `TBImages:` assignment for toolbar imagery. If an
   individual image cannot be created, the corresponding toolbar action falls
@@ -134,9 +141,9 @@ visible region so it is centred on the cursor line, and (as with scrollbar
 dragging) syntax highlighting is suspended while the drag is in progress and
 restored, together with a viewport redraw, once the mouse button is released.
 Rendering runs in a
-separate background task so the editor stays responsive; nothing is rendered
-while the minimap is hidden, updates are coalesced to the minimum (a single job
-is ever outstanding), and the task is stopped cleanly on exit. Like the folder
+separate process of `minimap.gadget` so the editor stays responsive; nothing is
+rendered while the minimap is hidden, updates are coalesced to the minimum (a
+single job is ever outstanding), and the process is stopped cleanly on exit. Like the folder
 tree, the minimap column is resizable: a WeightBar between the editor and the
 minimap lets its width be dragged, and the render scales to whatever width the
 column is given. The minimap
