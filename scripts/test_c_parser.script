@@ -14,8 +14,8 @@ Echo "============================================================"
 ; Locate parser executable
 Set ParserProg "[PARSER]"
 IF "$ParserProg" EQ ""
-    IF EXISTS "build/parsers/c_parser"
-        Set ParserProg "build/parsers/c_parser"
+    IF EXISTS "bin/parsers/c_parser"
+        Set ParserProg "bin/parsers/c_parser"
     ELSE
         IF EXISTS "parsers/c_parser"
             Set ParserProg "parsers/c_parser"

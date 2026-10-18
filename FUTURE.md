@@ -11,7 +11,7 @@
 - Colors (for syntax highlighting) should be configurable
 
 ## Additional Scout / syntax parsers
-- Standalone C Parser (`build/parsers/c_parser` with JSON-RPC 2.0) - *Implemented*
+- Standalone C Parser (`bin/parsers/c_parser` with JSON-RPC 2.0) - *Implemented*
 - ACE Amiga BASIC parser
 - Free Pascal (FPC) parser
 - Amiga E parser

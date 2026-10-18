@@ -29,18 +29,21 @@ The default toolchain prefix is `/opt/amiga/bin/m68k-amigaos-`. Build with:
 
     make clean && make
     make test
-    /opt/amiga/bin/m68k-amigaos-objdump -f build/TinyDev
-    /opt/amiga/bin/m68k-amigaos-objdump -f build/TinyDev-Scout
-    /opt/amiga/bin/m68k-amigaos-objdump -f build/parsers/c_parser
+    /opt/amiga/bin/m68k-amigaos-objdump -f bin/TinyDev
+    /opt/amiga/bin/m68k-amigaos-objdump -f bin/TinyDev-Scout
+    /opt/amiga/bin/m68k-amigaos-objdump -f bin/parsers/c_parser
 
 The Makefile explicitly selects `-m68000 -msoft-float -noixemul` and creates:
-- `build/TinyDev`: Main ReAction GUI editor.
-- `build/TinyDev-Scout`: Scout, the source analysis commodity, with ARexx host port `TINYDEV_SCOUT`.
-- `build/parsers/c_parser`: Standalone C parser communicating via STDIN/STDOUT (JSON-RPC 2.0).
-- `build/Classes/Gadgets/dirtree.gadget` and `minimap.gadget`: the folder
+- `bin/TinyDev`: Main ReAction GUI editor.
+- `bin/TinyDev-Scout`: Scout, the source analysis commodity, with ARexx host port `TINYDEV_SCOUT`.
+- `bin/parsers/c_parser`: Standalone C parser communicating via STDIN/STDOUT (JSON-RPC 2.0).
+- `bin/Classes/Gadgets/dirtree.gadget` and `minimap.gadget`: the folder
   tree and the minimap as reusable ReAction classes (see below).
 
-All build artifacts are placed in the `build` directory. `make` first runs
+`bin/` holds only these finished programs and classes, laid out as they are
+used on the Amiga; everything produced on the way (objects, dependency files,
+`.debug` files with symbols, host test binaries) goes to `build/`. `make clean`
+removes both. `make` first runs
 `make charcheck`, which refuses UTF-8 in the Amiga sources, scripts, the Makefile
 and `LICENSE`; these files are ISO-8859-1.
 

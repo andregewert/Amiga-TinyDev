@@ -177,7 +177,7 @@ const char *scout_parser_find(ScoutServer *srv, const char *filepath)
 
         /* 2. Relative fallbacks from current working directory */
         static const char *local_fallbacks[] = {
-            "build/parsers/c_parser",
+            "bin/parsers/c_parser",
             "parsers/c_parser",
             "c_parser",
             NULL

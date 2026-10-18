@@ -58,7 +58,7 @@ The target compiler defaults to `/opt/amiga/bin/m68k-amigaos-gcc`.
 ```sh
 make            # includes make charcheck (no UTF-8 in ISO-8859-1 files)
 make test
-/opt/amiga/bin/m68k-amigaos-objdump -f build/TinyDev
+/opt/amiga/bin/m68k-amigaos-objdump -f bin/TinyDev
 ```
 
 - Run `make test` for all changes that affect the portable syntax scanner.
@@ -67,14 +67,16 @@ make test
 - A successful host test does not validate ReAction or AmigaOS integration.
 - Do not claim target-build verification if the cross-toolchain or SDK is
   unavailable; report that limitation explicitly.
-- All build artifacts (the target binary `build/TinyDev`, target
-  objects/dependency files, and the host test binary) are placed in the `build`
-  directory. Gadget classes go to `build/Classes/Gadgets/`, their objects to
-  `build/classobj/<name>/`.
-- `build/` is used on the Amiga (case-insensitive file system): never create
-  paths in it that differ only in case (e.g. `classes` next to `Classes`).
-- `make clean` removes the entire `build` directory. Do not run it when
-  unrelated generated-file changes need to be preserved.
+- Finished Amiga binaries go to `bin/` (`bin/TinyDev`, `bin/TinyDev-Scout`,
+  `bin/parsers/c_parser`, `bin/Classes/Gadgets/<name>.gadget`), laid out as on
+  the Amiga; nothing else goes there. All intermediate files (objects,
+  dependency files, `.debug` files, host test binaries) go to `build/`; gadget
+  class objects to `build/classes/<name>/`.
+- `bin/` is used on the Amiga (case-insensitive file system): never create
+  paths in it that differ only in case.
+- `make clean` removes `build/` and `bin/`. Do not run it when unrelated
+  generated files need to be preserved (e.g. the user's icon `bin/TinyDev.info`
+  with its tool types).
 
 ## Coding conventions
 

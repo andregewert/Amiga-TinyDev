@@ -9,7 +9,7 @@ OPTIONS RESULTS
  *
  * Requirements:
  * - TinyDev-Scout must be running (e.g. started via 'TinyDev-Scout' or Exchange)
- * - c_parser executable must be in PROGDIR:parsers/c_parser or build/parsers/c_parser
+ * - c_parser executable must be in PROGDIR:parsers/c_parser or bin/parsers/c_parser
  */
 
 port = 'TINYDEV_SCOUT'
