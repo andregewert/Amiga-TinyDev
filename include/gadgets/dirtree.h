@@ -17,7 +17,10 @@
 **  All listbrowser.gadget attributes except LISTBROWSER_Labels and
 **  LISTBROWSER_Hierarchical may be used; the class owns its node list.
 **  Without LISTBROWSER_ShowImage/HideImage the class uses glyph.image
-**  arrows (when images/glyph.image is available).
+**  arrows (when images/glyph.image is available). LISTBROWSER_ShowSelected
+**  defaults to TRUE, so a clicked entry stays highlighted; the selection
+**  is kept when directories are expanded or collapsed (unless the
+**  selected entry disappears with a collapsed directory).
 **
 **  Usage
 **  -----

@@ -399,6 +399,42 @@ static void set_labels(Class *cl, Object *o, struct GadgetInfo *gi,
 }
 
 /**
+ * @brief Report whether a node is (still) part of the tree.
+ * @param d The instance data.
+ * @param node The node.
+ * @return Non-zero if the node is in the list.
+ */
+static int node_in_tree(DirTreeData *d, struct Node *node)
+{
+    struct Node *n;
+    for (n = d->nodes.lh_Head; n->ln_Succ != NULL; n = n->ln_Succ)
+        if (n == node) return 1;
+    return 0;
+}
+
+/**
+ * @brief Select a node in the listbrowser (after the list was re-attached,
+ *        which resets the selection).
+ * @param cl The class.
+ * @param o The object.
+ * @param gi GadgetInfo, or NULL.
+ * @param node The node to select.
+ */
+static void set_selected(Class *cl, Object *o, struct GadgetInfo *gi, struct Node *node)
+{
+    struct TagItem tags[2];
+    struct opSet set;
+    tags[0].ti_Tag = LISTBROWSER_SelectedNode;
+    tags[0].ti_Data = (ULONG)node;
+    tags[1].ti_Tag = TAG_END;
+    tags[1].ti_Data = 0;
+    set.MethodID = OM_SET;
+    set.ops_AttrList = tags;
+    set.ops_GInfo = gi;
+    class_dsm(cl, o, (Msg)&set);
+}
+
+/**
  * @brief Read an attribute of the superclass.
  * @param cl The class.
  * @param o The object.
@@ -589,6 +625,7 @@ static ULONG handle_event(Class *cl, Object *o, DirTreeData *d,
                           struct GadgetInfo *gi, ULONG event, struct Node *cursor)
 {
     struct Node *node, *next;
+    struct Node *selected = (struct Node *)super_get(cl, o, LISTBROWSER_SelectedNode);
     TreeEntry *entry;
     ULONG result = DIRTREE_EV_NONE;
     int detached = 0;
@@ -634,7 +671,13 @@ static ULONG handle_event(Class *cl, Object *o, DirTreeData *d,
             else d->status = DIRTREE_ST_FAILED;
         }
     }
-    if (detached) set_labels(cl, o, gi, &d->nodes);
+    if (detached) {
+        set_labels(cl, o, gi, &d->nodes);
+        /* Re-attaching the list clears the selection; keep the selected
+         * entry unless it was freed with a collapsed directory. */
+        if (selected != NULL && node_in_tree(d, selected))
+            set_selected(cl, o, gi, selected);
+    }
     return result;
 }
 
@@ -649,15 +692,21 @@ static ULONG handle_event(Class *cl, Object *o, DirTreeData *d,
  */
 static ULONG om_new(Class *cl, Object *o, struct opSet *ops)
 {
-    struct TagItem extra[4];
+    struct TagItem extra[5];
     struct opSet super_ops;
     Object *show = NULL, *hide = NULL, *obj;
     DirTreeData *d;
     STRPTR root;
-    int n = 0;
+    int n = 0, images = 0;
 
     extra[n].ti_Tag = LISTBROWSER_Hierarchical;
     extra[n++].ti_Data = TRUE;
+    /* listbrowser.gadget selects a clicked entry but only highlights it
+     * with LISTBROWSER_ShowSelected (default FALSE); a tree needs it. */
+    if (FindTagItem(LISTBROWSER_ShowSelected, ops->ops_AttrList) == NULL) {
+        extra[n].ti_Tag = LISTBROWSER_ShowSelected;
+        extra[n++].ti_Data = TRUE;
+    }
     if (GlyphBase != NULL &&
         FindTagItem(LISTBROWSER_ShowImage, ops->ops_AttrList) == NULL &&
         FindTagItem(LISTBROWSER_HideImage, ops->ops_AttrList) == NULL) {
@@ -668,6 +717,7 @@ static ULONG om_new(Class *cl, Object *o, struct opSet *ops)
             extra[n++].ti_Data = (ULONG)show;
             extra[n].ti_Tag = LISTBROWSER_HideImage;
             extra[n++].ti_Data = (ULONG)hide;
+            images = 1;
         }
     }
     extra[n].ti_Tag = TAG_MORE;
@@ -676,7 +726,7 @@ static ULONG om_new(Class *cl, Object *o, struct opSet *ops)
     super_ops = *ops;
     super_ops.ops_AttrList = extra;
     obj = (Object *)class_dsm(cl, o, (Msg)&super_ops);
-    if (obj == NULL || n < 3) {
+    if (obj == NULL || !images) {
         /* Images are disposed here when they are unused or creation failed. */
         if (show != NULL) DisposeObject(show);
         if (hide != NULL) DisposeObject(hide);
