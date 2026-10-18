@@ -21,6 +21,8 @@ The codebase intentionally handles file contents as 8-bit text.
 - `include/editor.h`: shared application types and cross-module declarations.
 - `include/syntax.h`: portable syntax-scanner interface.
 - `tests/test_syntax.c`: host-native syntax scanner tests.
+- `amiga-devkit/`: git submodule (pinned tag) with shared Amiga tools and AI
+  guidelines; see `CLAUDE.md`. Do not edit files inside the submodule.
 - `README.md`: supported behavior, runtime dependencies, and known limits.
 
 ## Build and verification
@@ -28,7 +30,7 @@ The codebase intentionally handles file contents as 8-bit text.
 The target compiler defaults to `/opt/amiga/bin/m68k-amigaos-gcc`.
 
 ```sh
-make
+make            # includes make charcheck (no UTF-8 in ISO-8859-1 files)
 make test
 /opt/amiga/bin/m68k-amigaos-objdump -f build/TinyDev
 ```

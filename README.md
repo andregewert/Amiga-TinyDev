@@ -21,6 +21,10 @@ I will try to manually check and improve the generated code.
 
 ## Build and test
 
+The shared tools in `amiga-devkit/` are a git submodule
+([Amiga-Devkit](https://github.com/andregewert/Amiga-Devkit)). Clone with
+`git clone --recursive` or run `git submodule update --init` once.
+
 The default toolchain prefix is `/opt/amiga/bin/m68k-amigaos-`. Build with:
 
     make clean && make
@@ -34,7 +38,9 @@ The Makefile explicitly selects `-m68000 -msoft-float -noixemul` and creates:
 - `build/TinyDev-LSP`: Amiga Commodity LSP Broker with ARexx host port `TINYDEV_LSP`.
 - `build/parsers/c_parser`: Standalone C parser communicating via STDIN/STDOUT (JSON-RPC 2.0).
 
-All build artifacts are placed in the `build` directory.
+All build artifacts are placed in the `build` directory. `make` first runs
+`make charcheck`, which refuses UTF-8 in the Amiga sources, scripts, Makefiles
+and `LICENSE`; these files are ISO-8859-1.
 
 ## TinyDev-LSP Commodity & ARexx Interface
 
