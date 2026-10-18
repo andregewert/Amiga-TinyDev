@@ -6,18 +6,25 @@
 **
 **  Definitions for the dirtree.gadget ReAction class (AmigaOS 3.2)
 **
-**  dirtree.gadget shows a directory as a hierarchical list. Directories
-**  are read lazily: only the children of an expanded directory are read,
-**  collapsing a directory frees them again. Depth and the number of
-**  entries are bounded.
+**  dirtree.gadget shows a directory as a hierarchical list. The name of
+**  the directory is the column title above the list, its contents the
+**  first level. Directories are read lazily: only the children of an
+**  expanded directory are read, collapsing a directory frees them again.
+**  Depth and the number of entries are bounded. Entries get small built-in
+**  symbols (drawer, open drawer, file, source code, script, picture),
+**  drawn with the name by the class's render hook; icon files (*.info)
+**  are left out.
 **
 **  Public class name: "dirtree.gadget"   (superclass: listbrowser.gadget)
 **  Library:           SYS:Classes/Gadgets/dirtree.gadget
 **
-**  All listbrowser.gadget attributes except LISTBROWSER_Labels and
-**  LISTBROWSER_Hierarchical may be used; the class owns its node list.
-**  Without LISTBROWSER_ShowImage/HideImage the class uses glyph.image
-**  arrows (when images/glyph.image is available). LISTBROWSER_ShowSelected
+**  All listbrowser.gadget attributes except LISTBROWSER_Labels,
+**  LISTBROWSER_Hierarchical, LISTBROWSER_ColumnInfo and
+**  LISTBROWSER_ColumnTitles may be used; the class owns its node list and
+**  its column.
+**  With the symbols (DIRTREE_Images) there are no expand arrows: drawers
+**  open and close with a double-click. Without symbols and without LISTBROWSER_ShowImage/HideImage the
+**  class uses glyph.image arrows (when images/glyph.image is available). LISTBROWSER_ShowSelected
 **  defaults to TRUE, so a clicked entry stays highlighted; the selection
 **  is kept when directories are expanded or collapsed (unless the
 **  selected entry disappears with a collapsed directory).
@@ -64,8 +71,15 @@
  * stays and DIRTREE_Status is DIRTREE_ST_FAILED.                    (ISG) */
 #define DIRTREE_Root        (DIRTREE_Dummy + 1)     /* STRPTR */
 
-/* Deepest level that is read below the root (root = 0). Default 16. (IG) */
+/* Deepest level that is read below the root (first level = 1).
+ * Default 16.                                                         (IG) */
 #define DIRTREE_MaxDepth    (DIRTREE_Dummy + 2)     /* ULONG */
+
+/* Leave out icon files (*.info). Default TRUE.                      (IG) */
+#define DIRTREE_HideIcons   (DIRTREE_Dummy + 12)    /* BOOL */
+
+/* Small built-in symbols in front of the entries. Default TRUE.     (IG) */
+#define DIRTREE_Images      (DIRTREE_Dummy + 13)    /* BOOL */
 
 /* Maximum number of list entries, including placeholders. A directory
  * that would exceed it is shown incompletely. Default 2048.          (IG) */

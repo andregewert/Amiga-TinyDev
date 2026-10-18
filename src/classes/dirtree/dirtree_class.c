@@ -16,6 +16,11 @@
  * Released under the MIT License, see LICENSE.
  */
 #include <exec/memory.h>
+#include <graphics/gfxbase.h>
+#include <graphics/rastport.h>
+#include <graphics/text.h>
+#include <libraries/gadtools.h>
+#include <proto/graphics.h>
 #include <dos/dos.h>
 #include <dos/exall.h>
 #include <intuition/classes.h>
@@ -34,6 +39,7 @@
 
 #include <gadgets/dirtree.h>
 #include "classlib.h"
+#include "dirtree_icons.h"
 
 /* Path buffers are allocated, not put on the stack: the class runs on the
  * application's stack, often only 4 KB, while the listbrowser renders. */
@@ -42,6 +48,16 @@
 #define DIRTREE_DEFAULT_ENTRIES     2048
 /* A directory needs room for itself and its placeholder. */
 #define DIRTREE_MIN_ENTRIES         3
+/* Layout of an entry drawn by the render hook (pixels). */
+#define ROW_PADDING                 2   /* above and below the contents */
+#define LEFT_PADDING                3   /* left of the symbol */
+#define TEXT_GAP                    5   /* between symbol and name */
+/* The listbrowser indents the levels itself; an entry without children
+ * starts this much further right than a directory of the same level (the
+ * room of the expand image), measured with listbrowser.gadget 47 and 1 x 1
+ * expand images. Directories are moved by it so that all symbols of a
+ * level line up. */
+#define LEAF_OFFSET                 11
 
 struct Library *ListBrowserBase = NULL;
 /* Optional: without glyph.image the listbrowser has no expand arrows
@@ -53,6 +69,7 @@ typedef struct TreeEntry {
     int directory;          /**< non-zero for a directory */
     int placeholder;        /**< non-zero for a status placeholder */
     int expanded;           /**< directory children are loaded */
+    int kind;               /**< DTI_ symbol, -1 for none */
     char *name;             /**< display name, stored after the path */
     char path[1];           /**< full path, NUL terminated */
 } TreeEntry;
@@ -70,6 +87,13 @@ typedef struct DirTreeData {
     ULONG max_depth;            /**< deepest generation that is read */
     ULONG max_entries;          /**< upper bound of list nodes */
     ULONG status;               /**< DIRTREE_ST_# of the last operation */
+    struct ColumnInfo columns[2]; /**< one column, its title is the root's name */
+    char *title;                /**< name of the root directory, or NULL */
+    Object *icons[DTI_COUNT];   /**< entry symbols (shared by the nodes) or NULL */
+    IconPens pens;              /**< their colours on the screen */
+    int hide_icons;             /**< leave out .info files */
+    struct Hook render_hook;    /**< draws symbol and name of every entry */
+    WORD row_height;            /**< LBNCA_HookHeight of new entries */
     ULONG event;                /**< DIRTREE_EV_# of the last HandleEvent */
 } DirTreeData;
 
@@ -83,6 +107,11 @@ BOOL class_open_libraries(void)
 {
     ListBrowserBase = OpenLibrary("gadgets/listbrowser.gadget", 44);
     if (ListBrowserBase == NULL) return FALSE;
+    if (!dirtree_icons_init()) {
+        CloseLibrary(ListBrowserBase);
+        ListBrowserBase = NULL;
+        return FALSE;
+    }
     GlyphBase = OpenLibrary("images/glyph.image", 44);
     return TRUE;
 }
@@ -90,6 +119,7 @@ BOOL class_open_libraries(void)
 /** @brief Close the libraries opened by class_open_libraries(). */
 void class_close_libraries(void)
 {
+    dirtree_icons_exit();
     if (GlyphBase != NULL) CloseLibrary(GlyphBase);
     if (ListBrowserBase != NULL) CloseLibrary(ListBrowserBase);
     GlyphBase = NULL;
@@ -138,25 +168,32 @@ static TreeEntry *new_entry(const char *name, const char *path,
 
 /**
  * @brief Create a listbrowser node that owns a new TreeEntry.
+ * @param d The instance data (symbols).
  * @param name Display name.
  * @param path Full path.
- * @param generation Tree depth of the node (root = 0).
+ * @param generation Tree depth of the node (first level = 1).
  * @param directory Non-zero for a directory (gets LBFLG_HASCHILDREN).
  * @param placeholder Non-zero for a placeholder.
+ * @param kind DTI_ symbol of the entry, -1 for none.
  * @return The node, or NULL without memory.
  */
-static struct Node *new_node(const char *name, const char *path,
-                             ULONG generation, int directory, int placeholder)
+static struct Node *new_node(DirTreeData *d, const char *name, const char *path,
+                             ULONG generation, int directory, int placeholder, int kind)
 {
     TreeEntry *entry = new_entry(name, path, directory, placeholder);
     struct Node *node;
     if (entry == NULL) return NULL;
+    entry->kind = kind;
+    /* A column holds text or an image, not both; the render hook draws
+     * symbol and name. The text stays for the listbrowser's own use. */
     node = AllocListBrowserNode(1,
         LBNA_Generation, generation,
         LBNA_Flags, directory ? LBFLG_HASCHILDREN : 0,
         LBNA_UserData, (ULONG)entry,
         LBNA_Column, 0,
         LBNCA_Text, (ULONG)entry->name,
+        LBNCA_RenderHook, (ULONG)&d->render_hook,
+        LBNCA_HookHeight, (ULONG)d->row_height,
         TAG_END);
     if (node == NULL) FreeVec(entry);
     return node;
@@ -258,17 +295,19 @@ static int sorts_before(const char *name, int directory, const TreeEntry *other)
 /**
  * @brief Find the node after which a new child of @p parent is inserted
  *        to keep the children sorted (placeholders are skipped).
- * @param parent The parent node.
+ * @param d The instance data.
+ * @param parent The parent node, NULL for the first level.
+ * @param parent_generation Its generation (0 for the root).
  * @param name Name of the new child.
  * @param directory Non-zero if the new child is a directory.
  * @return The predecessor for Insert().
  */
-static struct Node *sorted_predecessor(struct Node *parent, const char *name,
+static struct Node *sorted_predecessor(DirTreeData *d, struct Node *parent,
+                                       ULONG parent_generation, const char *name,
                                        int directory)
 {
-    ULONG parent_generation = node_generation(parent);
     ULONG child_generation = parent_generation + 1;
-    struct Node *node = parent->ln_Succ;
+    struct Node *node = parent != NULL ? parent->ln_Succ : d->nodes.lh_Head;
     while (node->ln_Succ != NULL && node_generation(node) > parent_generation) {
         if (node_generation(node) == child_generation) {
             TreeEntry *other = node_entry(node);
@@ -282,18 +321,18 @@ static struct Node *sorted_predecessor(struct Node *parent, const char *name,
 }
 
 /**
- * @brief Insert a placeholder child of @p parent after @p *after.
+ * @brief Insert a placeholder child after @p *after.
  * @param d The instance data.
- * @param parent The parent node.
+ * @param parent_generation Generation of its parent (0 for the root).
  * @param after In: insert position; out: the new placeholder.
  * @param label Placeholder text.
  * @param hidden Non-zero to create it hidden (LBFLG_HIDDEN).
  * @return Non-zero on success, 0 without memory.
  */
-static int insert_placeholder(DirTreeData *d, struct Node *parent,
+static int insert_placeholder(DirTreeData *d, ULONG parent_generation,
                               struct Node **after, const char *label, int hidden)
 {
-    struct Node *node = new_node(label, "", node_generation(parent) + 1, 0, 1);
+    struct Node *node = new_node(d, label, "", parent_generation + 1, 0, 1, -1);
     if (node == NULL) return 0;
     if (hidden) SetListBrowserNodeAttrs(node, LBNA_Flags, LBFLG_HIDDEN, TAG_END);
     Insert(&d->nodes, node, *after);
@@ -302,28 +341,43 @@ static int insert_placeholder(DirTreeData *d, struct Node *parent,
 }
 
 /**
- * @brief Read the direct children of a directory node into the list.
+ * @brief Report whether a file is the icon of another one (*.info).
+ * @param name The file name.
+ * @return Non-zero for an icon.
+ */
+static int is_icon(const char *name)
+{
+    size_t length = strlen(name);
+    return length > 5 && Stricmp((STRPTR)(name + length - 5), (STRPTR)".info") == 0;
+}
+
+/**
+ * @brief Read the direct children of a directory into the list.
  *
  * Every subdirectory gets a hidden placeholder so it can be expanded
  * later. Stops at DIRTREE_MaxEntries; does nothing below MaxDepth. A
  * directory without children gets an "(empty)" or "(unavailable)"
- * placeholder. The parent is flagged to show its children.
+ * placeholder. A parent node is flagged to show its children and gets the
+ * open drawer symbol; without a parent the children form the first level
+ * below the title.
  *
  * @param d The instance data.
- * @param parent The directory node.
+ * @param parent The directory node, NULL for the root.
+ * @param path The directory's full path.
+ * @param generation The directory's generation (0 for the root).
  * @return Non-zero if the directory was read completely.
  */
-static int load_children(DirTreeData *d, struct Node *parent)
+static int load_children(DirTreeData *d, struct Node *parent, const char *path,
+                         ULONG generation)
 {
-    TreeEntry *entry = node_entry(parent);
-    ULONG generation = node_generation(parent), count = node_count(d);
-    struct Node *after = parent;
+    ULONG count = node_count(d);
+    struct Node *after = parent != NULL ? parent : (struct Node *)&d->nodes;
     struct FileInfoBlock *fib = NULL;
     char *child_path = NULL;
     BPTR lock = 0;
     int ok = 1, children = 0;
-    if (entry == NULL || !entry->directory || generation >= d->max_depth) return 1;
-    lock = Lock(entry->path, ACCESS_READ);
+    if (generation >= d->max_depth) return 1;
+    lock = Lock((STRPTR)path, ACCESS_READ);
     fib = AllocDosObject(DOS_FIB, NULL);
     child_path = AllocVec(DIRTREE_PATH_MAX, MEMF_ANY);
     if (lock == 0 || fib == NULL || child_path == NULL || !Examine(lock, fib) ||
@@ -334,22 +388,26 @@ static int load_children(DirTreeData *d, struct Node *parent)
     while (ExNext(lock, fib)) {
         struct Node *child;
         int directory = fib->fib_DirEntryType > 0;
+        if (!directory && d->hide_icons && is_icon(fib->fib_FileName)) continue;
         if (count + (directory ? 2UL : 1UL) > d->max_entries) { ok = 0; break; }
-        strncpy(child_path, entry->path, DIRTREE_PATH_MAX - 1);
+        strncpy(child_path, path, DIRTREE_PATH_MAX - 1);
         child_path[DIRTREE_PATH_MAX - 1] = '\0';
         if (!AddPart(child_path, fib->fib_FileName, DIRTREE_PATH_MAX)) {
             ok = 0;
             continue;
         }
-        child = new_node(fib->fib_FileName, child_path, generation + 1, directory, 0);
+        child = new_node(d, fib->fib_FileName, child_path, generation + 1, directory, 0,
+                         directory ? DTI_DRAWER
+                                   : dirtree_icon_kind(fib->fib_FileName,
+                                                       (ULONG)fib->fib_Protection));
         if (child == NULL) { ok = 0; break; }
-        after = sorted_predecessor(parent, fib->fib_FileName, directory);
+        after = sorted_predecessor(d, parent, generation, fib->fib_FileName, directory);
         Insert(&d->nodes, child, after);
         after = child;
         ++count;
         ++children;
         if (directory) {
-            if (!insert_placeholder(d, child, &after, d->loading_text, 1)) {
+            if (!insert_placeholder(d, generation + 1, &after, d->loading_text, 1)) {
                 ok = 0;
                 break;
             }
@@ -364,13 +422,17 @@ done:
     if (fib != NULL) FreeDosObject(DOS_FIB, fib);
     if (lock != 0) UnLock(lock);
     if (children == 0) {
-        after = parent;
-        if (!insert_placeholder(d, parent, &after,
+        after = parent != NULL ? parent : (struct Node *)&d->nodes;
+        if (!insert_placeholder(d, generation, &after,
                                 ok ? d->empty_text : d->unavailable_text, 0)) ok = 0;
     }
-    SetListBrowserNodeAttrs(parent, LBNA_Flags,
-        LBFLG_HASCHILDREN | LBFLG_SHOWCHILDREN, TAG_END);
-    ShowListBrowserNodeChildren(parent, 1);
+    if (parent != NULL) {
+        TreeEntry *pe = node_entry(parent);
+        if (pe != NULL) pe->kind = DTI_DRAWER_OPEN;
+        SetListBrowserNodeAttrs(parent, LBNA_Flags, LBFLG_HASCHILDREN | LBFLG_SHOWCHILDREN,
+                                TAG_END);
+        ShowListBrowserNodeChildren(parent, 1);
+    }
     return ok;
 }
 
@@ -390,6 +452,29 @@ static void set_labels(Class *cl, Object *o, struct GadgetInfo *gi,
     struct opSet set;
     tags[0].ti_Tag = LISTBROWSER_Labels;
     tags[0].ti_Data = (ULONG)labels;
+    tags[1].ti_Tag = TAG_END;
+    tags[1].ti_Data = 0;
+    set.MethodID = OM_SET;
+    set.ops_AttrList = tags;
+    set.ops_GInfo = gi;
+    class_dsm(cl, o, (Msg)&set);
+}
+
+/**
+ * @brief Give the column the root's name as title (while the list is
+ *        detached).
+ * @param cl The class.
+ * @param o The object.
+ * @param d The instance data.
+ * @param gi GadgetInfo, or NULL.
+ */
+static void set_title(Class *cl, Object *o, DirTreeData *d, struct GadgetInfo *gi)
+{
+    struct TagItem tags[2];
+    struct opSet set;
+    d->columns[0].ci_Title = d->title != NULL ? (STRPTR)d->title : (STRPTR)"";
+    tags[0].ti_Tag = LISTBROWSER_ColumnInfo;
+    tags[0].ti_Data = (ULONG)d->columns;
     tags[1].ti_Tag = TAG_END;
     tags[1].ti_Data = 0;
     set.MethodID = OM_SET;
@@ -482,14 +567,82 @@ static void render_self(Class *cl, Object *o, struct GadgetInfo *gi, ULONG mode)
     ReleaseGIRPort(rp);
 }
 
+/**
+ * @brief Render hook of every entry (LBNCA_RenderHook): the background
+ *        (FILLPEN when selected), the symbol and the name, cut to the
+ *        cell's width.
+ *
+ * Runs while the listbrowser renders, possibly during input handling:
+ * graphics only.
+ *
+ * @param hook The hook, h_Data is the instance data.
+ * @param node The node of the entry.
+ * @param msg The draw message.
+ * @return LBCB_OK, or LBCB_UNKNOWN for other methods.
+ */
+static ULONG render_entry(struct Hook *hook __asm("a0"), struct Node *node __asm("a2"),
+                          struct LBDrawMsg *msg __asm("a1"))
+{
+    DirTreeData *d = (DirTreeData *)hook->h_Data;
+    struct RastPort *rp = msg->lbdm_RastPort;
+    struct DrawInfo *dri = msg->lbdm_DrawInfo;
+    struct Rectangle *b = &msg->lbdm_Bounds;
+    TreeEntry *entry = node_entry(node);
+    int selected = msg->lbdm_State == LBR_SELECTED;
+    WORD x, height = (WORD)(b->MaxY - b->MinY + 1);
+    UWORD bg, fg;
+    struct TextExtent te;
+    ULONG length, fit;
+
+    if (msg->lbdm_MethodID != LV_DRAW) return LBCB_UNKNOWN;
+    if (dri == NULL || entry == NULL) return LBCB_OK;
+    x = (WORD)(b->MinX + LEFT_PADDING);
+    if (entry->directory && d->icons[DTI_DRAWER] != NULL) x = (WORD)(x + LEAF_OFFSET);
+    bg = dri->dri_Pens[selected ? FILLPEN : BACKGROUNDPEN];
+    fg = dri->dri_Pens[selected ? FILLTEXTPEN : entry->placeholder ? SHADOWPEN : TEXTPEN];
+    SetAPen(rp, (UBYTE)bg);
+    RectFill(rp, b->MinX, b->MinY, b->MaxX, b->MaxY);
+
+    if (entry->kind >= 0 && d->icons[entry->kind] != NULL) {
+        DrawImageState(rp, (struct Image *)d->icons[entry->kind], x,
+                       (WORD)(b->MinY + (height - dirtree_icon_height()) / 2),
+                       selected ? IDS_SELECTED : IDS_NORMAL, dri);
+        x = (WORD)(x + dirtree_icon_width() + TEXT_GAP);
+    }
+    if (x > b->MaxX) return LBCB_OK;
+    length = strlen(entry->name);
+    fit = TextFit(rp, (STRPTR)entry->name, (UWORD)length, &te, NULL, 1,
+                  (UWORD)(b->MaxX - x + 1), (UWORD)height);
+    SetAPen(rp, (UBYTE)fg);
+    SetDrMd(rp, JAM1);
+    Move(rp, x, (WORD)(b->MinY + (height - rp->TxHeight) / 2 + rp->TxBaseline));
+    Text(rp, (STRPTR)entry->name, (UWORD)fit);
+    return LBCB_OK;
+}
+
+/**
+ * @brief Height of new rows: the symbol or the screen font, whichever is
+ *        higher, plus the padding above and below.
+ * @param d The instance data.
+ * @param gi GadgetInfo (its DrawInfo font), or NULL to keep the value.
+ */
+static void update_row_height(DirTreeData *d, struct GadgetInfo *gi)
+{
+    WORD h;
+    if (gi == NULL || gi->gi_DrInfo == NULL || gi->gi_DrInfo->dri_Font == NULL) return;
+    h = (WORD)gi->gi_DrInfo->dri_Font->tf_YSize;
+    if (d->icons[DTI_DRAWER] != NULL && h < dirtree_icon_height()) h = dirtree_icon_height();
+    d->row_height = (WORD)(h + 2 * ROW_PADDING);
+}
+
 /* -- operations ----------------------------------------------------------- */
 
 /**
  * @brief Replace the tree with a new root directory.
  *
  * The directory is checked first; if it cannot be read the old tree is
- * kept. Otherwise the list is detached, rebuilt with the root and its
- * first level, and attached again.
+ * kept. Otherwise the list is detached, the column title becomes the
+ * directory's name and the list is rebuilt with its first level.
  *
  * @param cl The class.
  * @param o The object.
@@ -504,7 +657,6 @@ static ULONG load_root(Class *cl, Object *o, DirTreeData *d,
     BPTR lock;
     struct FileInfoBlock *fib;
     char *canonical;
-    struct Node *root;
     ULONG status = DIRTREE_ST_FAILED;
     int is_dir = 0;
 
@@ -512,7 +664,9 @@ static ULONG load_root(Class *cl, Object *o, DirTreeData *d,
         set_labels(cl, o, gi, (struct List *)~0UL);
         free_all(d);
         if (d->root != NULL) { FreeVec(d->root); d->root = NULL; }
+        if (d->title != NULL) { FreeVec(d->title); d->title = NULL; }
         if (d->active_path != NULL) { FreeVec(d->active_path); d->active_path = NULL; }
+        set_title(cl, o, d, gi);
         set_labels(cl, o, gi, &d->nodes);
         return DIRTREE_ST_OK;
     }
@@ -524,26 +678,24 @@ static ULONG load_root(Class *cl, Object *o, DirTreeData *d,
         fib->fib_DirEntryType > 0 && NameFromLock(lock, canonical, DIRTREE_PATH_MAX))
         is_dir = 1;
     if (is_dir) {
+        /* the title: the directory's name, or "Volume:" for a volume */
+        const char *name = (const char *)FilePart((STRPTR)canonical);
         char *copy = dup_string(canonical);
-        root = new_node(fib->fib_FileName, canonical, 0, 1, 0);
-        if (copy != NULL && root != NULL) {
-            TreeEntry *entry = node_entry(root);
+        char *title = dup_string(*name != '\0' ? name : canonical);
+        if (copy != NULL && title != NULL) {
             set_labels(cl, o, gi, (struct List *)~0UL);
             free_all(d);
             if (d->root != NULL) FreeVec(d->root);
+            if (d->title != NULL) FreeVec(d->title);
             d->root = copy;
+            d->title = title;
             if (d->active_path != NULL) { FreeVec(d->active_path); d->active_path = NULL; }
-            AddTail(&d->nodes, root);
-            status = load_children(d, root) ? DIRTREE_ST_OK : DIRTREE_ST_INCOMPLETE;
-            if (entry != NULL) entry->expanded = 1;
+            status = load_children(d, NULL, d->root, 0) ? DIRTREE_ST_OK : DIRTREE_ST_INCOMPLETE;
+            set_title(cl, o, d, gi);
             set_labels(cl, o, gi, &d->nodes);
         } else {
             if (copy != NULL) FreeVec(copy);
-            if (root != NULL) {
-                TreeEntry *entry = node_entry(root);
-                FreeListBrowserNode(root);
-                if (entry != NULL) FreeVec(entry);
-            }
+            if (title != NULL) FreeVec(title);
         }
     }
     if (canonical != NULL) FreeVec(canonical);
@@ -564,7 +716,8 @@ static ULONG expand_node(DirTreeData *d, struct Node *node, TreeEntry *entry)
 {
     ULONG status;
     remove_descendants(node);
-    status = load_children(d, node) ? DIRTREE_ST_OK : DIRTREE_ST_INCOMPLETE;
+    status = load_children(d, node, entry->path, node_generation(node))
+             ? DIRTREE_ST_OK : DIRTREE_ST_INCOMPLETE;
     entry->expanded = 1;
     return status;
 }
@@ -583,9 +736,10 @@ static ULONG collapse_node(DirTreeData *d, struct Node *node, TreeEntry *entry)
     struct Node *after = node;
     ULONG status = DIRTREE_ST_OK;
     remove_descendants(node);
-    if (!insert_placeholder(d, node, &after, d->loading_text, 1))
+    if (!insert_placeholder(d, node_generation(node), &after, d->loading_text, 1))
         status = DIRTREE_ST_FAILED;
     SetListBrowserNodeAttrs(node, LBNA_Flags, LBFLG_HASCHILDREN, TAG_END);
+    entry->kind = DTI_DRAWER;
     HideListBrowserNodeChildren(node);
     entry->expanded = 0;
     return status;
@@ -698,6 +852,7 @@ static ULONG om_new(Class *cl, Object *o, struct opSet *ops)
     DirTreeData *d;
     STRPTR root;
     int n = 0, images = 0;
+    int symbols = (int)GetTagData(DIRTREE_Images, TRUE, ops->ops_AttrList);
 
     extra[n].ti_Tag = LISTBROWSER_Hierarchical;
     extra[n++].ti_Data = TRUE;
@@ -707,11 +862,18 @@ static ULONG om_new(Class *cl, Object *o, struct opSet *ops)
         extra[n].ti_Tag = LISTBROWSER_ShowSelected;
         extra[n++].ti_Data = TRUE;
     }
-    if (GlyphBase != NULL &&
-        FindTagItem(LISTBROWSER_ShowImage, ops->ops_AttrList) == NULL &&
+    if (FindTagItem(LISTBROWSER_ShowImage, ops->ops_AttrList) == NULL &&
         FindTagItem(LISTBROWSER_HideImage, ops->ops_AttrList) == NULL) {
-        show = NewObject(GLYPH_GetClass(), NULL, GLYPH_Glyph, GLYPH_RIGHTARROW, TAG_END);
-        hide = NewObject(GLYPH_GetClass(), NULL, GLYPH_Glyph, GLYPH_DOWNARROW, TAG_END);
+        if (symbols) {
+            /* No expand arrows: the drawer symbols show what can be opened
+             * (double-click), so the listbrowser gets invisible 1 x 1
+             * images. */
+            show = dirtree_blank_new(1, 1);
+            hide = dirtree_blank_new(1, 1);
+        } else if (GlyphBase != NULL) {
+            show = NewObject(GLYPH_GetClass(), NULL, GLYPH_Glyph, GLYPH_RIGHTARROW, TAG_END);
+            hide = NewObject(GLYPH_GetClass(), NULL, GLYPH_Glyph, GLYPH_DOWNARROW, TAG_END);
+        }
         if (show != NULL && hide != NULL) {
             extra[n].ti_Tag = LISTBROWSER_ShowImage;
             extra[n++].ti_Data = (ULONG)show;
@@ -750,7 +912,35 @@ static ULONG om_new(Class *cl, Object *o, struct opSet *ops)
     d->unavailable_text = (const char *)GetTagData(DIRTREE_UnavailableText,
                                                    (ULONG)"(unavailable)",
                                                    ops->ops_AttrList);
-    set_labels(cl, obj, NULL, &d->nodes);
+    d->hide_icons = (int)GetTagData(DIRTREE_HideIcons, TRUE, ops->ops_AttrList);
+    d->render_hook.h_Entry = (ULONG (*)())render_entry;
+    d->render_hook.h_Data = d;
+    if (symbols) {
+        int k;
+        for (k = 0; k < DTI_COUNT; ++k) d->icons[k] = dirtree_icon_new(k, &d->pens);
+    }
+    /* until the screen font is known (first OM_SET in a window) */
+    d->row_height = (WORD)(GfxBase->DefaultFont != NULL ? GfxBase->DefaultFont->tf_YSize : 8);
+    if (d->icons[DTI_DRAWER] != NULL && d->row_height < dirtree_icon_height())
+        d->row_height = dirtree_icon_height();
+    d->row_height = (WORD)(d->row_height + 2 * ROW_PADDING);
+    /* one column; its title shows the root's name above the list */
+    d->columns[0].ci_Width = 100;
+    d->columns[0].ci_Title = (STRPTR)"";
+    d->columns[0].ci_Flags = 0;
+    d->columns[1].ci_Width = -1;
+    {
+        struct TagItem tags[4];
+        struct opSet set;
+        tags[0].ti_Tag = LISTBROWSER_ColumnInfo;   tags[0].ti_Data = (ULONG)d->columns;
+        tags[1].ti_Tag = LISTBROWSER_ColumnTitles; tags[1].ti_Data = TRUE;
+        tags[2].ti_Tag = LISTBROWSER_Labels;       tags[2].ti_Data = (ULONG)&d->nodes;
+        tags[3].ti_Tag = TAG_END;                  tags[3].ti_Data = 0;
+        set.MethodID = OM_SET;
+        set.ops_AttrList = tags;
+        set.ops_GInfo = NULL;
+        class_dsm(cl, obj, (Msg)&set);
+    }
     root = (STRPTR)GetTagData(DIRTREE_Root, 0, ops->ops_AttrList);
     d->status = root != NULL ? load_root(cl, obj, d, NULL, root) : DIRTREE_ST_OK;
     return (ULONG)obj;
@@ -774,6 +964,7 @@ static ULONG om_set(Class *cl, Object *o, struct opSet *ops)
     struct TagItem *tag = NULL;
     int handle = ops->MethodID == OM_SET &&
                  GetTagData(DIRTREE_HandleEvent, FALSE, ops->ops_AttrList);
+    if (ops->MethodID == OM_SET) update_row_height(d, ops->ops_GInfo);
     /* Read the listbrowser's event before the OM_SET reaches it: setting
      * attributes may reset LISTBROWSER_RelEvent. */
     if (handle) {
@@ -814,6 +1005,8 @@ static ULONG om_get(Class *cl, Object *o, struct opGet *opg)
         case DIRTREE_Status:     *opg->opg_Storage = d->status; return TRUE;
         case DIRTREE_Event:      *opg->opg_Storage = d->event; return TRUE;
         case DIRTREE_ActivePath: *opg->opg_Storage = (ULONG)d->active_path; return TRUE;
+        case DIRTREE_HideIcons:  *opg->opg_Storage = (ULONG)d->hide_icons; return TRUE;
+        case DIRTREE_Images:     *opg->opg_Storage = d->icons[DTI_DRAWER] != NULL; return TRUE;
         case DIRTREE_SelectedPath: {
             struct Node *node = (struct Node *)super_get(cl, o, LISTBROWSER_SelectedNode);
             TreeEntry *entry = node != NULL ? node_entry(node) : NULL;
@@ -828,7 +1021,8 @@ static ULONG om_get(Class *cl, Object *o, struct opGet *opg)
 
 /**
  * @brief OM_DISPOSE: detach and free the nodes, dispose the listbrowser,
- *        then the default images it referenced.
+ *        then the images it referenced (arrows, entry symbols) and the
+ *        symbols' pens.
  * @param cl The class.
  * @param o The object.
  * @param msg The message.
@@ -837,15 +1031,22 @@ static ULONG om_get(Class *cl, Object *o, struct opGet *opg)
 static ULONG om_dispose(Class *cl, Object *o, Msg msg)
 {
     DirTreeData *d = INST_DATA(cl, o);
-    Object *show = d->show_image, *hide = d->hide_image;
+    Object *show = d->show_image, *hide = d->hide_image, *icons[DTI_COUNT];
+    IconPens pens = d->pens;
     ULONG result;
+    int k;
     set_labels(cl, o, NULL, (struct List *)~0UL);
     free_all(d);
     if (d->root != NULL) FreeVec(d->root);
+    if (d->title != NULL) FreeVec(d->title);
     if (d->active_path != NULL) FreeVec(d->active_path);
+    for (k = 0; k < DTI_COUNT; ++k) icons[k] = d->icons[k];
     result = class_dsm(cl, o, msg);
     if (show != NULL) DisposeObject(show);
     if (hide != NULL) DisposeObject(hide);
+    for (k = 0; k < DTI_COUNT; ++k)
+        if (icons[k] != NULL) DisposeObject(icons[k]);
+    dirtree_icons_release(&pens);
     return result;
 }
 
@@ -865,6 +1066,15 @@ static ULONG dirtree_dispatcher(Class *cl __asm("a0"), Object *o __asm("a2"),
         case OM_UPDATE:  return om_set(cl, o, (struct opSet *)msg);
         case OM_GET:     return om_get(cl, o, (struct opGet *)msg);
         case OM_DISPOSE: return om_dispose(cl, o, msg);
+        case GM_RENDER: {
+            /* The symbols' colours are obtained on the first rendering,
+             * when the screen is known. */
+            DirTreeData *d = INST_DATA(cl, o);
+            struct GadgetInfo *gi = ((struct gpRender *)msg)->gpr_GInfo;
+            if (!d->pens.ok && gi != NULL)
+                dirtree_icons_obtain(&d->pens, gi->gi_Screen, gi->gi_DrInfo);
+            return class_dsm(cl, o, msg);
+        }
         default:         return class_dsm(cl, o, msg);
     }
 }

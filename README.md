@@ -84,7 +84,7 @@ version therefore hides a fresh build; check with
 
 | Class | Superclass | Purpose |
 |---|---|---|
-| `dirtree.gadget` | `listbrowser.gadget` | Lazily loaded, bounded directory tree |
+| `dirtree.gadget` | `listbrowser.gadget` | Lazily loaded, bounded directory tree with the directory name as column title, built-in entry symbols and hidden `.info` files |
 | `minimap.gadget` | `gadgetclass` | Scaled, coloured overview of a `texteditor.gadget`, rendered in its own process |
 
 The public interface (tags, methods, usage) is documented in
@@ -203,7 +203,11 @@ screen's `BACKGROUNDPEN` and ignores `GA_BackFill`/`GA_DrawInfo` there, while
 its `GA_TEXTEDITOR_Pen`/`GA_TEXTEDITOR_ColorMap` attributes are unimplemented
 and `GA_TEXTEDITOR_Transparent` is OS4-only; the text area therefore keeps the
 Workbench background colour until a future gadget subclass overrides rendering.
-Project/Open Directory populates a hierarchical folder tree; double-clicking a
+Project/Open Directory populates a hierarchical folder tree; the directory's
+name is shown as a fixed title above it, and every entry has a small symbol
+(drawer, open drawer, file, source code, script, picture; drawn by the gadget,
+no files needed). There are no expand arrows: a double-click opens or closes a drawer. Icon files (`.info`)
+are not listed. Double-clicking a
 file opens it in a tab. The tree is resizable and can be hidden from the View
 menu. A selected base directory opens its first level immediately; child
 directories start collapsed. Opening a child reads only its direct children;

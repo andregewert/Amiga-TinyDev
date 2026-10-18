@@ -30,7 +30,8 @@ The codebase intentionally handles file contents as 8-bit text.
   `sfd/<name>_lib.sfd` generates `include/proto`, `include/inline` and
   `include/clib` with `sfdc`.
 - `src/classes/dirtree/`: `dirtree.gadget`, the lazy, bounded directory tree
-  (listbrowser subclass).
+  (listbrowser subclass); `dirtree_icons.c` is its private image class with
+  the built-in entry symbols.
 - `src/classes/minimap/`: `minimap.gadget`, the scaled overview of a
   `texteditor.gadget` with its own render process (gadgetclass subclass).
 - `src/minimap.c`: connects `minimap.gadget` to the editor (active document,
