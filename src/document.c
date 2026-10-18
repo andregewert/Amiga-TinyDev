@@ -493,6 +493,9 @@ static void set_scroller_state(EditorApp *app, Object *scroller,
             SCROLLER_Top, top, TAG_END);
     else SetAttrs(scroller, SCROLLER_Total, total,
                   SCROLLER_Visible, visible, SCROLLER_Top, top, TAG_END);
+    /* If the scroller signals changes made by the program as well, that
+     * signal must not be taken for a drag by the user. */
+    if (app->scroll_signal >= 0) SetSignal(0, 1UL << (ULONG)app->scroll_signal);
 }
 
 /**
@@ -510,6 +513,10 @@ void document_sync_scrollers(EditorApp *app, Document *doc)
 {
     ULONG total = 1, visible = 1, top = 0;
     if (doc == NULL || doc != app->active) return;
+    /* Never write into a scroller the user is dragging: setting its top
+     * while it is active makes the knob jump back and lose its pressed
+     * look. The scrollers are synced again when the drag ends. */
+    if (app->scrollbar_dragging) return;
     GetAttr(GA_TEXTEDITOR_Prop_Entries, doc->editor, &total);
     GetAttr(GA_TEXTEDITOR_Prop_Visible, doc->editor, &visible);
     GetAttr(GA_TEXTEDITOR_Prop_First, doc->editor, &top);
@@ -553,8 +560,11 @@ static void set_highlight_enabled(EditorApp *app, Document *doc, int enabled)
  *
  * Reads the top position from the chosen (horizontal or vertical) scroller and,
  * when it differs from the editor's current first line/column, applies it to
- * the editor, refreshes the page gadget, and re-synchronizes the scrollers.
- * Does nothing without an active document and window.
+ * the editor and redraws only the editor gadget. Refreshing the whole page
+ * would also redraw the scroller the user may be dragging, which then loses
+ * its pressed look. The scrollers themselves are not written here (see
+ * document_sync_scrollers()). Does nothing without an active document and
+ * window.
  *
  * @param app The owning application.
  * @param horizontal Non-zero to scroll the horizontal axis, zero for vertical.
@@ -571,9 +581,7 @@ void document_scroll(EditorApp *app, int horizontal)
     if (top == old_top) return;
     SetGadgetAttrs((struct Gadget *)doc->editor, app->window, NULL,
         editor_attribute, top, TAG_END);
-    RefreshPageGadget((struct Gadget *)doc->page, app->pages,
-                      app->window, NULL);
-    document_sync_scrollers(app, doc);
+    RefreshGList((struct Gadget *)doc->editor, app->window, NULL, 1);
 }
 
 /**
@@ -588,6 +596,7 @@ void document_scroll(EditorApp *app, int horizontal)
  */
 void document_scroll_live(EditorApp *app)
 {
+    app->scrollbar_dragging = 1;
     if (app->active != NULL && !app->scrolling) {
         set_highlight_enabled(app, app->active, 0);
         app->scrolling = 1;
@@ -610,6 +619,8 @@ void document_scroll_live(EditorApp *app)
 void document_scroll_finish(EditorApp *app, int horizontal)
 {
     document_scroll(app, horizontal);
+    app->scrollbar_dragging = 0;
+    document_sync_scrollers(app, app->active);
     if (app->scrolling) {
         app->scrolling = 0;
         if (app->active != NULL) {

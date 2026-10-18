@@ -111,6 +111,7 @@ typedef struct EditorApp {
     int minimap_drag_state;     /* MINIMAP_Dragging of that notification */
     ULONG minimap_top;          /* MINIMAP_Top of that notification */
     int scrolling;
+    int scrollbar_dragging;     /* a scroller is being used, do not write it */
     int running;
 } EditorApp;
 
