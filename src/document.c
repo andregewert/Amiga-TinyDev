@@ -97,11 +97,7 @@ static Object *create_editor(EditorApp *app, Document *doc,
  */
 static void detach_tabs(EditorApp *app)
 {
-    if (app->tabs == NULL) return;
-    if (app->window != NULL)
-        SetGadgetAttrs((struct Gadget *)app->tabs, app->window, NULL,
-            CLICKTAB_Labels, ~0UL, TAG_END);
-    else SetAttrs(app->tabs, CLICKTAB_Labels, ~0UL, TAG_END);
+    ui_gadget_set(app, app->tabs, CLICKTAB_Labels, ~0UL, TAG_IGNORE, 0);
 }
 
 /**
@@ -115,12 +111,7 @@ static void detach_tabs(EditorApp *app)
  */
 static void attach_tabs(EditorApp *app)
 {
-    if (app->tabs == NULL) return;
-    if (app->window != NULL)
-        SetGadgetAttrs((struct Gadget *)app->tabs, app->window, NULL,
-            CLICKTAB_Labels, (ULONG)&app->tab_nodes, TAG_END);
-    else SetAttrs(app->tabs, CLICKTAB_Labels,
-                  (ULONG)&app->tab_nodes, TAG_END);
+    ui_gadget_set(app, app->tabs, CLICKTAB_Labels, (ULONG)&app->tab_nodes, TAG_IGNORE, 0);
 }
 
 /**
@@ -157,7 +148,25 @@ static void renumber_tabs(EditorApp *app)
  * @param app The owning application.
  * @return The newly created document, or NULL on failure.
  */
+static Document *new_document(EditorApp *app);
+
+/**
+ * @brief Create, register and activate a new empty document; the window is
+ *        laid out and drawn once at the end (see ui_begin_update()).
+ * @param app The owning application.
+ * @return The newly created document, or NULL on failure.
+ */
 Document *document_new(EditorApp *app)
+{
+    Document *doc;
+    ui_begin_update(app);
+    doc = new_document(app);
+    ui_end_update(app);
+    return doc;
+}
+
+/* The work of document_new(). */
+static Document *new_document(EditorApp *app)
 {
     Document *doc = AllocVec(sizeof(*doc), MEMF_ANY | MEMF_CLEAR);
     if (doc == NULL) { ui_error(app, "TinyDev", "Not enough memory for a document."); return NULL; }
@@ -242,12 +251,7 @@ Document *document_new(EditorApp *app)
     AddTail(&app->documents, &doc->node);
     AddTail(&app->tab_nodes, doc->tab);
     renumber_tabs(app);
-    if (app->pages != NULL) {
-        if (app->window != NULL)
-            SetGadgetAttrs((struct Gadget *)app->pages, app->window, NULL,
-                PAGE_Add, (ULONG)doc->page, TAG_END);
-        else SetAttrs(app->pages, PAGE_Add, (ULONG)doc->page, TAG_END);
-    }
+    ui_gadget_set(app, app->pages, PAGE_Add, (ULONG)doc->page, TAG_IGNORE, 0);
     attach_tabs(app);
     document_activate(app, doc);
     ui_relayout(app);
@@ -289,7 +293,27 @@ Document *document_find_path(EditorApp *app, const char *path)
  * @return The document showing the file, the pre-existing document for a
  *         duplicate, or NULL if opening failed.
  */
+static Document *open_document(EditorApp *app, const char *path);
+
+/**
+ * @brief Open a file; the window is laid out and redrawn only once at the
+ *        end (see ui_begin_update()).
+ * @param app The owning application.
+ * @param path The file path to open.
+ * @return The document showing the file, the pre-existing document for a
+ *         duplicate, or NULL if opening failed.
+ */
 Document *document_open(EditorApp *app, const char *path)
+{
+    Document *doc;
+    ui_begin_update(app);
+    doc = open_document(app, path);
+    ui_end_update(app);
+    return doc;
+}
+
+/* The work of document_open(). */
+static Document *open_document(EditorApp *app, const char *path)
 {
     Document *doc = document_find_path(app, path), *selected;
     int duplicate, created = 0;
@@ -326,16 +350,8 @@ void document_activate(EditorApp *app, Document *doc)
 {
     if (doc == NULL) return;
     app->active = doc;
-    if (app->tabs != NULL) {
-        if (app->window != NULL)
-            SetGadgetAttrs((struct Gadget *)app->tabs, app->window, NULL,
-                CLICKTAB_CurrentNode, (ULONG)doc->tab, TAG_END);
-        else SetAttrs(app->tabs, CLICKTAB_CurrentNode,
-                      (ULONG)doc->tab, TAG_END);
-    }
-    if (app->window != NULL)
-        RefreshPageGadget((struct Gadget *)doc->page, app->pages,
-                          app->window, NULL);
+    ui_gadget_set(app, app->tabs, CLICKTAB_CurrentNode, (ULONG)doc->tab, TAG_IGNORE, 0);
+    ui_refresh_page(app, doc);
     ui_refresh(app);
     document_sync_scrollers(app, doc);
     minimap_request(app);
@@ -359,14 +375,8 @@ void document_set_dirty(EditorApp *app, Document *doc, int dirty)
     doc->dirty = dirty;
     snprintf(doc->tab_title, sizeof(doc->tab_title), "%s%s", doc->title, dirty ? "*" : "");
     SetClickTabNodeAttrs(doc->tab, TNA_Text, (ULONG)doc->tab_title, TAG_END);
-    if (app->tabs != NULL) {
-        if (app->window != NULL)
-            SetGadgetAttrs((struct Gadget *)app->tabs, app->window, NULL,
-                CLICKTAB_MinorLabelChange, TRUE,
-                CLICKTAB_Labels, (ULONG)&app->tab_nodes, TAG_END);
-        else SetAttrs(app->tabs, CLICKTAB_MinorLabelChange, TRUE,
-                      CLICKTAB_Labels, (ULONG)&app->tab_nodes, TAG_END);
-    }
+    ui_gadget_set(app, app->tabs, CLICKTAB_MinorLabelChange, TRUE,
+                  CLICKTAB_Labels, (ULONG)&app->tab_nodes);
     ui_relayout(app);
     ui_refresh(app);
 }
@@ -391,18 +401,16 @@ int document_close(EditorApp *app, Document *doc, int ask)
 {
     Document *next;
     if (doc == NULL || (ask && !ui_confirm_close(app, doc))) return 0;
+    /* Tabs, pages and the next document change together: lay the window
+     * out and draw it once at the end. */
+    ui_begin_update(app);
     /* The minimap must let go of the editor (and its colour hook, which reads
      * this document) before the page with the editor is disposed. */
     minimap_forget_document(app, doc);
     next = doc->node.ln_Succ->ln_Succ ? (Document *)doc->node.ln_Succ :
            (doc->node.ln_Pred->ln_Pred ? (Document *)doc->node.ln_Pred : NULL);
     detach_tabs(app);
-    if (app->pages != NULL) {
-        if (app->window != NULL)
-            SetGadgetAttrs((struct Gadget *)app->pages, app->window, NULL,
-                PAGE_Remove, (ULONG)doc->page, TAG_END);
-        else SetAttrs(app->pages, PAGE_Remove, (ULONG)doc->page, TAG_END);
-    }
+    ui_gadget_set(app, app->pages, PAGE_Remove, (ULONG)doc->page, TAG_IGNORE, 0);
     Remove(doc->tab); Remove(&doc->node);
     renumber_tabs(app);
     FreeClickTabNode(doc->tab);
@@ -413,6 +421,7 @@ int document_close(EditorApp *app, Document *doc, int ask)
     if (next != NULL) document_activate(app, next);
     else document_new(app);
     ui_relayout(app);
+    ui_end_update(app);
     return 1;
 }
 
@@ -461,7 +470,9 @@ void document_set_path(EditorApp *app, Document *doc, const char *path)
     doc->title[sizeof(doc->title) - 1] = '\0';
     doc->language = syntax_language_for_path(path);
     doc->highlight.language = doc->language;
-    document_set_dirty(app, doc, 1);
+    /* The callers mark the document clean right after this; show the new
+     * title now (without toggling the dirty flag, which redrew twice). */
+    doc->dirty = 1;
     document_set_dirty(app, doc, 0);
 }
 

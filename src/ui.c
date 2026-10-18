@@ -348,8 +348,77 @@ void ui_update_status(EditorApp *app)
  */
 void ui_relayout(EditorApp *app)
 {
+    if (app->defer_depth > 0) { app->pending_layout = 1; return; }
     if (app->window != NULL && app->layout != NULL)
         RethinkLayout((struct Gadget *)app->layout, app->window, NULL, TRUE);
+}
+
+/**
+ * @brief Redraw a document's page (editor and scrollers), or note it for
+ *        ui_end_update() while updates are collected.
+ * @param app The application state.
+ * @param doc The document.
+ */
+void ui_refresh_page(EditorApp *app, Document *doc)
+{
+    if (doc == NULL || app->window == NULL) return;
+    if (app->defer_depth > 0) { app->pending_refresh = 1; return; }
+    RefreshPageGadget((struct Gadget *)doc->page, app->pages, app->window, NULL);
+}
+
+/**
+ * @brief Set up to two attributes of a gadget in the window.
+ *
+ * Always with the window (SetGadgetAttrs()) when it is open: clicktab.gadget
+ * and page.gadget do not take changes made without it (SetAttrs()) properly,
+ * the tabs and the page stayed empty even after a relayout.
+ *
+ * @param app The application state.
+ * @param obj The gadget.
+ * @param tag1 First attribute (TAG_IGNORE for none).
+ * @param data1 Its value.
+ * @param tag2 Second attribute (TAG_IGNORE for none).
+ * @param data2 Its value.
+ */
+void ui_gadget_set(EditorApp *app, Object *obj, ULONG tag1, ULONG data1,
+                   ULONG tag2, ULONG data2)
+{
+    if (obj == NULL) return;
+    if (app->window != NULL)
+        SetGadgetAttrs((struct Gadget *)obj, app->window, NULL,
+                       tag1, data1, tag2, data2, TAG_END);
+    else SetAttrs(obj, tag1, data1, tag2, data2, TAG_END);
+}
+
+/**
+ * @brief Start collecting relayouts and page redraws (nestable).
+ *
+ * An operation that changes several things (opening a file: a new tab, its
+ * page, the loaded text, the tab title) would otherwise lay out and redraw
+ * the whole window several times, which is slow on real hardware.
+ *
+ * @param app The application state.
+ */
+void ui_begin_update(EditorApp *app)
+{
+    ++app->defer_depth;
+}
+
+/**
+ * @brief Finish collecting: one relayout of the window if any was requested
+ *        (it redraws everything), otherwise one redraw of the active page.
+ * @param app The application state.
+ */
+void ui_end_update(EditorApp *app)
+{
+    if (app->defer_depth == 0 || --app->defer_depth > 0) return;
+    if (app->pending_layout) {
+        app->pending_layout = app->pending_refresh = 0;
+        ui_relayout(app);
+    } else if (app->pending_refresh) {
+        app->pending_refresh = 0;
+        ui_refresh_page(app, app->active);
+    }
 }
 
 /**

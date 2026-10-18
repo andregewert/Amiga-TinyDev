@@ -145,6 +145,9 @@ typedef struct EditorApp {
     ULONG minimap_top;          /* MINIMAP_Top of that notification */
     int scrolling;
     int scrollbar_dragging;     /* a scroller is being used, do not write it */
+    int defer_depth;            /* ui_begin_update() nesting */
+    int pending_layout;         /* a relayout was requested meanwhile */
+    int pending_refresh;        /* a page redraw was requested meanwhile */
     int running;
 } EditorApp;
 
@@ -315,6 +318,33 @@ void ui_update_status(EditorApp *app);
  * @param app The application state.
  */
 void ui_relayout(EditorApp *app);
+/**
+ * @brief Redraw a document's page, or note it while updates are collected.
+ * @param app The application state.
+ * @param doc The document.
+ */
+void ui_refresh_page(EditorApp *app, Document *doc);
+/**
+ * @brief Set up to two attributes of a gadget (with the window if open).
+ * @param app The application state.
+ * @param obj The gadget.
+ * @param tag1 First attribute (TAG_IGNORE for none).
+ * @param data1 Its value.
+ * @param tag2 Second attribute (TAG_IGNORE for none).
+ * @param data2 Its value.
+ */
+void ui_gadget_set(EditorApp *app, Object *obj, ULONG tag1, ULONG data1,
+                   ULONG tag2, ULONG data2);
+/**
+ * @brief Start collecting relayouts and page redraws (nestable).
+ * @param app The application state.
+ */
+void ui_begin_update(EditorApp *app);
+/**
+ * @brief Finish collecting: at most one relayout or one page redraw.
+ * @param app The application state.
+ */
+void ui_end_update(EditorApp *app);
 /**
  * @brief Show a modal error requester (or print to stderr without a window).
  * @param app The application state.
