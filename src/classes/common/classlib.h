@@ -1,7 +1,7 @@
 /*
  * classlib.h - shared library frame of the TinyDev gadget classes
  *
- * Every class in classes/ is built as its own disk-based class library
+ * Every class in src/classes/ is built as its own disk-based class library
  * (SYS:Classes/Gadgets/<name>.gadget). The library frame in classlib.c is
  * the same for all of them; the class supplies its name and version in
  * class_config.h (found through the class directory on the include path)

@@ -16,10 +16,10 @@ SCOUT_DEPS := $(SCOUT_OBJECTS:.o=.d)
 
 PARSER_C_TARGET := $(BUILD_DIR)/parsers/c_parser
 
-# Gadget classes (classes/<name>/), each a disk-based class library for
+# Gadget classes (src/classes/<name>/), each a disk-based class library for
 # SYS:Classes/Gadgets/. They are written to build/Classes/Gadgets/ so that
 # TinyDev finds them as PROGDIR:Classes/Gadgets/<name>.gadget when they are
-# not installed. classes/common/classlib.c (the library frame) is linked
+# not installed. src/classes/common/classlib.c (the library frame) is linked
 # first and compiled per class with its class_config.h.
 AMIGA_PREFIX := $(patsubst %/bin/m68k-amigaos-gcc,%,$(TARGET_CC))
 TARGET_STRIP ?= $(AMIGA_PREFIX)/bin/m68k-amigaos-strip
@@ -29,23 +29,23 @@ CLASS_DIR := $(BUILD_DIR)/Classes/Gadgets
 CLASS_OBJ_DIR := $(BUILD_DIR)/classobj
 CLASS_NAMES := dirtree
 CLASS_CFLAGS := -std=gnu99 -m68000 -msoft-float -Os -fno-common -fomit-frame-pointer -fno-toplevel-reorder \
-    -Wall -Wextra -Wshadow -Wconversion -Wno-pointer-sign -MMD -MP -Iinclude -Iclasses/common
+    -Wall -Wextra -Wshadow -Wconversion -Wno-pointer-sign -MMD -MP -Iinclude -Isrc/classes/common
 CLASS_LIBS := -L$(AMIGA_PREFIX)/m68k-amigaos/libnix/lib -Wl,--start-group -lgcc -lnix -Wl,--end-group
 CLASS_GADGETS := $(foreach c,$(CLASS_NAMES),$(CLASS_DIR)/$(c).gadget)
 
 # $(1): class name
 define CLASS_RULES
 $(1)_OBJECTS := $$(CLASS_OBJ_DIR)/$(1)/classlib.o \
-    $$(patsubst classes/$(1)/%.c,$$(CLASS_OBJ_DIR)/$(1)/%.o,$$(wildcard classes/$(1)/*.c))
+    $$(patsubst src/classes/$(1)/%.c,$$(CLASS_OBJ_DIR)/$(1)/%.o,$$(wildcard src/classes/$(1)/*.c))
 CLASS_DEPS += $$($(1)_OBJECTS:.o=.d)
 
-$$(CLASS_OBJ_DIR)/$(1)/classlib.o: classes/common/classlib.c
+$$(CLASS_OBJ_DIR)/$(1)/classlib.o: src/classes/common/classlib.c
 	@mkdir -p $$(dir $$@)
-	$$(TARGET_CC) $$(CLASS_CFLAGS) -Iclasses/$(1) -c -o $$@ $$<
+	$$(TARGET_CC) $$(CLASS_CFLAGS) -Isrc/classes/$(1) -c -o $$@ $$<
 
-$$(CLASS_OBJ_DIR)/$(1)/%.o: classes/$(1)/%.c
+$$(CLASS_OBJ_DIR)/$(1)/%.o: src/classes/$(1)/%.c
 	@mkdir -p $$(dir $$@)
-	$$(TARGET_CC) $$(CLASS_CFLAGS) -Iclasses/$(1) -c -o $$@ $$<
+	$$(TARGET_CC) $$(CLASS_CFLAGS) -Isrc/classes/$(1) -c -o $$@ $$<
 
 $$(CLASS_DIR)/$(1).gadget: $$($(1)_OBJECTS)
 	@mkdir -p $$(dir $$@)
@@ -57,7 +57,7 @@ DEVKIT := amiga-devkit
 ifeq ($(wildcard $(DEVKIT)/make/charcheck.mk),)
 $(error $(DEVKIT) is missing: git submodule update --init)
 endif
-LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h include/*/*.h classes/*/*.c classes/*/*.h sfd/*.sfd tests/*.c scripts/* tests-host/* LICENSE Makefile Makefile-Amiga-vbcc)
+LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h sfd/*.sfd tests/*.c scripts/* tests-host/* LICENSE Makefile Makefile-Amiga-vbcc)
 
 .PHONY: all clean test
 all: charcheck $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(PARSER_C_TARGET)

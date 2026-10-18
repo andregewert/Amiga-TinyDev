@@ -78,7 +78,7 @@ static int open_one(struct Library **base, const char *name, ULONG version)
 }
 
 /**
- * @brief Open one of TinyDev's own gadget classes (classes/).
+ * @brief Open one of TinyDev's own gadget classes (src/classes/).
  *
  * An installed class (LIBS:/SYS:Classes/Gadgets/, or one already in memory)
  * is preferred; otherwise the copy next to the program is used

@@ -16,13 +16,13 @@ The codebase intentionally handles file contents as 8-bit text.
 - `src/fileio.c`: loading, line-ending preservation, requesters, and safe saves.
 - `src/tree.c`: connects `dirtree.gadget` to the editor (root selection,
   opening files, column visibility).
-- `classes/`: TinyDev's own ReAction gadget classes, each a standalone class
-  library for `SYS:Classes/Gadgets/` (`classes/<name>/`, with
-  `class_config.h` for name and version). `classes/common/classlib.c` is the
+- `src/classes/`: TinyDev's own ReAction gadget classes, each a standalone class
+  library for `SYS:Classes/Gadgets/` (`src/classes/<name>/`, with
+  `class_config.h` for name and version). `src/classes/common/classlib.c` is the
   shared library frame. Public headers are `include/gadgets/<name>.h`;
   `sfd/<name>_lib.sfd` generates `include/proto`, `include/inline` and
   `include/clib` with `sfdc`.
-- `classes/dirtree/`: `dirtree.gadget`, the lazy, bounded directory tree
+- `src/classes/dirtree/`: `dirtree.gadget`, the lazy, bounded directory tree
   (listbrowser subclass).
 - `src/minimap.c`: background render task, message-port handshake, and the
   off-screen colored minimap of the active document.
@@ -92,7 +92,7 @@ make test
 - Directory traversal must remain lazy and bounded to 16 levels and 2048
   visible entries (the `dirtree.gadget` defaults); do not eagerly scan complete
   subtrees.
-- Gadget classes in `classes/` must stay usable by other applications: no
+- Gadget classes in `src/classes/` must stay usable by other applications: no
   TinyDev-specific code or headers, no DOS calls from input handling
   (GM_HANDLEINPUT, notifications), only the library frame's C runtime
   (libnix string functions, no stdio), and a documented public header.

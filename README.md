@@ -72,7 +72,7 @@ An AmigaDOS shell script to test/demonstrate the C parser directly is provided i
 ## Gadget classes
 
 TinyDev's own UI components are built as standalone ReAction class
-libraries in `classes/` so other programs can use them, too. They can be
+libraries in `src/classes/` so other programs can use them, too. They can be
 installed globally in `SYS:Classes/Gadgets/`. TinyDev opens an installed
 class first (`gadgets/<name>.gadget`) and otherwise uses the copy in
 `PROGDIR:Classes/Gadgets/`, where the build puts it. An older installed
@@ -86,7 +86,7 @@ version therefore hides a fresh build; check with
 The public interface (tags, methods, usage) is documented in
 `include/gadgets/<name>.h`; `sfd/` holds the library descriptions from which
 `include/proto`, `include/inline` and `include/clib` are generated with
-`sfdc`. `classes/common/classlib.c` is the library frame shared by all
+`sfdc`. `src/classes/common/classlib.c` is the library frame shared by all
 classes.
 
 Because `dirtree.gadget` must not use DOS while Intuition handles input, it

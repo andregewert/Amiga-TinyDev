@@ -11,7 +11,7 @@
 #include <string.h>
 
 /* The folder tree itself (lazy loading, depth and entry limits, node
- * ownership) lives in dirtree.gadget (classes/dirtree/). This module only
+ * ownership) lives in dirtree.gadget (src/classes/dirtree/). This module only
  * connects it to the editor: choosing the root, opening files and
  * showing/hiding the column. */
 
