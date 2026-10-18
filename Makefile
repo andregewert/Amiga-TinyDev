@@ -21,10 +21,12 @@ ifeq ($(wildcard $(DEVKIT)/make/charcheck.mk),)
 $(error $(DEVKIT) is missing: git submodule update --init)
 endif
 LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h tests/*.c scripts/* tests-host/* LICENSE Makefile Makefile-Amiga-vbcc)
-include $(DEVKIT)/make/charcheck.mk
 
 .PHONY: all clean test
 all: charcheck $(TARGET) $(LSP_TARGET) $(PARSER_C_TARGET)
+
+# Included after "all" so that charcheck does not become the default goal.
+include $(DEVKIT)/make/charcheck.mk
 
 $(TARGET): $(OBJECTS)
 	$(TARGET_CC) $(LDFLAGS) -o $@ $(OBJECTS)
