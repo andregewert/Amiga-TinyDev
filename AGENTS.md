@@ -14,7 +14,16 @@ The codebase intentionally handles file contents as 8-bit text.
 - `src/document.c`: document/tab lifecycle, scrollbar synchronization, and
   scroll-time highlighting suspension.
 - `src/fileio.c`: loading, line-ending preservation, requesters, and safe saves.
-- `src/tree.c`: lazy, bounded directory tree loading.
+- `src/tree.c`: connects `dirtree.gadget` to the editor (root selection,
+  opening files, column visibility).
+- `classes/`: TinyDev's own ReAction gadget classes, each a standalone class
+  library for `SYS:Classes/Gadgets/` (`classes/<name>/`, with
+  `class_config.h` for name and version). `classes/common/classlib.c` is the
+  shared library frame. Public headers are `include/gadgets/<name>.h`;
+  `sfd/<name>_lib.sfd` generates `include/proto`, `include/inline` and
+  `include/clib` with `sfdc`.
+- `classes/dirtree/`: `dirtree.gadget`, the lazy, bounded directory tree
+  (listbrowser subclass).
 - `src/minimap.c`: background render task, message-port handshake, and the
   off-screen colored minimap of the active document.
 - `src/syntax.c`: language detection, scanners, and TextEditor highlighting hook.
@@ -50,7 +59,10 @@ make test
   unavailable; report that limitation explicitly.
 - All build artifacts (the target binary `build/TinyDev`, target
   objects/dependency files, and the host test binary) are placed in the `build`
-  directory.
+  directory. Gadget classes go to `build/Classes/Gadgets/`, their objects to
+  `build/classobj/<name>/`.
+- `build/` is used on the Amiga (case-insensitive file system): never create
+  paths in it that differ only in case (e.g. `classes` next to `Classes`).
 - `make clean` removes the entire `build` directory. Do not run it when
   unrelated generated-file changes need to be preserved.
 
@@ -78,7 +90,19 @@ make test
   original file.
 - Keep duplicate-path detection and tab activation behavior intact.
 - Directory traversal must remain lazy and bounded to 16 levels and 2048
-  visible entries; do not eagerly scan complete subtrees.
+  visible entries (the `dirtree.gadget` defaults); do not eagerly scan complete
+  subtrees.
+- Gadget classes in `classes/` must stay usable by other applications: no
+  TinyDev-specific code or headers, no DOS calls from input handling
+  (GM_HANDLEINPUT, notifications), only the library frame's C runtime
+  (libnix string functions, no stdio), and a documented public header.
+  Version numbers (`LIBVERSION`/`LIBREVISION`/`LIBDATE` in `class_config.h`,
+  `$VER` in the public header) change only deliberately for a release, never
+  for ordinary changes: during development TinyDev loads the class from the
+  build directory. The first release is 1.0.
+- A subclass of a ReAction gadget must redraw itself after OM_SET/OM_UPDATE
+  when the superclass returns non-zero (the superclass only renders for
+  objects of its own class).
 - Toolbar images may be unavailable and must retain their text-button fallback.
 - The editor control always uses the default screen font; there is no font
   selection.

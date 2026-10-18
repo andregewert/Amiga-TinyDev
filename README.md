@@ -37,6 +37,8 @@ The Makefile explicitly selects `-m68000 -msoft-float -noixemul` and creates:
 - `build/TinyDev`: Main ReAction GUI editor.
 - `build/TinyDev-Scout`: Scout, the source analysis commodity, with ARexx host port `TINYDEV_SCOUT`.
 - `build/parsers/c_parser`: Standalone C parser communicating via STDIN/STDOUT (JSON-RPC 2.0).
+- `build/Classes/Gadgets/dirtree.gadget`: the folder tree as a reusable
+  ReAction class (see below).
 
 All build artifacts are placed in the `build` directory. `make` first runs
 `make charcheck`, which refuses UTF-8 in the Amiga sources, scripts, Makefiles
@@ -67,11 +69,38 @@ not LSP and LSP clients or servers cannot talk to it.
 An example ARexx query script is provided in `scripts/tdscout_query.rexx`.
 An AmigaDOS shell script to test/demonstrate the C parser directly is provided in `scripts/test_c_parser.script`.
 
+## Gadget classes
+
+TinyDev's own UI components are built as standalone ReAction class
+libraries in `classes/` so other programs can use them, too. They can be
+installed globally in `SYS:Classes/Gadgets/`. TinyDev opens an installed
+class first (`gadgets/<name>.gadget`) and otherwise uses the copy in
+`PROGDIR:Classes/Gadgets/`, where the build puts it. An older installed
+version therefore hides a fresh build; check with
+`Version gadgets/dirtree.gadget FULL`.
+
+| Class | Superclass | Purpose |
+|---|---|---|
+| `dirtree.gadget` | `listbrowser.gadget` | Lazily loaded, bounded directory tree |
+
+The public interface (tags, methods, usage) is documented in
+`include/gadgets/<name>.h`; `sfd/` holds the library descriptions from which
+`include/proto`, `include/inline` and `include/clib` are generated with
+`sfdc`. `classes/common/classlib.c` is the library frame shared by all
+classes.
+
+Because `dirtree.gadget` must not use DOS while Intuition handles input, it
+reports expand, collapse and double-click with a `GADGETUP`; the application
+then sets `DIRTREE_HandleEvent` with `SetGadgetAttrs()` to let the gadget read
+the directory from the application's process (and redraw itself).
+
 ## Target requirements
 
 - AmigaOS 3.2 and V47 `window.class`, `layout.gadget`, `clicktab.gadget`, and
-  `texteditor.gadget`; editor scrollbars use `scroller.gadget`, the folder
-  tree uses `listbrowser.gadget`, and the minimap uses `space.gadget`.
+  `texteditor.gadget`; editor scrollbars use `scroller.gadget`, and the
+  minimap uses `space.gadget`.
+- `dirtree.gadget` (installed or in `PROGDIR:Classes/Gadgets/`), which needs
+  `listbrowser.gadget` and, for its expand arrows, `glyph.image`.
 - `asl.library` and normal ReAction dependencies.
 - AISS with its standard `TBImages:` assignment for toolbar imagery. If an
   individual image cannot be created, the corresponding toolbar action falls
@@ -126,7 +155,8 @@ file opens it in a tab. The tree is resizable and can be hidden from the View
 menu. A selected base directory opens its first level immediately; child
 directories start collapsed. Opening a child reads only its direct children;
 closing it releases that subtree, so deeper levels are never scanned eagerly.
-The visible tree is bounded to 16 directory levels and 2048 entries.
+The visible tree is bounded to 16 directory levels and 2048 entries; a
+directory that does not fit is shown incompletely and reported.
 
 Version one intentionally treats contents as 8-bit text. UTF-8 decoding,
 Unicode shaping, search/replace UI, user-configurable colors, sessions, font

@@ -74,15 +74,12 @@ struct Minimap;
 typedef struct EditorApp {
     struct List documents;
     struct List tab_nodes;
-    struct List tree_nodes;
     Document *active;
     Object *window_object;
     Object *layout;
     Object *toolbar;
     Object *content_layout;
-    Object *tree;
-    Object *tree_show_image;
-    Object *tree_hide_image;
+    Object *tree;               /* dirtree.gadget */
     /* Close glyph used by the tab close gadgets: the external
      * TBImages:list_remove image, loaded through the bitmap.image class and
      * handed to CLICKTAB_CloseImage. */
@@ -108,7 +105,6 @@ typedef struct EditorApp {
     long editor_pens[EDITOR_COLOR_COUNT];
     long minimap_view_pen;
     int editor_colors_open;
-    char *tree_root;
     unsigned long next_document;
     long scroll_signal;
     int line_numbers;
@@ -123,8 +119,7 @@ typedef struct EditorApp {
 extern struct Library *AslBase, *GadToolsBase, *IconBase, *UtilityBase;
 extern struct Library *WindowBase, *LayoutBase, *ClickTabBase, *TextFieldBase;
 extern struct Library *ButtonBase, *BitMapBase, *SpaceBase;
-extern struct Library *ListBrowserBase;
-extern struct Library *GlyphBase;
+extern struct Library *DirTreeBase;
 extern struct Library *ScrollerBase;
 
 /**
@@ -366,11 +361,6 @@ int file_request_save(EditorApp *app, Document *doc);
  * @return Non-zero if a directory was chosen and loaded, zero otherwise.
  */
 int tree_request_directory(EditorApp *app);
-/**
- * @brief Clear the folder tree and free all of its nodes.
- * @param app The application state.
- */
-void tree_clear(EditorApp *app);
 /**
  * @brief Handle a folder-tree event (expand, collapse or open a file).
  * @param app The application state.

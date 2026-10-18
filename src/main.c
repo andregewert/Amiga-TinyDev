@@ -10,6 +10,7 @@
 #include <proto/intuition.h>
 #include <proto/graphics.h>
 #include <clib/alib_protos.h>
+#include <gadgets/dirtree.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -25,12 +26,17 @@ struct Library *TextFieldBase = NULL;
 struct Library *ButtonBase = NULL;
 struct Library *BitMapBase = NULL;
 struct Library *SpaceBase = NULL;
-struct Library *ListBrowserBase = NULL;
-struct Library *GlyphBase = NULL;
+struct Library *DirTreeBase = NULL;
 struct Library *ScrollerBase = NULL;
 static struct IntuitionBase *old_intuition_base;
 static struct GfxBase *old_gfx_base;
 static int workbench_launch;
+
+/* libnix (linked with -Wl,-u,___stkinit): the startup code swaps to a stack
+ * of this size if the current one is smaller. From the Workbench a program
+ * often gets only 4 KB, too little for ReAction, ASL and the gadget classes,
+ * which run on this stack while they render. */
+unsigned long __stack = 32768;
 
 /**
  * @brief Report a failed library or class open to the user.
@@ -72,6 +78,35 @@ static int open_one(struct Library **base, const char *name, ULONG version)
 }
 
 /**
+ * @brief Open one of TinyDev's own gadget classes (classes/).
+ *
+ * An installed class (LIBS:/SYS:Classes/Gadgets/, or one already in memory)
+ * is preferred; otherwise the copy next to the program is used
+ * (PROGDIR:Classes/Gadgets/, where the build puts it). Note that an old
+ * installed version therefore hides a newer build.
+ *
+ * @param base Address of the library base pointer to fill in.
+ * @param name The class file name, e.g. "dirtree.gadget".
+ * @param version The minimum required version.
+ * @return Non-zero on success, zero if the class could not be opened.
+ */
+static int open_class(struct Library **base, const char *name, ULONG version)
+{
+    char path[64];
+    snprintf(path, sizeof(path), "gadgets/%s", name);
+    *base = OpenLibrary(path, version);
+    if (*base == NULL) {
+        snprintf(path, sizeof(path), "PROGDIR:Classes/Gadgets/%s", name);
+        *base = OpenLibrary(path, version);
+    }
+    if (*base == NULL) {
+        snprintf(path, sizeof(path), "gadgets/%s", name);
+        report_library_error(path, version);
+    }
+    return *base != NULL;
+}
+
+/**
  * @brief Open every library and ReAction class required by the editor.
  *
  * Opens intuition.library and graphics.library first (saving the previous
@@ -106,9 +141,8 @@ int app_open_libraries(int from_workbench)
            open_one(&ButtonBase, "gadgets/button.gadget", 47) &&
            open_one(&SpaceBase, "gadgets/space.gadget", 47) &&
            open_one(&BitMapBase, "images/bitmap.image", 47) &&
-           open_one(&GlyphBase, "images/glyph.image", 47) &&
            open_one(&ScrollerBase, "gadgets/scroller.gadget", 47) &&
-           open_one(&ListBrowserBase, "gadgets/listbrowser.gadget", 47) &&
+           open_class(&DirTreeBase, "dirtree.gadget", DIRTREE_VERSION) &&
            open_one(&ClickTabBase, "gadgets/clicktab.gadget", 47) &&
            open_one(&TextFieldBase, "gadgets/texteditor.gadget", 47);
 }
@@ -124,8 +158,8 @@ int app_open_libraries(int from_workbench)
 void app_close_libraries(void)
 {
 #define CLOSE_BASE(x) do { if ((x) != NULL) { CloseLibrary((x)); (x) = NULL; } } while (0)
-    CLOSE_BASE(TextFieldBase); CLOSE_BASE(ClickTabBase); CLOSE_BASE(ListBrowserBase);
-    CLOSE_BASE(ScrollerBase); CLOSE_BASE(GlyphBase); CLOSE_BASE(BitMapBase);
+    CLOSE_BASE(TextFieldBase); CLOSE_BASE(ClickTabBase); CLOSE_BASE(DirTreeBase);
+    CLOSE_BASE(ScrollerBase); CLOSE_BASE(BitMapBase);
     CLOSE_BASE(SpaceBase); CLOSE_BASE(ButtonBase); CLOSE_BASE(LayoutBase);
     CLOSE_BASE(WindowBase); CLOSE_BASE(IconBase); CLOSE_BASE(GadToolsBase);
     CLOSE_BASE(AslBase); CLOSE_BASE(UtilityBase);
@@ -188,7 +222,7 @@ int main(int argc, char **argv)
     EditorApp app; int status = 20;
     memset(&app, 0, sizeof(app));
     app.scroll_signal = -1;
-    NewList(&app.documents); NewList(&app.tab_nodes); NewList(&app.tree_nodes);
+    NewList(&app.documents); NewList(&app.tab_nodes);
     app.line_numbers = 1; app.tree_visible = 1;
     if (!app_open_libraries(argc == 0)) goto done;
     app.scroll_signal = AllocSignal(-1);

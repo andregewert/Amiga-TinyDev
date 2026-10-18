@@ -1,0 +1,10 @@
+==id $Id: dirtree_lib.sfd 1.0 (18.10.2026) $
+* "dirtree.gadget"
+==base _DirTreeBase
+==basetype struct Library *
+==libname dirtree.gadget
+==bias 30
+==public
+==include <intuition/classes.h>
+Class * DIRTREE_GetClass() ()
+==end

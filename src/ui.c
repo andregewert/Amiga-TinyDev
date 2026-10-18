@@ -3,10 +3,10 @@
 #include <gadgets/clicktab.h>
 #include <gadgets/button.h>
 #include <gadgets/layout.h>
+#include <gadgets/dirtree.h>
 #include <gadgets/listbrowser.h>
 #include <gadgets/texteditor.h>
 #include <images/bitmap.h>
-#include <images/glyph.h>
 #include <libraries/gadtools.h>
 #include <graphics/gfx.h>
 #include <graphics/rastport.h>
@@ -15,12 +15,10 @@
 #include <proto/clicktab.h>
 #include <proto/button.h>
 #include <proto/bitmap.h>
-#include <proto/glyph.h>
 #include <proto/exec.h>
 #include <proto/graphics.h>
 #include <proto/intuition.h>
 #include <proto/layout.h>
-#include <proto/listbrowser.h>
 #include <proto/texteditor.h>
 #include <proto/utility.h>
 #include <proto/window.h>
@@ -497,18 +495,11 @@ int ui_create(EditorApp *app)
         ICA_TARGET, (ULONG)ICTARGET_IDCMP,
         TAG_END);
     if (app->tabs == NULL) return 0;
-    app->tree_show_image = NewObject(GLYPH_GetClass(), NULL,
-        GLYPH_Glyph, GLYPH_RIGHTARROW, TAG_END);
-    app->tree_hide_image = NewObject(GLYPH_GetClass(), NULL,
-        GLYPH_Glyph, GLYPH_DOWNARROW, TAG_END);
-    if (app->tree_show_image == NULL || app->tree_hide_image == NULL) return 0;
-    app->tree = NewObject(LISTBROWSER_GetClass(), NULL,
+    /* dirtree.gadget owns the hierarchical node list and its expand/collapse
+     * arrows; only the listbrowser look is configured here. */
+    app->tree = NewObject(NULL, DIRTREE_CLASSNAME,
         GA_ID, GID_TREE,
         GA_RelVerify, TRUE,
-        LISTBROWSER_Labels, (ULONG)&app->tree_nodes,
-        LISTBROWSER_Hierarchical, TRUE,
-        LISTBROWSER_ShowImage, (ULONG)app->tree_show_image,
-        LISTBROWSER_HideImage, (ULONG)app->tree_hide_image,
         LISTBROWSER_AutoFit, TRUE,
         LISTBROWSER_HorizontalProp, TRUE,
         LISTBROWSER_MinVisible, 4,
@@ -913,7 +904,6 @@ void ui_destroy(EditorApp *app)
 {
     size_t i;
     minimap_stop(app);
-    tree_clear(app);
     document_free_all(app);
     if (app->window_object != NULL) {
         if (app->window != NULL) DoMethod(app->window_object, WM_CLOSE, NULL);
@@ -940,8 +930,6 @@ void ui_destroy(EditorApp *app)
     }
     for (i = 0; i < sizeof(app->toolbar_images) / sizeof(app->toolbar_images[0]); ++i)
         if (app->toolbar_images[i] != NULL) DisposeObject(app->toolbar_images[i]);
-    if (app->tree_show_image != NULL) DisposeObject(app->tree_show_image);
-    if (app->tree_hide_image != NULL) DisposeObject(app->tree_hide_image);
     if (app->tab_close_image != NULL) { DisposeObject(app->tab_close_image); app->tab_close_image = NULL; }
     close_editor_colors(app);
     if (app->screen != NULL) UnlockPubScreen(NULL, app->screen);
@@ -949,6 +937,5 @@ void ui_destroy(EditorApp *app)
     app->statusbar = NULL;
     app->minimap = NULL;
     app->tree = app->tabs = app->pages = NULL;
-    app->tree_show_image = app->tree_hide_image = NULL;
     app->window = NULL; app->screen = NULL;
 }
