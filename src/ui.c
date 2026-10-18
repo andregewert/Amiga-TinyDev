@@ -403,15 +403,8 @@ int ui_create(EditorApp *app)
     }
     app->pages = NewObject(PAGE_GetClass(), NULL, PAGE_NoDispose, TRUE, TAG_END);
     if (app->pages == NULL) return 0;
-    /* The tab close gadgets use the external TBImages:list_remove image,
-     * loaded through the bitmap.image class with a transparent (masked)
-     * background so it blends into the tab. */
-    app->tab_close_image = NewObject(BITMAP_GetClass(), NULL,
-        BITMAP_SourceFile, (ULONG)"TBImages:list_remove",
-        BITMAP_Screen, (ULONG)app->screen,
-        BITMAP_Masking, TRUE,
-        BITMAP_Transparent, TRUE,
-        TAG_END);
+    /* The tab close gadgets show a simple built-in black cross. */
+    app->tab_close_image = close_image_new();
     if (app->tab_close_image == NULL) return 0;
     app->tabs = NewObject(CLICKTAB_GetClass(), NULL,
         GA_ID, GID_TABS, GA_RelVerify, TRUE,
@@ -943,6 +936,7 @@ void ui_destroy(EditorApp *app)
     }
     toolbar_dispose(app);
     if (app->tab_close_image != NULL) { DisposeObject(app->tab_close_image); app->tab_close_image = NULL; }
+    close_image_free_class();
     close_editor_colors(app);
     if (app->screen != NULL) UnlockPubScreen(NULL, app->screen);
     app->window_object = app->layout = app->toolbar = app->content_layout = NULL;

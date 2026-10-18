@@ -114,9 +114,8 @@ typedef struct EditorApp {
     Object *toolbar;
     Object *content_layout;
     Object *tree;               /* dirtree.gadget */
-    /* Close glyph used by the tab close gadgets: the external
-     * TBImages:list_remove image, loaded through the bitmap.image class and
-     * handed to CLICKTAB_CloseImage. */
+    /* Close symbol of the tab close gadgets (CLICKTAB_CloseImage): a
+     * built-in black cross (closeimage.c). */
     Object *tab_close_image;
     Object *tabs;
     Object *pages;
@@ -197,6 +196,14 @@ void ui_apply_settings(EditorApp *app, const Settings *n);
  * @param argv The arguments, or the WBStartup message for a Workbench start.
  */
 void settings_load(Settings *s, int argc, char **argv);
+
+/**
+ * @brief Create the close symbol of the editor tabs (a black cross).
+ * @return The image object, or NULL.
+ */
+Object *close_image_new(void);
+/** @brief Free its class once no close symbol exists any more. */
+void close_image_free_class(void);
 
 /**
  * @brief Open the splash window (Intuition and graphics only).
