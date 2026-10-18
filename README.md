@@ -30,23 +30,26 @@ The default toolchain prefix is `/opt/amiga/bin/m68k-amigaos-`. Build with:
     make clean && make
     make test
     /opt/amiga/bin/m68k-amigaos-objdump -f build/TinyDev
-    /opt/amiga/bin/m68k-amigaos-objdump -f build/TinyDev-LSP
+    /opt/amiga/bin/m68k-amigaos-objdump -f build/TinyDev-Scout
     /opt/amiga/bin/m68k-amigaos-objdump -f build/parsers/c_parser
 
 The Makefile explicitly selects `-m68000 -msoft-float -noixemul` and creates:
 - `build/TinyDev`: Main ReAction GUI editor.
-- `build/TinyDev-LSP`: Amiga Commodity LSP Broker with ARexx host port `TINYDEV_LSP`.
+- `build/TinyDev-Scout`: Scout, the source analysis commodity, with ARexx host port `TINYDEV_SCOUT`.
 - `build/parsers/c_parser`: Standalone C parser communicating via STDIN/STDOUT (JSON-RPC 2.0).
 
 All build artifacts are placed in the `build` directory. `make` first runs
 `make charcheck`, which refuses UTF-8 in the Amiga sources, scripts, Makefiles
 and `LICENSE`; these files are ISO-8859-1.
 
-## TinyDev-LSP Commodity & ARexx Interface
+## TinyDev-Scout Commodity & ARexx Interface
 
-`TinyDev-LSP` runs in the background as a standard AmigaOS Commodity (`commodities.library`) managed via Exchange (Enable, Disable, Kill) and exposes an ARexx host port named `TINYDEV_LSP`.
+`TinyDev-Scout` runs in the background as a standard AmigaOS Commodity (`commodities.library`) managed via Exchange (Enable, Disable, Kill) and exposes an ARexx host port named `TINYDEV_SCOUT`.
 
 Language parsers are standalone executables communicating over STDIN/STDOUT using JSON-RPC 2.0 / NDJSON, making them interchangeable.
+This is the *Scout protocol*. Its ideas (and the numbering of symbol, diagnostic
+and completion kinds) are borrowed from the Language Server Protocol, but it is
+not LSP and LSP clients or servers cannot talk to it.
 
 ### Supported ARexx Commands
 
@@ -59,9 +62,9 @@ Language parsers are standalone executables communicating over STDIN/STDOUT usin
 | `COMPLETE` | `<filepath> <line> <col> [prefix]` | Returns space-separated completion candidates |
 | `REGISTER_PARSER` | `<ext> <executable_path>` | Configures or overrides parser for a file extension |
 | `STATUS` | None | Returns broker status, port, and request count |
-| `QUIT` | None | Shuts down the LSP Commodity cleanly |
+| `QUIT` | None | Shuts down the Scout commodity cleanly |
 
-An example ARexx query script is provided in `scripts/tdlsp_query.rexx`.
+An example ARexx query script is provided in `scripts/tdscout_query.rexx`.
 An AmigaDOS shell script to test/demonstrate the C parser directly is provided in `scripts/test_c_parser.script`.
 
 ## Target requirements

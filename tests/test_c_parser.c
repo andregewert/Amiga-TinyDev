@@ -1,5 +1,5 @@
 #include "c_parser.h"
-#include "lsp_json.h"
+#include "scout_json.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,12 +64,12 @@ static void test_symbol_extraction(void)
         else if (strcmp(s->name, "main_entry") == 0) s_main = s;
     }
 
-    TEST_ASSERT(s_max != NULL && s_max->kind == LSP_SYMBOL_KIND_CONSTANT && s_max->start_line == 1);
-    TEST_ASSERT(s_point != NULL && s_point->kind == LSP_SYMBOL_KIND_STRUCT && s_point->start_line == 4);
-    TEST_ASSERT(s_point_t != NULL && s_point_t->kind == LSP_SYMBOL_KIND_STRUCT && s_point_t->start_line == 9);
-    TEST_ASSERT(s_color != NULL && s_color->kind == LSP_SYMBOL_KIND_ENUM && s_color->start_line == 11);
-    TEST_ASSERT(s_add != NULL && s_add->kind == LSP_SYMBOL_KIND_FUNCTION && s_add->start_line == 15);
-    TEST_ASSERT(s_main != NULL && s_main->kind == LSP_SYMBOL_KIND_FUNCTION && s_main->start_line == 20);
+    TEST_ASSERT(s_max != NULL && s_max->kind == SCOUT_SYMBOL_KIND_CONSTANT && s_max->start_line == 1);
+    TEST_ASSERT(s_point != NULL && s_point->kind == SCOUT_SYMBOL_KIND_STRUCT && s_point->start_line == 4);
+    TEST_ASSERT(s_point_t != NULL && s_point_t->kind == SCOUT_SYMBOL_KIND_STRUCT && s_point_t->start_line == 9);
+    TEST_ASSERT(s_color != NULL && s_color->kind == SCOUT_SYMBOL_KIND_ENUM && s_color->start_line == 11);
+    TEST_ASSERT(s_add != NULL && s_add->kind == SCOUT_SYMBOL_KIND_FUNCTION && s_add->start_line == 15);
+    TEST_ASSERT(s_main != NULL && s_main->kind == SCOUT_SYMBOL_KIND_FUNCTION && s_main->start_line == 20);
 
     c_parse_result_free(res);
 }
@@ -135,8 +135,8 @@ static void test_definition_and_completion(void)
 
 static void test_jsonrpc_protocol(void)
 {
-    LspJsonWriter resp;
-    lsp_json_writer_init_alloc(&resp, 512);
+    ScoutJsonWriter resp;
+    scout_json_writer_init_alloc(&resp, 512);
 
     /* Test documentSymbol request with inline text */
     const char *req_sym =
@@ -146,22 +146,22 @@ static void test_jsonrpc_protocol(void)
     int ok = c_parser_process_jsonrpc(req_sym, &resp);
     TEST_ASSERT(ok);
 
-    const char *out_json = lsp_json_writer_get(&resp);
+    const char *out_json = scout_json_writer_get(&resp);
     TEST_ASSERT(out_json != NULL);
 
-    LspJsonRpcMessage msg;
-    ok = lsp_json_rpc_parse(out_json, &msg);
+    ScoutJsonRpcMessage msg;
+    ok = scout_json_rpc_parse(out_json, &msg);
     TEST_ASSERT(ok);
     TEST_ASSERT(msg.id == 10);
     TEST_ASSERT(msg.result != NULL);
-    TEST_ASSERT(lsp_json_array_length(msg.result) >= 1);
+    TEST_ASSERT(scout_json_array_length(msg.result) >= 1);
 
-    const LspJsonValue *sym0 = lsp_json_array_get(msg.result, 0);
+    const ScoutJsonValue *sym0 = scout_json_array_get(msg.result, 0);
     TEST_ASSERT(sym0 != NULL);
-    TEST_ASSERT(strcmp(lsp_json_obj_get_string(sym0, "name", ""), "sample_func") == 0);
-    TEST_ASSERT(lsp_json_obj_get_int(sym0, "kind", 0) == LSP_SYMBOL_KIND_FUNCTION);
+    TEST_ASSERT(strcmp(scout_json_obj_get_string(sym0, "name", ""), "sample_func") == 0);
+    TEST_ASSERT(scout_json_obj_get_int(sym0, "kind", 0) == SCOUT_SYMBOL_KIND_FUNCTION);
 
-    lsp_json_rpc_free(&msg);
+    scout_json_rpc_free(&msg);
 
     /* Test publishDiagnostics request */
     resp.length = 0;
@@ -173,18 +173,18 @@ static void test_jsonrpc_protocol(void)
     ok = c_parser_process_jsonrpc(req_diag, &resp);
     TEST_ASSERT(ok);
 
-    out_json = lsp_json_writer_get(&resp);
-    ok = lsp_json_rpc_parse(out_json, &msg);
+    out_json = scout_json_writer_get(&resp);
+    ok = scout_json_rpc_parse(out_json, &msg);
     TEST_ASSERT(ok);
     TEST_ASSERT(msg.id == 11);
     TEST_ASSERT(msg.result != NULL);
-    TEST_ASSERT(lsp_json_array_length(msg.result) == 1);
+    TEST_ASSERT(scout_json_array_length(msg.result) == 1);
 
-    const LspJsonValue *diag0 = lsp_json_array_get(msg.result, 0);
+    const ScoutJsonValue *diag0 = scout_json_array_get(msg.result, 0);
     TEST_ASSERT(diag0 != NULL);
-    TEST_ASSERT(strstr(lsp_json_obj_get_string(diag0, "message", ""), "comment") != NULL);
+    TEST_ASSERT(strstr(scout_json_obj_get_string(diag0, "message", ""), "comment") != NULL);
 
-    lsp_json_rpc_free(&msg);
+    scout_json_rpc_free(&msg);
 
     /* Test completion request */
     resp.length = 0;
@@ -197,19 +197,19 @@ static void test_jsonrpc_protocol(void)
     ok = c_parser_process_jsonrpc(req_comp, &resp);
     TEST_ASSERT(ok);
 
-    out_json = lsp_json_writer_get(&resp);
-    ok = lsp_json_rpc_parse(out_json, &msg);
+    out_json = scout_json_writer_get(&resp);
+    ok = scout_json_rpc_parse(out_json, &msg);
     TEST_ASSERT(ok);
     TEST_ASSERT(msg.id == 12);
     TEST_ASSERT(msg.result != NULL);
-    TEST_ASSERT(lsp_json_array_length(msg.result) >= 1);
+    TEST_ASSERT(scout_json_array_length(msg.result) >= 1);
 
-    const LspJsonValue *comp0 = lsp_json_array_get(msg.result, 0);
+    const ScoutJsonValue *comp0 = scout_json_array_get(msg.result, 0);
     TEST_ASSERT(comp0 != NULL);
-    TEST_ASSERT(strcmp(lsp_json_obj_get_string(comp0, "label", ""), "my_handler") == 0);
+    TEST_ASSERT(strcmp(scout_json_obj_get_string(comp0, "label", ""), "my_handler") == 0);
 
-    lsp_json_rpc_free(&msg);
-    lsp_json_writer_free(&resp);
+    scout_json_rpc_free(&msg);
+    scout_json_writer_free(&resp);
 }
 
 int main(void)

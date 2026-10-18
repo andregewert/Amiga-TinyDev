@@ -18,9 +18,16 @@ The codebase intentionally handles file contents as 8-bit text.
 - `src/minimap.c`: background render task, message-port handshake, and the
   off-screen colored minimap of the active document.
 - `src/syntax.c`: language detection, scanners, and TextEditor highlighting hook.
+- `src/scout/`: Scout, the source analysis commodity (`TinyDev-Scout`, ARexx
+  port `TINYDEV_SCOUT`), and its JSON/JSON-RPC code. Scout talks to the parsers
+  with the Scout protocol, which is modeled on LSP but is not LSP.
+- `src/parsers/`: standalone language parsers speaking the Scout protocol over
+  STDIN/STDOUT.
 - `include/editor.h`: shared application types and cross-module declarations.
 - `include/syntax.h`: portable syntax-scanner interface.
 - `tests/test_syntax.c`: host-native syntax scanner tests.
+- `tests/test_scout_json.c`, `tests/test_c_parser.c`: host-native tests for the
+  Scout JSON code and the C parser.
 - `amiga-devkit/`: git submodule (pinned tag) with shared Amiga tools and AI
   guidelines; see `CLAUDE.md`. Do not edit files inside the submodule.
 - `README.md`: supported behavior, runtime dependencies, and known limits.

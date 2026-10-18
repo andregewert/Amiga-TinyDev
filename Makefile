@@ -9,10 +9,10 @@ CPPFLAGS := -Iinclude
 CFLAGS := -std=gnu99 -m68000 -msoft-float -noixemul -Os -Wall -Wextra -Wshadow -Wconversion -Wno-pointer-sign -MMD -MP
 LDFLAGS := -m68000 -msoft-float -noixemul
 
-LSP_TARGET := $(BUILD_DIR)/TinyDev-LSP
-LSP_SOURCES := src/lsp/lsp_main.c src/lsp/lsp_broker.c src/lsp/lsp_rexx.c src/lsp/lsp_parser_runner.c src/lsp/lsp_json.c
-LSP_OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(LSP_SOURCES))
-LSP_DEPS := $(LSP_OBJECTS:.o=.d)
+SCOUT_TARGET := $(BUILD_DIR)/TinyDev-Scout
+SCOUT_SOURCES := src/scout/scout_main.c src/scout/scout_broker.c src/scout/scout_rexx.c src/scout/scout_parser_runner.c src/scout/scout_json.c
+SCOUT_OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SCOUT_SOURCES))
+SCOUT_DEPS := $(SCOUT_OBJECTS:.o=.d)
 
 PARSER_C_TARGET := $(BUILD_DIR)/parsers/c_parser
 
@@ -23,7 +23,7 @@ endif
 LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h tests/*.c scripts/* tests-host/* LICENSE Makefile Makefile-Amiga-vbcc)
 
 .PHONY: all clean test
-all: charcheck $(TARGET) $(LSP_TARGET) $(PARSER_C_TARGET)
+all: charcheck $(TARGET) $(SCOUT_TARGET) $(PARSER_C_TARGET)
 
 # Included after "all" so that charcheck does not become the default goal.
 include $(DEVKIT)/make/charcheck.mk
@@ -31,35 +31,35 @@ include $(DEVKIT)/make/charcheck.mk
 $(TARGET): $(OBJECTS)
 	$(TARGET_CC) $(LDFLAGS) -o $@ $(OBJECTS)
 
-$(LSP_TARGET): $(LSP_OBJECTS)
-	$(TARGET_CC) $(LDFLAGS) -o $@ $(LSP_OBJECTS)
+$(SCOUT_TARGET): $(SCOUT_OBJECTS)
+	$(TARGET_CC) $(LDFLAGS) -o $@ $(SCOUT_OBJECTS)
 
-$(PARSER_C_TARGET): src/parsers/c_parser.c src/lsp/lsp_json.c include/c_parser.h include/lsp_json.h
+$(PARSER_C_TARGET): src/parsers/c_parser.c src/scout/scout_json.c include/c_parser.h include/scout_json.h
 	@mkdir -p $(BUILD_DIR)/parsers
-	$(TARGET_CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ src/parsers/c_parser.c src/lsp/lsp_json.c
+	$(TARGET_CC) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ src/parsers/c_parser.c src/scout/scout_json.c
 
 $(BUILD_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)
 	$(TARGET_CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_lsp_json $(BUILD_DIR)/test_c_parser
+test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_scout_json $(BUILD_DIR)/test_c_parser
 	./$(BUILD_DIR)/test_syntax
-	./$(BUILD_DIR)/test_lsp_json
+	./$(BUILD_DIR)/test_scout_json
 	./$(BUILD_DIR)/test_c_parser
 
 $(BUILD_DIR)/test_syntax: src/syntax.c tests/test_syntax.c include/syntax.h
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Iinclude -DSYNTAX_HOST_TEST -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/syntax.c tests/test_syntax.c
 
-$(BUILD_DIR)/test_lsp_json: src/lsp/lsp_json.c tests/test_lsp_json.c include/lsp_json.h
+$(BUILD_DIR)/test_scout_json: src/scout/scout_json.c tests/test_scout_json.c include/scout_json.h
 	@mkdir -p $(BUILD_DIR)
-	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/lsp/lsp_json.c tests/test_lsp_json.c
+	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/scout/scout_json.c tests/test_scout_json.c
 
-$(BUILD_DIR)/test_c_parser: src/parsers/c_parser.c src/lsp/lsp_json.c tests/test_c_parser.c include/c_parser.h include/lsp_json.h
+$(BUILD_DIR)/test_c_parser: src/parsers/c_parser.c src/scout/scout_json.c tests/test_c_parser.c include/c_parser.h include/scout_json.h
 	@mkdir -p $(BUILD_DIR)
-	$(HOST_CC) -Iinclude -DC_PARSER_NO_MAIN -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/parsers/c_parser.c src/lsp/lsp_json.c tests/test_c_parser.c
+	$(HOST_CC) -Iinclude -DC_PARSER_NO_MAIN -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/parsers/c_parser.c src/scout/scout_json.c tests/test_c_parser.c
 
 clean:
 	rm -rf $(BUILD_DIR)
 
--include $(DEPS) $(LSP_DEPS)
+-include $(DEPS) $(SCOUT_DEPS)

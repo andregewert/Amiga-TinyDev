@@ -1,5 +1,5 @@
-#include "lsp_server.h"
-#include "lsp_json.h"
+#include "scout_server.h"
+#include "scout_json.h"
 
 #include <proto/exec.h>
 #include <proto/dos.h>
@@ -9,7 +9,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-static char *lsp_strdup(const char *s)
+static char *scout_strdup(const char *s)
 {
     if (!s) return NULL;
     size_t len = strlen(s);
@@ -20,10 +20,10 @@ static char *lsp_strdup(const char *s)
     return copy;
 }
 
-int lsp_server_add_search_path(LspServer *srv, const char *path)
+int scout_server_add_search_path(ScoutServer *srv, const char *path)
 {
     if (!srv || !path || !*path) return 0;
-    if (srv->search_path_count >= LSP_MAX_SEARCH_PATHS) return 0;
+    if (srv->search_path_count >= SCOUT_MAX_SEARCH_PATHS) return 0;
 
     for (size_t i = 0; i < srv->search_path_count; i++) {
         if (srv->search_paths[i] && strcmp(srv->search_paths[i], path) == 0) {
@@ -31,14 +31,14 @@ int lsp_server_add_search_path(LspServer *srv, const char *path)
         }
     }
 
-    char *copy = lsp_strdup(path);
+    char *copy = scout_strdup(path);
     if (!copy) return 0;
 
     srv->search_paths[srv->search_path_count++] = copy;
     return 1;
 }
 
-void lsp_server_clear_search_paths(LspServer *srv)
+void scout_server_clear_search_paths(ScoutServer *srv)
 {
     if (!srv) return;
     for (size_t i = 0; i < srv->search_path_count; i++) {
@@ -108,7 +108,7 @@ int app_get_program_directory(int argc, char **argv, char *out_dir, size_t out_s
     return 0;
 }
 
-int lsp_parser_register(LspServer *srv, const char *ext, const char *exec_path)
+int scout_parser_register(ScoutServer *srv, const char *ext, const char *exec_path)
 {
     if (!srv || !ext || !exec_path) return 0;
 
@@ -116,7 +116,7 @@ int lsp_parser_register(LspServer *srv, const char *ext, const char *exec_path)
     for (ParserEntry *p = srv->parsers; p; p = p->next) {
         if (p->extension && strcmp(p->extension, ext) == 0) {
             free(p->executable_path);
-            p->executable_path = lsp_strdup(exec_path);
+            p->executable_path = scout_strdup(exec_path);
             return 1;
         }
     }
@@ -124,14 +124,14 @@ int lsp_parser_register(LspServer *srv, const char *ext, const char *exec_path)
     ParserEntry *entry = (ParserEntry *)malloc(sizeof(ParserEntry));
     if (!entry) return 0;
 
-    entry->extension = lsp_strdup(ext);
-    entry->executable_path = lsp_strdup(exec_path);
+    entry->extension = scout_strdup(ext);
+    entry->executable_path = scout_strdup(exec_path);
     entry->next = srv->parsers;
     srv->parsers = entry;
     return 1;
 }
 
-const char *lsp_parser_find(LspServer *srv, const char *filepath)
+const char *scout_parser_find(ScoutServer *srv, const char *filepath)
 {
     if (!srv || !filepath) return NULL;
 
@@ -148,7 +148,7 @@ const char *lsp_parser_find(LspServer *srv, const char *filepath)
     if (dot && (strcasecmp(dot, ".c") == 0 || strcasecmp(dot, ".h") == 0)) {
         static char resolved_path[256];
 
-        /* 1. Prioritized search paths configured in LspServer (e.g. program directory) */
+        /* 1. Prioritized search paths configured in ScoutServer (e.g. program directory) */
         for (size_t i = 0; i < srv->search_path_count; i++) {
             if (!srv->search_paths[i]) continue;
 
@@ -197,7 +197,7 @@ const char *lsp_parser_find(LspServer *srv, const char *filepath)
     return NULL;
 }
 
-void lsp_parser_registry_cleanup(LspServer *srv)
+void scout_parser_registry_cleanup(ScoutServer *srv)
 {
     if (!srv) return;
     ParserEntry *p = srv->parsers;
@@ -211,51 +211,51 @@ void lsp_parser_registry_cleanup(LspServer *srv)
     srv->parsers = NULL;
 }
 
-int lsp_parser_run_request(LspServer *srv, const char *filepath,
+int scout_parser_run_request(ScoutServer *srv, const char *filepath,
                            const char *method, const char *params_json,
-                           LspJsonWriter *out_result, char **out_error_msg)
+                           ScoutJsonWriter *out_result, char **out_error_msg)
 {
     if (!srv || !filepath || !method || !out_result) return 0;
     if (out_error_msg) *out_error_msg = NULL;
 
-    const char *parser_path = lsp_parser_find(srv, filepath);
+    const char *parser_path = scout_parser_find(srv, filepath);
     if (!parser_path) {
         if (out_error_msg) {
-            *out_error_msg = lsp_strdup("No parser registered for file extension");
+            *out_error_msg = scout_strdup("No parser registered for file extension");
         }
         return 0;
     }
 
     /* Build JSON-RPC request line */
-    LspJsonWriter req_writer;
-    lsp_json_writer_init_alloc(&req_writer, 512);
+    ScoutJsonWriter req_writer;
+    scout_json_writer_init_alloc(&req_writer, 512);
 
     long req_id = ++srv->request_count;
-    if (!lsp_json_format_request(&req_writer, req_id, method, params_json)) {
-        lsp_json_writer_free(&req_writer);
-        if (out_error_msg) *out_error_msg = lsp_strdup("Failed to construct JSON-RPC request");
+    if (!scout_json_format_request(&req_writer, req_id, method, params_json)) {
+        scout_json_writer_free(&req_writer);
+        if (out_error_msg) *out_error_msg = scout_strdup("Failed to construct JSON-RPC request");
         return 0;
     }
 
     /* Create unique temp files in T: */
     char in_temp[64];
     char out_temp[64];
-    snprintf(in_temp, sizeof(in_temp), "T:tdlsp_in_%ld.json", req_id);
-    snprintf(out_temp, sizeof(out_temp), "T:tdlsp_out_%ld.json", req_id);
+    snprintf(in_temp, sizeof(in_temp), "T:tdscout_in_%ld.json", req_id);
+    snprintf(out_temp, sizeof(out_temp), "T:tdscout_out_%ld.json", req_id);
 
     BPTR in_write_fh = Open(in_temp, MODE_NEWFILE);
     if (!in_write_fh) {
-        lsp_json_writer_free(&req_writer);
-        if (out_error_msg) *out_error_msg = lsp_strdup("Failed to open temp input file");
+        scout_json_writer_free(&req_writer);
+        if (out_error_msg) *out_error_msg = scout_strdup("Failed to open temp input file");
         return 0;
     }
 
-    const char *req_str = lsp_json_writer_get(&req_writer);
-    size_t req_len = lsp_json_writer_length(&req_writer);
+    const char *req_str = scout_json_writer_get(&req_writer);
+    size_t req_len = scout_json_writer_length(&req_writer);
     Write(in_write_fh, (CONST APTR)req_str, (LONG)req_len);
     Write(in_write_fh, (CONST APTR)"\n", 1);
     Close(in_write_fh);
-    lsp_json_writer_free(&req_writer);
+    scout_json_writer_free(&req_writer);
 
     /* Open I/O handles for child process redirection */
     BPTR in_read_fh = Open(in_temp, MODE_OLDFILE);
@@ -266,7 +266,7 @@ int lsp_parser_run_request(LspServer *srv, const char *filepath,
         if (out_write_fh) Close(out_write_fh);
         DeleteFile(in_temp);
         DeleteFile(out_temp);
-        if (out_error_msg) *out_error_msg = lsp_strdup("Failed to open child process I/O streams");
+        if (out_error_msg) *out_error_msg = scout_strdup("Failed to open child process I/O streams");
         return 0;
     }
 
@@ -285,7 +285,7 @@ int lsp_parser_run_request(LspServer *srv, const char *filepath,
         if (out_error_msg) {
             char err_buf[128];
             snprintf(err_buf, sizeof(err_buf), "Parser process failed with code %ld", (long)sys_rc);
-            *out_error_msg = lsp_strdup(err_buf);
+            *out_error_msg = scout_strdup(err_buf);
         }
         return 0;
     }
@@ -294,7 +294,7 @@ int lsp_parser_run_request(LspServer *srv, const char *filepath,
     BPTR out_read_fh = Open(out_temp, MODE_OLDFILE);
     if (!out_read_fh) {
         DeleteFile(out_temp);
-        if (out_error_msg) *out_error_msg = lsp_strdup("Failed to open parser output file");
+        if (out_error_msg) *out_error_msg = scout_strdup("Failed to open parser output file");
         return 0;
     }
 
@@ -304,7 +304,7 @@ int lsp_parser_run_request(LspServer *srv, const char *filepath,
     if (file_size <= 0) {
         Close(out_read_fh);
         DeleteFile(out_temp);
-        if (out_error_msg) *out_error_msg = lsp_strdup("Parser returned empty output");
+        if (out_error_msg) *out_error_msg = scout_strdup("Parser returned empty output");
         return 0;
     }
 
@@ -312,7 +312,7 @@ int lsp_parser_run_request(LspServer *srv, const char *filepath,
     if (!resp_buf) {
         Close(out_read_fh);
         DeleteFile(out_temp);
-        if (out_error_msg) *out_error_msg = lsp_strdup("Out of memory reading parser output");
+        if (out_error_msg) *out_error_msg = scout_strdup("Out of memory reading parser output");
         return 0;
     }
 
@@ -327,105 +327,105 @@ int lsp_parser_run_request(LspServer *srv, const char *filepath,
     }
 
     /* Parse JSON-RPC response */
-    LspJsonRpcMessage resp_msg;
-    int parse_ok = lsp_json_rpc_parse(resp_buf, &resp_msg);
+    ScoutJsonRpcMessage resp_msg;
+    int parse_ok = scout_json_rpc_parse(resp_buf, &resp_msg);
     free(resp_buf);
 
     if (!parse_ok) {
-        if (out_error_msg) *out_error_msg = lsp_strdup("Malformed JSON-RPC response from parser");
+        if (out_error_msg) *out_error_msg = scout_strdup("Malformed JSON-RPC response from parser");
         return 0;
     }
 
     if (resp_msg.has_error) {
         if (out_error_msg) {
-            *out_error_msg = lsp_strdup(resp_msg.error_msg ? resp_msg.error_msg : "LSP error");
+            *out_error_msg = scout_strdup(resp_msg.error_msg ? resp_msg.error_msg : "Scout error");
         }
-        lsp_json_rpc_free(&resp_msg);
+        scout_json_rpc_free(&resp_msg);
         return 0;
     }
 
     /* Format raw result to JSON writer */
     if (resp_msg.result) {
         /* Re-serialize root result or copy DOM */
-        const LspJsonValue *res_val = resp_msg.result;
-        if (res_val->type == LSP_JSON_ARRAY) {
-            lsp_json_write_arr_start(out_result);
-            size_t count = lsp_json_array_length(res_val);
+        const ScoutJsonValue *res_val = resp_msg.result;
+        if (res_val->type == SCOUT_JSON_ARRAY) {
+            scout_json_write_arr_start(out_result);
+            size_t count = scout_json_array_length(res_val);
             for (size_t i = 0; i < count; i++) {
-                if (i > 0) lsp_json_write_raw(out_result, ",");
-                const LspJsonValue *item = lsp_json_array_get(res_val, i);
-                if (item && item->type == LSP_JSON_OBJECT) {
-                    lsp_json_write_obj_start(out_result);
-                    const LspJsonMember *m = item->u.obj_val.first;
+                if (i > 0) scout_json_write_raw(out_result, ",");
+                const ScoutJsonValue *item = scout_json_array_get(res_val, i);
+                if (item && item->type == SCOUT_JSON_OBJECT) {
+                    scout_json_write_obj_start(out_result);
+                    const ScoutJsonMember *m = item->u.obj_val.first;
                     int f = 1;
                     while (m) {
-                        if (!f) lsp_json_write_raw(out_result, ",");
+                        if (!f) scout_json_write_raw(out_result, ",");
                         f = 0;
-                        lsp_json_write_obj_key(out_result, m->key);
-                        if (m->value->type == LSP_JSON_STRING) {
-                            lsp_json_write_string(out_result, m->value->u.str_val);
-                        } else if (m->value->type == LSP_JSON_NUMBER) {
-                            lsp_json_write_int(out_result, m->value->u.num_val.int_val);
-                        } else if (m->value->type == LSP_JSON_BOOL) {
-                            lsp_json_write_bool(out_result, m->value->u.bool_val);
-                        } else if (m->value->type == LSP_JSON_OBJECT) {
+                        scout_json_write_obj_key(out_result, m->key);
+                        if (m->value->type == SCOUT_JSON_STRING) {
+                            scout_json_write_string(out_result, m->value->u.str_val);
+                        } else if (m->value->type == SCOUT_JSON_NUMBER) {
+                            scout_json_write_int(out_result, m->value->u.num_val.int_val);
+                        } else if (m->value->type == SCOUT_JSON_BOOL) {
+                            scout_json_write_bool(out_result, m->value->u.bool_val);
+                        } else if (m->value->type == SCOUT_JSON_OBJECT) {
                             /* nested range object */
-                            lsp_json_write_obj_start(out_result);
-                            const LspJsonMember *sub_m = m->value->u.obj_val.first;
+                            scout_json_write_obj_start(out_result);
+                            const ScoutJsonMember *sub_m = m->value->u.obj_val.first;
                             int sub_f = 1;
                             while (sub_m) {
-                                if (!sub_f) lsp_json_write_raw(out_result, ",");
+                                if (!sub_f) scout_json_write_raw(out_result, ",");
                                 sub_f = 0;
-                                lsp_json_write_obj_key(out_result, sub_m->key);
-                                if (sub_m->value->type == LSP_JSON_OBJECT) {
-                                    lsp_json_write_obj_start(out_result);
-                                    const LspJsonMember *pos_m = sub_m->value->u.obj_val.first;
+                                scout_json_write_obj_key(out_result, sub_m->key);
+                                if (sub_m->value->type == SCOUT_JSON_OBJECT) {
+                                    scout_json_write_obj_start(out_result);
+                                    const ScoutJsonMember *pos_m = sub_m->value->u.obj_val.first;
                                     int pos_f = 1;
                                     while (pos_m) {
-                                        if (!pos_f) lsp_json_write_raw(out_result, ",");
+                                        if (!pos_f) scout_json_write_raw(out_result, ",");
                                         pos_f = 0;
-                                        lsp_json_write_obj_key(out_result, pos_m->key);
-                                        lsp_json_write_int(out_result, pos_m->value->u.num_val.int_val);
+                                        scout_json_write_obj_key(out_result, pos_m->key);
+                                        scout_json_write_int(out_result, pos_m->value->u.num_val.int_val);
                                         pos_m = pos_m->next;
                                     }
-                                    lsp_json_write_obj_end(out_result);
+                                    scout_json_write_obj_end(out_result);
                                 } else {
-                                    lsp_json_write_int(out_result, sub_m->value->u.num_val.int_val);
+                                    scout_json_write_int(out_result, sub_m->value->u.num_val.int_val);
                                 }
                                 sub_m = sub_m->next;
                             }
-                            lsp_json_write_obj_end(out_result);
+                            scout_json_write_obj_end(out_result);
                         }
                         m = m->next;
                     }
-                    lsp_json_write_obj_end(out_result);
+                    scout_json_write_obj_end(out_result);
                 }
             }
-            lsp_json_write_arr_end(out_result);
-        } else if (res_val->type == LSP_JSON_OBJECT) {
-            lsp_json_write_obj_start(out_result);
-            const LspJsonMember *m = res_val->u.obj_val.first;
+            scout_json_write_arr_end(out_result);
+        } else if (res_val->type == SCOUT_JSON_OBJECT) {
+            scout_json_write_obj_start(out_result);
+            const ScoutJsonMember *m = res_val->u.obj_val.first;
             int f = 1;
             while (m) {
-                if (!f) lsp_json_write_raw(out_result, ",");
+                if (!f) scout_json_write_raw(out_result, ",");
                 f = 0;
-                lsp_json_write_obj_key(out_result, m->key);
-                if (m->value->type == LSP_JSON_STRING) {
-                    lsp_json_write_string(out_result, m->value->u.str_val);
-                } else if (m->value->type == LSP_JSON_NUMBER) {
-                    lsp_json_write_int(out_result, m->value->u.num_val.int_val);
+                scout_json_write_obj_key(out_result, m->key);
+                if (m->value->type == SCOUT_JSON_STRING) {
+                    scout_json_write_string(out_result, m->value->u.str_val);
+                } else if (m->value->type == SCOUT_JSON_NUMBER) {
+                    scout_json_write_int(out_result, m->value->u.num_val.int_val);
                 }
                 m = m->next;
             }
-            lsp_json_write_obj_end(out_result);
+            scout_json_write_obj_end(out_result);
         }
     }
 
-    lsp_json_rpc_free(&resp_msg);
+    scout_json_rpc_free(&resp_msg);
     return 1;
 }
 
-void lsp_cache_clear(LspServer *srv)
+void scout_cache_clear(ScoutServer *srv)
 {
     if (!srv) return;
     CachedFileResult *c = srv->cache;
@@ -440,7 +440,7 @@ void lsp_cache_clear(LspServer *srv)
     srv->cache = NULL;
 }
 
-void lsp_cache_put(LspServer *srv, const char *filepath, const char *symbols, const char *diags)
+void scout_cache_put(ScoutServer *srv, const char *filepath, const char *symbols, const char *diags)
 {
     if (!srv || !filepath) return;
 
@@ -448,11 +448,11 @@ void lsp_cache_put(LspServer *srv, const char *filepath, const char *symbols, co
         if (c->filepath && strcmp(c->filepath, filepath) == 0) {
             if (symbols) {
                 if (c->symbols_rexx) free(c->symbols_rexx);
-                c->symbols_rexx = lsp_strdup(symbols);
+                c->symbols_rexx = scout_strdup(symbols);
             }
             if (diags) {
                 if (c->diagnostics_rexx) free(c->diagnostics_rexx);
-                c->diagnostics_rexx = lsp_strdup(diags);
+                c->diagnostics_rexx = scout_strdup(diags);
             }
             return;
         }
@@ -461,14 +461,14 @@ void lsp_cache_put(LspServer *srv, const char *filepath, const char *symbols, co
     CachedFileResult *entry = (CachedFileResult *)malloc(sizeof(CachedFileResult));
     if (!entry) return;
 
-    entry->filepath = lsp_strdup(filepath);
-    entry->symbols_rexx = symbols ? lsp_strdup(symbols) : NULL;
-    entry->diagnostics_rexx = diags ? lsp_strdup(diags) : NULL;
+    entry->filepath = scout_strdup(filepath);
+    entry->symbols_rexx = symbols ? scout_strdup(symbols) : NULL;
+    entry->diagnostics_rexx = diags ? scout_strdup(diags) : NULL;
     entry->next = srv->cache;
     srv->cache = entry;
 }
 
-const CachedFileResult *lsp_cache_get(LspServer *srv, const char *filepath)
+const CachedFileResult *scout_cache_get(ScoutServer *srv, const char *filepath)
 {
     if (!srv || !filepath) return NULL;
     for (const CachedFileResult *c = srv->cache; c; c = c->next) {

@@ -2,52 +2,52 @@
 #define TINYDEV_C_PARSER_H
 
 #include <stddef.h>
-#include "lsp_json.h"
+#include "scout_json.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/* LSP Symbol Kinds */
-#define LSP_SYMBOL_KIND_FILE        1
-#define LSP_SYMBOL_KIND_MODULE      2
-#define LSP_SYMBOL_KIND_NAMESPACE   3
-#define LSP_SYMBOL_KIND_PACKAGE     4
-#define LSP_SYMBOL_KIND_CLASS       5
-#define LSP_SYMBOL_KIND_METHOD      6
-#define LSP_SYMBOL_KIND_PROPERTY    7
-#define LSP_SYMBOL_KIND_FIELD       8
-#define LSP_SYMBOL_KIND_CONSTRUCTOR 9
-#define LSP_SYMBOL_KIND_ENUM        10
-#define LSP_SYMBOL_KIND_INTERFACE   11
-#define LSP_SYMBOL_KIND_FUNCTION    12
-#define LSP_SYMBOL_KIND_VARIABLE    13
-#define LSP_SYMBOL_KIND_CONSTANT    14
-#define LSP_SYMBOL_KIND_STRUCT      23
+/* Symbol kinds (same numbers as LSP SymbolKind) */
+#define SCOUT_SYMBOL_KIND_FILE        1
+#define SCOUT_SYMBOL_KIND_MODULE      2
+#define SCOUT_SYMBOL_KIND_NAMESPACE   3
+#define SCOUT_SYMBOL_KIND_PACKAGE     4
+#define SCOUT_SYMBOL_KIND_CLASS       5
+#define SCOUT_SYMBOL_KIND_METHOD      6
+#define SCOUT_SYMBOL_KIND_PROPERTY    7
+#define SCOUT_SYMBOL_KIND_FIELD       8
+#define SCOUT_SYMBOL_KIND_CONSTRUCTOR 9
+#define SCOUT_SYMBOL_KIND_ENUM        10
+#define SCOUT_SYMBOL_KIND_INTERFACE   11
+#define SCOUT_SYMBOL_KIND_FUNCTION    12
+#define SCOUT_SYMBOL_KIND_VARIABLE    13
+#define SCOUT_SYMBOL_KIND_CONSTANT    14
+#define SCOUT_SYMBOL_KIND_STRUCT      23
 
-/* LSP Diagnostic Severities */
-#define LSP_DIAGNOSTIC_ERROR        1
-#define LSP_DIAGNOSTIC_WARNING      2
-#define LSP_DIAGNOSTIC_INFO         3
-#define LSP_DIAGNOSTIC_HINT         4
+/* Diagnostic severities (same numbers as LSP DiagnosticSeverity) */
+#define SCOUT_DIAGNOSTIC_ERROR        1
+#define SCOUT_DIAGNOSTIC_WARNING      2
+#define SCOUT_DIAGNOSTIC_INFO         3
+#define SCOUT_DIAGNOSTIC_HINT         4
 
-/* LSP Completion Item Kinds */
-#define LSP_COMPLETION_KIND_TEXT        1
-#define LSP_COMPLETION_KIND_METHOD      2
-#define LSP_COMPLETION_KIND_FUNCTION    3
-#define LSP_COMPLETION_KIND_CONSTRUCTOR 4
-#define LSP_COMPLETION_KIND_FIELD       5
-#define LSP_COMPLETION_KIND_VARIABLE    6
-#define LSP_COMPLETION_KIND_CLASS       7
-#define LSP_COMPLETION_KIND_INTERFACE   8
-#define LSP_COMPLETION_KIND_MODULE      9
-#define LSP_COMPLETION_KIND_PROPERTY    10
-#define LSP_COMPLETION_KIND_UNIT        11
-#define LSP_COMPLETION_KIND_VALUE       12
-#define LSP_COMPLETION_KIND_ENUM        13
-#define LSP_COMPLETION_KIND_KEYWORD     14
-#define LSP_COMPLETION_KIND_SNIPPET     15
-#define LSP_COMPLETION_KIND_STRUCT      22
+/* Completion item kinds (same numbers as LSP CompletionItemKind) */
+#define SCOUT_COMPLETION_KIND_TEXT        1
+#define SCOUT_COMPLETION_KIND_METHOD      2
+#define SCOUT_COMPLETION_KIND_FUNCTION    3
+#define SCOUT_COMPLETION_KIND_CONSTRUCTOR 4
+#define SCOUT_COMPLETION_KIND_FIELD       5
+#define SCOUT_COMPLETION_KIND_VARIABLE    6
+#define SCOUT_COMPLETION_KIND_CLASS       7
+#define SCOUT_COMPLETION_KIND_INTERFACE   8
+#define SCOUT_COMPLETION_KIND_MODULE      9
+#define SCOUT_COMPLETION_KIND_PROPERTY    10
+#define SCOUT_COMPLETION_KIND_UNIT        11
+#define SCOUT_COMPLETION_KIND_VALUE       12
+#define SCOUT_COMPLETION_KIND_ENUM        13
+#define SCOUT_COMPLETION_KIND_KEYWORD     14
+#define SCOUT_COMPLETION_KIND_SNIPPET     15
+#define SCOUT_COMPLETION_KIND_STRUCT      22
 
 typedef struct CSymbol {
     char *name;
@@ -142,9 +142,9 @@ void c_completions_free(CCompletion *list);
  *
  * @param request_json Single-line or multi-line JSON-RPC request.
  * @param response_writer Writer to receive formatted single-line JSON-RPC response.
- * @return 1 on success (even if LSP error response produced), 0 on fatal writer error.
+ * @return 1 on success (even if a Scout error response produced), 0 on fatal writer error.
  */
-int c_parser_process_jsonrpc(const char *request_json, LspJsonWriter *response_writer);
+int c_parser_process_jsonrpc(const char *request_json, ScoutJsonWriter *response_writer);
 
 #ifdef __cplusplus
 }

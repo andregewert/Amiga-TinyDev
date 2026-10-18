@@ -1,29 +1,29 @@
-/* $VER: test_lsp_broker.rexx 1.0 (19.09.2026) Automated ARexx Test Suite for TinyDev-LSP */
+/* $VER: test_scout_broker.rexx 1.1 (18.10.2026) Automated ARexx Test Suite for TinyDev-Scout */
 OPTIONS RESULTS
 
 /*
- * Test Suite for TinyDev-LSP Commodity Broker
+ * Test Suite for TinyDev-Scout Commodity Broker
  *
- * This script tests all ARexx commands supported by TinyDev-LSP against
+ * This script tests all ARexx commands supported by TinyDev-Scout against
  * the actual TinyDev project source files.
  *
  * Requirements:
- * - TinyDev-LSP must be running (e.g. started via 'TinyDev-LSP' or Exchange)
+ * - TinyDev-Scout must be running (e.g. started via 'TinyDev-Scout' or Exchange)
  * - c_parser executable must be in PROGDIR:parsers/c_parser or build/parsers/c_parser
  */
 
-port = 'TINYDEV_LSP'
+port = 'TINYDEV_SCOUT'
 passed = 0
 failed = 0
 total = 0
 
 SAY "============================================================"
-SAY " TinyDev-LSP ARexx Automated Test Suite"
+SAY " TinyDev-Scout ARexx Automated Test Suite"
 SAY "============================================================"
 
 IF ~SHOW('P', port) THEN DO
     SAY "ERROR: ARexx port '" || port || "' not found!"
-    SAY "Please start TinyDev-LSP before running this test script."
+    SAY "Please start TinyDev-Scout before running this test script."
     EXIT 20
 END
 
@@ -64,7 +64,7 @@ RETURN
  * 1. STATUS command test
  * ------------------------------------------------------------ */
 'STATUS'
-CALL call_test "STATUS query returns active broker information", 0, "TinyDev-LSP Broker"
+CALL call_test "STATUS query returns active broker information", 0, "Broker: TinyDev-Scout"
 
 /* ------------------------------------------------------------
  * 2. PARSE command tests on project source files

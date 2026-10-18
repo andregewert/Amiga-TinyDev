@@ -1,4 +1,4 @@
-#include "lsp_server.h"
+#include "scout_server.h"
 
 #include <proto/exec.h>
 #include <proto/commodities.h>
@@ -7,7 +7,7 @@
 #include <clib/alib_protos.h>
 #include <stdio.h>
 
-int lsp_broker_init(LspServer *srv)
+int scout_broker_init(ScoutServer *srv)
 {
     if (!srv) return 0;
 
@@ -28,9 +28,9 @@ int lsp_broker_init(LspServer *srv)
 
     struct NewBroker nb;
     nb.nb_Version = NB_VERSION;
-    nb.nb_Name = (char *)LSP_BROKER_NAME;
-    nb.nb_Title = (char *)LSP_BROKER_TITLE;
-    nb.nb_Descr = (char *)LSP_BROKER_DESCR;
+    nb.nb_Name = (char *)SCOUT_BROKER_NAME;
+    nb.nb_Title = (char *)SCOUT_BROKER_TITLE;
+    nb.nb_Descr = (char *)SCOUT_BROKER_DESCR;
     nb.nb_Unique = NBU_UNIQUE | NBU_NOTIFY;
     nb.nb_Flags = 0;
     nb.nb_Pri = 0;
@@ -41,7 +41,7 @@ int lsp_broker_init(LspServer *srv)
     srv->broker = CxBroker(&nb, &error);
     if (!srv->broker) {
         if (error == CBERR_DUP) {
-            fprintf(stderr, "TinyDev-LSP commodity is already running.\n");
+            fprintf(stderr, "TinyDev-Scout commodity is already running.\n");
         } else {
             fprintf(stderr, "Failed to create CxBroker (error %ld)\n", (long)error);
         }
@@ -57,7 +57,7 @@ int lsp_broker_init(LspServer *srv)
     return 1;
 }
 
-void lsp_broker_handle_msg(LspServer *srv)
+void scout_broker_handle_msg(ScoutServer *srv)
 {
     if (!srv || !srv->broker_port) return;
 
@@ -90,7 +90,7 @@ void lsp_broker_handle_msg(LspServer *srv)
     }
 }
 
-void lsp_broker_cleanup(LspServer *srv)
+void scout_broker_cleanup(ScoutServer *srv)
 {
     if (!srv) return;
 

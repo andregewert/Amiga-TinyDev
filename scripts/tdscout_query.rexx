@@ -1,19 +1,19 @@
-/* $VER: tdlsp_query.rexx 1.0 (19.09.2026) TinyDev LSP Query Example */
+/* $VER: tdscout_query.rexx 1.1 (18.10.2026) TinyDev Scout Query Example */
 OPTIONS RESULTS
 
 PARSE ARG cmd file line col prefix
 
 IF cmd = "" THEN DO
-    SAY "TinyDev-LSP ARexx Query Client"
-    SAY "Usage: rx tdlsp_query.rexx <COMMAND> [FILE] [LINE] [COL] [PREFIX]"
+    SAY "TinyDev-Scout ARexx Query Client"
+    SAY "Usage: rx tdscout_query.rexx <COMMAND> [FILE] [LINE] [COL] [PREFIX]"
     SAY "Commands: STATUS, PARSE, SYMBOLS, DIAGNOSTICS, DEFINITION, COMPLETE, QUIT"
     EXIT 0
 END
 
-port = 'TINYDEV_LSP'
+port = 'TINYDEV_SCOUT'
 
 IF ~SHOW('P', port) THEN DO
-    SAY "Error: Port" port "not found. Is TinyDev-LSP running?"
+    SAY "Error: Port" port "not found. Is TinyDev-Scout running?"
     EXIT 10
 END
 
@@ -64,7 +64,7 @@ SELECT
 
     WHEN UPPER(cmd) = 'QUIT' THEN DO
         'QUIT'
-        SAY "QUIT sent to TinyDev-LSP ->" RC
+        SAY "QUIT sent to TinyDev-Scout ->" RC
     END
 
     OTHERWISE DO
