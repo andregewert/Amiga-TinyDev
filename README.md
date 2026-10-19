@@ -154,6 +154,8 @@ settings at the next start.
 - `asl.library` and normal ReAction dependencies.
 - `speedbar.gadget` and `label.image` for the toolbar; `chooser.gadget` for
   its overflow list (optional).
+- `string.gadget` and `checkbox.gadget` for the find and replace window
+  (loaded when it is first opened).
 - AISS with its standard `TBImages:` assignment for toolbar imagery. If an
   individual image cannot be created, the corresponding toolbar button shows
   its text instead.
@@ -173,11 +175,19 @@ safe temporary-file saves, duplicate-path tab activation,
 and LF/CR/CRLF preservation. A status line spanning the full window width at
 the bottom shows the number of open documents and the line count of the
 currently displayed document. The AISS toolbar provides New, Open, Save,
-Undo, Redo, Cut, Copy, and Paste, each with a help bubble. Buttons that would do
+Undo, Redo, Cut, Copy, Paste, and Find, each with a help bubble. Buttons that would do
 nothing are ghosted (Save for an unchanged document, Undo/Redo without steps,
 Cut/Copy without a selection); a button's ghosted image (`<name>_g`) is only
 loaded when it is ghosted for the first time. Buttons that do not fit into a
 narrow window are listed in a drop-down chooser right of the bar.
+Edit/Find (Amiga+F) opens a find and replace window that stays open next to
+the main window (as in Kickdown): search text, replacement, case sensitive,
+whole words, backwards and wrap around; Find, Replace, Replace all. It works
+on the document in the visible tab. Edit/Find Next (Amiga+G) repeats the last
+search without the window. Case-insensitive search also folds the Latin-1
+letters (Ä/ä ...), and they count as word characters. Replace only replaces
+the hit that is still marked as it was found; Replace all is one undo step.
+A match never spans a line break.
 C highlighting recognizes standard C99 keywords,
 strings/character constants, preprocessor lines, `//` comments, and block
 comments. AmigaDOS keyword matching is case-insensitive and `;` begins a comment.
@@ -228,7 +238,7 @@ The visible tree is bounded to 16 directory levels and 2048 entries; a
 directory that does not fit is shown incompletely and reported.
 
 Version one intentionally treats contents as 8-bit text. UTF-8 decoding,
-Unicode shaping, search/replace UI, user-configurable colors, sessions, font
+Unicode shaping, user-configurable colors, sessions, font
 selection, and arbitrary raw TrueType loading are not promised. A missing V47
 class prevents startup. The minimap is a scaled color overview with
 drag-to-scroll navigation via its viewport overlay.

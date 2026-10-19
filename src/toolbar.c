@@ -59,6 +59,7 @@ static const ToolSpec tools[] = {
     { MID_CUT,   8, "cut",   "Cut",   "Cut the selection (Amiga+X)" },
     { MID_COPY,  0, "copy",  "Copy",  "Copy the selection (Amiga+C)" },
     { MID_PASTE, 0, "paste", "Paste", "Paste from the clipboard (Amiga+V)" },
+    { MID_FIND,  8, "find",  "Find",  "Find and replace (Amiga+F)" },
 };
 #define NUMTOOLS (sizeof(tools) / sizeof(tools[0]))
 #define TOOLBIT(i) (1UL << (i))

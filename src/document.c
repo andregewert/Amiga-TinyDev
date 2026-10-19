@@ -408,6 +408,7 @@ int document_close(EditorApp *app, Document *doc, int ask)
     /* The minimap must let go of the editor (and its colour hook, which reads
      * this document) before the page with the editor is disposed. */
     minimap_forget_document(app, doc);
+    find_forget_document(doc);
     next = doc->node.ln_Succ->ln_Succ ? (Document *)doc->node.ln_Succ :
            (doc->node.ln_Pred->ln_Pred ? (Document *)doc->node.ln_Pred : NULL);
     detach_tabs(app);

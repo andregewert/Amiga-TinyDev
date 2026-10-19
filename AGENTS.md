@@ -20,6 +20,13 @@ The codebase intentionally handles file contents as 8-bit text.
   project icons on a Workbench start); writes them back into the program icon.
 - `src/prefswin.c`: the settings window (categories Window, Colours, Toolbar),
   built like Kickdown's.
+- `src/find.c`: the find and replace window (non-modal, built like
+  Kickdown's); it searches the text exported from the editor with
+  `src/search.c` and marks/replaces hits with `GM_TEXTEDITOR_MarkText` and
+  `GM_TEXTEDITOR_Replace`.
+- `src/search.c`, `include/search.h`: the portable search engine (plain
+  text, Latin-1 case folding, whole words, line by line, replacement
+  expansion); no Amiga headers.
 - `src/document.c`: document/tab lifecycle, scrollbar synchronization, and
   scroll-time highlighting suspension.
 - `src/fileio.c`: loading, line-ending preservation, requesters, and safe saves.
@@ -48,6 +55,7 @@ The codebase intentionally handles file contents as 8-bit text.
 - `include/editor.h`: shared application types and cross-module declarations.
 - `include/syntax.h`: portable syntax-scanner interface.
 - `tests/test_syntax.c`: host-native syntax scanner tests.
+- `tests/test_search.c`: host-native tests of the search engine.
 - `tests/test_scout_json.c`, `tests/test_c_parser.c`: host-native tests for the
   Scout JSON code and the C parser.
 - `amiga-devkit/`: git submodule (pinned tag) with shared Amiga tools and AI
@@ -124,8 +132,8 @@ make test
 - Toolbar images may be unavailable and must retain their text-button fallback.
 - The editor control always uses the default screen font; there is no font
   selection.
-- Syntax scanning must remain usable independently of Amiga headers so the host
-  test binary can compile.
+- Syntax scanning and the search engine (`src/search.c`) must remain usable
+  independently of Amiga headers so the host test binaries can compile.
 - Syntax highlighting is suspended while a scrollbar is actively dragged and
   must be restored (with a redraw) when the drag ends. The end is the
   scroller's GADGETUP or two IntuiTicks without a scroll signal (the scroller

@@ -237,6 +237,9 @@ static struct NewMenu menus[] = {
     {NM_ITEM, "Copy", "C", 0, 0, UD(MID_COPY)},
     {NM_ITEM, "Paste", "V", 0, 0, UD(MID_PASTE)},
     {NM_ITEM, "Select All", "A", 0, 0, UD(MID_SELECT_ALL)},
+    {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
+    {NM_ITEM, "Find...", "F", 0, 0, UD(MID_FIND)},
+    {NM_ITEM, "Find Next", "G", 0, 0, UD(MID_FIND_NEXT)},
     {NM_TITLE, "View", NULL, 0, 0, NULL},
     {NM_ITEM, "Folder Tree", NULL, CHECKIT | MENUTOGGLE | CHECKED, 0, UD(MID_FOLDER_TREE)},
     {NM_ITEM, "Line Numbers", NULL, CHECKIT | MENUTOGGLE | CHECKED, 0, UD(MID_LINE_NUMBERS)},
@@ -788,6 +791,8 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_COPY: editor_command(app, "COPY"); break;
         case MID_PASTE: editor_command(app, "PASTE"); break;
         case MID_SELECT_ALL: editor_command(app, "SELECTALL"); break;
+        case MID_FIND: find_open(app); break;
+        case MID_FIND_NEXT: find_next(app); break;
         case MID_FOLDER_TREE: tree_set_visible(app, !app->tree_visible); break;
         case MID_MINIMAP:
             minimap_set_visible(app, !app->minimap_visible);
@@ -912,7 +917,7 @@ int ui_run(EditorApp *app)
     while (app->running) {
         /* A finished minimap render job only needs to wake the loop: the
          * minimap_poll() at its end shows the new picture. */
-        signals = Wait(mask | scroll_mask | minimap_mask | SIGBREAKF_CTRL_C);
+        signals = Wait(mask | scroll_mask | minimap_mask | find_sigmask() | SIGBREAKF_CTRL_C);
         if ((signals & scroll_mask) != 0) document_scroll_live(app);
         if (signals & SIGBREAKF_CTRL_C) { if (close_all(app)) break; }
         while ((result = DoMethod(app->window_object, WM_HANDLEINPUT, &code)) != WMHI_LASTMSG) {
@@ -939,6 +944,7 @@ int ui_run(EditorApp *app)
                 if (item != NULL) menu_action(app, (ULONG)GTMENUITEM_USERDATA(item));
             }
         }
+        find_handle(app);
         /* The texteditor gadget does not notify listeners when the user
          * scrolls it from the keyboard or mouse, so re-read its scroll
          * position after every batch of input events (the window wakes us
@@ -979,6 +985,7 @@ int ui_run(EditorApp *app)
  */
 void ui_destroy(EditorApp *app)
 {
+    find_cleanup();
     minimap_forget_document(app, NULL);
     document_free_all(app);
     if (app->window_object != NULL) {

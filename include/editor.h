@@ -80,7 +80,7 @@ enum MenuId {
     MID_NEW = 1, MID_OPEN, MID_OPEN_DIRECTORY, MID_SAVE, MID_SAVE_AS, MID_CLOSE, MID_QUIT,
     MID_UNDO, MID_REDO, MID_CUT, MID_COPY, MID_PASTE, MID_SELECT_ALL,
     MID_FOLDER_TREE, MID_LINE_NUMBERS, MID_MINIMAP,
-    MID_ABOUT, MID_SETTINGS
+    MID_ABOUT, MID_SETTINGS, MID_FIND, MID_FIND_NEXT
 };
 
 typedef enum LineEnding { EOL_LF = 0, EOL_CR = 1, EOL_CRLF = 2 } LineEnding;
@@ -540,6 +540,38 @@ int file_request_open(EditorApp *app);
  * @return Non-zero if the document was saved, zero otherwise.
  */
 int file_request_save(EditorApp *app, Document *doc);
+
+/**
+ * @brief Open the find and replace window (or bring it to the front).
+ * @param app The application state.
+ */
+void find_open(EditorApp *app);
+/**
+ * @brief Repeat the last search in the active document without the
+ *        window (opens it if there was no search yet).
+ * @param app The application state.
+ */
+void find_next(EditorApp *app);
+/**
+ * @brief Return the signal mask of the find window (0 if it is closed).
+ * @return The signal mask to include in the main Wait().
+ */
+ULONG find_sigmask(void);
+/**
+ * @brief Handle the input of the find window.
+ * @param app The application state.
+ */
+void find_handle(EditorApp *app);
+/**
+ * @brief Forget the last hit if it was in a document that is closed.
+ * @param doc The document.
+ */
+void find_forget_document(Document *doc);
+/**
+ * @brief Close and dispose the find window and close string.gadget; call
+ *        before the main window is closed.
+ */
+void find_cleanup(void);
 
 /**
  * @brief Prompt for and load a directory into the folder tree.
