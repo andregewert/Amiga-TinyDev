@@ -111,6 +111,8 @@ GlowIcons, NewIcons) into `icons/<Style>/` and a preview `icons/preview.png`.
 The motifs are in `tools/mkicons.py`, the icon writer comes from
 `amiga-devkit/tools/amigaicons.py`:
 
+![Icon preview: classic, GlowIcons and NewIcons, each normal and selected](icons/preview.png)
+
 | Icon | Motif |
 |---|---|
 | `TinyDev` | Editor window with line numbers, coloured code and the minimap |
