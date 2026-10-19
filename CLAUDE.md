@@ -13,9 +13,13 @@ Gemeinsame Regeln aller Amiga-Projekte (Submodule `amiga-devkit/`, gepinnt auf e
 
 Wo `AGENTS.md` und die Devkit-Dokumente sich widersprechen, gilt Folgendes:
 
-- **Ziel-CPU:** TinyDev läuft auf dem 68000 (`-m68000 -msoft-float -noixemul`). Die Vorgabe
-  `-m68020-60 -mtune=68060` gilt hier nicht; trotzdem keine `long long`-Arithmetik in heißen
+- **Ziel-CPU:** TinyDev wird für den 68000 übersetzt (`-m68000 -msoft-float -noixemul`), die
+  Vorgabe `-m68020-60 -mtune=68060` gilt hier nicht. Genutzt wird es aber auf größeren Amigas:
+  mindestens 68030/50 MHz, eher 68040 oder 68060. Laufzeit-Abwägungen (Suche, Parser, Minimap)
+  daran ausrichten, nicht an einem 7-MHz-68000. Trotzdem keine `long long`-Arithmetik in heißen
   Schleifen.
+- **Projekt:** Ein geöffnetes Verzeichnis (Wurzel des Verzeichnisbaums) gilt als Projekt.
+  Funktionen mit Projektbezug (z. B. Suche in allen Projektdateien) beziehen sich darauf.
 - **Host-Tests** heißen `make test` (nicht `make check`), ohne ASan/UBSan und ohne
   `.expected`-Referenzausgaben. Vor einem Commit: `make` (enthält `charcheck`) und `make test`.
 - **Noch nicht vorhanden** (nur nach Absprache einführen): Kataloge/`locale.library`,

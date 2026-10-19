@@ -2,13 +2,14 @@
  * find.c - the find and replace window
  *
  * A window that stays open next to the main window, built like Kickdown's:
- * search text, replacement, case sensitive, whole words, backwards, wrap
- * around; Find, Replace, Replace all, Close. Edit/Find next repeats the
+ * search text, replacement, case sensitive, whole words, regular
+ * expression, backwards, wrap around; Find, Replace, Replace all, Close. Edit/Find next repeats the
  * last search without the window. It works on the active document.
  *
  * Unlike Kickdown the search does not use GM_TEXTEDITOR_Search: the text
- * is exported from the editor and searched by search.c (which will also
- * do regular expressions and search other documents and files). A hit is
+ * is exported from the editor and searched by search.c (plain text or
+ * POSIX extended regular expressions; \0 to \9 in the replacement stand
+ * for the groups). A hit is
  * marked with GM_TEXTEDITOR_MarkText and replaced with
  * GM_TEXTEDITOR_Replace. Replace only replaces the last hit (its block is
  * remembered), not any other selection. Replace all is one undo step
@@ -45,7 +46,7 @@ struct Library *StringBase = NULL;
 extern struct Library *CheckBoxBase;    /* shared with the settings window */
 
 enum {
-    FG_FIND = 300, FG_REPLACE, FG_CASE, FG_WORDS, FG_BACKWARDS, FG_WRAP,
+    FG_FIND = 300, FG_REPLACE, FG_CASE, FG_WORDS, FG_REGEX, FG_BACKWARDS, FG_WRAP,
     FG_DOFIND, FG_DOREPLACE, FG_REPLACEALL, FG_CLOSE, FG_STATUS
 };
 
@@ -53,12 +54,12 @@ enum {
 
 /** State of the find window (there is one). */
 static struct {
-    Object *winobj, *root, *find, *replace, *casesens, *words, *backwards, *wrap, *status;
+    Object *winobj, *root, *find, *replace, *casesens, *words, *regex, *backwards, *wrap, *status;
     struct Window *win;
     int focus;                          /* activate the search field when active */
     char text[MAXSEARCH + 1];           /* last search, also for Find next */
     char with[MAXSEARCH + 1];           /* last replacement */
-    int casesens_on, words_on, backwards_on, wrap_on;
+    int casesens_on, words_on, regex_on, backwards_on, wrap_on;
     Document *hit_doc;                  /* the last hit was marked in this document ... */
     SearchHit hit;                      /* ... here (as found) ... */
     ULONG hx0, hy0, hx1, hy1;           /* ... and the editor's block of it */
@@ -167,6 +168,7 @@ static int build(EditorApp *app)
     fw.replace = string(FG_REPLACE, fw.with);
     fw.casesens = checkbox(FG_CASE, "_Case sensitive", fw.casesens_on);
     fw.words = checkbox(FG_WORDS, "Whole wor_ds", fw.words_on);
+    fw.regex = checkbox(FG_REGEX, "Regular e_xpression", fw.regex_on);
     fw.backwards = checkbox(FG_BACKWARDS, "_Backwards", fw.backwards_on);
     fw.wrap = checkbox(FG_WRAP, "Wrap _around", fw.wrap_on);
     fw.status = NewObject(BUTTON_GetClass(), NULL,
@@ -212,6 +214,11 @@ static int build(EditorApp *app)
                     LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
                     LAYOUT_AddChild,    (ULONG)fw.casesens,
                     LAYOUT_AddChild,    (ULONG)fw.words,
+                    LAYOUT_AddChild,    (ULONG)fw.regex,
+                    TAG_END),
+                CHILD_WeightedHeight, 0,
+                LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+                    LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
                     LAYOUT_AddChild,    (ULONG)fw.backwards,
                     LAYOUT_AddChild,    (ULONG)fw.wrap,
                     TAG_END),
@@ -250,6 +257,7 @@ static void read_gadgets(void)
     if ((s = (STRPTR)get(fw.replace, STRINGA_TextVal)) != NULL) strncat(fw.with, (const char *)s, MAXSEARCH);
     fw.casesens_on = get(fw.casesens, CHECKBOX_Checked) != 0;
     fw.words_on = get(fw.words, CHECKBOX_Checked) != 0;
+    fw.regex_on = get(fw.regex, CHECKBOX_Checked) != 0;
     fw.backwards_on = get(fw.backwards, CHECKBOX_Checked) != 0;
     fw.wrap_on = get(fw.wrap, CHECKBOX_Checked) != 0;
 }
@@ -267,9 +275,10 @@ static int compile(SearchPattern *p)
     memset(&o, 0, sizeof(o));
     o.case_sensitive = fw.casesens_on;
     o.whole_word = fw.words_on;
+    o.regex = fw.regex_on;
     error = search_compile(p, fw.text, &o);
     if (error == SEARCH_OK) return 1;
-    if (error != SEARCH_EMPTY) status(search_error(error));
+    if (error != SEARCH_EMPTY) status(p->error);
     search_free(p);
     return 0;
 }

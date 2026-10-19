@@ -2,9 +2,10 @@
 #define TINYDEV_SEARCH_H
 
 /*
- * Portable search engine of the find and replace window: plain text (and,
- * later, regular expressions) in 8-bit text, line by line. No Amiga
- * headers, so the host tests can use it.
+ * Portable search engine of the find and replace window: plain text and
+ * regular expressions (POSIX extended, Henry Spencer's regex library in
+ * external/regex) in 8-bit text, line by line. No Amiga headers, so the
+ * host tests can use it.
  *
  * Text is a buffer of lines separated by LF, CR or CRLF; positions are
  * (line, column) pairs counted from 0, as GA_TEXTEDITOR_CursorY/CursorX of
@@ -20,14 +21,17 @@
 typedef struct SearchOptions {
     int case_sensitive;     /**< otherwise A-Z and the Latin-1 letters fold */
     int whole_word;         /**< the match must not touch word characters */
-    int regex;              /**< regular expression (not available yet) */
+    int regex;              /**< POSIX extended regular expression */
 } SearchOptions;
 
 /** A compiled search. */
 typedef struct SearchPattern {
     SearchOptions options;
-    char *text;             /**< plain: the text, folded if case-insensitive */
+    char *text;             /**< the text (pattern), folded if case-insensitive */
     long length;            /**< its length */
+    void *regex;            /**< regular expression: the compiled regex_t */
+    struct SearchScratch *scratch;  /**< regular expression: buffer for folded lines */
+    char error[80];         /**< message of a failed search_compile() */
 } SearchPattern;
 
 /** A match within one line (columns, end exclusive). */
@@ -58,12 +62,15 @@ enum {
     SEARCH_OK = 0,
     SEARCH_EMPTY,           /**< nothing to search for */
     SEARCH_NOMEM,           /**< out of memory */
-    SEARCH_NOREGEX          /**< regular expressions are not available */
+    SEARCH_BADREGEX         /**< invalid regular expression (see error) */
 };
 
 /**
- * @brief Prepare a search.
- * @param p The pattern to fill in; free it with search_free() (also on error).
+ * @brief Prepare a search. Case-insensitive regular expressions are
+ *        matched on folded text with a folded pattern, so the Latin-1
+ *        letters fold as in plain searches.
+ * @param p The pattern to fill in; free it with search_free() (also on
+ *          error, then p->error holds the message).
  * @param text The text to search for.
  * @param options The options.
  * @return SEARCH_OK or an error code.
@@ -75,13 +82,6 @@ int search_compile(SearchPattern *p, const char *text, const SearchOptions *opti
  * @param p The pattern.
  */
 void search_free(SearchPattern *p);
-
-/**
- * @brief Return a message for an error of search_compile().
- * @param error The error code.
- * @return The message.
- */
-const char *search_error(int error);
 
 /**
  * @brief Find the first match in a line that starts at or after a column.

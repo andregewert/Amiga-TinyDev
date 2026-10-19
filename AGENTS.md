@@ -3,8 +3,14 @@
 ## Project overview
 
 TinyDev is a native AmigaOS 3.2 multi-document text editor written in C. It
-uses ReAction classes and targets 68000 systems with soft-float and no ixemul.
+uses ReAction classes and is compiled for the 68000 with soft-float and no
+ixemul, but its users run it on larger Amigas (at least a 68030 at 50 MHz,
+more likely a 68040 or 68060); weigh run-time costs against those.
 The codebase intentionally handles file contents as 8-bit text.
+
+The directory opened in the folder tree is the project: features that refer
+to "the project" (for example searching all project files) work on the files
+below the tree's root.
 
 ## Repository layout
 
@@ -25,8 +31,9 @@ The codebase intentionally handles file contents as 8-bit text.
   `src/search.c` and marks/replaces hits with `GM_TEXTEDITOR_MarkText` and
   `GM_TEXTEDITOR_Replace`.
 - `src/search.c`, `include/search.h`: the portable search engine (plain
-  text, Latin-1 case folding, whole words, line by line, replacement
-  expansion); no Amiga headers.
+  text and POSIX extended regular expressions, Latin-1 case folding, whole
+  words, line by line, replacement expansion with `\0`-`\9`); no Amiga
+  headers.
 - `src/document.c`: document/tab lifecycle, scrollbar synchronization, and
   scroll-time highlighting suspension.
 - `src/fileio.c`: loading, line-ending preservation, requesters, and safe saves.
@@ -60,6 +67,11 @@ The codebase intentionally handles file contents as 8-bit text.
   Scout JSON code and the C parser.
 - `amiga-devkit/`: git submodule (pinned tag) with shared Amiga tools and AI
   guidelines; see `CLAUDE.md`. Do not edit files inside the submodule.
+- `external/regex/`: git submodule (tag `alpha3.8p1`), Henry Spencer's POSIX
+  regex library for `src/search.c`. Its `regex.h` and `*.ih` headers are
+  generated with its `mkh` script into `build/regex/`; it is compiled
+  unchanged and without our warning flags. Do not edit it; its licence
+  requires the credit in `README.md`.
 - `tools/mkicons.py`: motifs of the Workbench icons (TinyDev, Scout, parsers)
   for `amiga-devkit/tools/amigaicons.py`; `make icons` writes `icons/`. The
   files in `icons/` are generated, never edited by hand.

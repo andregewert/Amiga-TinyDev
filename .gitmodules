@@ -1,3 +1,6 @@
 [submodule "amiga-devkit"]
 	path = amiga-devkit
 	url = https://github.com/andregewert/Amiga-Devkit.git
+[submodule "external/regex"]
+	path = external/regex
+	url = https://github.com/garyhouston/regex.git

@@ -45,7 +45,7 @@ static void expect_hit(const SearchPattern *p, const char *text, long line, long
     if (hit_line < 0) { assert(!found); return; }
     assert(found);
     assert(hit.line == hit_line && hit.col == hit_col && wrapped == hit_wrapped);
-    assert(hit.length == p->length);
+    if (!p->options.regex) assert(hit.length == p->length);
 }
 
 /**
@@ -69,7 +69,8 @@ int main(void)
     assert(search_compile(&p, "", &o) == SEARCH_EMPTY);
     search_free(&p);
     o.regex = 1;
-    assert(search_compile(&p, "a+", &o) == SEARCH_NOREGEX);
+    assert(search_compile(&p, "a(b", &o) == SEARCH_BADREGEX);
+    assert(p.error[0] != '\0');
     search_free(&p);
 
     /* forward, case-insensitive, all three line endings */
@@ -139,6 +140,64 @@ int main(void)
     m.group_end[1] = 2;
     assert(search_expand(&p, "<\\0|\\1|\\2|\\\\>", "xaay", &m, out, sizeof(out)) == 9);
     assert(strcmp(out, "<aa|a||\\>") == 0);
+    search_free(&p);
+
+    /* regular expressions */
+    memset(&o, 0, sizeof(o));
+    o.regex = 1;
+    o.case_sensitive = 1;
+    assert(search_compile(&p, "f(o+)", &o) == SEARCH_OK);
+    assert(search_line_next(&p, "xfoo foooy", 10, 0, &m));
+    assert(m.start == 1 && m.end == 4 && m.group_start[1] == 2 && m.group_end[1] == 4);
+    assert(m.group_start[2] == -1);
+    assert(search_line_next(&p, "xfoo foooy", 10, 2, &m) && m.start == 5 && m.end == 9);
+    assert(search_line_prev(&p, "xfoo foooy", 10, 5, &m) && m.start == 1);
+    assert(search_line_prev(&p, "xfoo foooy", 10, 6, &m) && m.start == 5);
+    assert(search_expand(&p, "[\\\\1=\\1]", "xfoo foooy", &m, out, sizeof(out)) == 8);
+    assert(strcmp(out, "[\\1=ooo]") == 0);
+    assert(search_all(&p, text, (long)strlen(text), &hits) == 4);    /* not "Foo" */
+    assert(hits[3].line == 3 && hits[3].col == 4 && hits[3].length == 3);
+    free(hits);
+    search_free(&p);
+    /* '^' and '$' at the line, not at the start column */
+    assert(search_compile(&p, "^a|b$", &o) == SEARCH_OK);
+    assert(search_line_next(&p, "aab", 3, 0, &m) && m.start == 0 && m.end == 1);
+    assert(search_line_next(&p, "aab", 3, 1, &m) && m.start == 2);
+    assert(search_all(&p, "a\nba\r\nab", 8, &hits) == 3);
+    assert(hits[0].line == 0 && hits[1].line == 2 && hits[1].col == 0 && hits[2].col == 1);
+    free(hits);
+    search_free(&p);
+    /* case-insensitive with Latin-1 letters, whole words */
+    o.case_sensitive = 0;
+    o.whole_word = 1;
+    assert(search_compile(&p, "\xC4r[a-z]+", &o) == SEARCH_OK);
+    assert(search_all(&p, latin, (long)strlen(latin), &hits) == 2);
+    assert(hits[1].col == 10 && hits[1].length == 5);
+    free(hits);
+    assert(!search_line_next(&p, "\xE4rger2", 7, 0, &m));
+    search_free(&p);
+    /* the character classes know the Latin-1 letters */
+    o.whole_word = 0;
+    o.case_sensitive = 1;
+    assert(search_compile(&p, "^[[:alpha:]]+$", &o) == SEARCH_OK);
+    assert(search_line_next(&p, "Stra\xDF" "e\xC4\xFF", 8, 0, &m) && m.end == 8);
+    assert(!search_line_next(&p, "a\xD7" "b", 3, 0, &m));      /* the multiplication sign */
+    search_free(&p);
+    assert(search_compile(&p, "[^[:lower:][:digit:]]", &o) == SEARCH_OK);
+    assert(search_line_next(&p, "\xDF" "1\xE4\xC4", 4, 0, &m) && m.start == 3);
+    search_free(&p);
+    o.case_sensitive = 0;
+    assert(search_compile(&p, "[[:upper:]]+", &o) == SEARCH_OK);   /* all letters */
+    assert(search_line_next(&p, "1\xC4" "b\xE4", 4, 0, &m) && m.start == 1 && m.end == 4);
+    search_free(&p);
+    assert(search_compile(&p, "\\[:alpha:]", &o) == SEARCH_OK);  /* no class outside [] */
+    search_free(&p);
+    /* empty matches do not loop */
+    o.whole_word = 0;
+    assert(search_compile(&p, "x*", &o) == SEARCH_OK);
+    assert(search_all(&p, "axxb", 4, &hits) == 4);
+    free(hits);
+    expect_hit(&p, "ab", 0, 2, 0, 1, 0, 2, 0);
     search_free(&p);
 
     puts("search tests passed");

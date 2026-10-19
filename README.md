@@ -22,8 +22,9 @@ I will try to manually check and improve the generated code.
 ## Build and test
 
 The shared tools in `amiga-devkit/` are a git submodule
-([Amiga-Devkit](https://github.com/andregewert/Amiga-Devkit)). Clone with
-`git clone --recursive` or run `git submodule update --init` once.
+([Amiga-Devkit](https://github.com/andregewert/Amiga-Devkit)), and so is
+Henry Spencer's regex library in `external/regex/` (used by the search).
+Clone with `git clone --recursive` or run `git submodule update --init` once.
 
 The default toolchain prefix is `/opt/amiga/bin/m68k-amigaos-`. Build with:
 
@@ -182,8 +183,15 @@ loaded when it is ghosted for the first time. Buttons that do not fit into a
 narrow window are listed in a drop-down chooser right of the bar.
 Edit/Find (Amiga+F) opens a find and replace window that stays open next to
 the main window (as in Kickdown): search text, replacement, case sensitive,
-whole words, backwards and wrap around; Find, Replace, Replace all. It works
-on the document in the visible tab. Edit/Find Next (Amiga+G) repeats the last
+whole words, regular expression, backwards and wrap around; Find, Replace,
+Replace all. It works on the document in the visible tab. Regular
+expressions are POSIX extended ones (`[[:digit:]]` instead of `\d`, no
+lazy quantifiers or lookaround); `\0` to `\9` in the replacement insert the
+match and its groups, `\\` a backslash. `^` and `$` match at the start and
+end of a line. The character classes (`[:alpha:]`, `[:upper:]`, `[:lower:]`,
+`[:alnum:]`, `[:punct:]`, `[:graph:]`, `[:print:]`) include the Latin-1
+characters (Ä, ß, ...); without "Case sensitive", `[:upper:]` and
+`[:lower:]` stand for all letters. Edit/Find Next (Amiga+G) repeats the last
 search without the window. Case-insensitive search also folds the Latin-1
 letters (Ä/ä ...), and they count as word characters. Replace only replaces
 the hit that is still marked as it was found; Replace all is one undo step.
@@ -242,3 +250,9 @@ Unicode shaping, user-configurable colors, sessions, font
 selection, and arbitrary raw TrueType loading are not promised. A missing V47
 class prevents startup. The minimap is a scaled color overview with
 drag-to-scroll navigation via its viewport overlay.
+
+## Credits
+
+Regular expressions: the regex library by Henry Spencer (alpha3.8 patch 1,
+<https://github.com/garyhouston/regex>), Copyright 1992, 1993, 1994, 1997
+Henry Spencer, used unchanged as a submodule.

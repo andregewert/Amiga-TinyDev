@@ -59,6 +59,20 @@ DEVKIT := amiga-devkit
 ifeq ($(wildcard $(DEVKIT)/make/charcheck.mk),)
 $(error $(DEVKIT) is missing: git submodule update --init)
 endif
+
+# Henry Spencer's regex library (submodule, POSIX regular expressions for
+# the search). Its regex.h and the private *.ih headers are generated with
+# its mkh script into build/regex; it is compiled without our warnings.
+REGEX_DIR := external/regex
+ifeq ($(wildcard $(REGEX_DIR)/regcomp.c),)
+$(error $(REGEX_DIR) is missing: git submodule update --init)
+endif
+REGEX_GEN := $(BUILD_DIR)/regex
+REGEX_NAMES := regcomp regexec regerror regfree
+REGEX_HEADERS := $(REGEX_GEN)/regex.h $(REGEX_GEN)/regcomp.ih $(REGEX_GEN)/engine.ih $(REGEX_GEN)/regerror.ih
+REGEX_CFLAGS := -DPOSIX_MISTAKE -I$(REGEX_GEN) -I$(REGEX_DIR) -w
+REGEX_OBJECTS := $(foreach n,$(REGEX_NAMES),$(REGEX_GEN)/$(n).o)
+REGEX_HOST_OBJECTS := $(foreach n,$(REGEX_NAMES),$(REGEX_GEN)/host/$(n).o)
 LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h sfd/*.sfd tests/*.c scripts/* tests-host/* LICENSE Makefile)
 
 .PHONY: all clean test icons
@@ -69,9 +83,31 @@ include $(DEVKIT)/make/charcheck.mk
 
 $(foreach c,$(CLASS_NAMES),$(eval $(call CLASS_RULES,$(c))))
 
-$(TARGET): $(OBJECTS)
+$(TARGET): $(OBJECTS) $(REGEX_OBJECTS)
 	@mkdir -p $(BIN_DIR)
-	$(TARGET_CC) $(LDFLAGS) -Wl,-u,___stkinit -o $@ $(OBJECTS)
+	$(TARGET_CC) $(LDFLAGS) -Wl,-u,___stkinit -o $@ $(OBJECTS) $(REGEX_OBJECTS)
+
+$(REGEX_GEN)/regex.h: $(REGEX_DIR)/regex2.h $(foreach n,$(REGEX_NAMES),$(REGEX_DIR)/$(n).c) $(REGEX_DIR)/mkh
+	@mkdir -p $(dir $@)
+	sh $(REGEX_DIR)/mkh -i _REGEX_H_ $(REGEX_DIR)/regex2.h $(foreach n,$(REGEX_NAMES),$(REGEX_DIR)/$(n).c) >$@
+
+$(REGEX_GEN)/%.ih: $(REGEX_DIR)/%.c $(REGEX_DIR)/mkh
+	@mkdir -p $(dir $@)
+	sh $(REGEX_DIR)/mkh -p $< >$@
+
+$(REGEX_GEN)/%.o: $(REGEX_DIR)/%.c $(REGEX_HEADERS)
+	$(TARGET_CC) -std=gnu99 -m68000 -msoft-float -noixemul -Os $(REGEX_CFLAGS) -c -o $@ $<
+
+$(REGEX_GEN)/host/%.o: $(REGEX_DIR)/%.c $(REGEX_HEADERS)
+	@mkdir -p $(dir $@)
+	$(HOST_CC) -std=gnu99 -O2 $(REGEX_CFLAGS) -c -o $@ $<
+
+# keep the generated headers (make would delete them as intermediate files)
+.SECONDARY: $(REGEX_HEADERS)
+
+# search.c includes the generated regex.h
+$(BUILD_DIR)/search.o: CPPFLAGS += -I$(REGEX_GEN)
+$(BUILD_DIR)/search.o: | $(REGEX_GEN)/regex.h
 
 $(SCOUT_TARGET): $(SCOUT_OBJECTS)
 	@mkdir -p $(BIN_DIR)
@@ -97,9 +133,9 @@ $(BUILD_DIR)/test_syntax: src/syntax.c tests/test_syntax.c include/syntax.h
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Iinclude -DSYNTAX_HOST_TEST -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/syntax.c tests/test_syntax.c
 
-$(BUILD_DIR)/test_search: src/search.c tests/test_search.c include/search.h
+$(BUILD_DIR)/test_search: src/search.c tests/test_search.c include/search.h $(REGEX_HOST_OBJECTS)
 	@mkdir -p $(BUILD_DIR)
-	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/search.c tests/test_search.c
+	$(HOST_CC) -Iinclude -I$(REGEX_GEN) -std=gnu99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/search.c tests/test_search.c $(REGEX_HOST_OBJECTS)
 
 $(BUILD_DIR)/test_scout_json: src/scout/scout_json.c tests/test_scout_json.c include/scout_json.h
 	@mkdir -p $(BUILD_DIR)
