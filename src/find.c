@@ -73,9 +73,10 @@ enum {
 /** Where the search looks (the "Search in" chooser). */
 enum { SCOPE_CURRENT = 0, SCOPE_OPEN, SCOPE_PROJECT };
 
-static STRPTR scope_labels[] = {
-    (STRPTR)"Current document", (STRPTR)"Open documents", (STRPTR)"Project files", NULL
+static const LONG scope_texts[] = {
+    MSG_FIND_SCOPE_CURRENT, MSG_FIND_SCOPE_OPEN, MSG_FIND_SCOPE_PROJECT
 };
+static STRPTR scope_labels[4];              /* filled from scope_texts[] */
 
 #define MAXRESULTS 500                  /* hits listed for the project files */
 #define MAXFILESIZE (1024L * 1024L)     /* larger files are not searched */
@@ -87,13 +88,14 @@ typedef struct Result {
     long line, col, length;
 } Result;
 
-/** Columns of the result list. */
+/** Columns of the result list (titles from column_texts[]). */
 static struct ColumnInfo result_columns[] = {
-    { 40, (STRPTR)"File", 0 },
-    { 8,  (STRPTR)"Line", 0 },
-    { 52, (STRPTR)"Text", 0 },
+    { 40, NULL, 0 },
+    { 8,  NULL, 0 },
+    { 52, NULL, 0 },
     { -1, (STRPTR)~0, (ULONG)-1 }
 };
+static const LONG column_texts[] = { MSG_FIND_COL_FILE, MSG_FIND_COL_LINE, MSG_FIND_COL_TEXT };
 
 /** State of the find window (there is one). */
 static struct {
@@ -149,8 +151,7 @@ static int open_classes(EditorApp *app)
         }
         return 1;
     }
-    ui_error(app, APP_NAME, "Find and replace needs checkbox.gadget, chooser.gadget, "
-             "listbrowser.gadget and string.gadget.");
+    ui_error(app, APP_NAME, S(MSG_FIND_NEEDCLASSES));
     return 0;
 }
 
@@ -232,12 +233,28 @@ static void status(const char *text)
 }
 
 /**
+ * @brief Append a text to the status text (fw.message), as far as it fits.
+ * @param text The text.
+ */
+static void append(const char *text)
+{
+    size_t n = strlen(fw.message);
+    strncpy(fw.message + n, text, sizeof(fw.message) - n - 1);
+    fw.message[sizeof(fw.message) - 1] = '\0';
+}
+
+/**
  * @brief Build the window object.
  * @param app The application state.
  * @return Non-zero on success.
  */
 static int build(EditorApp *app)
 {
+    int i;
+    for (i = 0; i < 3; ++i) {
+        scope_labels[i] = (STRPTR)S(scope_texts[i]);
+        result_columns[i].ci_Title = (STRPTR)S(column_texts[i]);
+    }
     fw.find = string(FG_FIND, fw.text);
     fw.replace = string(FG_REPLACE, fw.with);
     fw.scope = NewObject(CHOOSER_GetClass(), NULL,
@@ -257,13 +274,13 @@ static int build(EditorApp *app)
         LISTBROWSER_HorizontalProp, TRUE,
         TAG_END);
     fw.stop = NewObject(BUTTON_GetClass(), NULL,
-        GA_ID, FG_STOP, GA_RelVerify, TRUE, GA_Text, (ULONG)"_Stop",
+        GA_ID, FG_STOP, GA_RelVerify, TRUE, GA_Text, (ULONG)S(MSG_FIND_STOP),
         GA_Disabled, (ULONG)(fw.scan == NULL), BUTTON_TextPadding, TRUE, TAG_END);
-    fw.casesens = checkbox(FG_CASE, "_Case sensitive", fw.casesens_on);
-    fw.words = checkbox(FG_WORDS, "Whole wor_ds", fw.words_on);
-    fw.regex = checkbox(FG_REGEX, "Regular e_xpression", fw.regex_on);
-    fw.backwards = checkbox(FG_BACKWARDS, "_Backwards", fw.backwards_on);
-    fw.wrap = checkbox(FG_WRAP, "Wrap _around", fw.wrap_on);
+    fw.casesens = checkbox(FG_CASE, S(MSG_FIND_CASE), fw.casesens_on);
+    fw.words = checkbox(FG_WORDS, S(MSG_FIND_WORDS), fw.words_on);
+    fw.regex = checkbox(FG_REGEX, S(MSG_FIND_REGEX), fw.regex_on);
+    fw.backwards = checkbox(FG_BACKWARDS, S(MSG_FIND_BACKWARDS), fw.backwards_on);
+    fw.wrap = checkbox(FG_WRAP, S(MSG_FIND_WRAP), fw.wrap_on);
     fw.status = NewObject(BUTTON_GetClass(), NULL,
         GA_ID, FG_STATUS, GA_ReadOnly, TRUE,
         GA_Underscore, 0,                   /* the search text may contain '_' */
@@ -273,7 +290,7 @@ static int build(EditorApp *app)
         TAG_END);
 
     fw.winobj = NewObject(WINDOW_GetClass(), NULL,
-        WA_Title,          (ULONG)"Find and replace",
+        WA_Title,          (ULONG)S(MSG_FIND_TITLE),
         WA_PubScreen,      (ULONG)app->screen,
         WA_Activate,       TRUE,
         WA_DepthGadget,    TRUE,
@@ -298,16 +315,16 @@ static int build(EditorApp *app)
                 LAYOUT_Orientation,  LAYOUT_ORIENT_VERT,
                 LAYOUT_InnerSpacing, 4,
                 LAYOUT_AddChild, (ULONG)fw.find,
-                CHILD_Label,     (ULONG)label("_Find "),
+                CHILD_Label,     (ULONG)label(S(MSG_FIND_FIND)),
                 CHILD_WeightedHeight, 0,
                 LAYOUT_AddChild, (ULONG)fw.replace,
-                CHILD_Label,     (ULONG)label("Replace _with "),
+                CHILD_Label,     (ULONG)label(S(MSG_FIND_WITH)),
                 CHILD_WeightedHeight, 0,
                 LAYOUT_AddChild, (ULONG)fw.scope,
-                CHILD_Label,     (ULONG)label("Search _in "),
+                CHILD_Label,     (ULONG)label(S(MSG_FIND_SCOPE)),
                 CHILD_WeightedHeight, 0,
                 LAYOUT_AddChild, (ULONG)fw.files,
-                CHILD_Label,     (ULONG)label("File _pattern "),
+                CHILD_Label,     (ULONG)label(S(MSG_FIND_PATTERN)),
                 CHILD_WeightedHeight, 0,
                 /* the options in columns below the fields: what matches
                  * left, the direction right */
@@ -345,16 +362,16 @@ static int build(EditorApp *app)
             /* the actions left, Close right, each as wide as its text */
             LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
                 LAYOUT_Orientation,  LAYOUT_ORIENT_HORIZ,
-                LAYOUT_AddChild,     (ULONG)button(FG_DOFIND, "Fi_nd"),
+                LAYOUT_AddChild,     (ULONG)button(FG_DOFIND, S(MSG_FIND_DOFIND)),
                 CHILD_WeightedWidth, 0,
-                LAYOUT_AddChild,     (ULONG)button(FG_DOREPLACE, "_Replace"),
+                LAYOUT_AddChild,     (ULONG)button(FG_DOREPLACE, S(MSG_FIND_DOREPLACE)),
                 CHILD_WeightedWidth, 0,
-                LAYOUT_AddChild,     (ULONG)button(FG_REPLACEALL, "Replace a_ll"),
+                LAYOUT_AddChild,     (ULONG)button(FG_REPLACEALL, S(MSG_FIND_REPLACEALL)),
                 CHILD_WeightedWidth, 0,
                 LAYOUT_AddChild,     (ULONG)fw.stop,
                 CHILD_WeightedWidth, 0,
                 LAYOUT_AddChild,     (ULONG)NewObject(LAYOUT_GetClass(), NULL, TAG_END),
-                LAYOUT_AddChild,     (ULONG)button(FG_CLOSE, "Cl_ose"),
+                LAYOUT_AddChild,     (ULONG)button(FG_CLOSE, S(MSG_FIND_CLOSE)),
                 CHILD_WeightedWidth, 0,
                 TAG_END),
             CHILD_WeightedHeight, 0,
@@ -397,7 +414,11 @@ static int compile(SearchPattern *p)
     o.regex = fw.regex_on;
     error = search_compile(p, fw.text, &o);
     if (error == SEARCH_OK) return 1;
-    if (error != SEARCH_EMPTY) status(p->error);
+    if (error == SEARCH_NOMEM) status(S(MSG_FIND_NOMEM));
+    else if (error == SEARCH_BADREGEX) {
+        snprintf(fw.message, sizeof(fw.message), S(MSG_FIND_BADREGEX), p->error);
+        status(fw.message);
+    }
     search_free(p);
     return 0;
 }
@@ -638,9 +659,9 @@ static int find_from(EditorApp *app, SearchPos from)
     if (found) {
         if (target != app->active) document_activate(app, target);
         mark_hit(app, &hit);
-        status(wrapped ? "Wrapped around" : "");
+        status(wrapped ? S(MSG_FIND_WRAPPED) : "");
     } else {
-        snprintf(fw.message, sizeof(fw.message), "\"%s\" not found", fw.text);
+        snprintf(fw.message, sizeof(fw.message), S(MSG_FIND_NOTFOUND), fw.text);
         status(fw.message);
     }
     return found;
@@ -980,24 +1001,23 @@ static void scan_finish(int stopped)
     results_flush();
     set_disabled(fw.stop, 1);
     if (fw.replace_after) {
-        snprintf(fw.message, sizeof(fw.message), "%ld replacement%s in %ld file%s%s",
-                 fw.result_count, fw.result_count == 1 ? "" : "s",
-                 fw.hit_files, fw.hit_files == 1 ? "" : "s", stopped ? " (stopped)" : "");
+        snprintf(fw.message, sizeof(fw.message), S(MSG_FIND_REPLACEDFILES),
+                 fw.result_count, fw.hit_files);
+        if (stopped) append(S(MSG_FIND_STOPPED));
         fw.replace_after = 0;
         fw.result_count = 0;
         fw.key[0] = '\0';
     } else if (fw.result_count == 0) {
-        snprintf(fw.message, sizeof(fw.message), "\"%s\" not found in %ld file%s%s", fw.text,
-                 fw.file_count, fw.file_count == 1 ? "" : "s", stopped ? " (stopped)" : "");
+        snprintf(fw.message, sizeof(fw.message), S(MSG_FIND_NOTFOUNDFILES), fw.text, fw.file_count);
+        if (stopped) append(S(MSG_FIND_STOPPED));
     } else {
-        snprintf(fw.message, sizeof(fw.message), "%ld hit%s in %ld of %ld files%s",
-                 fw.result_count, fw.result_count == 1 ? "" : "s", fw.hit_files, fw.file_count,
-                 stopped ? " (stopped)" :
-                 fw.result_count >= MAXRESULTS ? " (stopped at the limit)" : "");
+        snprintf(fw.message, sizeof(fw.message), S(MSG_FIND_HITS),
+                 fw.result_count, fw.hit_files, fw.file_count);
+        if (stopped) append(S(MSG_FIND_STOPPED));
+        else if (fw.result_count >= MAXRESULTS) append(S(MSG_FIND_LIMIT));
         fw.complete = !stopped && fw.result_count < MAXRESULTS;
     }
-    if (incomplete && strlen(fw.message) + 30 < sizeof(fw.message))
-        strcat(fw.message, ", some directories skipped");
+    if (incomplete) append(S(MSG_FIND_SKIPPED));
     status(fw.message);
 }
 
@@ -1012,24 +1032,24 @@ static void scan_start(EditorApp *app, int replace)
     scan_finish(1);
     results_clear();
     if (!project_root(app, fw.project, sizeof(fw.project))) {
-        status("No project: open a directory first");
+        status(S(MSG_FIND_NOPROJECT));
         return;
     }
     if (fw.signal < 0 && (fw.signal = AllocSignal(-1)) < 0) {
-        status("No free signal");
+        status(S(MSG_FIND_NOSIGNAL));
         return;
     }
     if (!compile(&fw.sp)) return;
     if ((fw.scan = filescan_start(fw.project, fw.pattern)) == NULL) {
         search_free(&fw.sp);
-        status("The project directory or the file pattern cannot be used");
+        status(S(MSG_FIND_BADPROJECT));
         return;
     }
     if (!replace) make_key(fw.key, fw.project);
     fw.replace_after = replace;
     fw.jump_first = !replace;
     set_disabled(fw.stop, 0);
-    status(replace ? "Replacing..." : "Searching...");
+    status(S(replace ? MSG_FIND_REPLACING : MSG_FIND_SEARCHING));
     Signal(FindTask(NULL), 1UL << fw.signal);
 }
 
@@ -1065,9 +1085,9 @@ static void scan_step(EditorApp *app)
         search_file(app, fw.file);
         if (++fw.unflushed >= FLUSH_FILES) {
             results_flush();
-            snprintf(fw.message, sizeof(fw.message), "%s %ld files, %ld %s",
-                     fw.replace_after ? "Replacing..." : "Searching...", fw.file_count,
-                     fw.result_count, fw.replace_after ? "replaced" : "hits");
+            snprintf(fw.message, sizeof(fw.message),
+                     S(fw.replace_after ? MSG_FIND_RPROGRESS : MSG_FIND_PROGRESS),
+                     fw.file_count, fw.result_count);
             status(fw.message);
         }
         if (fw.jump_first && fw.result_count > 0) {
@@ -1095,21 +1115,21 @@ static void results_next(EditorApp *app)
     int wrapped = 0;
     results_flush();
     if (IsListEmpty(&fw.results)) {
-        if (fw.scan == NULL) status("No hits");
+        if (fw.scan == NULL) status(S(MSG_FIND_NOHITS));
         return;
     }
     if (fw.backwards_on) n = fw.current != NULL ? fw.current->ln_Pred : fw.results.lh_TailPred;
     else n = fw.current != NULL ? fw.current->ln_Succ : fw.results.lh_Head;
     if ((fw.backwards_on ? n->ln_Pred : n->ln_Succ) == NULL) {
         if (!fw.wrap_on) {
-            status("No more hits");
+            status(S(MSG_FIND_NOMORE));
             return;
         }
         n = fw.backwards_on ? fw.results.lh_TailPred : fw.results.lh_Head;
         wrapped = 1;
     }
     show_result(app, n);
-    status(wrapped ? "Wrapped around" : "");
+    status(wrapped ? S(MSG_FIND_WRAPPED) : "");
 }
 
 /**
@@ -1121,7 +1141,7 @@ static void project_find(EditorApp *app)
 {
     char key[sizeof(fw.key)], root[EDITOR_PATH_MAX];
     if (!project_root(app, root, sizeof(root))) {
-        status("No project: open a directory first");
+        status(S(MSG_FIND_NOPROJECT));
         return;
     }
     make_key(key, root);
@@ -1207,7 +1227,7 @@ static void do_replace(EditorApp *app)
     FreeVec(text);
     search_free(&p);
     if (with == NULL) {
-        status("Not enough memory");
+        status(S(MSG_FIND_NOMEM));
         return;
     }
     /* on to the next one, behind the replacement */
@@ -1311,14 +1331,12 @@ static void do_replace_all(EditorApp *app)
         else total = n;
     }
     search_free(&p);
-    if (nomem) status("Not enough memory");
+    if (nomem) status(S(MSG_FIND_NOMEM));
     else if (fw.scope_on == SCOPE_OPEN) {
-        snprintf(fw.message, sizeof(fw.message), "%ld replacement%s in %ld document%s",
-                 total, total == 1 ? "" : "s", docs, docs == 1 ? "" : "s");
+        snprintf(fw.message, sizeof(fw.message), S(MSG_FIND_REPLACEDDOCS), total, docs);
         status(fw.message);
-    } else if (total == 1) status("1 replacement");
-    else {
-        snprintf(fw.message, sizeof(fw.message), "%ld replacements", total);
+    } else {
+        snprintf(fw.message, sizeof(fw.message), S(MSG_FIND_REPLACED), total);
         status(fw.message);
     }
 }
@@ -1339,7 +1357,7 @@ void find_open(EditorApp *app)
 {
     if (app->window == NULL || !open_classes(app)) return;
     if (fw.winobj == NULL && !build(app)) {
-        ui_error(app, APP_NAME, "Could not create the find window.");
+        ui_error(app, APP_NAME, S(MSG_FIND_NOWINDOW));
         return;
     }
     if (fw.win == NULL) {

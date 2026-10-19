@@ -169,9 +169,9 @@ Document *document_new(EditorApp *app)
 static Document *new_document(EditorApp *app)
 {
     Document *doc = AllocVec(sizeof(*doc), MEMF_ANY | MEMF_CLEAR);
-    if (doc == NULL) { ui_error(app, "TinyDev", "Not enough memory for a document."); return NULL; }
+    if (doc == NULL) { ui_error(app, APP_NAME, S(MSG_ERR_DOCMEM)); return NULL; }
     doc->number = ++app->next_document;
-    snprintf(doc->title, sizeof(doc->title), "Untitled %lu", doc->number);
+    snprintf(doc->title, sizeof(doc->title), S(MSG_UNTITLED), doc->number);
     strcpy(doc->tab_title, doc->title);
     doc->eol = EOL_LF;
     document_mark_saved(doc, "", 0, 0);
@@ -185,7 +185,7 @@ static Document *new_document(EditorApp *app)
         (UWORD)app->editor_pens[EDITOR_COLOR_COMMENT],
         (UWORD)app->editor_pens[EDITOR_COLOR_PREPROCESSOR]);
     doc->editor = create_editor(app, doc, "");
-    if (doc->editor == NULL) { FreeVec(doc); ui_error(app, "TinyDev", "Could not create TextEditor gadget."); return NULL; }
+    if (doc->editor == NULL) { FreeVec(doc); ui_error(app, APP_NAME, S(MSG_ERR_EDITOR)); return NULL; }
     doc->vscroll = NewObject(SCROLLER_GetClass(), NULL,
         GA_ID, GID_VSCROLL, GA_RelVerify, TRUE, GA_Immediate, TRUE,
         GA_FollowMouse, TRUE,
@@ -210,7 +210,7 @@ static Document *new_document(EditorApp *app)
         if (doc->vscroll != NULL) DisposeObject(doc->vscroll);
         if (doc->hscroll != NULL) DisposeObject(doc->hscroll);
         DisposeObject(doc->editor); FreeVec(doc);
-        ui_error(app, "TinyDev", "Could not create the editor scrollbars.");
+        ui_error(app, APP_NAME, S(MSG_ERR_SCROLLERS));
         return NULL;
     }
     doc->editor_row = NewObject(LAYOUT_GetClass(), NULL,
@@ -226,7 +226,7 @@ static Document *new_document(EditorApp *app)
         DisposeObject(doc->hscroll);
         DisposeObject(doc->vscroll);
         DisposeObject(doc->editor); FreeVec(doc);
-        ui_error(app, "TinyDev", "Could not create the editor layout.");
+        ui_error(app, APP_NAME, S(MSG_ERR_DOCLAYOUT));
         return NULL;
     }
     doc->page = NewObject(LAYOUT_GetClass(), NULL,
@@ -241,13 +241,13 @@ static Document *new_document(EditorApp *app)
     if (doc->page == NULL) {
         DisposeObject(doc->editor_row);
         DisposeObject(doc->hscroll); FreeVec(doc);
-        ui_error(app, "TinyDev", "Could not create the document page.");
+        ui_error(app, APP_NAME, S(MSG_ERR_PAGE));
         return NULL;
     }
     doc->tab = AllocClickTabNode(TNA_Text, (ULONG)doc->tab_title, TNA_Number,
         0, TNA_UserData, (ULONG)doc,
         TNA_CloseGadget, TRUE, TAG_END);
-    if (doc->tab == NULL) { DisposeObject(doc->page); FreeVec(doc); ui_error(app, "TinyDev", "Could not create tab."); return NULL; }
+    if (doc->tab == NULL) { DisposeObject(doc->page); FreeVec(doc); ui_error(app, APP_NAME, S(MSG_ERR_TAB)); return NULL; }
     detach_tabs(app);
     AddTail(&app->documents, &doc->node);
     AddTail(&app->tab_nodes, doc->tab);

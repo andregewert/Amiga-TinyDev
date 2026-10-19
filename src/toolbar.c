@@ -46,20 +46,20 @@ typedef struct ToolSpec {
     ULONG command;          /**< MID_ of the button, also its speedbar id */
     WORD spacing;           /**< gap before the button (groups) */
     const char *image;      /**< AISS name in TBIMAGES: */
-    const char *label;      /**< short text for the bar and the overflow list */
-    const char *help;       /**< help bubble */
+    LONG label;             /**< short text for the bar and the overflow list (MSG_) */
+    LONG help;              /**< help bubble (MSG_) */
 } ToolSpec;
 
 static const ToolSpec tools[] = {
-    { MID_NEW,   0, "new",   "New",   "New document (Amiga+N)" },
-    { MID_OPEN,  0, "open",  "Open",  "Open a file (Amiga+O)" },
-    { MID_SAVE,  0, "save",  "Save",  "Save the document (Amiga+S)" },
-    { MID_UNDO,  8, "undo",  "Undo",  "Undo (Amiga+Z)" },
-    { MID_REDO,  0, "redo",  "Redo",  "Redo (Amiga+Y)" },
-    { MID_CUT,   8, "cut",   "Cut",   "Cut the selection (Amiga+X)" },
-    { MID_COPY,  0, "copy",  "Copy",  "Copy the selection (Amiga+C)" },
-    { MID_PASTE, 0, "paste", "Paste", "Paste from the clipboard (Amiga+V)" },
-    { MID_FIND,  8, "find",  "Find",  "Find and replace (Amiga+F)" },
+    { MID_NEW,   0, "new",   MSG_TB_NEW, MSG_TBH_NEW },
+    { MID_OPEN,  0, "open",  MSG_TB_OPEN, MSG_TBH_OPEN },
+    { MID_SAVE,  0, "save",  MSG_TB_SAVE, MSG_TBH_SAVE },
+    { MID_UNDO,  8, "undo",  MSG_TB_UNDO, MSG_TBH_UNDO },
+    { MID_REDO,  0, "redo",  MSG_TB_REDO, MSG_TBH_REDO },
+    { MID_CUT,   8, "cut",   MSG_TB_CUT, MSG_TBH_CUT },
+    { MID_COPY,  0, "copy",  MSG_TB_COPY, MSG_TBH_COPY },
+    { MID_PASTE, 0, "paste", MSG_TB_PASTE, MSG_TBH_PASTE },
+    { MID_FIND,  8, "find",  MSG_TB_FIND, MSG_TBH_FIND },
 };
 #define NUMTOOLS (sizeof(tools) / sizeof(tools[0]))
 #define TOOLBIT(i) (1UL << (i))
@@ -195,7 +195,7 @@ static Object *make_label(ULONG i, Object *image, LONG pen)
 {
     Object *o;
     snprintf(tb.labels[i], sizeof(tb.labels[i]), "%s%s", image != NULL ? "\n" : "",
-             tools[i].label);
+             S(tools[i].label));
     o = NewObject(LABEL_GetClass(), NULL,
         LABEL_DrawInfo, (ULONG)tb.dri,
         LABEL_Justification, LJ_CENTRE,
@@ -233,7 +233,7 @@ static int make_button(EditorApp *app, ULONG i)
     tb.images[i] = img;
     node = AllocSpeedButtonNode(tools[i].command,
         img != NULL ? SBNA_Image : SBNA_Text,
-        img != NULL ? (ULONG)img : (ULONG)tools[i].label,
+        img != NULL ? (ULONG)img : (ULONG)S(tools[i].label),
         SBNA_Enabled, TRUE,
         SBNA_Spacing, (ULONG)tools[i].spacing,
         SBNA_Highlight, SBH_RECESS,
@@ -296,19 +296,18 @@ int toolbar_create(EditorApp *app)
     if (tb.dri == NULL) return 0;
     obtain_ghost_pen(app);
     if (tb.mode == TBMODE_BOTH) small_font(app);
-    splash_status(tb.mode == TBMODE_TEXT ? "Preparing the toolbar..."
-                                         : "Loading the toolbar images...");
+    splash_status(S(tb.mode == TBMODE_TEXT ? MSG_SPLASH_TOOLBAR : MSG_SPLASH_IMAGES));
     for (i = 0; i < NUMTOOLS; ++i) {
         if (!make_button(app, i)) return 0;
         splash_step();
         tb.hints[i].hi_GadgetID = GID_TOOLBAR;
         tb.hints[i].hi_Code = (WORD)tools[i].command;
-        tb.hints[i].hi_Text = (STRPTR)tools[i].help;
+        tb.hints[i].hi_Text = (STRPTR)S(tools[i].help);
         tb.hints[i].hi_Flags = 0;
     }
     tb.hints[i].hi_GadgetID = GID_OVERFLOW;
     tb.hints[i].hi_Code = -1;
-    tb.hints[i].hi_Text = (STRPTR)"More buttons";
+    tb.hints[i].hi_Text = (STRPTR)S(MSG_TB_MORE);
     tb.hints[i].hi_Flags = 0;
     ++i;
     tb.hints[i].hi_GadgetID = -1;
@@ -448,7 +447,7 @@ static void update_overflow(EditorApp *app)
         struct Node *c;
         if (n < visible) continue;
         c = AllocChooserNode(
-            CNA_Text, (ULONG)tools[i].label,
+            CNA_Text, (ULONG)S(tools[i].label),
             CNA_UserData, tools[i].command,
             CNA_Disabled, (tb.disabled & TOOLBIT(i)) != 0,
             TAG_END);

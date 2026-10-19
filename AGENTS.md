@@ -22,6 +22,12 @@ below the tree's root.
   built like Kickdown's.
 - `src/splash.c`: splash window during start-up (Intuition/graphics only, opened
   before the classes) and the About window, both as in Kickdown.
+- `src/locale.c`: `locale.library` and the catalog; `S(MSG_...)` returns a
+  text in the user's language. The built-in English texts are
+  `catalogs/TinyDev.cd`, translations `catalogs/<language>.ct` (German:
+  `deutsch.ct`); `amiga-devkit/tools/catcomp.py` makes
+  `include/tinydev_strings.h` (generated, in git) and
+  `bin/Catalogs/<language>/TinyDev.catalog`.
 - `src/settings.c`: settings from the tool types of the program icon (and of
   project icons on a Workbench start); writes them back into the program icon.
 - `src/prefswin.c`: the settings window (categories Window, Colours, Toolbar),
@@ -100,7 +106,8 @@ make test
 - Do not claim target-build verification if the cross-toolchain or SDK is
   unavailable; report that limitation explicitly.
 - Finished Amiga binaries go to `bin/` (`bin/TinyDev`, `bin/TinyDev-Scout`,
-  `bin/parsers/c_parser`, `bin/Classes/Gadgets/<name>.gadget`), laid out as on
+  `bin/parsers/c_parser`, `bin/Classes/Gadgets/<name>.gadget`,
+  `bin/Catalogs/<language>/TinyDev.catalog`), laid out as on
   the Amiga; nothing else goes there. All intermediate files (objects,
   dependency files, `.debug` files, host test binaries) go to `build/`; gadget
   class objects to `build/classes/<name>/`.
@@ -128,6 +135,12 @@ make test
 - Add documentation comments to functions, methods, and type declarations
 
 ## Behavioral constraints
+
+- Every text TinyDev shows comes from the catalog: add it to
+  `catalogs/TinyDev.cd` and translate it in `catalogs/deutsch.ct`, use it as
+  `S(MSG_...)`. Keep the format specifiers in translations and the `_`
+  shortcuts unique per window in every language. Strings may be reordered
+  until the first release (no catalog version yet).
 
 - Preserve LF, CR, and CRLF line endings when loading and saving documents.
 - Keep saves temporary-file based so a failed write does not destroy the

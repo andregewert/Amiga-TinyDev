@@ -9,6 +9,7 @@
 #include <workbench/startup.h>
 
 #include "syntax.h"
+#include "tinydev_strings.h"
 
 struct HintInfo;
 
@@ -165,6 +166,17 @@ extern struct Library *MinimapBase;
 extern struct Library *ScrollerBase;
 extern struct Library *SpeedBarBase, *LabelBase, *ChooserBase;
 extern struct Library *DiskfontBase;
+
+/** @brief Open locale.library and TinyDev's catalog (if there is one). */
+void locale_open(void);
+/** @brief Close the catalog and locale.library. */
+void locale_close(void);
+/**
+ * @brief Return a text in the user's language.
+ * @param id The MSG_ number (include/tinydev_strings.h).
+ * @return The text from the catalog, or the built-in English one.
+ */
+const char *S(LONG id);
 
 /**
  * @brief Set the default settings.

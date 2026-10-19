@@ -1,0 +1,541 @@
+; TinyDev.cd - catalog description of TinyDev (built-in language: english)
+;
+; Format of CatComp/FlexCat. amiga-devkit/tools/catcomp.py makes
+; include/tinydev_strings.h and the catalogs from it; translations are
+; catalogs/<language>.ct. Keep the format specifiers (%s, %lu, %ld) and
+; their order in translations, and keep the '_' shortcuts unique within
+; each window. Until the first release the strings may be reordered.
+;
+; menu titles and items; the shortcuts are fixed
+MSG_MENU_PROJECT (//)
+Project
+;
+MSG_MENU_NEW (//)
+New
+;
+MSG_MENU_OPEN (//)
+Open...
+;
+MSG_MENU_OPENDIR (//)
+Open Directory...
+;
+MSG_MENU_SAVE (//)
+Save
+;
+MSG_MENU_SAVEAS (//)
+Save As...
+;
+MSG_MENU_CLOSE (//)
+Close
+;
+MSG_MENU_SETTINGS (//)
+Settings...
+;
+MSG_MENU_ABOUT (//)
+About...
+;
+MSG_MENU_QUIT (//)
+Quit
+;
+MSG_MENU_EDIT (//)
+Edit
+;
+MSG_MENU_UNDO (//)
+Undo
+;
+MSG_MENU_REDO (//)
+Redo
+;
+MSG_MENU_CUT (//)
+Cut
+;
+MSG_MENU_COPY (//)
+Copy
+;
+MSG_MENU_PASTE (//)
+Paste
+;
+MSG_MENU_SELECTALL (//)
+Select All
+;
+MSG_MENU_FIND (//)
+Find...
+;
+MSG_MENU_FINDNEXT (//)
+Find Next
+;
+MSG_MENU_VIEW (//)
+View
+;
+MSG_MENU_TREE (//)
+Folder Tree
+;
+MSG_MENU_LINENUMBERS (//)
+Line Numbers
+;
+MSG_MENU_MINIMAP (//)
+Minimap
+;
+; toolbar: short button texts and help bubbles
+MSG_TB_NEW (//)
+New
+;
+MSG_TBH_NEW (//)
+New document (Amiga+N)
+;
+MSG_TB_OPEN (//)
+Open
+;
+MSG_TBH_OPEN (//)
+Open a file (Amiga+O)
+;
+MSG_TB_SAVE (//)
+Save
+;
+MSG_TBH_SAVE (//)
+Save the document (Amiga+S)
+;
+MSG_TB_UNDO (//)
+Undo
+;
+MSG_TBH_UNDO (//)
+Undo (Amiga+Z)
+;
+MSG_TB_REDO (//)
+Redo
+;
+MSG_TBH_REDO (//)
+Redo (Amiga+Y)
+;
+MSG_TB_CUT (//)
+Cut
+;
+MSG_TBH_CUT (//)
+Cut the selection (Amiga+X)
+;
+MSG_TB_COPY (//)
+Copy
+;
+MSG_TBH_COPY (//)
+Copy the selection (Amiga+C)
+;
+MSG_TB_PASTE (//)
+Paste
+;
+MSG_TBH_PASTE (//)
+Paste from the clipboard (Amiga+V)
+;
+MSG_TB_FIND (//)
+Find
+;
+MSG_TBH_FIND (//)
+Find and replace (Amiga+F)
+;
+MSG_TB_MORE (//)
+More buttons
+;
+; main window, requesters
+MSG_OK (//)
+OK
+;
+MSG_STATUS (//)
+Documents: %lu  Lines: %lu
+;
+MSG_UNTITLED (//)
+Untitled %lu
+;
+MSG_CONFIRM_TITLE (//)
+Unsaved changes
+;
+MSG_CONFIRM_TEXT (//)
+Save changes to %s?
+;
+MSG_CONFIRM_GADGETS (//)
+Save|Discard|Cancel
+;
+MSG_ABOUT_TITLE (//)
+About TinyDev
+;
+MSG_ABOUT_LICENSE (//)
+Released under the MIT License
+;
+MSG_SUBTITLE (//)
+Programmer's editor for AmigaOS 3.2
+;
+MSG_VERSION (//)
+Version %s
+;
+; start-up (splash window)
+MSG_SPLASH_CLASSES (//)
+Opening the ReAction classes...
+;
+MSG_SPLASH_TOOLBAR (//)
+Preparing the toolbar...
+;
+MSG_SPLASH_IMAGES (//)
+Loading the toolbar images...
+;
+MSG_SPLASH_WINDOW (//)
+Opening the window...
+;
+MSG_STARTUP_ERROR (//)
+TinyDev startup error
+;
+MSG_ERR_LIBRARY (//)
+TinyDev requires %s version %lu or newer.
+;
+; requester titles and error messages
+MSG_OPEN_FAILED (//)
+Open failed
+;
+MSG_SAVE_FAILED (//)
+Save failed
+;
+MSG_TREE_TITLE (//)
+Folder tree
+;
+MSG_OPENDIR_FAILED (//)
+Open directory failed
+;
+MSG_ASL_OPEN (//)
+Open document
+;
+MSG_ASL_SAVE (//)
+Save document
+;
+MSG_ASL_DIR (//)
+Open directory
+;
+MSG_ERR_NAMETOOLONG (//)
+The full file name is too long.
+;
+MSG_ERR_CANNOTOPEN (//)
+Cannot open this regular file (or it exceeds 8 MiB).
+;
+MSG_ERR_NOMEMFILE (//)
+Not enough memory to load this file.
+;
+MSG_ERR_READ (//)
+The file could not be read completely.
+;
+MSG_ERR_NUL (//)
+This file contains an embedded NUL byte; only 8-bit text is supported.
+;
+MSG_ERR_CLOSE (//)
+The file could not be closed cleanly.
+;
+MSG_ERR_ALREADYOPEN (//)
+That file is already open in another tab.
+;
+MSG_ERR_DESTTOOLONG (//)
+The destination file name is too long.
+;
+MSG_ERR_EXPORT (//)
+TextEditor could not export the document.
+;
+MSG_ERR_TEMPEXISTS (//)
+A temporary sibling file already exists.
+;
+MSG_ERR_BACKUPEXISTS (//)
+A backup sibling file already exists.
+;
+MSG_ERR_WRITETEMP (//)
+Could not write and close the temporary file.
+;
+MSG_ERR_REPLACE (//)
+Could not replace the destination; the original was retained.
+;
+MSG_ERR_FILEREQ (//)
+Could not allocate the file requester.
+;
+MSG_ERR_DIRREQ (//)
+Could not allocate the directory requester.
+;
+MSG_ERR_PATHTOOLONG (//)
+The selected path is too long.
+;
+MSG_ERR_WBARG (//)
+A Workbench argument path is too long.
+;
+MSG_ERR_DIRINCOMPLETE (//)
+The directory could not be read completely.
+;
+MSG_ERR_DIROPEN (//)
+The directory could not be opened.
+;
+MSG_ERR_TREEMEM (//)
+Not enough memory for the folder tree.
+;
+MSG_ERR_DOCMEM (//)
+Not enough memory for a document.
+;
+MSG_ERR_EDITOR (//)
+Could not create the TextEditor gadget.
+;
+MSG_ERR_SCROLLERS (//)
+Could not create the editor scrollbars.
+;
+MSG_ERR_DOCLAYOUT (//)
+Could not create the editor layout.
+;
+MSG_ERR_PAGE (//)
+Could not create the document page.
+;
+MSG_ERR_TAB (//)
+Could not create the tab.
+;
+MSG_ERR_COLORS (//)
+Could not reserve editor colors on the public screen.
+;
+MSG_ERR_SAVESETTINGS (//)
+The settings could not be saved in the program icon.
+;
+; settings window
+MSG_PREFS_TITLE (//)
+TinyDev settings
+;
+MSG_PREFS_NEEDCLASS (//)
+The settings need %s.
+;
+MSG_CAT_WINDOW (//)
+Window
+;
+MSG_CAT_COLOURS (//)
+Colours
+;
+MSG_CAT_TOOLBAR (//)
+Toolbar
+;
+MSG_PREFS_SPLASH (//)
+Show s_plash window at the start
+;
+MSG_PREFS_WIDTH (//)
+_Width (0 = auto) 
+;
+MSG_PREFS_HEIGHT (//)
+H_eight (0 = auto) 
+;
+MSG_PREFS_LEFT (//)
+_Left (-1 = centred) 
+;
+MSG_PREFS_TOP (//)
+_Top (-1 = centred) 
+;
+MSG_PREFS_WINDOWNOTE (//)
+Size and position of the main window at the next start.
+;
+MSG_PREFS_CURRENT (//)
+Cu_rrent
+;
+MSG_PREFS_AUTOMATIC (//)
+_Automatic
+;
+MSG_PREFS_COL_TEXT (//)
+Te_xt 
+;
+MSG_PREFS_COL_KEYWORD (//)
+_Keywords 
+;
+MSG_PREFS_COL_STRING (//)
+Stri_ngs 
+;
+MSG_PREFS_COL_COMMENT (//)
+Co_mments 
+;
+MSG_PREFS_COL_PREPROC (//)
+Prepr_ocessor 
+;
+MSG_PREFS_TTL_TEXT (//)
+Colour of the text
+;
+MSG_PREFS_TTL_KEYWORD (//)
+Colour of keywords
+;
+MSG_PREFS_TTL_STRING (//)
+Colour of strings
+;
+MSG_PREFS_TTL_COMMENT (//)
+Colour of comments
+;
+MSG_PREFS_TTL_PREPROC (//)
+Colour of preprocessor lines
+;
+MSG_PREFS_COLOURNOTE (//)
+The colours of the syntax highlighting take effect at once.
+;
+MSG_PREFS_DEFCOLOURS (//)
+_Default colours
+;
+MSG_PREFS_DISPLAY (//)
+D_isplay 
+;
+MSG_PREFS_TBMODE_IMAGES (//)
+Images
+;
+MSG_PREFS_TBMODE_BOTH (//)
+Images and text
+;
+MSG_PREFS_TBMODE_TEXT (//)
+Text
+;
+MSG_PREFS_FRAMES (//)
+_Frames around the buttons
+;
+MSG_PREFS_TOOLBARNOTE (//)
+Display and frames take effect at the next start.\nText only starts faster, no images are loaded.
+;
+MSG_PREFS_SAVE (//)
+_Save
+;
+MSG_PREFS_USE (//)
+_Use
+;
+MSG_PREFS_CANCEL (//)
+_Cancel
+;
+; find and replace window
+MSG_FIND_TITLE (//)
+Find and replace
+;
+MSG_FIND_NEEDCLASSES (//)
+Find and replace needs checkbox.gadget, chooser.gadget, listbrowser.gadget and string.gadget.
+;
+MSG_FIND_NOWINDOW (//)
+Could not create the find window.
+;
+MSG_FIND_FIND (//)
+_Find 
+;
+MSG_FIND_WITH (//)
+Replace _with 
+;
+MSG_FIND_SCOPE (//)
+Search _in 
+;
+MSG_FIND_PATTERN (//)
+File _pattern 
+;
+MSG_FIND_SCOPE_CURRENT (//)
+Current document
+;
+MSG_FIND_SCOPE_OPEN (//)
+Open documents
+;
+MSG_FIND_SCOPE_PROJECT (//)
+Project files
+;
+MSG_FIND_CASE (//)
+_Case sensitive
+;
+MSG_FIND_WORDS (//)
+Whole wor_ds
+;
+MSG_FIND_REGEX (//)
+Regular e_xpression
+;
+MSG_FIND_BACKWARDS (//)
+_Backwards
+;
+MSG_FIND_WRAP (//)
+Wrap _around
+;
+MSG_FIND_COL_FILE (//)
+File
+;
+MSG_FIND_COL_LINE (//)
+Line
+;
+MSG_FIND_COL_TEXT (//)
+Text
+;
+MSG_FIND_DOFIND (//)
+Fi_nd
+;
+MSG_FIND_DOREPLACE (//)
+_Replace
+;
+MSG_FIND_REPLACEALL (//)
+Replace a_ll
+;
+MSG_FIND_STOP (//)
+_Stop
+;
+MSG_FIND_CLOSE (//)
+Cl_ose
+;
+MSG_FIND_WRAPPED (//)
+Wrapped around
+;
+MSG_FIND_NOTFOUND (//)
+"%s" not found
+;
+MSG_FIND_NOMEM (//)
+Not enough memory
+;
+MSG_FIND_READERROR (//)
+The text could not be read
+;
+MSG_FIND_BADREGEX (//)
+Invalid regular expression: %s
+;
+MSG_FIND_REPLACED (//)
+Replaced: %ld
+;
+MSG_FIND_REPLACEDDOCS (//)
+Replaced: %ld in %ld documents
+;
+MSG_FIND_REPLACEDFILES (//)
+Replaced: %ld in %ld files
+;
+MSG_FIND_HITS (//)
+Hits: %ld in %ld of %ld files
+;
+MSG_FIND_NOTFOUNDFILES (//)
+"%s" not found in %ld files
+;
+MSG_FIND_STOPPED (//)
+ (stopped)
+;
+MSG_FIND_LIMIT (//)
+ (stopped at the limit)
+;
+MSG_FIND_SKIPPED (//)
+, some directories skipped
+;
+MSG_FIND_NOPROJECT (//)
+No project: open a directory first
+;
+MSG_FIND_NOSIGNAL (//)
+No free signal
+;
+MSG_FIND_BADPROJECT (//)
+The project directory or the file pattern cannot be used
+;
+MSG_FIND_SEARCHING (//)
+Searching...
+;
+MSG_FIND_REPLACING (//)
+Replacing...
+;
+MSG_FIND_PROGRESS (//)
+Searching... %ld files, %ld hits
+;
+MSG_FIND_RPROGRESS (//)
+Replacing... %ld files, %ld replaced
+;
+MSG_FIND_NOHITS (//)
+No hits
+;
+MSG_FIND_NOMORE (//)
+No more hits
+;
+; placeholder entries of the folder tree
+MSG_TREE_LOADING (//)
+Loading...
+;
+MSG_TREE_EMPTY (//)
+(empty)
+;
+MSG_TREE_UNAVAILABLE (//)
+(unavailable)
+;

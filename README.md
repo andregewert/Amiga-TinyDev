@@ -123,6 +123,18 @@ The motifs are in `tools/mkicons.py`, the icon writer comes from
 A new Scout parser gets its icon with `parser('<letter>')` in
 `tools/mkicons.py` (the letter needs a glyph in `GLYPHS` and `SMALL`).
 
+## Languages
+
+TinyDev's texts are English and can be translated with `locale.library`
+catalogs: the built-in strings are `catalogs/TinyDev.cd`, translations
+`catalogs/<language>.ct` (currently German, `deutsch.ct`). `make` builds
+`bin/Catalogs/<language>/TinyDev.catalog` with
+`amiga-devkit/tools/catcomp.py`; TinyDev finds it in `PROGDIR:Catalogs/` or
+`LOCALE:Catalogs/` and uses the user's preferred languages (Locale prefs).
+Without a catalog or `locale.library` the English texts are used.
+`include/tinydev_strings.h` is generated from `TinyDev.cd` and checked in,
+so Python is only needed when the texts change.
+
 ## Settings (tool types)
 
 Settings are tool types of the program icon (`PROGDIR:TinyDev.info`), also

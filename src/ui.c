@@ -216,35 +216,68 @@ static void close_editor_colors(EditorApp *app)
     app->editor_colors_open = 0;
 }
 
+/* The menu; the texts are filled in from menu_texts[] (catalog). */
 static struct NewMenu menus[] = {
-    {NM_TITLE, "Project", NULL, 0, 0, NULL},
-    {NM_ITEM, "New", "N", 0, 0, UD(MID_NEW)},
-    {NM_ITEM, "Open...", "O", 0, 0, UD(MID_OPEN)},
-    {NM_ITEM, "Open Directory...", NULL, 0, 0, UD(MID_OPEN_DIRECTORY)},
-    {NM_ITEM, "Save", "S", 0, 0, UD(MID_SAVE)},
-    {NM_ITEM, "Save As...", NULL, 0, 0, UD(MID_SAVE_AS)},
-    {NM_ITEM, "Close", "W", 0, 0, UD(MID_CLOSE)},
+    {NM_TITLE, NULL, NULL, 0, 0, NULL},
+    {NM_ITEM, NULL, "N", 0, 0, UD(MID_NEW)},
+    {NM_ITEM, NULL, "O", 0, 0, UD(MID_OPEN)},
+    {NM_ITEM, NULL, NULL, 0, 0, UD(MID_OPEN_DIRECTORY)},
+    {NM_ITEM, NULL, "S", 0, 0, UD(MID_SAVE)},
+    {NM_ITEM, NULL, NULL, 0, 0, UD(MID_SAVE_AS)},
+    {NM_ITEM, NULL, "W", 0, 0, UD(MID_CLOSE)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
-    {NM_ITEM, "Settings...", ",", 0, 0, UD(MID_SETTINGS)},
-    {NM_ITEM, "About...", "?", 0, 0, UD(MID_ABOUT)},
+    {NM_ITEM, NULL, ",", 0, 0, UD(MID_SETTINGS)},
+    {NM_ITEM, NULL, "?", 0, 0, UD(MID_ABOUT)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
-    {NM_ITEM, "Quit", "Q", 0, 0, UD(MID_QUIT)},
-    {NM_TITLE, "Edit", NULL, 0, 0, NULL},
-    {NM_ITEM, "Undo", "Z", 0, 0, UD(MID_UNDO)},
-    {NM_ITEM, "Redo", "Y", 0, 0, UD(MID_REDO)},
+    {NM_ITEM, NULL, "Q", 0, 0, UD(MID_QUIT)},
+    {NM_TITLE, NULL, NULL, 0, 0, NULL},
+    {NM_ITEM, NULL, "Z", 0, 0, UD(MID_UNDO)},
+    {NM_ITEM, NULL, "Y", 0, 0, UD(MID_REDO)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
-    {NM_ITEM, "Cut", "X", 0, 0, UD(MID_CUT)},
-    {NM_ITEM, "Copy", "C", 0, 0, UD(MID_COPY)},
-    {NM_ITEM, "Paste", "V", 0, 0, UD(MID_PASTE)},
-    {NM_ITEM, "Select All", "A", 0, 0, UD(MID_SELECT_ALL)},
+    {NM_ITEM, NULL, "X", 0, 0, UD(MID_CUT)},
+    {NM_ITEM, NULL, "C", 0, 0, UD(MID_COPY)},
+    {NM_ITEM, NULL, "V", 0, 0, UD(MID_PASTE)},
+    {NM_ITEM, NULL, "A", 0, 0, UD(MID_SELECT_ALL)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
-    {NM_ITEM, "Find...", "F", 0, 0, UD(MID_FIND)},
-    {NM_ITEM, "Find Next", "G", 0, 0, UD(MID_FIND_NEXT)},
-    {NM_TITLE, "View", NULL, 0, 0, NULL},
-    {NM_ITEM, "Folder Tree", NULL, CHECKIT | MENUTOGGLE | CHECKED, 0, UD(MID_FOLDER_TREE)},
-    {NM_ITEM, "Line Numbers", NULL, CHECKIT | MENUTOGGLE | CHECKED, 0, UD(MID_LINE_NUMBERS)},
-    {NM_ITEM, "Minimap", NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_MINIMAP)},
+    {NM_ITEM, NULL, "F", 0, 0, UD(MID_FIND)},
+    {NM_ITEM, NULL, "G", 0, 0, UD(MID_FIND_NEXT)},
+    {NM_TITLE, NULL, NULL, 0, 0, NULL},
+    {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE | CHECKED, 0, UD(MID_FOLDER_TREE)},
+    {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE | CHECKED, 0, UD(MID_LINE_NUMBERS)},
+    {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_MINIMAP)},
     {NM_END, NULL, NULL, 0, 0, NULL}
+};
+
+/** Texts of menus[] (MSG_ numbers), -1 for bars and the end. */
+static const LONG menu_texts[] = {
+    MSG_MENU_PROJECT,
+    MSG_MENU_NEW,
+    MSG_MENU_OPEN,
+    MSG_MENU_OPENDIR,
+    MSG_MENU_SAVE,
+    MSG_MENU_SAVEAS,
+    MSG_MENU_CLOSE,
+    -1,
+    MSG_MENU_SETTINGS,
+    MSG_MENU_ABOUT,
+    -1,
+    MSG_MENU_QUIT,
+    MSG_MENU_EDIT,
+    MSG_MENU_UNDO,
+    MSG_MENU_REDO,
+    -1,
+    MSG_MENU_CUT,
+    MSG_MENU_COPY,
+    MSG_MENU_PASTE,
+    MSG_MENU_SELECTALL,
+    -1,
+    MSG_MENU_FIND,
+    MSG_MENU_FINDNEXT,
+    MSG_MENU_VIEW,
+    MSG_MENU_TREE,
+    MSG_MENU_LINENUMBERS,
+    MSG_MENU_MINIMAP,
+    -1,
 };
 
 /**
@@ -257,7 +290,7 @@ static struct NewMenu menus[] = {
  */
 void ui_error(EditorApp *app, const char *title, const char *message)
 {
-    struct EasyStruct es = {sizeof(es), 0, (STRPTR)title, (STRPTR)message, "OK"};
+    struct EasyStruct es = {sizeof(es), 0, (STRPTR)title, (STRPTR)message, (STRPTR)S(MSG_OK)};
     splash_close();                     /* not over the requester */
     EasyRequestArgs(app != NULL ? app->window : NULL, &es, NULL, NULL);
 }
@@ -273,12 +306,11 @@ void ui_error(EditorApp *app, const char *title, const char *message)
 void ui_about(EditorApp *app)
 {
     char details[200];
-    struct EasyStruct es = {sizeof(es), 0, "About " APP_NAME, "%s %s\n\n%s", "OK"};
+    struct EasyStruct es = {sizeof(es), 0, (STRPTR)S(MSG_ABOUT_TITLE), "%s %s\n\n%s", (STRPTR)S(MSG_OK)};
     ULONG args[3];
     snprintf(details, sizeof(details),
-             "www.ubergeek.de - agewert@ubergeek.de\n"
-             "Released under the MIT License\n\n"
-             "dirtree.gadget %ld.%ld, minimap.gadget %ld.%ld",
+             "www.ubergeek.de - agewert@ubergeek.de\n%s\n\n"
+             "dirtree.gadget %ld.%ld, minimap.gadget %ld.%ld", S(MSG_ABOUT_LICENSE),
              DirTreeBase != NULL ? (long)DirTreeBase->lib_Version : 0L,
              DirTreeBase != NULL ? (long)DirTreeBase->lib_Revision : 0L,
              MinimapBase != NULL ? (long)MinimapBase->lib_Version : 0L,
@@ -320,7 +352,7 @@ void ui_refresh(EditorApp *app)
  */
 void ui_update_status(EditorApp *app)
 {
-    static char status_text[64], shown_text[64];
+    static char status_text[96], shown_text[96];
     unsigned long doc_count = 0;
     ULONG lines = 0;
     Document *doc;
@@ -330,7 +362,7 @@ void ui_update_status(EditorApp *app)
     if (app->active != NULL)
         GetAttr(GA_TEXTEDITOR_Prop_Entries, app->active->editor, &lines);
     snprintf(status_text, sizeof(status_text),
-             "Documents: %lu  Lines: %lu", doc_count, (unsigned long)lines);
+             S(MSG_STATUS), doc_count, (unsigned long)lines);
     if (app->statusbar == NULL) return;
     /* Called on every tick: only redraw the status line when it changed. */
     if (strcmp(status_text, shown_text) == 0) return;
@@ -440,8 +472,8 @@ int ui_confirm_close(EditorApp *app, Document *doc)
 {
     char text[EDITOR_TITLE_MAX + 80]; int answer;
     if (!doc->dirty) return 1;
-    snprintf(text, sizeof(text), "Save changes to %s?", doc->title);
-    { struct EasyStruct es = {sizeof(es), 0, "Unsaved changes", text, "Save|Discard|Cancel"};
+    snprintf(text, sizeof(text), S(MSG_CONFIRM_TEXT), doc->title);
+    { struct EasyStruct es = {sizeof(es), 0, (STRPTR)S(MSG_CONFIRM_TITLE), text, (STRPTR)S(MSG_CONFIRM_GADGETS)};
       answer = EasyRequestArgs(app->window, &es, NULL, NULL); }
     if (answer == 2) return 1;
     if (answer != 1) return 0;
@@ -467,10 +499,11 @@ int ui_confirm_close(EditorApp *app, Document *doc)
 int ui_create(EditorApp *app)
 {
     long win_width, win_height, win_left, win_top;
+    int i;
     app->screen = LockPubScreen(NULL);
     if (app->screen == NULL) return 0;
     if (!open_editor_colors(app)) {
-        ui_error(app, "TinyDev", "Could not reserve editor colors on the public screen.");
+        ui_error(app, APP_NAME, S(MSG_ERR_COLORS));
         return 0;
     }
     app->pages = NewObject(PAGE_GetClass(), NULL, PAGE_NoDispose, TRUE, TAG_END);
@@ -503,6 +536,9 @@ int ui_create(EditorApp *app)
         LISTBROWSER_HorizontalProp, TRUE,
         LISTBROWSER_MinVisible, 4,
         LISTBROWSER_AutoWheel, TRUE,
+        DIRTREE_LoadingText, (ULONG)S(MSG_TREE_LOADING),
+        DIRTREE_EmptyText, (ULONG)S(MSG_TREE_EMPTY),
+        DIRTREE_UnavailableText, (ULONG)S(MSG_TREE_UNAVAILABLE),
         TAG_END);
     if (app->tree == NULL) return 0;
     if (minimap_create_gadget(app) == NULL) return 0;
@@ -534,7 +570,7 @@ int ui_create(EditorApp *app)
     app->minimap_attached = 1;
     app->statusbar = NewObject(BUTTON_GetClass(), NULL,
         GA_ReadOnly, TRUE,
-        GA_Text, (ULONG)"Documents: 0  Lines: 0",
+        GA_Text, (ULONG)"",
         BUTTON_BevelStyle, BVS_DISPLAY,
         BUTTON_Justification, BCJ_LEFT,
         TAG_END);
@@ -566,6 +602,8 @@ int ui_create(EditorApp *app)
         if (win_left > sw - win_width) win_left = sw - win_width;
         if (win_top > sh - win_height) win_top = sh - win_height;
     }
+    for (i = 0; i < (int)(sizeof(menu_texts) / sizeof(menu_texts[0])); ++i)
+        if (menu_texts[i] >= 0) menus[i].nm_Label = (STRPTR)S(menu_texts[i]);
     app->window_object = NewObject(WINDOW_GetClass(), NULL,
         WA_Title, (ULONG)"TinyDev", WA_DragBar, TRUE, WA_DepthGadget, TRUE,
         WA_CloseGadget, TRUE, WA_SizeGadget, TRUE, WA_Activate, TRUE,
@@ -595,7 +633,7 @@ int ui_create(EditorApp *app)
         TAG_END);
     if (app->window_object == NULL) return 0;
     if (IsListEmpty(&app->documents) && document_new(app) == NULL) return 0;
-    splash_status("Opening the window...");
+    splash_status(S(MSG_SPLASH_WINDOW));
     app->window = (struct Window *)DoMethod(app->window_object, WM_OPEN, NULL);
     if (app->window == NULL) return 0;
     splash_step();
@@ -703,7 +741,7 @@ static void edit_settings(EditorApp *app)
     if (r == PREFS_CANCEL) return;
     ui_apply_settings(app, &n);
     if (r == PREFS_SAVE && !settings_save(&app->settings))
-        ui_error(app, APP_NAME, "The settings could not be saved in the program icon.");
+        ui_error(app, APP_NAME, S(MSG_ERR_SAVESETTINGS));
 }
 
 /**

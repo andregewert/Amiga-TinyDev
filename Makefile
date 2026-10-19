@@ -6,7 +6,7 @@ HOST_CC ?= cc
 BUILD_DIR := build
 BIN_DIR := bin
 TARGET := $(BIN_DIR)/TinyDev
-SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/splash.c src/prefswin.c src/closeimage.c src/search.c src/find.c src/filescan.c
+SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/splash.c src/prefswin.c src/closeimage.c src/search.c src/find.c src/filescan.c src/locale.c
 OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
 DEPS := $(OBJECTS:.o=.d)
 CPPFLAGS := -Iinclude
@@ -73,15 +73,30 @@ REGEX_HEADERS := $(REGEX_GEN)/regex.h $(REGEX_GEN)/regcomp.ih $(REGEX_GEN)/engin
 REGEX_CFLAGS := -DPOSIX_MISTAKE -I$(REGEX_GEN) -I$(REGEX_DIR) -w
 REGEX_OBJECTS := $(foreach n,$(REGEX_NAMES),$(REGEX_GEN)/$(n).o)
 REGEX_HOST_OBJECTS := $(foreach n,$(REGEX_NAMES),$(REGEX_GEN)/host/$(n).o)
-LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h sfd/*.sfd tests/*.c scripts/* tests-host/* LICENSE Makefile)
+LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h sfd/*.sfd tests/*.c scripts/* tests-host/* catalogs/* LICENSE Makefile)
+
+# Translations: catalogs/TinyDev.cd holds the built-in English strings,
+# catalogs/<language>.ct the translations. include/tinydev_strings.h is in
+# git, so building needs Python only when TinyDev.cd changes; the catalogs
+# go to bin/Catalogs/<language>/TinyDev.catalog (PROGDIR:Catalogs/).
+CATCOMP := $(DEVKIT)/tools/catcomp.py
+LANGUAGES := $(basename $(notdir $(wildcard catalogs/*.ct)))
+CATALOGS := $(foreach l,$(LANGUAGES),$(BIN_DIR)/Catalogs/$(l)/TinyDev.catalog)
 
 .PHONY: all clean test icons
-all: charcheck $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(PARSER_C_TARGET)
+all: charcheck $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(PARSER_C_TARGET) $(CATALOGS)
 
 # Included after "all" so that charcheck does not become the default goal.
 include $(DEVKIT)/make/charcheck.mk
 
 $(foreach c,$(CLASS_NAMES),$(eval $(call CLASS_RULES,$(c))))
+
+include/tinydev_strings.h: catalogs/TinyDev.cd $(CATCOMP)
+	python3 $(CATCOMP) header $< $@ TINYDEV_STRINGS
+
+$(BIN_DIR)/Catalogs/%/TinyDev.catalog: catalogs/%.ct catalogs/TinyDev.cd $(CATCOMP)
+	@mkdir -p $(dir $@)
+	python3 $(CATCOMP) catalog catalogs/TinyDev.cd $< $@
 
 $(TARGET): $(OBJECTS) $(REGEX_OBJECTS)
 	@mkdir -p $(BIN_DIR)

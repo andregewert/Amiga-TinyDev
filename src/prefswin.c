@@ -25,6 +25,7 @@
 #include <proto/window.h>
 #include <clib/alib_protos.h>
 
+#include <stdio.h>
 #include <string.h>
 
 /* The settings window, built like Kickdown's (ReAction style guide of
@@ -54,19 +55,23 @@ enum {
     PG_SAVE, PG_USE, PG_CANCEL
 };
 
-static const char *const categories[] = { "Window", "Colours", "Toolbar" };
+static const LONG categories[] = { MSG_CAT_WINDOW, MSG_CAT_COLOURS, MSG_CAT_TOOLBAR };
 #define NUMCATEGORIES 3
 
 /** Chooser labels, in the order of enum ToolbarMode. */
-static STRPTR tbmodes[] = { (STRPTR)"Images", (STRPTR)"Images and text", (STRPTR)"Text", NULL };
+static const LONG tbmode_texts[TBMODE_COUNT] = {
+    MSG_PREFS_TBMODE_IMAGES, MSG_PREFS_TBMODE_BOTH, MSG_PREFS_TBMODE_TEXT
+};
+static STRPTR tbmodes[TBMODE_COUNT + 1];      /* filled from tbmode_texts[] */
 
 /** Labels and requester titles of the colours, SettingsColour order. */
-static const char *const colour_labels[SCOL_COUNT] = {
-    "Te_xt ", "_Keywords ", "Stri_ngs ", "Co_mments ", "Prepr_ocessor "
+static const LONG colour_labels[SCOL_COUNT] = {
+    MSG_PREFS_COL_TEXT, MSG_PREFS_COL_KEYWORD, MSG_PREFS_COL_STRING, MSG_PREFS_COL_COMMENT,
+    MSG_PREFS_COL_PREPROC
 };
-static const char *const colour_titles[SCOL_COUNT] = {
-    "Colour of the text", "Colour of keywords", "Colour of strings",
-    "Colour of comments", "Colour of preprocessor lines"
+static const LONG colour_titles[SCOL_COUNT] = {
+    MSG_PREFS_TTL_TEXT, MSG_PREFS_TTL_KEYWORD, MSG_PREFS_TTL_STRING, MSG_PREFS_TTL_COMMENT,
+    MSG_PREFS_TTL_PREPROC
 };
 
 /* Spacing in "virtual pixels" (layout.gadget scales them). The labels end
@@ -116,10 +121,8 @@ static int open_classes(EditorApp *app)
     for (i = 0; i < sizeof(cl) / sizeof(cl[0]); ++i)
         if (*cl[i].base == NULL &&
             (*cl[i].base = OpenLibrary((STRPTR)cl[i].name, 44)) == NULL) {
-            char message[96];
-            strcpy(message, "The settings need ");
-            strcat(message, cl[i].name);
-            strcat(message, ".");
+            char message[160];
+            snprintf(message, sizeof(message), S(MSG_PREFS_NEEDCLASS), cl[i].name);
             ui_error(app, APP_NAME, message);
             return 0;
         }
@@ -205,8 +208,8 @@ static LONG list_width(EditorApp *app)
     LONG w = 0, t;
     ULONG i;
     for (i = 0; i < NUMCATEGORIES; ++i) {
-        t = TextLength(&app->screen->RastPort, (STRPTR)categories[i],
-                       (UWORD)strlen(categories[i]));
+        t = TextLength(&app->screen->RastPort, (STRPTR)S(categories[i]),
+                       (UWORD)strlen(S(categories[i])));
         if (t > w) w = t;
     }
     return w + 24;
@@ -225,7 +228,7 @@ static Object *build(EditorApp *app, const Settings *s)
 
     NewList(&pw.catlist);
     for (i = 0; i < NUMCATEGORIES; ++i) {
-        struct Node *n = AllocListBrowserNode(1, LBNCA_Text, (ULONG)categories[i], TAG_END);
+        struct Node *n = AllocListBrowserNode(1, LBNCA_Text, (ULONG)S(categories[i]), TAG_END);
         if (n != NULL) AddTail(&pw.catlist, n);
     }
     pw.list = NewObject(LISTBROWSER_GetClass(), NULL,
@@ -243,25 +246,25 @@ static Object *build(EditorApp *app, const Settings *s)
     pw.height = integer(PG_HEIGHT, s->winheight, 0);
     pw.left = integer(PG_LEFT, s->winleft, -1);
     pw.top = integer(PG_TOP, s->wintop, -1);
-    pw.splash = checkbox(PG_SPLASH, "Show s_plash window at the start", s->splash);
-    window = NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(categories[0]),
+    pw.splash = checkbox(PG_SPLASH, S(MSG_PREFS_SPLASH), s->splash);
+    window = NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(categories[0])),
         LAYOUT_AddChild, (ULONG)pw.width, FIXED,
-        CHILD_Label, (ULONG)label("_Width (0 = auto) "),
+        CHILD_Label, (ULONG)label(S(MSG_PREFS_WIDTH)),
         LAYOUT_AddChild, (ULONG)pw.height, FIXED,
-        CHILD_Label, (ULONG)label("H_eight (0 = auto) "),
+        CHILD_Label, (ULONG)label(S(MSG_PREFS_HEIGHT)),
         LAYOUT_AddChild, (ULONG)pw.left, FIXED,
-        CHILD_Label, (ULONG)label("_Left (-1 = centred) "),
+        CHILD_Label, (ULONG)label(S(MSG_PREFS_LEFT)),
         LAYOUT_AddChild, (ULONG)pw.top, FIXED,
-        CHILD_Label, (ULONG)label("_Top (-1 = centred) "),
-        LAYOUT_AddImage, (ULONG)label("Size and position of the main window at the next start."),
+        CHILD_Label, (ULONG)label(S(MSG_PREFS_TOP)),
+        LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_WINDOWNOTE)),
         FIXED,
         LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
             LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
             LAYOUT_EvenSize, TRUE,
             LAYOUT_AddChild, (ULONG)filler(),
-            LAYOUT_AddChild, (ULONG)button(PG_CURSIZE, "Cu_rrent"),
+            LAYOUT_AddChild, (ULONG)button(PG_CURSIZE, S(MSG_PREFS_CURRENT)),
             CHILD_WeightedWidth, 0,
-            LAYOUT_AddChild, (ULONG)button(PG_AUTOSIZE, "_Automatic"),
+            LAYOUT_AddChild, (ULONG)button(PG_AUTOSIZE, S(MSG_PREFS_AUTOMATIC)),
             CHILD_WeightedWidth, 0,
             TAG_END),
         FIXED,
@@ -274,20 +277,20 @@ static Object *build(EditorApp *app, const Settings *s)
         pw.colours[i] = NewObject(GETCOLOR_GetClass(), NULL,
             GA_ID, PG_COLOUR + i, GA_RelVerify, TRUE,
             GETCOLOR_Screen, (ULONG)app->screen, GETCOLOR_Color, s->colours[i],
-            GETCOLOR_TitleText, (ULONG)colour_titles[i], TAG_END);
-    colours = NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(categories[1]),
-        LAYOUT_AddChild, (ULONG)pw.colours[0], FIXED, CHILD_Label, (ULONG)label(colour_labels[0]),
-        LAYOUT_AddChild, (ULONG)pw.colours[1], FIXED, CHILD_Label, (ULONG)label(colour_labels[1]),
-        LAYOUT_AddChild, (ULONG)pw.colours[2], FIXED, CHILD_Label, (ULONG)label(colour_labels[2]),
-        LAYOUT_AddChild, (ULONG)pw.colours[3], FIXED, CHILD_Label, (ULONG)label(colour_labels[3]),
-        LAYOUT_AddChild, (ULONG)pw.colours[4], FIXED, CHILD_Label, (ULONG)label(colour_labels[4]),
-        LAYOUT_AddImage, (ULONG)label("The colours of the syntax highlighting take effect at once."),
+            GETCOLOR_TitleText, (ULONG)S(colour_titles[i]), TAG_END);
+    colours = NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(categories[1])),
+        LAYOUT_AddChild, (ULONG)pw.colours[0], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[0])),
+        LAYOUT_AddChild, (ULONG)pw.colours[1], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[1])),
+        LAYOUT_AddChild, (ULONG)pw.colours[2], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[2])),
+        LAYOUT_AddChild, (ULONG)pw.colours[3], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[3])),
+        LAYOUT_AddChild, (ULONG)pw.colours[4], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[4])),
+        LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_COLOURNOTE)),
         FIXED,
         /* the button on the right, not across the page */
         LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
             LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
             LAYOUT_AddChild, (ULONG)filler(),
-            LAYOUT_AddChild, (ULONG)button(PG_DEFCOLOURS, "_Default colours"),
+            LAYOUT_AddChild, (ULONG)button(PG_DEFCOLOURS, S(MSG_PREFS_DEFCOLOURS)),
             CHILD_WeightedWidth, 0,
             TAG_END),
         FIXED,
@@ -295,18 +298,18 @@ static Object *build(EditorApp *app, const Settings *s)
         TAG_END);
 
     /* Toolbar */
+    for (i = 0; i < TBMODE_COUNT; ++i) tbmodes[i] = (STRPTR)S(tbmode_texts[i]);
     pw.tbmode = NewObject(CHOOSER_GetClass(), NULL,
         GA_ID, PG_TBMODE, GA_RelVerify, TRUE, CHOOSER_PopUp, TRUE,
         CHOOSER_LabelArray, (ULONG)tbmodes,
         CHOOSER_Selected, (ULONG)(s->tbmode >= 0 && s->tbmode < TBMODE_COUNT ? s->tbmode : 0),
         TAG_END);
-    pw.tbframes = checkbox(PG_TBFRAMES, "_Frames around the buttons", s->tbframes);
-    toolbar = NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(categories[2]),
+    pw.tbframes = checkbox(PG_TBFRAMES, S(MSG_PREFS_FRAMES), s->tbframes);
+    toolbar = NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(categories[2])),
         LAYOUT_AddChild, (ULONG)pw.tbmode, FIXED,
-        CHILD_Label, (ULONG)label("D_isplay "),
+        CHILD_Label, (ULONG)label(S(MSG_PREFS_DISPLAY)),
         LAYOUT_AddChild, (ULONG)pw.tbframes, FIXED,
-        LAYOUT_AddImage, (ULONG)label("Display and frames take effect at the next start.\n"
-                                      "Text only starts faster, no images are loaded."),
+        LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_TOOLBARNOTE)),
         FIXED,
         LAYOUT_AddChild, (ULONG)filler(),
         TAG_END);
@@ -341,12 +344,12 @@ static Object *build(EditorApp *app, const Settings *s)
         /* positive actions left, negative right, each as wide as its text */
         LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
             LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
-            LAYOUT_AddChild, (ULONG)button(PG_SAVE, "_Save"),
+            LAYOUT_AddChild, (ULONG)button(PG_SAVE, S(MSG_PREFS_SAVE)),
             CHILD_WeightedWidth, 0,
-            LAYOUT_AddChild, (ULONG)button(PG_USE, "_Use"),
+            LAYOUT_AddChild, (ULONG)button(PG_USE, S(MSG_PREFS_USE)),
             CHILD_WeightedWidth, 0,
             LAYOUT_AddChild, (ULONG)filler(),
-            LAYOUT_AddChild, (ULONG)button(PG_CANCEL, "_Cancel"),
+            LAYOUT_AddChild, (ULONG)button(PG_CANCEL, S(MSG_PREFS_CANCEL)),
             CHILD_WeightedWidth, 0,
             TAG_END),
         CHILD_WeightedHeight, 0,
@@ -412,7 +415,7 @@ int prefs_dialog(EditorApp *app, Settings *s)
     if ((pw.root = build(app, s)) == NULL) goto out;
 
     pw.winobj = NewObject(WINDOW_GetClass(), NULL,
-        WA_Title, (ULONG)APP_NAME " settings",
+        WA_Title, (ULONG)S(MSG_PREFS_TITLE),
         WA_PubScreen, (ULONG)app->screen,
         WA_Activate, TRUE,
         WA_DepthGadget, TRUE,

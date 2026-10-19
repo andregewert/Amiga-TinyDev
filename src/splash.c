@@ -39,7 +39,7 @@
 #define MARGIN  14                      /* border to the contents */
 #define GAP     12                      /* icon to text, between blocks */
 #define BAR_H   6                       /* height of the progress bar */
-#define SUBTITLE "Programmer's editor for AmigaOS 3.2"
+#define SUBTITLE S(MSG_SUBTITLE)
 #define COPYRIGHT "\251 2026 Andr\351 Gewert"
 
 /** What the head of both windows needs. */
@@ -245,7 +245,7 @@ static int card_init(Card *c, struct Screen *screen, const char *icon_name)
     }
     c->big = title_font(c);
 
-    snprintf(c->version, sizeof(c->version), "Version %s", APP_VERSION);
+    snprintf(c->version, sizeof(c->version), S(MSG_VERSION), APP_VERSION);
     InitRastPort(&rp);
     c->lineh = (WORD)(c->font->tf_YSize + 2);
     normal_style(c, &rp);
@@ -506,7 +506,7 @@ int about_window(EditorApp *app, const char *details)
         p += len;
         if (*p != '\0') ++p;
     }
-    bw = (WORD)(text_width(&rp, (CONST_STRPTR)"OK") + 32);
+    bw = (WORD)(text_width(&rp, (CONST_STRPTR)S(MSG_OK)) + 32);
     bh = (WORD)(c.font->tf_YSize + 6);
     w = head_width(&c) > dw ? head_width(&c) : dw;
     w = (WORD)(w + 2 * MARGIN);
@@ -516,13 +516,13 @@ int about_window(EditorApp *app, const char *details)
     ok = (struct Gadget *)NewObject(BUTTON_GetClass(), NULL,
         GA_ID, 1,
         GA_RelVerify, TRUE,
-        GA_Text, (ULONG)"OK",
+        GA_Text, (ULONG)S(MSG_OK),
         GA_Width, (ULONG)bw,
         GA_Height, (ULONG)bh,
         TAG_END);
     win = ok != NULL ? OpenWindowTags(NULL,
         WA_PubScreen, (ULONG)app->screen,
-        WA_Title, (ULONG)"About " APP_NAME,
+        WA_Title, (ULONG)S(MSG_ABOUT_TITLE),
         WA_InnerWidth, (ULONG)w,
         WA_InnerHeight, (ULONG)h,
         WA_Left, (ULONG)(app->window->LeftEdge + (app->window->Width - w) / 2),

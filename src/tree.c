@@ -27,7 +27,7 @@ static void report_status(EditorApp *app, ULONG status, const char *failed_title
                           const char *failed_text)
 {
     if (status == DIRTREE_ST_INCOMPLETE)
-        ui_error(app, "Folder tree", "The directory could not be read completely.");
+        ui_error(app, S(MSG_TREE_TITLE), S(MSG_ERR_DIRINCOMPLETE));
     else if (status == DIRTREE_ST_FAILED)
         ui_error(app, failed_title, failed_text);
 }
@@ -52,8 +52,7 @@ static int load_directory(EditorApp *app, const char *path)
     SetGadgetAttrs((struct Gadget *)app->tree, app->window, NULL,
                    DIRTREE_Root, (ULONG)path, TAG_END);
     GetAttr(DIRTREE_Status, app->tree, &status);
-    report_status(app, status, "Open directory failed",
-                  "The directory could not be opened.");
+    report_status(app, status, S(MSG_OPENDIR_FAILED), S(MSG_ERR_DIROPEN));
     if (status == DIRTREE_ST_FAILED) return 0;
     ui_relayout(app);
     return 1;
@@ -73,15 +72,15 @@ static int load_directory(EditorApp *app, const char *path)
 int tree_request_directory(EditorApp *app)
 {
     struct FileRequester *fr = AllocAslRequestTags(ASL_FileRequest,
-        ASLFR_TitleText, (ULONG)"Open directory",
+        ASLFR_TitleText, (ULONG)S(MSG_ASL_DIR),
         ASLFR_DrawersOnly, TRUE, TAG_END);
     char path[EDITOR_PATH_MAX]; int result = 0;
-    if (fr == NULL) { ui_error(app, "TinyDev", "Could not allocate the directory requester."); return 0; }
+    if (fr == NULL) { ui_error(app, APP_NAME, S(MSG_ERR_DIRREQ)); return 0; }
     if (AslRequestTags(fr, ASLFR_Window, (ULONG)app->window,
                        ASLFR_SleepWindow, TRUE, TAG_END)) {
         strncpy(path, fr->fr_Drawer, sizeof(path) - 1); path[sizeof(path) - 1] = '\0';
         if (fr->fr_File[0] != '\0' && !AddPart(path, fr->fr_File, sizeof(path)))
-            ui_error(app, "Open directory failed", "The selected path is too long.");
+            ui_error(app, S(MSG_OPENDIR_FAILED), S(MSG_ERR_PATHTOOLONG));
         else result = load_directory(app, path);
     }
     FreeAslRequest(fr); return result;
@@ -108,7 +107,7 @@ void tree_handle_event(EditorApp *app)
                    DIRTREE_HandleEvent, TRUE, TAG_END);
     GetAttr(DIRTREE_Event, app->tree, &event);
     GetAttr(DIRTREE_Status, app->tree, &status);
-    report_status(app, status, "Folder tree", "Not enough memory for the folder tree.");
+    report_status(app, status, S(MSG_TREE_TITLE), S(MSG_ERR_TREEMEM));
     if (event == DIRTREE_EV_ACTIVATE) {
         GetAttr(DIRTREE_ActivePath, app->tree, (ULONG *)&path);
         if (path != NULL) document_open(app, (const char *)path);

@@ -62,12 +62,11 @@ static void report_library_error(const char *name, ULONG version)
 {
     char message[160];
     splash_close();                     /* not over the requester */
-    snprintf(message, sizeof(message), "TinyDev requires %s version %lu or newer.",
-             name, (unsigned long)version);
+    snprintf(message, sizeof(message), S(MSG_ERR_LIBRARY), name, (unsigned long)version);
     fprintf(stderr, "%s\n", message);
     if (workbench_launch && IntuitionBase != NULL) {
         struct EasyStruct requester = {
-            sizeof(requester), 0, "TinyDev startup error", message, "OK"
+            sizeof(requester), 0, (STRPTR)S(MSG_STARTUP_ERROR), message, (STRPTR)S(MSG_OK)
         };
         EasyRequestArgs(NULL, &requester, NULL, NULL);
     }
@@ -185,6 +184,7 @@ void app_close_libraries(void)
 {
 #define CLOSE_BASE(x) do { if ((x) != NULL) { CloseLibrary((x)); (x) = NULL; } } while (0)
     prefs_cleanup();
+    locale_close();
     CLOSE_BASE(TextFieldBase); CLOSE_BASE(ClickTabBase); CLOSE_BASE(DirTreeBase); CLOSE_BASE(MinimapBase);
     CLOSE_BASE(ScrollerBase); CLOSE_BASE(SpeedBarBase); CLOSE_BASE(LabelBase);
     CLOSE_BASE(ChooserBase); CLOSE_BASE(BitMapBase);
@@ -226,7 +226,7 @@ static void open_workbench_files(EditorApp *app, struct WBStartup *startup)
         struct WBArg *arg = &startup->sm_ArgList[i];
         if (!NameFromLock(arg->wa_Lock, path, sizeof(path)) ||
             !AddPart(path, arg->wa_Name, sizeof(path)))
-            ui_error(app, "Open failed", "A Workbench argument path is too long.");
+            ui_error(app, S(MSG_OPEN_FAILED), S(MSG_ERR_WBARG));
         else document_open(app, path);
     }
 }
@@ -254,11 +254,12 @@ int main(int argc, char **argv)
     app.line_numbers = 1; app.tree_visible = 1;
     settings_default(&app.settings);
     if (!app_open_core(argc == 0)) goto done;
+    locale_open();
     settings_load(&app.settings, argc, argv);
     /* steps of the progress bar: the classes, the toolbar buttons, the window */
     if (app.settings.splash)
         splash_open(app.settings.icon_name, 1 + toolbar_tool_count() + 1);
-    splash_status("Opening the ReAction classes...");
+    splash_status(S(MSG_SPLASH_CLASSES));
     if (!app_open_classes()) goto done;
     splash_step();
     app.scroll_signal = AllocSignal(-1);

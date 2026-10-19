@@ -22,10 +22,14 @@ Wo `AGENTS.md` und die Devkit-Dokumente sich widersprechen, gilt Folgendes:
   Funktionen mit Projektbezug (z. B. Suche in allen Projektdateien) beziehen sich darauf.
 - **Host-Tests** heißen `make test` (nicht `make check`), ohne ASan/UBSan und ohne
   `.expected`-Referenzausgaben. Vor einem Commit: `make` (enthält `charcheck`) und `make test`.
-- **Noch nicht vorhanden** (nur nach Absprache einführen): Kataloge/`locale.library`,
-  `README.de.md`, `package/` mit Aminet-Readme, `make dist`.
-  Bis dahin stehen sichtbare Texte noch im Code; neue Texte möglichst so
-  anlegen, dass sie später leicht in einen Katalog wandern.
+- **Kataloge:** Sichtbare Texte von TinyDev (nicht von Scout und den Gadget-Klassen) kommen
+  aus `catalogs/TinyDev.cd` über `S(MSG_…)` (`src/locale.c`); jeder neue Text bekommt dort
+  einen Eintrag und eine Übersetzung in `catalogs/deutsch.ct`. Bis zum ersten Release dürfen
+  Texte umsortiert werden, eine Katalogversion (`OC_Version`) gibt es erst dann.
+  `include/tinydev_strings.h` wird erzeugt und eingecheckt. Kürzel (`_`) pro Fenster und
+  Sprache eindeutig halten. Ausgaben auf `stderr` bleiben englisch.
+- **Noch nicht vorhanden** (nur nach Absprache einführen): `README.de.md`, `package/` mit
+  Aminet-Readme, `make dist`.
 - **Versionen:** Das erste Release von TinyDev und seinen Gadget-Klassen wird 1.0. Bis dahin
   lädt TinyDev die Klassen aus `bin/` (`PROGDIR:Classes/Gadgets/`).
 - **Schrift:** Der Editor nutzt immer die Standard-Bildschirmschrift, eine Schriftwahl gibt es

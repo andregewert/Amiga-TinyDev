@@ -1,0 +1,714 @@
+## version $VER: TinyDev.catalog 1.0 (18.10.2026)
+## codeset 0
+## language deutsch
+;
+; German translation of TinyDev (catalogs/TinyDev.cd)
+;
+;
+MSG_MENU_PROJECT
+Projekt
+; Project
+;
+MSG_MENU_NEW
+Neu
+; New
+;
+MSG_MENU_OPEN
+Öffnen...
+; Open...
+;
+MSG_MENU_OPENDIR
+Verzeichnis öffnen...
+; Open Directory...
+;
+MSG_MENU_SAVE
+Speichern
+; Save
+;
+MSG_MENU_SAVEAS
+Speichern als...
+; Save As...
+;
+MSG_MENU_CLOSE
+Schließen
+; Close
+;
+MSG_MENU_SETTINGS
+Einstellungen...
+; Settings...
+;
+MSG_MENU_ABOUT
+Über...
+; About...
+;
+MSG_MENU_QUIT
+Beenden
+; Quit
+;
+MSG_MENU_EDIT
+Bearbeiten
+; Edit
+;
+MSG_MENU_UNDO
+Rückgängig
+; Undo
+;
+MSG_MENU_REDO
+Wiederherstellen
+; Redo
+;
+MSG_MENU_CUT
+Ausschneiden
+; Cut
+;
+MSG_MENU_COPY
+Kopieren
+; Copy
+;
+MSG_MENU_PASTE
+Einfügen
+; Paste
+;
+MSG_MENU_SELECTALL
+Alles auswählen
+; Select All
+;
+MSG_MENU_FIND
+Suchen...
+; Find...
+;
+MSG_MENU_FINDNEXT
+Weitersuchen
+; Find Next
+;
+MSG_MENU_VIEW
+Ansicht
+; View
+;
+MSG_MENU_TREE
+Verzeichnisbaum
+; Folder Tree
+;
+MSG_MENU_LINENUMBERS
+Zeilennummern
+; Line Numbers
+;
+MSG_MENU_MINIMAP
+Minimap
+; Minimap
+;
+; toolbar: short button texts and help bubbles
+MSG_TB_NEW
+Neu
+; New
+;
+MSG_TBH_NEW
+Neues Dokument (Amiga+N)
+; New document (Amiga+N)
+;
+MSG_TB_OPEN
+Öffnen
+; Open
+;
+MSG_TBH_OPEN
+Datei öffnen (Amiga+O)
+; Open a file (Amiga+O)
+;
+MSG_TB_SAVE
+Speichern
+; Save
+;
+MSG_TBH_SAVE
+Dokument speichern (Amiga+S)
+; Save the document (Amiga+S)
+;
+MSG_TB_UNDO
+Zurück
+; Undo
+;
+MSG_TBH_UNDO
+Rückgängig (Amiga+Z)
+; Undo (Amiga+Z)
+;
+MSG_TB_REDO
+Wieder
+; Redo
+;
+MSG_TBH_REDO
+Wiederherstellen (Amiga+Y)
+; Redo (Amiga+Y)
+;
+MSG_TB_CUT
+Ausschn.
+; Cut
+;
+MSG_TBH_CUT
+Auswahl ausschneiden (Amiga+X)
+; Cut the selection (Amiga+X)
+;
+MSG_TB_COPY
+Kopieren
+; Copy
+;
+MSG_TBH_COPY
+Auswahl kopieren (Amiga+C)
+; Copy the selection (Amiga+C)
+;
+MSG_TB_PASTE
+Einfügen
+; Paste
+;
+MSG_TBH_PASTE
+Aus der Zwischenablage einfügen (Amiga+V)
+; Paste from the clipboard (Amiga+V)
+;
+MSG_TB_FIND
+Suchen
+; Find
+;
+MSG_TBH_FIND
+Suchen und ersetzen (Amiga+F)
+; Find and replace (Amiga+F)
+;
+MSG_TB_MORE
+Weitere Knöpfe
+; More buttons
+;
+; main window, requesters
+MSG_OK
+OK
+; OK
+;
+MSG_STATUS
+Dokumente: %lu  Zeilen: %lu
+; Documents: %lu  Lines: %lu
+;
+MSG_UNTITLED
+Unbenannt %lu
+; Untitled %lu
+;
+MSG_CONFIRM_TITLE
+Ungespeicherte Änderungen
+; Unsaved changes
+;
+MSG_CONFIRM_TEXT
+Änderungen an %s speichern?
+; Save changes to %s?
+;
+MSG_CONFIRM_GADGETS
+Speichern|Verwerfen|Abbrechen
+; Save|Discard|Cancel
+;
+MSG_ABOUT_TITLE
+Über TinyDev
+; About TinyDev
+;
+MSG_ABOUT_LICENSE
+Veröffentlicht unter der MIT-Lizenz
+; Released under the MIT License
+;
+MSG_SUBTITLE
+Programmier-Editor für AmigaOS 3.2
+; Programmer's editor for AmigaOS 3.2
+;
+MSG_VERSION
+Version %s
+; Version %s
+;
+; start-up (splash window)
+MSG_SPLASH_CLASSES
+Öffne die ReAction-Klassen...
+; Opening the ReAction classes...
+;
+MSG_SPLASH_TOOLBAR
+Bereite die Werkzeugleiste vor...
+; Preparing the toolbar...
+;
+MSG_SPLASH_IMAGES
+Lade die Bilder der Werkzeugleiste...
+; Loading the toolbar images...
+;
+MSG_SPLASH_WINDOW
+Öffne das Fenster...
+; Opening the window...
+;
+MSG_STARTUP_ERROR
+Fehler beim Start von TinyDev
+; TinyDev startup error
+;
+MSG_ERR_LIBRARY
+TinyDev benötigt %s ab Version %lu.
+; TinyDev requires %s version %lu or newer.
+;
+; requester titles and error messages
+MSG_OPEN_FAILED
+Öffnen fehlgeschlagen
+; Open failed
+;
+MSG_SAVE_FAILED
+Speichern fehlgeschlagen
+; Save failed
+;
+MSG_TREE_TITLE
+Verzeichnisbaum
+; Folder tree
+;
+MSG_OPENDIR_FAILED
+Verzeichnis öffnen fehlgeschlagen
+; Open directory failed
+;
+MSG_ASL_OPEN
+Dokument öffnen
+; Open document
+;
+MSG_ASL_SAVE
+Dokument speichern
+; Save document
+;
+MSG_ASL_DIR
+Verzeichnis öffnen
+; Open directory
+;
+MSG_ERR_NAMETOOLONG
+Der vollständige Dateiname ist zu lang.
+; The full file name is too long.
+;
+MSG_ERR_CANNOTOPEN
+Diese Datei kann nicht geöffnet werden (oder sie ist größer als 8 MiB).
+; Cannot open this regular file (or it exceeds 8 MiB).
+;
+MSG_ERR_NOMEMFILE
+Nicht genug Speicher, um diese Datei zu laden.
+; Not enough memory to load this file.
+;
+MSG_ERR_READ
+Die Datei konnte nicht vollständig gelesen werden.
+; The file could not be read completely.
+;
+MSG_ERR_NUL
+Diese Datei enthält ein NUL-Byte; nur 8-Bit-Text wird unterstützt.
+; This file contains an embedded NUL byte; only 8-bit text is supported.
+;
+MSG_ERR_CLOSE
+Die Datei konnte nicht sauber geschlossen werden.
+; The file could not be closed cleanly.
+;
+MSG_ERR_ALREADYOPEN
+Diese Datei ist bereits in einem anderen Tab geöffnet.
+; That file is already open in another tab.
+;
+MSG_ERR_DESTTOOLONG
+Der Name der Zieldatei ist zu lang.
+; The destination file name is too long.
+;
+MSG_ERR_EXPORT
+Der TextEditor konnte das Dokument nicht ausgeben.
+; TextEditor could not export the document.
+;
+MSG_ERR_TEMPEXISTS
+Eine temporäre Datei daneben existiert bereits.
+; A temporary sibling file already exists.
+;
+MSG_ERR_BACKUPEXISTS
+Eine Sicherungsdatei daneben existiert bereits.
+; A backup sibling file already exists.
+;
+MSG_ERR_WRITETEMP
+Die temporäre Datei konnte nicht geschrieben und geschlossen werden.
+; Could not write and close the temporary file.
+;
+MSG_ERR_REPLACE
+Die Zieldatei konnte nicht ersetzt werden; das Original ist erhalten.
+; Could not replace the destination; the original was retained.
+;
+MSG_ERR_FILEREQ
+Der Dateiauswahl-Requester konnte nicht angelegt werden.
+; Could not allocate the file requester.
+;
+MSG_ERR_DIRREQ
+Der Verzeichnis-Requester konnte nicht angelegt werden.
+; Could not allocate the directory requester.
+;
+MSG_ERR_PATHTOOLONG
+Der gewählte Pfad ist zu lang.
+; The selected path is too long.
+;
+MSG_ERR_WBARG
+Der Pfad eines Workbench-Arguments ist zu lang.
+; A Workbench argument path is too long.
+;
+MSG_ERR_DIRINCOMPLETE
+Das Verzeichnis konnte nicht vollständig gelesen werden.
+; The directory could not be read completely.
+;
+MSG_ERR_DIROPEN
+Das Verzeichnis konnte nicht geöffnet werden.
+; The directory could not be opened.
+;
+MSG_ERR_TREEMEM
+Nicht genug Speicher für den Verzeichnisbaum.
+; Not enough memory for the folder tree.
+;
+MSG_ERR_DOCMEM
+Nicht genug Speicher für ein Dokument.
+; Not enough memory for a document.
+;
+MSG_ERR_EDITOR
+Das TextEditor-Gadget konnte nicht angelegt werden.
+; Could not create the TextEditor gadget.
+;
+MSG_ERR_SCROLLERS
+Die Rollbalken des Editors konnten nicht angelegt werden.
+; Could not create the editor scrollbars.
+;
+MSG_ERR_DOCLAYOUT
+Das Layout des Editors konnte nicht angelegt werden.
+; Could not create the editor layout.
+;
+MSG_ERR_PAGE
+Die Seite des Dokuments konnte nicht angelegt werden.
+; Could not create the document page.
+;
+MSG_ERR_TAB
+Der Tab konnte nicht angelegt werden.
+; Could not create the tab.
+;
+MSG_ERR_COLORS
+Die Farben des Editors konnten auf dem Bildschirm nicht reserviert werden.
+; Could not reserve editor colors on the public screen.
+;
+MSG_ERR_SAVESETTINGS
+Die Einstellungen konnten nicht im Programm-Icon gespeichert werden.
+; The settings could not be saved in the program icon.
+;
+; settings window
+MSG_PREFS_TITLE
+TinyDev-Einstellungen
+; TinyDev settings
+;
+MSG_PREFS_NEEDCLASS
+Die Einstellungen benötigen %s.
+; The settings need %s.
+;
+MSG_CAT_WINDOW
+Fenster
+; Window
+;
+MSG_CAT_COLOURS
+Farben
+; Colours
+;
+MSG_CAT_TOOLBAR
+Werkzeugleiste
+; Toolbar
+;
+MSG_PREFS_SPLASH
+Startfenster an_zeigen
+; Show s_plash window at the start
+;
+MSG_PREFS_WIDTH
+B_reite (0 = automatisch) 
+; _Width (0 = auto) 
+;
+MSG_PREFS_HEIGHT
+_Höhe (0 = automatisch) 
+; H_eight (0 = auto) 
+;
+MSG_PREFS_LEFT
+_Links (-1 = zentriert) 
+; _Left (-1 = centred) 
+;
+MSG_PREFS_TOP
+_Oben (-1 = zentriert) 
+; _Top (-1 = centred) 
+;
+MSG_PREFS_WINDOWNOTE
+Größe und Position des Hauptfensters beim nächsten Start.
+; Size and position of the main window at the next start.
+;
+MSG_PREFS_CURRENT
+Aktu_ell
+; Cu_rrent
+;
+MSG_PREFS_AUTOMATIC
+Au_tomatisch
+; _Automatic
+;
+MSG_PREFS_COL_TEXT
+Te_xt 
+; Te_xt 
+;
+MSG_PREFS_COL_KEYWORD
+Schlüssel_wörter 
+; _Keywords 
+;
+MSG_PREFS_COL_STRING
+Zeichen_ketten 
+; Stri_ngs 
+;
+MSG_PREFS_COL_COMMENT
+Ko_mmentare 
+; Co_mments 
+;
+MSG_PREFS_COL_PREPROC
+_Präprozessor 
+; Prepr_ocessor 
+;
+MSG_PREFS_TTL_TEXT
+Farbe des Textes
+; Colour of the text
+;
+MSG_PREFS_TTL_KEYWORD
+Farbe der Schlüsselwörter
+; Colour of keywords
+;
+MSG_PREFS_TTL_STRING
+Farbe der Zeichenketten
+; Colour of strings
+;
+MSG_PREFS_TTL_COMMENT
+Farbe der Kommentare
+; Colour of comments
+;
+MSG_PREFS_TTL_PREPROC
+Farbe der Präprozessor-Zeilen
+; Colour of preprocessor lines
+;
+MSG_PREFS_COLOURNOTE
+Die Farben der Syntaxhervorhebung wirken sofort.
+; The colours of the syntax highlighting take effect at once.
+;
+MSG_PREFS_DEFCOLOURS
+Standard_farben
+; _Default colours
+;
+MSG_PREFS_DISPLAY
+_Darstellung 
+; D_isplay 
+;
+MSG_PREFS_TBMODE_IMAGES
+Bilder
+; Images
+;
+MSG_PREFS_TBMODE_BOTH
+Bilder und Text
+; Images and text
+;
+MSG_PREFS_TBMODE_TEXT
+Text
+; Text
+;
+MSG_PREFS_FRAMES
+Rahme_n um die Knöpfe
+; _Frames around the buttons
+;
+MSG_PREFS_TOOLBARNOTE
+Darstellung und Rahmen wirken beim nächsten Start.\nNur Text startet schneller, es werden keine Bilder geladen.
+; Display and frames take effect at the next start.\nText only starts faster, no images are loaded.
+;
+MSG_PREFS_SAVE
+_Speichern
+; _Save
+;
+MSG_PREFS_USE
+_Benutzen
+; _Use
+;
+MSG_PREFS_CANCEL
+_Abbrechen
+; _Cancel
+;
+; find and replace window
+MSG_FIND_TITLE
+Suchen und ersetzen
+; Find and replace
+;
+MSG_FIND_NEEDCLASSES
+Suchen und ersetzen benötigt checkbox.gadget, chooser.gadget, listbrowser.gadget und string.gadget.
+; Find and replace needs checkbox.gadget, chooser.gadget, listbrowser.gadget and string.gadget.
+;
+MSG_FIND_NOWINDOW
+Das Suchfenster konnte nicht angelegt werden.
+; Could not create the find window.
+;
+MSG_FIND_FIND
+Such_text 
+; _Find 
+;
+MSG_FIND_WITH
+_Ersetzen durch 
+; Replace _with 
+;
+MSG_FIND_SCOPE
+Such_bereich 
+; Search _in 
+;
+MSG_FIND_PATTERN
+_Dateimuster 
+; File _pattern 
+;
+MSG_FIND_SCOPE_CURRENT
+Aktuelles Dokument
+; Current document
+;
+MSG_FIND_SCOPE_OPEN
+Offene Dokumente
+; Open documents
+;
+MSG_FIND_SCOPE_PROJECT
+Projektdateien
+; Project files
+;
+MSG_FIND_CASE
+_Groß-/Kleinschreibung
+; _Case sensitive
+;
+MSG_FIND_WORDS
+Nur ganze _Wörter
+; Whole wor_ds
+;
+MSG_FIND_REGEX
+_Regulärer Ausdruck
+; Regular e_xpression
+;
+MSG_FIND_BACKWARDS
+Rüc_kwärts
+; _Backwards
+;
+MSG_FIND_WRAP
+Am Ende _von vorn
+; Wrap _around
+;
+MSG_FIND_COL_FILE
+Datei
+; File
+;
+MSG_FIND_COL_LINE
+Zeile
+; Line
+;
+MSG_FIND_COL_TEXT
+Text
+; Text
+;
+MSG_FIND_DOFIND
+_Suchen
+; Fi_nd
+;
+MSG_FIND_DOREPLACE
+Erset_zen
+; _Replace
+;
+MSG_FIND_REPLACEALL
+_Alle ersetzen
+; Replace a_ll
+;
+MSG_FIND_STOP
+Sto_pp
+; _Stop
+;
+MSG_FIND_CLOSE
+Schl_ießen
+; Cl_ose
+;
+MSG_FIND_WRAPPED
+Von vorn begonnen
+; Wrapped around
+;
+MSG_FIND_NOTFOUND
+"%s" nicht gefunden
+; "%s" not found
+;
+MSG_FIND_NOMEM
+Nicht genug Speicher
+; Not enough memory
+;
+MSG_FIND_READERROR
+Der Text konnte nicht gelesen werden
+; The text could not be read
+;
+MSG_FIND_BADREGEX
+Ungültiger regulärer Ausdruck: %s
+; Invalid regular expression: %s
+;
+MSG_FIND_REPLACED
+Ersetzt: %ld
+; Replaced: %ld
+;
+MSG_FIND_REPLACEDDOCS
+Ersetzt: %ld in %ld Dokumenten
+; Replaced: %ld in %ld documents
+;
+MSG_FIND_REPLACEDFILES
+Ersetzt: %ld in %ld Dateien
+; Replaced: %ld in %ld files
+;
+MSG_FIND_HITS
+Treffer: %ld in %ld von %ld Dateien
+; Hits: %ld in %ld of %ld files
+;
+MSG_FIND_NOTFOUNDFILES
+"%s" in %ld Dateien nicht gefunden
+; "%s" not found in %ld files
+;
+MSG_FIND_STOPPED
+ (abgebrochen)
+;  (stopped)
+;
+MSG_FIND_LIMIT
+ (am Limit abgebrochen)
+;  (stopped at the limit)
+;
+MSG_FIND_SKIPPED
+, einige Verzeichnisse übersprungen
+; , some directories skipped
+;
+MSG_FIND_NOPROJECT
+Kein Projekt: zuerst ein Verzeichnis öffnen
+; No project: open a directory first
+;
+MSG_FIND_NOSIGNAL
+Kein freies Signal
+; No free signal
+;
+MSG_FIND_BADPROJECT
+Das Projektverzeichnis oder das Dateimuster ist nicht verwendbar
+; The project directory or the file pattern cannot be used
+;
+MSG_FIND_SEARCHING
+Suche...
+; Searching...
+;
+MSG_FIND_REPLACING
+Ersetze...
+; Replacing...
+;
+MSG_FIND_PROGRESS
+Suche... %ld Dateien, %ld Treffer
+; Searching... %ld files, %ld hits
+;
+MSG_FIND_RPROGRESS
+Ersetze... %ld Dateien, %ld ersetzt
+; Replacing... %ld files, %ld replaced
+;
+MSG_FIND_NOHITS
+Keine Treffer
+; No hits
+;
+MSG_FIND_NOMORE
+Keine weiteren Treffer
+; No more hits
+;
+; placeholder entries of the folder tree
+MSG_TREE_LOADING
+Lade...
+; Loading...
+;
+MSG_TREE_EMPTY
+(leer)
+; (empty)
+;
+MSG_TREE_UNAVAILABLE
+(nicht verfügbar)
+; (unavailable)
+;
