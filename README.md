@@ -184,7 +184,11 @@ narrow window are listed in a drop-down chooser right of the bar.
 Edit/Find (Amiga+F) opens a find and replace window that stays open next to
 the main window (as in Kickdown): search text, replacement, case sensitive,
 whole words, regular expression, backwards and wrap around; Find, Replace,
-Replace all. It works on the document in the visible tab. Regular
+Replace all. "Search in" chooses the document in the visible tab or all open
+documents: then the search goes on in the next tab (in tab order, and round
+to the first one with "Wrap around"), switching to the tab with the hit, and
+Replace all replaces in every open document, one undo step per document.
+Regular
 expressions are POSIX extended ones (`[[:digit:]]` instead of `\d`, no
 lazy quantifiers or lookaround); `\0` to `\9` in the replacement insert the
 match and its groups, `\\` a backslash. `^` and `$` match at the start and

@@ -4,7 +4,8 @@
  * A window that stays open next to the main window, built like Kickdown's:
  * search text, replacement, case sensitive, whole words, regular
  * expression, backwards, wrap around; Find, Replace, Replace all, Close. Edit/Find next repeats the
- * last search without the window. It works on the active document.
+ * last search without the window. It searches the active document or all
+ * open documents (in tab order, going on with the next tab).
  *
  * Unlike Kickdown the search does not use GM_TEXTEDITOR_Search: the text
  * is exported from the editor and searched by search.c (plain text or
@@ -23,6 +24,7 @@
 #include <gadgets/layout.h>
 #include <gadgets/button.h>
 #include <gadgets/checkbox.h>
+#include <gadgets/chooser.h>
 #include <gadgets/string.h>
 #include <gadgets/texteditor.h>
 #include <images/label.h>
@@ -34,6 +36,7 @@
 #include <proto/layout.h>
 #include <proto/button.h>
 #include <proto/checkbox.h>
+#include <proto/chooser.h>
 #include <proto/string.h>
 #include <proto/label.h>
 #include <clib/alib_protos.h>
@@ -46,20 +49,27 @@ struct Library *StringBase = NULL;
 extern struct Library *CheckBoxBase;    /* shared with the settings window */
 
 enum {
-    FG_FIND = 300, FG_REPLACE, FG_CASE, FG_WORDS, FG_REGEX, FG_BACKWARDS, FG_WRAP,
+    FG_FIND = 300, FG_REPLACE, FG_SCOPE, FG_CASE, FG_WORDS, FG_REGEX, FG_BACKWARDS, FG_WRAP,
     FG_DOFIND, FG_DOREPLACE, FG_REPLACEALL, FG_CLOSE, FG_STATUS
 };
 
 #define MAXSEARCH 200                   /* length of the text fields */
 
+/** Where the search looks (the "Search in" chooser). */
+enum { SCOPE_CURRENT = 0, SCOPE_OPEN };
+
+static STRPTR scope_labels[] = {
+    (STRPTR)"Current document", (STRPTR)"Open documents", NULL
+};
+
 /** State of the find window (there is one). */
 static struct {
-    Object *winobj, *root, *find, *replace, *casesens, *words, *regex, *backwards, *wrap, *status;
+    Object *winobj, *root, *find, *replace, *scope, *casesens, *words, *regex, *backwards, *wrap, *status;
     struct Window *win;
     int focus;                          /* activate the search field when active */
     char text[MAXSEARCH + 1];           /* last search, also for Find next */
     char with[MAXSEARCH + 1];           /* last replacement */
-    int casesens_on, words_on, regex_on, backwards_on, wrap_on;
+    int scope_on, casesens_on, words_on, regex_on, backwards_on, wrap_on;
     Document *hit_doc;                  /* the last hit was marked in this document ... */
     SearchHit hit;                      /* ... here (as found) ... */
     ULONG hx0, hy0, hx1, hy1;           /* ... and the editor's block of it */
@@ -75,8 +85,10 @@ static int open_classes(EditorApp *app)
 {
     if (CheckBoxBase == NULL) CheckBoxBase = OpenLibrary((STRPTR)"gadgets/checkbox.gadget", 44);
     if (StringBase == NULL) StringBase = OpenLibrary((STRPTR)"gadgets/string.gadget", 44);
-    if (CheckBoxBase != NULL && StringBase != NULL) return 1;
-    ui_error(app, APP_NAME, "Find and replace needs checkbox.gadget and string.gadget.");
+    if (ChooserBase == NULL) ChooserBase = OpenLibrary((STRPTR)"gadgets/chooser.gadget", 44);
+    if (CheckBoxBase != NULL && StringBase != NULL && ChooserBase != NULL) return 1;
+    ui_error(app, APP_NAME,
+             "Find and replace needs checkbox.gadget, chooser.gadget and string.gadget.");
     return 0;
 }
 
@@ -166,6 +178,10 @@ static int build(EditorApp *app)
 {
     fw.find = string(FG_FIND, fw.text);
     fw.replace = string(FG_REPLACE, fw.with);
+    fw.scope = NewObject(CHOOSER_GetClass(), NULL,
+        GA_ID, FG_SCOPE, GA_RelVerify, TRUE, CHOOSER_PopUp, TRUE,
+        CHOOSER_LabelArray, (ULONG)scope_labels,
+        CHOOSER_Selected, (ULONG)fw.scope_on, TAG_END);
     fw.casesens = checkbox(FG_CASE, "_Case sensitive", fw.casesens_on);
     fw.words = checkbox(FG_WORDS, "Whole wor_ds", fw.words_on);
     fw.regex = checkbox(FG_REGEX, "Regular e_xpression", fw.regex_on);
@@ -209,6 +225,9 @@ static int build(EditorApp *app)
                 CHILD_WeightedHeight, 0,
                 LAYOUT_AddChild, (ULONG)fw.replace,
                 CHILD_Label,     (ULONG)label("Replace _with "),
+                CHILD_WeightedHeight, 0,
+                LAYOUT_AddChild, (ULONG)fw.scope,
+                CHILD_Label,     (ULONG)label("Search _in "),
                 CHILD_WeightedHeight, 0,
                 LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
                     LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
@@ -255,6 +274,7 @@ static void read_gadgets(void)
     fw.text[0] = fw.with[0] = '\0';
     if ((s = (STRPTR)get(fw.find, STRINGA_TextVal)) != NULL) strncat(fw.text, (const char *)s, MAXSEARCH);
     if ((s = (STRPTR)get(fw.replace, STRINGA_TextVal)) != NULL) strncat(fw.with, (const char *)s, MAXSEARCH);
+    fw.scope_on = (int)get(fw.scope, CHOOSER_Selected);
     fw.casesens_on = get(fw.casesens, CHECKBOX_Checked) != 0;
     fw.words_on = get(fw.words, CHECKBOX_Checked) != 0;
     fw.regex_on = get(fw.regex, CHECKBOX_Checked) != 0;
@@ -366,32 +386,157 @@ static SearchPos start_position(EditorApp *app)
     return pos;
 }
 
+/** Start position "at the end" for a backward search through a document. */
+#define FAR_END 0x7fffffffL
+
 /**
- * @brief Search the active document from a position and mark the hit.
+ * @brief Tell whether a document is the one shown in the window. Editor
+ *        methods for it get the window (and draw); documents on hidden
+ *        pages get no GadgetInfo, so they change without drawing.
  * @param app The application state.
- * @param from The start position.
+ * @param doc The document.
+ * @return Non-zero if it is visible.
+ */
+static int visible(EditorApp *app, Document *doc)
+{
+    return doc == app->active && app->window != NULL;
+}
+
+/**
+ * @brief Mark a range of one line in a document's editor.
+ * @param app The application state.
+ * @param doc The document.
+ * @param line The line.
+ * @param col First column.
+ * @param length Length of the range.
+ */
+static void ed_mark(EditorApp *app, Document *doc, long line, long col, long length)
+{
+    if (visible(app, doc))
+        DoGadgetMethod((struct Gadget *)doc->editor, app->window, NULL, GM_TEXTEDITOR_MarkText, 0,
+                       (ULONG)col, (ULONG)line, (ULONG)(col + length), (ULONG)line);
+    else DoMethod(doc->editor, GM_TEXTEDITOR_MarkText, NULL,
+                  (ULONG)col, (ULONG)line, (ULONG)(col + length), (ULONG)line);
+}
+
+/**
+ * @brief Replace the marked text of a document's editor.
+ * @param app The application state.
+ * @param doc The document.
+ * @param with The new text.
+ */
+static void ed_replace(EditorApp *app, Document *doc, const char *with)
+{
+    if (visible(app, doc))
+        DoGadgetMethod((struct Gadget *)doc->editor, app->window, NULL, GM_TEXTEDITOR_Replace, 0,
+                       (ULONG)with, 0);
+    else DoMethod(doc->editor, GM_TEXTEDITOR_Replace, NULL, (ULONG)with, 0);
+}
+
+/**
+ * @brief Send an ARexx command to a document's editor.
+ * @param app The application state.
+ * @param doc The document.
+ * @param command The command.
+ */
+static void ed_command(EditorApp *app, Document *doc, const char *command)
+{
+    if (visible(app, doc))
+        DoGadgetMethod((struct Gadget *)doc->editor, app->window, NULL, GM_TEXTEDITOR_ARexxCmd, 0,
+                       (ULONG)command);
+    else DoMethod(doc->editor, GM_TEXTEDITOR_ARexxCmd, NULL, (ULONG)command);
+}
+
+/**
+ * @brief Switch the drawing of a document's editor off or on.
+ * @param app The application state.
+ * @param doc The document.
+ * @param quiet Non-zero for no drawing.
+ */
+static void ed_quiet(EditorApp *app, Document *doc, int quiet)
+{
+    if (visible(app, doc))
+        SetGadgetAttrs((struct Gadget *)doc->editor, app->window, NULL,
+                       GA_TEXTEDITOR_Quiet, (ULONG)quiet, TAG_END);
+    else SetAttrs(doc->editor, GA_TEXTEDITOR_Quiet, (ULONG)quiet, TAG_END);
+}
+
+/**
+ * @brief Search one document.
+ * @param doc The document.
+ * @param p The pattern.
+ * @param from The start position (see search_text()).
+ * @param wrap Non-zero to go on at the other end of the document.
+ * @param hit The hit.
+ * @param wrapped Set if the hit was found after wrapping (may be NULL).
+ * @return Non-zero if found.
+ */
+static int search_doc(Document *doc, const SearchPattern *p, SearchPos from, int wrap,
+                      SearchHit *hit, int *wrapped)
+{
+    long size;
+    int found;
+    char *text = export_text(doc, &size);
+    if (text == NULL) return 0;
+    found = search_text(p, text, size, from, fw.backwards_on, wrap, hit, wrapped);
+    FreeVec(text);
+    return found;
+}
+
+/**
+ * @brief The next document in the search direction.
+ * @param doc The document.
+ * @return The next (or previous) one, or NULL at the end of the list.
+ */
+static Document *step(Document *doc)
+{
+    struct Node *n = fw.backwards_on ? doc->node.ln_Pred : doc->node.ln_Succ;
+    return (fw.backwards_on ? n->ln_Pred : n->ln_Succ) != NULL ? (Document *)n : NULL;
+}
+
+/**
+ * @brief Search from a position in the active document, then (in the
+ *        scope "open documents") through the other documents in tab
+ *        order; activate the document with the hit and mark it.
+ * @param app The application state.
+ * @param from The start position in the active document.
  * @return Non-zero if found.
  */
 static int find_from(EditorApp *app, SearchPos from)
 {
     SearchPattern p;
     SearchHit hit;
-    char *text;
-    long size;
-    int found, wrapped = 0;
+    SearchPos top;
+    Document *doc = app->active, *d, *target;
+    int found, wrapped = 0, all = fw.scope_on == SCOPE_OPEN;
 
     fw.hit_doc = NULL;
-    if (app->active == NULL || app->window == NULL || !compile(&p)) return 0;
-    text = export_text(app->active, &size);
-    if (text == NULL) {
-        search_free(&p);
-        status("The text could not be read");
-        return 0;
+    if (doc == NULL || app->window == NULL || !compile(&p)) return 0;
+    target = doc;
+    found = search_doc(doc, &p, from, fw.wrap_on && !all, &hit, &wrapped);
+    if (!found && all) {
+        top.line = top.col = fw.backwards_on ? FAR_END : 0;
+        for (d = step(doc); ; d = step(d)) {
+            if (d == NULL) {
+                if (!fw.wrap_on) break;
+                wrapped = 1;
+                d = (Document *)(fw.backwards_on ? app->documents.lh_TailPred : app->documents.lh_Head);
+            }
+            if (d == doc) {
+                /* round again: the part of the first document before the start */
+                found = search_doc(doc, &p, from, 1, &hit, NULL);
+                break;
+            }
+            if (search_doc(d, &p, top, 0, &hit, NULL)) {
+                found = 1;
+                target = d;
+                break;
+            }
+        }
     }
-    found = search_text(&p, text, size, from, fw.backwards_on, fw.wrap_on, &hit, &wrapped);
-    FreeVec(text);
     search_free(&p);
     if (found) {
+        if (target != app->active) document_activate(app, target);
         mark_hit(app, &hit);
         status(wrapped ? "Wrapped around" : "");
     } else {
@@ -452,8 +597,7 @@ static void do_replace(EditorApp *app)
     with = malloc((size_t)length + 1);
     if (with != NULL) {
         search_expand(&p, fw.with, text + hit.line_offset, &m, with, length + 1);
-        DoGadgetMethod((struct Gadget *)app->active->editor, app->window, NULL,
-                       GM_TEXTEDITOR_Replace, 0, (ULONG)with, 0);
+        ed_replace(app, app->active, with);
         free(with);
     }
     FreeVec(text);
@@ -468,68 +612,97 @@ static void do_replace(EditorApp *app)
 }
 
 /**
- * @brief Replace all: every hit of the active document, as one undo step.
+ * @brief Replace every hit in one document, as one undo step.
+ * @param app The application state.
+ * @param doc The document.
+ * @param p The pattern.
+ * @return The number of replacements, or -1 if out of memory (some may
+ *         have been made).
+ */
+static long replace_all_in(EditorApp *app, Document *doc, const SearchPattern *p)
+{
+    SearchHit *hits = NULL;
+    SearchMatch m;
+    char *text, *with = NULL;
+    long size, n, i, length, capacity = 0, done = 0;
+    int nomem = 0;
+
+    text = export_text(doc, &size);
+    n = text != NULL ? search_all(p, text, size, &hits) : -1;
+    if (n <= 0) {
+        if (text != NULL) FreeVec(text);
+        return n;
+    }
+    ed_command(app, doc, "BEGINMULTICHANGE");
+    ed_quiet(app, doc, 1);                  /* no redraw for every single replacement */
+    /* from the end, so the positions of the hits before stay valid */
+    for (i = n - 1; i >= 0; --i) {
+        const SearchHit *h = &hits[i];
+        const char *line = text + h->line_offset;
+        if (!search_line_next(p, line, h->line_length, h->col, &m)) continue;
+        length = search_expand(p, fw.with, line, &m, NULL, 0);
+        if (length + 1 > capacity) {
+            free(with);
+            capacity = length + 64;
+            if ((with = malloc((size_t)capacity)) == NULL) {
+                nomem = 1;
+                break;
+            }
+        }
+        search_expand(p, fw.with, line, &m, with, capacity);
+        ed_mark(app, doc, h->line, h->col, h->length);
+        ed_replace(app, doc, with);
+        ++done;
+    }
+    ed_quiet(app, doc, 0);
+    ed_command(app, doc, "ENDMULTICHANGE");
+    if (visible(app, doc)) RefreshGList((struct Gadget *)doc->editor, app->window, NULL, 1);
+    if (done > 0) document_set_dirty(app, doc, 1);
+    free(with);
+    free(hits);
+    FreeVec(text);
+    return nomem ? -1 : done;
+}
+
+/**
+ * @brief Replace all: every hit of the active document or (in the scope
+ *        "open documents") of all open documents, one undo step each.
  * @param app The application state.
  */
 static void do_replace_all(EditorApp *app)
 {
     SearchPattern p;
-    SearchHit *hits = NULL;
-    SearchMatch m;
-    Document *doc = app->active;
-    Object *ed;
-    char *text, *with = NULL;
-    long size, n, i, length, capacity = 0, done = 0;
+    Document *doc;
+    long n, total = 0, docs = 0;
+    int nomem = 0;
 
     read_gadgets();
-    if (fw.text[0] == '\0' || doc == NULL || app->window == NULL || !compile(&p)) return;
-    ed = doc->editor;
-    text = export_text(doc, &size);
-    n = text != NULL ? search_all(&p, text, size, &hits) : -1;
-    if (n < 0) {
-        if (text != NULL) FreeVec(text);
-        search_free(&p);
-        status("Not enough memory");
-        return;
-    }
+    if (fw.text[0] == '\0' || app->active == NULL || app->window == NULL || !compile(&p)) return;
     fw.hit_doc = NULL;
-    if (n > 0) {
-        DoGadgetMethod((struct Gadget *)ed, app->window, NULL, GM_TEXTEDITOR_ARexxCmd, 0,
-                       (ULONG)"BEGINMULTICHANGE");
-        /* no redraw for every single replacement */
-        SetGadgetAttrs((struct Gadget *)ed, app->window, NULL, GA_TEXTEDITOR_Quiet, TRUE, TAG_END);
-        /* from the end, so the positions of the hits before stay valid */
-        for (i = n - 1; i >= 0; --i) {
-            const SearchHit *h = &hits[i];
-            const char *line = text + h->line_offset;
-            if (!search_line_next(&p, line, h->line_length, h->col, &m)) continue;
-            length = search_expand(&p, fw.with, line, &m, NULL, 0);
-            if (length + 1 > capacity) {
-                free(with);
-                capacity = length + 64;
-                if ((with = malloc((size_t)capacity)) == NULL) break;
+    if (fw.scope_on == SCOPE_OPEN) {
+        for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ != NULL;
+             doc = (Document *)doc->node.ln_Succ) {
+            n = replace_all_in(app, doc, &p);
+            if (n < 0) nomem = 1;
+            else if (n > 0) {
+                total += n;
+                ++docs;
             }
-            search_expand(&p, fw.with, line, &m, with, capacity);
-            DoGadgetMethod((struct Gadget *)ed, app->window, NULL, GM_TEXTEDITOR_MarkText, 0,
-                           (ULONG)h->col, (ULONG)h->line,
-                           (ULONG)(h->col + h->length), (ULONG)h->line);
-            DoGadgetMethod((struct Gadget *)ed, app->window, NULL, GM_TEXTEDITOR_Replace, 0,
-                           (ULONG)with, 0);
-            ++done;
         }
-        SetGadgetAttrs((struct Gadget *)ed, app->window, NULL, GA_TEXTEDITOR_Quiet, FALSE, TAG_END);
-        DoGadgetMethod((struct Gadget *)ed, app->window, NULL, GM_TEXTEDITOR_ARexxCmd, 0,
-                       (ULONG)"ENDMULTICHANGE");
-        RefreshGList((struct Gadget *)ed, app->window, NULL, 1);
+    } else {
+        n = replace_all_in(app, app->active, &p);
+        if (n < 0) nomem = 1;
+        else total = n;
     }
-    free(with);
-    free(hits);
-    FreeVec(text);
     search_free(&p);
-    if (done < n) status("Not enough memory");
-    else if (done == 1) status("1 replacement");
+    if (nomem) status("Not enough memory");
+    else if (fw.scope_on == SCOPE_OPEN) {
+        snprintf(fw.message, sizeof(fw.message), "%ld replacement%s in %ld document%s",
+                 total, total == 1 ? "" : "s", docs, docs == 1 ? "" : "s");
+        status(fw.message);
+    } else if (total == 1) status("1 replacement");
     else {
-        snprintf(fw.message, sizeof(fw.message), "%ld replacements", done);
+        snprintf(fw.message, sizeof(fw.message), "%ld replacements", total);
         status(fw.message);
     }
 }

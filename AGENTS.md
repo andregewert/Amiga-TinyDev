@@ -27,9 +27,10 @@ below the tree's root.
 - `src/prefswin.c`: the settings window (categories Window, Colours, Toolbar),
   built like Kickdown's.
 - `src/find.c`: the find and replace window (non-modal, built like
-  Kickdown's); it searches the text exported from the editor with
-  `src/search.c` and marks/replaces hits with `GM_TEXTEDITOR_MarkText` and
-  `GM_TEXTEDITOR_Replace`.
+  Kickdown's; scope: current document or all open documents); it searches
+  the text exported from the editor with `src/search.c` and marks/replaces
+  hits with `GM_TEXTEDITOR_MarkText` and `GM_TEXTEDITOR_Replace`. Editors on
+  hidden pages get these methods without a GadgetInfo (no drawing).
 - `src/search.c`, `include/search.h`: the portable search engine (plain
   text and POSIX extended regular expressions, Latin-1 case folding, whole
   words, line by line, replacement expansion with `\0`-`\9`); no Amiga
