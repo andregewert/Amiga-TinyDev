@@ -30,7 +30,12 @@ below the tree's root.
   Kickdown's; scope: current document or all open documents); it searches
   the text exported from the editor with `src/search.c` and marks/replaces
   hits with `GM_TEXTEDITOR_MarkText` and `GM_TEXTEDITOR_Replace`. Editors on
-  hidden pages get these methods without a GadgetInfo (no drawing).
+  hidden pages get these methods without a GadgetInfo (no drawing). The
+  project-file search runs step by step in the event loop (the window
+  signals itself), lists its hits in a listbrowser and replaces in tabs.
+- `src/filescan.c`: step-by-step walk through the files of a directory tree
+  (bounded depth, no links, no icons, AmigaDOS name pattern) for the
+  project-file search.
 - `src/search.c`, `include/search.h`: the portable search engine (plain
   text and POSIX extended regular expressions, Latin-1 case folding, whole
   words, line by line, replacement expansion with `\0`-`\9`); no Amiga

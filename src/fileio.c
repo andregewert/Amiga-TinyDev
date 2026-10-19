@@ -76,6 +76,7 @@ int file_load(EditorApp *app, Document *doc, const char *path)
         ui_error(app, "Open failed", "This file contains an embedded NUL byte; only 8-bit text is supported."); goto done;
     }
     SetAttrs(doc->editor, GA_TEXTEDITOR_Contents, (ULONG)data, TAG_END);
+    document_mark_saved(doc, data, got, 1);
     GetAttr(GA_TEXTEDITOR_LineEndingImported, doc->editor, &imported);
     doc->eol = imported <= LINEENDING_CRLF ? (LineEnding)imported : EOL_LF;
     document_set_path(app, doc, canonical);
@@ -141,6 +142,7 @@ int file_save(EditorApp *app, Document *doc, const char *path)
     char canonical[EDITOR_PATH_MAX], resolved[EDITOR_PATH_MAX];
     char temp[EDITOR_PATH_MAX], backup[EDITOR_PATH_MAX];
     char *text; LONG length; BPTR file, collision; int had_old, wrote, closed;
+    unsigned long old_hash = doc->saved_hash; long old_length = doc->saved_length;
     if (!canonical_path(path, canonical, sizeof(canonical))) return 0;
     if (document_find_path(app, canonical) != NULL && document_find_path(app, canonical) != doc) {
         document_activate(app, document_find_path(app, canonical));
@@ -164,6 +166,7 @@ int file_save(EditorApp *app, Document *doc, const char *path)
         DeleteFile(temp); FreeVec(text);
         ui_error(app, "Save failed", "Could not write and close the temporary file."); return 0;
     }
+    document_mark_saved(doc, text, length, 0);
     FreeVec(text);
     { BPTR lock = Lock(canonical, ACCESS_READ); had_old = lock != 0; if (lock != 0) UnLock(lock); }
     if (had_old && !Rename(canonical, backup)) goto replace_failed;
@@ -178,6 +181,7 @@ int file_save(EditorApp *app, Document *doc, const char *path)
     document_set_dirty(app, doc, 0);
     return 1;
 replace_failed:
+    doc->saved_hash = old_hash; doc->saved_length = old_length;    /* the file did not change */
     DeleteFile(temp);
     ui_error(app, "Save failed", "Could not replace the destination; the original was retained.");
     return 0;

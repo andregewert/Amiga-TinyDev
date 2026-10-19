@@ -173,7 +173,11 @@ guide of amiga-devkit.
 Project supports New/Open/Save/Save As/Close/About/Quit, native edit commands,
 horizontal scrolling without automatic line wrapping, line-number toggling,
 safe temporary-file saves, duplicate-path tab activation,
-and LF/CR/CRLF preservation. A status line spanning the full window width at
+and LF/CR/CRLF preservation. A document whose changes are all undone (or
+redone back to the saved text) is marked unchanged again: after Undo and
+Redo and whenever editing pauses (for texts up to 256 KB), TinyDev compares
+the text with a checksum of the text as loaded or saved (line-end style and
+line ends at the end of the text do not count). A status line spanning the full window width at
 the bottom shows the number of open documents and the line count of the
 currently displayed document. The AISS toolbar provides New, Open, Save,
 Undo, Redo, Cut, Copy, Paste, and Find, each with a help bubble. Buttons that would do
@@ -188,6 +192,16 @@ Replace all. "Search in" chooses the document in the visible tab or all open
 documents: then the search goes on in the next tab (in tab order, and round
 to the first one with "Wrap around"), switching to the tab with the hit, and
 Replace all replaces in every open document, one undo step per document.
+"Project files" searches the files below the directory opened in the folder
+tree (the project) whose names match the "File pattern" (an AmigaDOS pattern
+such as `#?.(c|h)`; icon files, links and files larger than 1 MB or with NUL
+bytes are skipped, at most 16 levels deep). The search runs in the
+background of the event loop and can be stopped; files that are open are
+searched in their tab. The hits (at most 500) are listed with file, line and
+text; the first one is shown at once, Find and Find Next go through the list
+and a click in the list shows a hit (opening its file in a tab). Replace all
+opens every file with hits in a tab and replaces there, one undo step per
+file; nothing is saved.
 Regular
 expressions are POSIX extended ones (`[[:digit:]]` instead of `\d`, no
 lazy quantifiers or lookaround); `\0` to `\9` in the replacement insert the

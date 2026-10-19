@@ -4,8 +4,18 @@
  * A window that stays open next to the main window, built like Kickdown's:
  * search text, replacement, case sensitive, whole words, regular
  * expression, backwards, wrap around; Find, Replace, Replace all, Close. Edit/Find next repeats the
- * last search without the window. It searches the active document or all
- * open documents (in tab order, going on with the next tab).
+ * last search without the window. It searches the active document, all
+ * open documents (in tab order, going on with the next tab) or the
+ * project files.
+ *
+ * Project files are the files below the folder tree's directory (the
+ * project) whose names match the file pattern. They are searched step by
+ * step in the event loop (filescan.c walks the directories; the window
+ * signals itself to go on), so the window stays usable and Stop ends the
+ * search. Files that are open are searched in their editor. The hits fill
+ * a list; Find (Next) and a click in the list open the file and mark the
+ * hit. Replace all opens every file with hits in a tab and replaces there
+ * (one undo step per file, nothing is saved).
  *
  * Unlike Kickdown the search does not use GM_TEXTEDITOR_Search: the text
  * is exported from the editor and searched by search.c (plain text or
@@ -25,6 +35,8 @@
 #include <gadgets/button.h>
 #include <gadgets/checkbox.h>
 #include <gadgets/chooser.h>
+#include <gadgets/listbrowser.h>
+#include <gadgets/dirtree.h>
 #include <gadgets/string.h>
 #include <gadgets/texteditor.h>
 #include <images/label.h>
@@ -37,6 +49,8 @@
 #include <proto/button.h>
 #include <proto/checkbox.h>
 #include <proto/chooser.h>
+#include <proto/listbrowser.h>
+#include <proto/dos.h>
 #include <proto/string.h>
 #include <proto/label.h>
 #include <clib/alib_protos.h>
@@ -47,34 +61,74 @@
 
 struct Library *StringBase = NULL;
 extern struct Library *CheckBoxBase;    /* shared with the settings window */
+extern struct Library *ListBrowserBase; /* likewise */
 
 enum {
-    FG_FIND = 300, FG_REPLACE, FG_SCOPE, FG_CASE, FG_WORDS, FG_REGEX, FG_BACKWARDS, FG_WRAP,
-    FG_DOFIND, FG_DOREPLACE, FG_REPLACEALL, FG_CLOSE, FG_STATUS
+    FG_FIND = 300, FG_REPLACE, FG_SCOPE, FG_FILES, FG_CASE, FG_WORDS, FG_REGEX, FG_BACKWARDS,
+    FG_WRAP, FG_LIST, FG_DOFIND, FG_DOREPLACE, FG_REPLACEALL, FG_STOP, FG_CLOSE, FG_STATUS
 };
 
 #define MAXSEARCH 200                   /* length of the text fields */
 
 /** Where the search looks (the "Search in" chooser). */
-enum { SCOPE_CURRENT = 0, SCOPE_OPEN };
+enum { SCOPE_CURRENT = 0, SCOPE_OPEN, SCOPE_PROJECT };
 
 static STRPTR scope_labels[] = {
-    (STRPTR)"Current document", (STRPTR)"Open documents", NULL
+    (STRPTR)"Current document", (STRPTR)"Open documents", (STRPTR)"Project files", NULL
+};
+
+#define MAXRESULTS 500                  /* hits listed for the project files */
+#define MAXFILESIZE (1024L * 1024L)     /* larger files are not searched */
+#define FLUSH_FILES 16                  /* show new hits after so many files */
+
+/** A hit in the result list (LBNA_UserData of its node). */
+typedef struct Result {
+    char *path;                         /* full name of the file */
+    long line, col, length;
+} Result;
+
+/** Columns of the result list. */
+static struct ColumnInfo result_columns[] = {
+    { 40, (STRPTR)"File", 0 },
+    { 8,  (STRPTR)"Line", 0 },
+    { 52, (STRPTR)"Text", 0 },
+    { -1, (STRPTR)~0, (ULONG)-1 }
 };
 
 /** State of the find window (there is one). */
 static struct {
-    Object *winobj, *root, *find, *replace, *scope, *casesens, *words, *regex, *backwards, *wrap, *status;
+    Object *winobj, *root, *find, *replace, *scope, *files, *casesens, *words, *regex, *backwards,
+           *wrap, *list, *stop, *status;
     struct Window *win;
     int focus;                          /* activate the search field when active */
     char text[MAXSEARCH + 1];           /* last search, also for Find next */
     char with[MAXSEARCH + 1];           /* last replacement */
+    char pattern[MAXSEARCH + 1];        /* file pattern of the project search */
     int scope_on, casesens_on, words_on, regex_on, backwards_on, wrap_on;
     Document *hit_doc;                  /* the last hit was marked in this document ... */
     SearchHit hit;                      /* ... here (as found) ... */
     ULONG hx0, hy0, hx1, hy1;           /* ... and the editor's block of it */
     char message[MAXSEARCH + 40];       /* the status text */
-} fw = { .wrap_on = 1 };
+    /* the project search */
+    FileScan *scan;                     /* running walk, or NULL */
+    SearchPattern sp;                   /* its pattern */
+    BYTE signal;                        /* to go on with it, -1 if none */
+    struct List results;                /* nodes of the result list */
+    struct List pending;                /* new nodes not shown yet */
+    long result_count, file_count, hit_files, unflushed;
+    struct Node *current;               /* the result shown last */
+    int complete;                       /* the results are complete */
+    int jump_first;                     /* show the first hit when it is found */
+    int replace_after;                  /* replace all instead of listing the hits */
+    int walked;                         /* all files were searched */
+    struct List queue;                  /* files to open and replace in (ln_Name) */
+    Document *replace_doc;              /* opened, to be replaced in next */
+    Document *show_doc;                 /* opened, a hit to be marked in next ... */
+    SearchPos show_pos;                 /* ... from here */
+    char project[EDITOR_PATH_MAX];      /* the project directory searched */
+    char key[3 * MAXSEARCH + EDITOR_PATH_MAX + 16]; /* the search the results belong to */
+    char file[EDITOR_PATH_MAX];         /* buffer for file names */
+} fw = { .wrap_on = 1, .pattern = "#?", .signal = -1 };
 
 /**
  * @brief Open the classes the window needs (once).
@@ -86,9 +140,17 @@ static int open_classes(EditorApp *app)
     if (CheckBoxBase == NULL) CheckBoxBase = OpenLibrary((STRPTR)"gadgets/checkbox.gadget", 44);
     if (StringBase == NULL) StringBase = OpenLibrary((STRPTR)"gadgets/string.gadget", 44);
     if (ChooserBase == NULL) ChooserBase = OpenLibrary((STRPTR)"gadgets/chooser.gadget", 44);
-    if (CheckBoxBase != NULL && StringBase != NULL && ChooserBase != NULL) return 1;
-    ui_error(app, APP_NAME,
-             "Find and replace needs checkbox.gadget, chooser.gadget and string.gadget.");
+    if (ListBrowserBase == NULL) ListBrowserBase = OpenLibrary((STRPTR)"gadgets/listbrowser.gadget", 44);
+    if (CheckBoxBase != NULL && StringBase != NULL && ChooserBase != NULL && ListBrowserBase != NULL) {
+        if (fw.results.lh_Head == NULL) {
+            NewList(&fw.results);
+            NewList(&fw.pending);
+            NewList(&fw.queue);
+        }
+        return 1;
+    }
+    ui_error(app, APP_NAME, "Find and replace needs checkbox.gadget, chooser.gadget, "
+             "listbrowser.gadget and string.gadget.");
     return 0;
 }
 
@@ -182,6 +244,21 @@ static int build(EditorApp *app)
         GA_ID, FG_SCOPE, GA_RelVerify, TRUE, CHOOSER_PopUp, TRUE,
         CHOOSER_LabelArray, (ULONG)scope_labels,
         CHOOSER_Selected, (ULONG)fw.scope_on, TAG_END);
+    fw.files = NewObject(STRING_GetClass(), NULL,
+        GA_ID, FG_FILES, GA_RelVerify, TRUE, GA_TabCycle, TRUE,
+        GA_Disabled, (ULONG)(fw.scope_on != SCOPE_PROJECT),
+        STRINGA_MaxChars, MAXSEARCH, STRINGA_TextVal, (ULONG)fw.pattern, TAG_END);
+    fw.list = NewObject(LISTBROWSER_GetClass(), NULL,
+        GA_ID, FG_LIST, GA_RelVerify, TRUE,
+        LISTBROWSER_ColumnInfo, (ULONG)result_columns,
+        LISTBROWSER_ColumnTitles, TRUE,
+        LISTBROWSER_Labels, (ULONG)&fw.results,
+        LISTBROWSER_ShowSelected, TRUE,
+        LISTBROWSER_HorizontalProp, TRUE,
+        TAG_END);
+    fw.stop = NewObject(BUTTON_GetClass(), NULL,
+        GA_ID, FG_STOP, GA_RelVerify, TRUE, GA_Text, (ULONG)"_Stop",
+        GA_Disabled, (ULONG)(fw.scan == NULL), BUTTON_TextPadding, TRUE, TAG_END);
     fw.casesens = checkbox(FG_CASE, "_Case sensitive", fw.casesens_on);
     fw.words = checkbox(FG_WORDS, "Whole wor_ds", fw.words_on);
     fw.regex = checkbox(FG_REGEX, "Regular e_xpression", fw.regex_on);
@@ -229,6 +306,9 @@ static int build(EditorApp *app)
                 LAYOUT_AddChild, (ULONG)fw.scope,
                 CHILD_Label,     (ULONG)label("Search _in "),
                 CHILD_WeightedHeight, 0,
+                LAYOUT_AddChild, (ULONG)fw.files,
+                CHILD_Label,     (ULONG)label("File _pattern "),
+                CHILD_WeightedHeight, 0,
                 LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
                     LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
                     LAYOUT_AddChild,    (ULONG)fw.casesens,
@@ -246,7 +326,9 @@ static int build(EditorApp *app)
                 CHILD_WeightedHeight, 0,
                 TAG_END),
             CHILD_WeightedHeight, 0,
-            LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL, TAG_END),
+            /* the hits in the project files; takes the remaining height */
+            LAYOUT_AddChild, (ULONG)fw.list,
+            CHILD_MinHeight, 80,
             /* the actions left, Close right, each as wide as its text */
             LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
                 LAYOUT_Orientation,  LAYOUT_ORIENT_HORIZ,
@@ -255,6 +337,8 @@ static int build(EditorApp *app)
                 LAYOUT_AddChild,     (ULONG)button(FG_DOREPLACE, "_Replace"),
                 CHILD_WeightedWidth, 0,
                 LAYOUT_AddChild,     (ULONG)button(FG_REPLACEALL, "Replace a_ll"),
+                CHILD_WeightedWidth, 0,
+                LAYOUT_AddChild,     (ULONG)fw.stop,
                 CHILD_WeightedWidth, 0,
                 LAYOUT_AddChild,     (ULONG)NewObject(LAYOUT_GetClass(), NULL, TAG_END),
                 LAYOUT_AddChild,     (ULONG)button(FG_CLOSE, "Cl_ose"),
@@ -274,6 +358,8 @@ static void read_gadgets(void)
     fw.text[0] = fw.with[0] = '\0';
     if ((s = (STRPTR)get(fw.find, STRINGA_TextVal)) != NULL) strncat(fw.text, (const char *)s, MAXSEARCH);
     if ((s = (STRPTR)get(fw.replace, STRINGA_TextVal)) != NULL) strncat(fw.with, (const char *)s, MAXSEARCH);
+    fw.pattern[0] = '\0';
+    if ((s = (STRPTR)get(fw.files, STRINGA_TextVal)) != NULL) strncat(fw.pattern, (const char *)s, MAXSEARCH);
     fw.scope_on = (int)get(fw.scope, CHOOSER_Selected);
     fw.casesens_on = get(fw.casesens, CHECKBOX_Checked) != 0;
     fw.words_on = get(fw.words, CHECKBOX_Checked) != 0;
@@ -466,19 +552,20 @@ static void ed_quiet(EditorApp *app, Document *doc, int quiet)
  * @param doc The document.
  * @param p The pattern.
  * @param from The start position (see search_text()).
+ * @param backwards Non-zero to search towards the start.
  * @param wrap Non-zero to go on at the other end of the document.
  * @param hit The hit.
  * @param wrapped Set if the hit was found after wrapping (may be NULL).
  * @return Non-zero if found.
  */
-static int search_doc(Document *doc, const SearchPattern *p, SearchPos from, int wrap,
-                      SearchHit *hit, int *wrapped)
+static int search_doc(Document *doc, const SearchPattern *p, SearchPos from, int backwards,
+                      int wrap, SearchHit *hit, int *wrapped)
 {
     long size;
     int found;
     char *text = export_text(doc, &size);
     if (text == NULL) return 0;
-    found = search_text(p, text, size, from, fw.backwards_on, wrap, hit, wrapped);
+    found = search_text(p, text, size, from, backwards, wrap, hit, wrapped);
     FreeVec(text);
     return found;
 }
@@ -513,7 +600,7 @@ static int find_from(EditorApp *app, SearchPos from)
     fw.hit_doc = NULL;
     if (doc == NULL || app->window == NULL || !compile(&p)) return 0;
     target = doc;
-    found = search_doc(doc, &p, from, fw.wrap_on && !all, &hit, &wrapped);
+    found = search_doc(doc, &p, from, fw.backwards_on, fw.wrap_on && !all, &hit, &wrapped);
     if (!found && all) {
         top.line = top.col = fw.backwards_on ? FAR_END : 0;
         for (d = step(doc); ; d = step(d)) {
@@ -524,10 +611,10 @@ static int find_from(EditorApp *app, SearchPos from)
             }
             if (d == doc) {
                 /* round again: the part of the first document before the start */
-                found = search_doc(doc, &p, from, 1, &hit, NULL);
+                found = search_doc(doc, &p, from, fw.backwards_on, 1, &hit, NULL);
                 break;
             }
-            if (search_doc(d, &p, top, 0, &hit, NULL)) {
+            if (search_doc(d, &p, top, fw.backwards_on, 0, &hit, NULL)) {
                 found = 1;
                 target = d;
                 break;
@@ -546,6 +633,509 @@ static int find_from(EditorApp *app, SearchPos from)
     return found;
 }
 
+/* ---- project files ------------------------------------------------- */
+
+static long replace_all_in(EditorApp *app, Document *doc, const SearchPattern *p);
+
+/**
+ * @brief Ghost a gadget of the window or make it usable.
+ * @param o The gadget.
+ * @param off Non-zero to ghost it.
+ */
+static void set_disabled(Object *o, int off)
+{
+    if (o == NULL) return;
+    if (fw.win != NULL) SetGadgetAttrs((struct Gadget *)o, fw.win, NULL, GA_Disabled, (ULONG)off, TAG_END);
+    else SetAttrs(o, GA_Disabled, (ULONG)off, TAG_END);
+}
+
+/**
+ * @brief Return the project directory (the folder tree's root) in its
+ *        full form.
+ * @param app The application state.
+ * @param out The buffer for the name.
+ * @param size Its size.
+ * @return Non-zero if there is a project.
+ */
+static int project_root(EditorApp *app, char *out, LONG size)
+{
+    STRPTR root = NULL;
+    BPTR lock;
+    int ok;
+    if (app->tree == NULL) return 0;
+    GetAttr(DIRTREE_Root, app->tree, (ULONG *)&root);
+    if (root == NULL || root[0] == '\0' || (lock = Lock(root, ACCESS_READ)) == 0) return 0;
+    ok = NameFromLock(lock, (STRPTR)out, size) != 0;
+    UnLock(lock);
+    return ok;
+}
+
+/**
+ * @brief Describe the current search for the project files, to tell
+ *        whether the result list belongs to it.
+ * @param key The buffer (sizeof(fw.key)).
+ * @param root The project directory.
+ */
+static void make_key(char *key, const char *root)
+{
+    snprintf(key, sizeof(fw.key), "%d%d%d|%s|%s|%s", fw.casesens_on, fw.words_on, fw.regex_on,
+             root, fw.pattern, fw.text);
+}
+
+/**
+ * @brief Give the result list its nodes (~0 detaches them for changes).
+ * @param list The list.
+ */
+static void set_labels(struct List *list)
+{
+    if (fw.list == NULL) return;
+    if (fw.win != NULL)
+        SetGadgetAttrs((struct Gadget *)fw.list, fw.win, NULL, LISTBROWSER_Labels, (ULONG)list, TAG_END);
+    else SetAttrs(fw.list, LISTBROWSER_Labels, (ULONG)list, TAG_END);
+}
+
+/**
+ * @brief Free a node of the result list with its result.
+ * @param n The node (removed from its list).
+ */
+static void free_result(struct Node *n)
+{
+    Result *r = NULL;
+    GetListBrowserNodeAttrs(n, LBNA_UserData, (ULONG)&r, TAG_END);
+    if (r != NULL) {
+        free(r->path);
+        free(r);
+    }
+    FreeListBrowserNode(n);
+}
+
+/** @brief Empty the result list; the results no longer belong to a search. */
+static void results_clear(void)
+{
+    struct Node *n;
+    if (fw.results.lh_Head == NULL) return;
+    set_labels((struct List *)~0);
+    while ((n = RemHead(&fw.results)) != NULL) free_result(n);
+    while ((n = RemHead(&fw.pending)) != NULL) free_result(n);
+    set_labels(&fw.results);
+    fw.result_count = fw.file_count = fw.hit_files = fw.unflushed = 0;
+    fw.current = NULL;
+    fw.complete = 0;
+    fw.key[0] = '\0';
+}
+
+/** @brief Show the hits found since the last call in the list. */
+static void results_flush(void)
+{
+    struct Node *n;
+    fw.unflushed = 0;
+    if (IsListEmpty(&fw.pending)) return;
+    set_labels((struct List *)~0);
+    while ((n = RemHead(&fw.pending)) != NULL) AddTail(&fw.results, n);
+    set_labels(&fw.results);
+}
+
+/**
+ * @brief Add a hit to the result list (shown with the next flush).
+ * @param path Full name of the file.
+ * @param text The file's text.
+ * @param h The hit.
+ * @return Non-zero on success.
+ */
+static int results_add(const char *path, const char *text, const SearchHit *h)
+{
+    Result *r;
+    struct Node *n;
+    char number[16], shown[72];
+    const char *t = text + h->line_offset, *relative = path;
+    size_t root_length = strlen(fw.project);
+    long i = 0, k;
+
+    if ((r = malloc(sizeof(*r))) == NULL) return 0;
+    if ((r->path = malloc(strlen(path) + 1)) == NULL) {
+        free(r);
+        return 0;
+    }
+    strcpy(r->path, path);
+    r->line = h->line;
+    r->col = h->col;
+    r->length = h->length;
+    /* the line without its indentation, tabs as spaces */
+    while (i < h->line_length && (t[i] == ' ' || t[i] == '\t')) ++i;
+    for (k = 0; i < h->line_length && k < (long)sizeof(shown) - 1; ++i, ++k)
+        shown[k] = t[i] == '\t' ? ' ' : t[i];
+    shown[k] = '\0';
+    snprintf(number, sizeof(number), "%ld", h->line + 1);
+    if (strncmp(path, fw.project, root_length) == 0) {
+        relative = path + root_length;
+        if (*relative == '/') ++relative;
+    }
+    n = AllocListBrowserNode(3, LBNA_UserData, (ULONG)r,
+        LBNA_Column, 0, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)relative,
+        LBNA_Column, 1, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)number,
+            LBNCA_Justification, LCJ_RIGHT,
+        LBNA_Column, 2, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)shown,
+        TAG_END);
+    if (n == NULL) {
+        free(r->path);
+        free(r);
+        return 0;
+    }
+    AddTail(&fw.pending, n);
+    ++fw.result_count;
+    return 1;
+}
+
+/**
+ * @brief Read a text file for the search.
+ * @param path The file.
+ * @param size Set to its size.
+ * @return The text (free() it), or NULL if it cannot be read, is larger
+ *         than MAXFILESIZE or contains NUL bytes (not a text).
+ */
+static char *read_file(const char *path, long *size)
+{
+    BPTR fh = Open((STRPTR)path, MODE_OLDFILE);
+    struct FileInfoBlock *fib;
+    char *data = NULL;
+    if (fh == 0) return NULL;
+    fib = AllocDosObject(DOS_FIB, NULL);
+    if (fib != NULL && ExamineFH(fh, fib) && fib->fib_Size >= 0 && fib->fib_Size <= MAXFILESIZE) {
+        long n = fib->fib_Size;
+        data = malloc((size_t)n + 1);
+        if (data != NULL && Read(fh, data, n) == n && memchr(data, 0, (size_t)n) == NULL) {
+            data[n] = '\0';
+            *size = n;
+        } else {
+            free(data);
+            data = NULL;
+        }
+    }
+    if (fib != NULL) FreeDosObject(DOS_FIB, fib);
+    Close(fh);
+    return data;
+}
+
+/**
+ * @brief Search one project file: list its hits or, when replacing,
+ *        open it in a tab and replace them there. Open files are searched
+ *        in their editor.
+ * @param app The application state.
+ * @param path The file.
+ */
+static void search_file(EditorApp *app, const char *path)
+{
+    char canonical[EDITOR_PATH_MAX];
+    Document *doc;
+    SearchHit *hits = NULL;
+    char *text;
+    long size = 0, n, i;
+    int from_editor;
+    BPTR lock = Lock((STRPTR)path, ACCESS_READ);
+
+    if (lock == 0) return;
+    i = NameFromLock(lock, (STRPTR)canonical, sizeof(canonical));
+    UnLock(lock);
+    if (!i) return;
+    ++fw.file_count;
+    doc = document_find_path(app, canonical);
+    from_editor = doc != NULL;
+    text = from_editor ? export_text(doc, &size) : read_file(canonical, &size);
+    if (text == NULL) return;
+    n = search_all(&fw.sp, text, size, &hits);
+    if (n > 0) {
+        ++fw.hit_files;
+        if (fw.replace_after) {
+            /* A file that is not open yet is opened after the walk and
+             * replaced in only one turn of the event loop later, once
+             * its new tab is laid out and drawn. */
+            if (doc != NULL) {
+                if ((i = replace_all_in(app, doc, &fw.sp)) > 0) fw.result_count += i;
+            } else {
+                struct Node *q = malloc(sizeof(*q) + strlen(canonical) + 1);
+                if (q != NULL) {
+                    q->ln_Name = (char *)(q + 1);
+                    strcpy(q->ln_Name, canonical);
+                    AddTail(&fw.queue, q);
+                }
+            }
+        } else {
+            for (i = 0; i < n && fw.result_count < MAXRESULTS; ++i)
+                if (!results_add(canonical, text, &hits[i])) break;
+        }
+    }
+    free(hits);
+    if (from_editor) FreeVec(text);
+    else free(text);
+}
+
+/**
+ * @brief Draw the editor of a just opened document once before it is
+ *        marked or changed (a tab reused for the file may still show the
+ *        old, empty contents).
+ * @param app The application state.
+ * @param doc The document.
+ */
+static void redraw(EditorApp *app, Document *doc)
+{
+    if (visible(app, doc)) RefreshGList((struct Gadget *)doc->editor, app->window, NULL, 1);
+}
+
+/**
+ * @brief Let the window's input be handled again soon (the event loop
+ *        wakes up at once).
+ */
+static void wake(void)
+{
+    if (fw.signal < 0) fw.signal = AllocSignal(-1);
+    if (fw.signal >= 0) Signal(FindTask(NULL), 1UL << fw.signal);
+}
+
+/**
+ * @brief Mark a hit of the result list in the active document: it is
+ *        searched again from its position, as the text may have changed;
+ *        if it is not there, the cursor goes to its line.
+ * @param app The application state.
+ * @param doc The document (the active one).
+ * @param pos Line and column of the hit.
+ */
+static void mark_result(EditorApp *app, Document *doc, SearchPos pos)
+{
+    SearchPattern p;
+    SearchHit hit;
+    if (!compile(&p)) return;
+    if (search_doc(doc, &p, pos, 0, 0, &hit, NULL) && hit.line == pos.line) mark_hit(app, &hit);
+    else SetGadgetAttrs((struct Gadget *)doc->editor, app->window, NULL,
+                        GA_TEXTEDITOR_CursorY, (ULONG)pos.line, GA_TEXTEDITOR_CursorX, 0, TAG_END);
+    search_free(&p);
+}
+
+/**
+ * @brief Show a hit of the result list: open its file and mark the hit. In
+ *        a file that has just been opened it is marked one turn of the
+ *        event loop later, once the new tab is laid out and the editor has
+ *        taken the text (marking at once left the editor empty, and a
+ *        Replace then lost the text).
+ * @param app The application state.
+ * @param node The node of the hit.
+ */
+static void show_result(EditorApp *app, struct Node *node)
+{
+    Result *r = NULL;
+    Document *doc;
+    SearchPos pos;
+    struct Node *n;
+    ULONG index = 0;
+    int was_open;
+
+    GetListBrowserNodeAttrs(node, LBNA_UserData, (ULONG)&r, TAG_END);
+    if (r == NULL) return;
+    fw.current = node;
+    for (n = fw.results.lh_Head; n != node && n->ln_Succ != NULL; n = n->ln_Succ) ++index;
+    if (fw.win != NULL)
+        SetGadgetAttrs((struct Gadget *)fw.list, fw.win, NULL,
+            LISTBROWSER_Selected, index, LISTBROWSER_MakeVisible, index, TAG_END);
+    was_open = document_find_path(app, r->path) != NULL;
+    fw.hit_doc = fw.show_doc = NULL;
+    if ((doc = document_open(app, r->path)) == NULL || app->active != doc) return;
+    pos.line = r->line;
+    pos.col = r->col;
+    if (was_open) mark_result(app, doc, pos);
+    else {
+        fw.show_doc = doc;
+        fw.show_pos = pos;
+        wake();
+    }
+}
+
+/**
+ * @brief End the project search.
+ * @param stopped Non-zero if it was stopped before the end.
+ */
+static void scan_finish(int stopped)
+{
+    int incomplete;
+    struct Node *q;
+    if (fw.scan == NULL) return;
+    while ((q = RemHead(&fw.queue)) != NULL) free(q);
+    fw.replace_doc = NULL;
+    fw.walked = 0;
+    incomplete = filescan_incomplete(fw.scan);
+    filescan_end(fw.scan);
+    fw.scan = NULL;
+    search_free(&fw.sp);
+    results_flush();
+    set_disabled(fw.stop, 1);
+    if (fw.replace_after) {
+        snprintf(fw.message, sizeof(fw.message), "%ld replacement%s in %ld file%s%s",
+                 fw.result_count, fw.result_count == 1 ? "" : "s",
+                 fw.hit_files, fw.hit_files == 1 ? "" : "s", stopped ? " (stopped)" : "");
+        fw.replace_after = 0;
+        fw.result_count = 0;
+        fw.key[0] = '\0';
+    } else if (fw.result_count == 0) {
+        snprintf(fw.message, sizeof(fw.message), "\"%s\" not found in %ld file%s%s", fw.text,
+                 fw.file_count, fw.file_count == 1 ? "" : "s", stopped ? " (stopped)" : "");
+    } else {
+        snprintf(fw.message, sizeof(fw.message), "%ld hit%s in %ld of %ld files%s",
+                 fw.result_count, fw.result_count == 1 ? "" : "s", fw.hit_files, fw.file_count,
+                 stopped ? " (stopped)" :
+                 fw.result_count >= MAXRESULTS ? " (stopped at the limit)" : "");
+        fw.complete = !stopped && fw.result_count < MAXRESULTS;
+    }
+    if (incomplete && strlen(fw.message) + 30 < sizeof(fw.message))
+        strcat(fw.message, ", some directories skipped");
+    status(fw.message);
+}
+
+/**
+ * @brief Start searching the project files (the result list is emptied).
+ * @param app The application state.
+ * @param replace Non-zero to replace all hits (opening the files in tabs)
+ *                instead of listing them.
+ */
+static void scan_start(EditorApp *app, int replace)
+{
+    scan_finish(1);
+    results_clear();
+    if (!project_root(app, fw.project, sizeof(fw.project))) {
+        status("No project: open a directory first");
+        return;
+    }
+    if (fw.signal < 0 && (fw.signal = AllocSignal(-1)) < 0) {
+        status("No free signal");
+        return;
+    }
+    if (!compile(&fw.sp)) return;
+    if ((fw.scan = filescan_start(fw.project, fw.pattern)) == NULL) {
+        search_free(&fw.sp);
+        status("The project directory or the file pattern cannot be used");
+        return;
+    }
+    if (!replace) make_key(fw.key, fw.project);
+    fw.replace_after = replace;
+    fw.jump_first = !replace;
+    set_disabled(fw.stop, 0);
+    status(replace ? "Replacing..." : "Searching...");
+    Signal(FindTask(NULL), 1UL << fw.signal);
+}
+
+/**
+ * @brief Go on with the project search (a few directory entries, at most
+ *        one file); the window signals itself to be called again.
+ * @param app The application state.
+ */
+static void scan_step(EditorApp *app)
+{
+    int r;
+    struct Node *q;
+    if (fw.walked) {
+        /* replacing: open the next file, replace in it in the next step */
+        if (fw.replace_doc != NULL) {
+            long n;
+            redraw(app, fw.replace_doc);
+            n = replace_all_in(app, fw.replace_doc, &fw.sp);
+            if (n > 0) fw.result_count += n;
+            fw.replace_doc = NULL;
+        } else if ((q = RemHead(&fw.queue)) != NULL) {
+            fw.replace_doc = document_open(app, q->ln_Name);
+            free(q);
+        } else {
+            scan_finish(0);
+            return;
+        }
+        if (fw.scan != NULL) Signal(FindTask(NULL), 1UL << fw.signal);
+        return;
+    }
+    r = filescan_next(fw.scan, fw.file, sizeof(fw.file));
+    if (r == 1) {
+        search_file(app, fw.file);
+        if (++fw.unflushed >= FLUSH_FILES) {
+            results_flush();
+            snprintf(fw.message, sizeof(fw.message), "%s %ld files, %ld %s",
+                     fw.replace_after ? "Replacing..." : "Searching...", fw.file_count,
+                     fw.result_count, fw.replace_after ? "replaced" : "hits");
+            status(fw.message);
+        }
+        if (fw.jump_first && fw.result_count > 0) {
+            fw.jump_first = 0;
+            results_flush();
+            show_result(app, fw.results.lh_Head);
+        }
+    }
+    if (fw.scan == NULL) return;        /* ended meanwhile (window closed) */
+    if (r < 0 && fw.replace_after) fw.walked = 1;
+    else if (r < 0 || (!fw.replace_after && fw.result_count >= MAXRESULTS)) {
+        scan_finish(0);
+        return;
+    }
+    Signal(FindTask(NULL), 1UL << fw.signal);
+}
+
+/**
+ * @brief Show the next (or previous) hit of the result list.
+ * @param app The application state.
+ */
+static void results_next(EditorApp *app)
+{
+    struct Node *n;
+    int wrapped = 0;
+    results_flush();
+    if (IsListEmpty(&fw.results)) {
+        if (fw.scan == NULL) status("No hits");
+        return;
+    }
+    if (fw.backwards_on) n = fw.current != NULL ? fw.current->ln_Pred : fw.results.lh_TailPred;
+    else n = fw.current != NULL ? fw.current->ln_Succ : fw.results.lh_Head;
+    if ((fw.backwards_on ? n->ln_Pred : n->ln_Succ) == NULL) {
+        if (!fw.wrap_on) {
+            status("No more hits");
+            return;
+        }
+        n = fw.backwards_on ? fw.results.lh_TailPred : fw.results.lh_Head;
+        wrapped = 1;
+    }
+    show_result(app, n);
+    status(wrapped ? "Wrapped around" : "");
+}
+
+/**
+ * @brief Find in the project files: search them if the result list does
+ *        not belong to this search, otherwise show the next hit.
+ * @param app The application state.
+ */
+static void project_find(EditorApp *app)
+{
+    char key[sizeof(fw.key)], root[EDITOR_PATH_MAX];
+    if (!project_root(app, root, sizeof(root))) {
+        status("No project: open a directory first");
+        return;
+    }
+    make_key(key, root);
+    if (strcmp(key, fw.key) != 0 || (fw.scan == NULL && fw.result_count == 0)) scan_start(app, 0);
+    else results_next(app);
+}
+
+/**
+ * @brief After a replacement in a project file, move the later hits of
+ *        the same line in the result list by the change in length.
+ * @param app The application state.
+ * @param delta Length of the replacement minus that of the hit.
+ */
+static void results_shift(EditorApp *app, long delta)
+{
+    struct Node *n;
+    Result *r;
+    const char *path = app->active != NULL ? app->active->path : NULL;
+    if (path == NULL || delta == 0) return;
+    for (n = fw.results.lh_Head; n->ln_Succ != NULL; n = n->ln_Succ) {
+        r = NULL;
+        GetListBrowserNodeAttrs(n, LBNA_UserData, (ULONG)&r, TAG_END);
+        if (r != NULL && r->line == fw.hit.line && r->col > fw.hit.col && strcmp(r->path, path) == 0)
+            r->col += delta;
+    }
+}
+
 /**
  * @brief Find: the next hit from the last one or the cursor.
  * @param app The application state.
@@ -553,8 +1143,9 @@ static int find_from(EditorApp *app, SearchPos from)
 static void do_find(EditorApp *app)
 {
     read_gadgets();
-    if (fw.text[0] == '\0' || app->active == NULL) return;
-    find_from(app, start_position(app));
+    if (fw.text[0] == '\0') return;
+    if (fw.scope_on == SCOPE_PROJECT) project_find(app);
+    else if (app->active != NULL) find_from(app, start_position(app));
 }
 
 /**
@@ -607,6 +1198,12 @@ static void do_replace(EditorApp *app)
         return;
     }
     /* on to the next one, behind the replacement */
+    if (fw.scope_on == SCOPE_PROJECT) {
+        results_shift(app, length - fw.hit.length);
+        fw.hit_doc = NULL;
+        results_next(app);
+        return;
+    }
     if (!fw.backwards_on) pos.col += length > 0 ? length : 1;
     find_from(app, pos);
 }
@@ -677,7 +1274,13 @@ static void do_replace_all(EditorApp *app)
     int nomem = 0;
 
     read_gadgets();
-    if (fw.text[0] == '\0' || app->active == NULL || app->window == NULL || !compile(&p)) return;
+    if (fw.text[0] == '\0' || app->window == NULL) return;
+    if (fw.scope_on == SCOPE_PROJECT) {
+        fw.hit_doc = NULL;
+        scan_start(app, 1);
+        return;
+    }
+    if (app->active == NULL || !compile(&p)) return;
     fw.hit_doc = NULL;
     if (fw.scope_on == SCOPE_OPEN) {
         for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ != NULL;
@@ -745,6 +1348,11 @@ void find_next(EditorApp *app)
         find_open(app);
         return;
     }
+    if (fw.scope_on == SCOPE_PROJECT) {
+        if (fw.win == NULL) find_open(app);    /* the search runs while the window is open */
+        project_find(app);
+        return;
+    }
     if (app->active == NULL) return;
     if (!find_from(app, start_position(app)) && app->screen != NULL) DisplayBeep(app->screen);
 }
@@ -752,6 +1360,7 @@ void find_next(EditorApp *app)
 /** @brief Close the window (the object stays for the next time). */
 static void find_close(void)
 {
+    scan_finish(1);
     if (fw.win != NULL) {
         read_gadgets();                 /* for Find next */
         DoMethod(fw.winobj, WM_CLOSE, NULL);
@@ -763,6 +1372,7 @@ ULONG find_sigmask(void)
 {
     ULONG sig = 0;
     if (fw.win != NULL) GetAttr(WINDOW_SigMask, fw.winobj, &sig);
+    if ((fw.scan != NULL || fw.show_doc != NULL) && fw.signal >= 0) sig |= 1UL << fw.signal;
     return sig;
 }
 
@@ -783,7 +1393,19 @@ void find_handle(EditorApp *app)
         case WMHI_GADGETUP:
             switch (result & WMHI_GADGETMASK) {
             case FG_FIND:                       /* Return in the search field */
+            case FG_FILES:                      /* ... or in the file pattern */
             case FG_DOFIND:     do_find(app); break;
+            case FG_SCOPE:
+                fw.scope_on = (int)get(fw.scope, CHOOSER_Selected);
+                set_disabled(fw.files, fw.scope_on != SCOPE_PROJECT);
+                break;
+            case FG_LIST: {
+                struct Node *n = (struct Node *)get(fw.list, LISTBROWSER_SelectedNode);
+                read_gadgets();
+                if (n != NULL) show_result(app, n);
+                break;
+            }
+            case FG_STOP:       scan_finish(1); break;
             case FG_DOREPLACE:  do_replace(app); break;
             case FG_REPLACEALL: do_replace_all(app); break;
             case FG_CLOSE:      find_close(); return;
@@ -791,19 +1413,40 @@ void find_handle(EditorApp *app)
             break;
         }
     }
+    if (fw.show_doc != NULL) {
+        Document *doc = fw.show_doc;
+        fw.show_doc = NULL;
+        if (doc == app->active) {
+            redraw(app, doc);
+            mark_result(app, doc, fw.show_pos);
+        }
+    }
+    if (fw.scan != NULL) scan_step(app);
 }
 
 void find_forget_document(Document *doc)
 {
     if (fw.hit_doc == doc) fw.hit_doc = NULL;
+    if (fw.replace_doc == doc) fw.replace_doc = NULL;
+    if (fw.show_doc == doc) fw.show_doc = NULL;
 }
 
 void find_cleanup(void)
 {
+    struct Node *n;
     find_close();
     if (fw.winobj != NULL) {
         DisposeObject(fw.winobj);
         fw.winobj = NULL;
+        fw.list = NULL;
+    }
+    if (fw.results.lh_Head != NULL) {
+        while ((n = RemHead(&fw.results)) != NULL) free_result(n);
+        while ((n = RemHead(&fw.pending)) != NULL) free_result(n);
+    }
+    if (fw.signal >= 0) {
+        FreeSignal(fw.signal);
+        fw.signal = -1;
     }
     if (StringBase != NULL) {
         CloseLibrary(StringBase);

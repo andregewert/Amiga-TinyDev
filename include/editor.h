@@ -98,6 +98,10 @@ typedef struct Document {
     char tab_title[EDITOR_TITLE_MAX + 2];
     unsigned long number;
     int dirty;
+    unsigned long saved_hash;   /* checksum of the text as loaded or saved ... */
+    long saved_length;          /* ... and its length (document_mark_saved()) */
+    int saved_from_file;        /* ... taken from the file, not from the editor */
+    int check_pending;          /* changed since the last document_check_unchanged() */
     LineEnding eol;
     SyntaxLanguage language;
     SyntaxHookContext highlight;
@@ -146,6 +150,7 @@ typedef struct EditorApp {
     int scrolling;
     int scrollbar_dragging;     /* a scroller is being used, do not write it */
     int scroll_idle_ticks;      /* IntuiTicks since the last scroll signal */
+    int change_idle_ticks;      /* IntuiTicks since the last change of the text */
     int defer_depth;            /* ui_begin_update() nesting */
     int pending_layout;         /* a relayout was requested meanwhile */
     int pending_refresh;        /* a page redraw was requested meanwhile */
@@ -413,6 +418,36 @@ void document_free_all(EditorApp *app);
  */
 void document_set_dirty(EditorApp *app, Document *doc, int dirty);
 /**
+ * @brief Remember the text as it is on disk (after loading or saving), so
+ *        that undoing all changes makes the document unchanged again.
+ * @param doc The document.
+ * @param text The text as loaded or saved.
+ * @param length Its length.
+ * @param from_file Non-zero if the text was read from the file (it is
+ *                  taken again from the editor once that is idle).
+ */
+void document_mark_saved(Document *doc, const char *text, long length, int from_file);
+/**
+ * @brief Note that the active document's text changed (the editor's
+ *        GA_TEXTEDITOR_HasChanged was set): mark it modified and check it
+ *        once the editor is idle (document_change_tick()).
+ * @param app The application state.
+ */
+void document_changed(EditorApp *app);
+/**
+ * @brief On every IntuiTick: two ticks after the last change, check whether
+ *        the active document equals its saved text again.
+ * @param app The application state.
+ */
+void document_change_tick(EditorApp *app);
+/**
+ * @brief Mark a modified document as unchanged again if its text equals
+ *        the one on disk (call after Undo and Redo).
+ * @param app The application state.
+ * @param doc The document (may be NULL).
+ */
+void document_check_unchanged(EditorApp *app, Document *doc);
+/**
  * @brief Set a document's path, updating its title, tab and language.
  * @param app The application state.
  * @param doc The document to update.
@@ -540,6 +575,38 @@ int file_request_open(EditorApp *app);
  * @return Non-zero if the document was saved, zero otherwise.
  */
 int file_request_save(EditorApp *app, Document *doc);
+
+/** A step-by-step walk through the files of a directory tree (filescan.c). */
+typedef struct FileScan FileScan;
+/**
+ * @brief Start walking through the files below a directory (at most 16
+ *        levels deep; links and icon files are skipped).
+ * @param root The directory.
+ * @param pattern AmigaDOS pattern for the file names (NULL or "" for all).
+ * @return The walk, or NULL if the directory cannot be read, the pattern
+ *         is invalid or there is not enough memory.
+ */
+FileScan *filescan_start(const char *root, const char *pattern);
+/**
+ * @brief Go on with a walk: looks at a few directory entries.
+ * @param scan The walk.
+ * @param path The buffer for the full name of the next file.
+ * @param size Its size.
+ * @return 1 if a file was found, 0 if not yet (call again), -1 when the
+ *         walk is complete.
+ */
+int filescan_next(FileScan *scan, char *path, long size);
+/**
+ * @brief Tell whether directories were skipped (too deep, unreadable).
+ * @param scan The walk.
+ * @return Non-zero if the walk is incomplete.
+ */
+int filescan_incomplete(const FileScan *scan);
+/**
+ * @brief End a walk and free it.
+ * @param scan The walk (may be NULL).
+ */
+void filescan_end(FileScan *scan);
 
 /**
  * @brief Open the find and replace window (or bring it to the front).

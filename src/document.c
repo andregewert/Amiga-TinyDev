@@ -174,6 +174,7 @@ static Document *new_document(EditorApp *app)
     snprintf(doc->title, sizeof(doc->title), "Untitled %lu", doc->number);
     strcpy(doc->tab_title, doc->title);
     doc->eol = EOL_LF;
+    document_mark_saved(doc, "", 0, 0);
     doc->language = SYNTAX_PLAIN;
     syntax_init_hook(&doc->highlight, doc->language);
     minimap_init_document(doc);
@@ -355,6 +356,105 @@ void document_activate(EditorApp *app, Document *doc)
     ui_refresh(app);
     document_sync_scrollers(app, doc);
     minimap_request(app);
+}
+
+/** Larger texts are compared only after Undo and Redo, not after every
+ *  pause in typing. */
+#define CHECK_IDLE_MAX (256L * 1024L)
+
+/**
+ * @brief Checksum of a text (djb2 with xor, 32 bits, shifts and adds only)
+ *        that ignores how lines end (LF, CR, CRLF) and line ends at the
+ *        end of the text, as the editor's export may differ there from
+ *        the file.
+ * @param text The text.
+ * @param length Its length.
+ * @param counted Set to the number of characters checked.
+ * @return The checksum.
+ */
+static unsigned long text_hash(const char *text, long length, long *counted)
+{
+    unsigned long h = 5381UL;
+    long i, n = 0;
+    unsigned char c;
+    while (length > 0 && (text[length - 1] == '\n' || text[length - 1] == '\r')) --length;
+    for (i = 0; i < length; ++i) {
+        c = (unsigned char)text[i];
+        if (c == '\r') {
+            if (i + 1 < length && text[i + 1] == '\n') continue;
+            c = '\n';
+        }
+        h = (((h << 5) + h) ^ c) & 0xffffffffUL;
+        ++n;
+    }
+    *counted = n;
+    return h;
+}
+
+void document_mark_saved(Document *doc, const char *text, long length, int from_file)
+{
+    doc->saved_hash = text_hash(text, length, &doc->saved_length);
+    doc->saved_from_file = from_file;
+}
+
+/**
+ * @brief Mark a modified document as unchanged again if its text equals the
+ *        one on disk.
+ *
+ * texteditor.gadget keeps GA_TEXTEDITOR_HasChanged set after its changes
+ * were undone, so the exported text is compared with the checksum and
+ * length remembered by document_mark_saved(). Called only after Undo and
+ * Redo, as it exports the whole text.
+ *
+ * @param app The owning application.
+ * @param doc The document (may be NULL).
+ */
+void document_check_unchanged(EditorApp *app, Document *doc)
+{
+    char *text;
+    long counted;
+    unsigned long hash;
+    if (doc == NULL) return;
+    doc->check_pending = 0;
+    if (!doc->dirty) return;
+    text = (char *)DoMethod(doc->editor, GM_TEXTEDITOR_ExportText, NULL);
+    if (text == NULL) return;
+    hash = text_hash(text, (long)strlen(text), &counted);
+    FreeVec(text);
+    if (counted == doc->saved_length && hash == doc->saved_hash) {
+        SetAttrs(doc->editor, GA_TEXTEDITOR_HasChanged, FALSE, TAG_END);
+        document_set_dirty(app, doc, 0);
+    }
+}
+
+void document_changed(EditorApp *app)
+{
+    Document *doc = app->active;
+    if (doc == NULL) return;
+    /* HasChanged is cleared again, so its next change shows the next edit
+     * (Undo with the keyboard is handled by the editor itself) */
+    SetAttrs(doc->editor, GA_TEXTEDITOR_HasChanged, FALSE, TAG_END);
+    doc->saved_from_file = 0;           /* too late to take it from the editor */
+    doc->check_pending = 1;
+    app->change_idle_ticks = 0;
+    document_set_dirty(app, doc, 1);
+}
+
+void document_change_tick(EditorApp *app)
+{
+    Document *doc = app->active;
+    if (doc == NULL || app->change_idle_ticks++ < 2) return;
+    if (!doc->dirty && doc->saved_from_file) {
+        /* compare later changes with the text as the editor exports it */
+        char *text = (char *)DoMethod(doc->editor, GM_TEXTEDITOR_ExportText, NULL);
+        if (text != NULL) {
+            document_mark_saved(doc, text, (long)strlen(text), 0);
+            FreeVec(text);
+        }
+        doc->saved_from_file = 0;
+    }
+    if (doc->check_pending && doc->saved_length <= CHECK_IDLE_MAX)
+        document_check_unchanged(app, doc);
 }
 
 /**

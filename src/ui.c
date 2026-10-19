@@ -785,8 +785,14 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_ABOUT: ui_about(app); break;
         case MID_SETTINGS: edit_settings(app); break;
         case MID_QUIT: if (close_all(app)) app->running = 0; break;
-        case MID_UNDO: editor_command(app, "UNDO"); break;
-        case MID_REDO: editor_command(app, "REDO"); break;
+        case MID_UNDO:
+            editor_command(app, "UNDO");
+            document_check_unchanged(app, app->active);
+            break;
+        case MID_REDO:
+            editor_command(app, "REDO");
+            document_check_unchanged(app, app->active);
+            break;
         case MID_CUT: editor_command(app, "CUT"); break;
         case MID_COPY: editor_command(app, "COPY"); break;
         case MID_PASTE: editor_command(app, "PASTE"); break;
@@ -927,7 +933,7 @@ int ui_run(EditorApp *app)
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_TREE) tree_handle_event(app);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_VSCROLL) document_scroll_finish(app, 0);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_HSCROLL) document_scroll_finish(app, 1);
-            else if (kind == WMHI_INTUITICK) document_scroll_tick(app);
+            else if (kind == WMHI_INTUITICK) { document_scroll_tick(app); document_change_tick(app); }
             /* Clicks and drags in the minimap arrive as IDCMPUPDATE
              * notifications (window IDCMP hook); its GADGETUP needs nothing. */
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_MINIMAP) ;
@@ -955,7 +961,7 @@ int ui_run(EditorApp *app)
         if (app->active != NULL) {
             ULONG changed = 0;
             GetAttr(GA_TEXTEDITOR_HasChanged, app->active->editor, &changed);
-            if (changed) { document_set_dirty(app, app->active, 1); minimap_request(app); }
+            if (changed) { document_changed(app); minimap_request(app); }
         }
         /* The close gadgets on the tabs do not generate a dedicated event, so
          * check for a pending tab close on every wake-up as well. */
