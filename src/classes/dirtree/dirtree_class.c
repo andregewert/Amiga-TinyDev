@@ -50,6 +50,7 @@
 #include <gadgets/dirtree.h>
 #include "classlib.h"
 #include "dirtree_icons.h"
+#include "dirtree_sort.h"
 
 /** Path buffers are allocated, not put on the stack: the class runs on the
  * application's stack, often only 4 KB, while the listbrowser renders. */
@@ -97,7 +98,8 @@ typedef struct TreeEntry {
     int kind;               /**< DTI_ symbol, -1 for none */
     int seen;               /**< found again while a directory is reconciled */
     Watch *watch;           /**< notification of an expanded directory, or NULL */
-    char *name;             /**< display name, stored after the path */
+    char *name;             /**< file name, stored after the path */
+    char *label;            /**< shown name (DIRTREE_NameHook), stored after the name */
     char path[1];           /**< full path, NUL terminated */
 } TreeEntry;
 
@@ -125,7 +127,17 @@ typedef struct DirTreeData {
     struct MsgPort *port;       /**< notifications, NULL without watching */
     struct MinList watches;     /**< the active Watch requests */
     Watch *root_watch;          /**< notification of the root, or NULL */
+    Object *self;               /**< the object (for the name hook) */
+    char *pattern;              /**< parsed DIRTREE_Pattern, NULL for all files */
+    char *exclude;              /**< parsed DIRTREE_ExcludePattern, NULL for none */
+    struct Hook *name_hook;     /**< DIRTREE_NameHook or NULL */
+    char *label_buffer;         /**< buffer of the name hook (LABEL_MAX) */
+    ULONG sort;                 /**< DIRTREE_Sort */
+    int hide_empty;             /**< DIRTREE_HideEmpty */
 } DirTreeData;
+
+/** Size of the buffer for a shown name from DIRTREE_NameHook. */
+#define LABEL_MAX 256
 
 
 /* -- libraries ------------------------------------------------------------ */
@@ -168,19 +180,22 @@ static char *dup_string(const char *value)
 }
 
 /**
- * @brief Allocate a TreeEntry with its path and name in one block.
- * @param name Display name.
+ * @brief Allocate a TreeEntry with its path, name and shown name in one
+ *        block.
+ * @param name File name (or the text of a placeholder).
+ * @param label Shown name.
  * @param path Full path ("" for placeholders).
  * @param directory Non-zero for a directory.
  * @param placeholder Non-zero for a placeholder.
  * @return The entry (free with FreeVec()), or NULL without memory.
  */
-static TreeEntry *new_entry(const char *name, const char *path,
+static TreeEntry *new_entry(const char *name, const char *label, const char *path,
                             int directory, int placeholder)
 {
     size_t path_length = strlen(path) + 1;
     size_t name_length = strlen(name) + 1;
-    TreeEntry *entry = AllocVec((ULONG)(sizeof(*entry) + path_length + name_length),
+    size_t label_length = strlen(label) + 1;
+    TreeEntry *entry = AllocVec((ULONG)(sizeof(*entry) + path_length + name_length + label_length),
                                 MEMF_ANY | MEMF_CLEAR);
     if (entry != NULL) {
         entry->directory = directory;
@@ -188,8 +203,34 @@ static TreeEntry *new_entry(const char *name, const char *path,
         memcpy(entry->path, path, path_length);
         entry->name = entry->path + path_length;
         memcpy(entry->name, name, name_length);
+        entry->label = entry->name + name_length;
+        memcpy(entry->label, label, label_length);
     }
     return entry;
+}
+
+/**
+ * @brief Return the name an entry shows: from DIRTREE_NameHook if it gives
+ *        one, otherwise the file name.
+ * @param d The instance data.
+ * @param name The file name.
+ * @param path The full path.
+ * @param directory Non-zero for a directory.
+ * @return The shown name (d->label_buffer or @p name).
+ */
+static const char *shown_name(DirTreeData *d, const char *name, const char *path, int directory)
+{
+    struct DirTreeNameMsg msg;
+    if (d->name_hook == NULL || d->label_buffer == NULL) return name;
+    msg.dtnm_Path = (STRPTR)path;
+    msg.dtnm_Name = (STRPTR)name;
+    msg.dtnm_Directory = directory;
+    msg.dtnm_Buffer = (STRPTR)d->label_buffer;
+    msg.dtnm_BufferSize = LABEL_MAX;
+    d->label_buffer[0] = '\0';
+    if (!CallHookPkt(d->name_hook, d->self, &msg) || d->label_buffer[0] == '\0') return name;
+    d->label_buffer[LABEL_MAX - 1] = '\0';
+    return d->label_buffer;
 }
 
 /**
@@ -206,7 +247,8 @@ static TreeEntry *new_entry(const char *name, const char *path,
 static struct Node *new_node(DirTreeData *d, const char *name, const char *path,
                              ULONG generation, int directory, int placeholder, int kind)
 {
-    TreeEntry *entry = new_entry(name, path, directory, placeholder);
+    TreeEntry *entry = new_entry(name, placeholder ? name : shown_name(d, name, path, directory),
+                                 path, directory, placeholder);
     struct Node *node;
     if (entry == NULL) return NULL;
     entry->kind = kind;
@@ -217,7 +259,7 @@ static struct Node *new_node(DirTreeData *d, const char *name, const char *path,
         LBNA_Flags, directory ? LBFLG_HASCHILDREN : 0,
         LBNA_UserData, (ULONG)entry,
         LBNA_Column, 0,
-        LBNCA_Text, (ULONG)entry->name,
+        LBNCA_Text, (ULONG)entry->label,
         LBNCA_RenderHook, (ULONG)&d->render_hook,
         LBNCA_HookHeight, (ULONG)d->row_height,
         TAG_END);
@@ -357,16 +399,20 @@ static ULONG node_count(DirTreeData *d)
 }
 
 /**
- * @brief Decide whether a new child sorts before an existing entry:
- *        directories first, then case-insensitive, then case-sensitive.
+ * @brief Decide whether a new child sorts before an existing entry, by the
+ *        file names: with DIRTREE_SORT_NATURAL in natural order with
+ *        directories among the files, otherwise directories first, then
+ *        case-insensitive, then case-sensitive.
+ * @param d The instance data (DIRTREE_Sort).
  * @param name Name of the new child.
  * @param directory Non-zero if the new child is a directory.
  * @param other The existing entry.
  * @return Non-zero if the new child goes before @p other.
  */
-static int sorts_before(const char *name, int directory, const TreeEntry *other)
+static int sorts_before(DirTreeData *d, const char *name, int directory, const TreeEntry *other)
 {
     LONG order;
+    if (d->sort == DIRTREE_SORT_NATURAL) return dirtree_natural_compare(name, other->name) < 0;
     if (directory != other->directory) return directory > other->directory;
     order = Stricmp((STRPTR)name, (STRPTR)other->name);
     if (order != 0) return order < 0;
@@ -393,7 +439,7 @@ static struct Node *sorted_predecessor(DirTreeData *d, struct Node *parent,
         if (node_generation(node) == child_generation) {
             TreeEntry *other = node_entry(node);
             if (other != NULL && !other->placeholder &&
-                sorts_before(name, directory, other))
+                sorts_before(d, name, directory, other))
                 return node->ln_Pred;
         }
         node = node->ln_Succ;
@@ -430,6 +476,71 @@ static int is_icon(const char *name)
 {
     size_t length = strlen(name);
     return length > 5 && Stricmp((STRPTR)(name + length - 5), (STRPTR)".info") == 0;
+}
+
+static int wanted(DirTreeData *d, const char *dir, struct FileInfoBlock *fib, ULONG generation,
+                  int listing);
+
+/**
+ * @brief Tell whether a directory holds a file that is shown (for
+ *        DIRTREE_HideEmpty), looking into its subdirectories as deep as
+ *        the tree may go. Stops at the first such file.
+ * @param d The instance data.
+ * @param path The directory.
+ * @param generation Its generation (its children are generation + 1).
+ * @return Non-zero if it has one.
+ */
+static int has_shown_file(DirTreeData *d, const char *path, ULONG generation)
+{
+    BPTR lock;
+    struct FileInfoBlock *fib;
+    int found = 0;
+    if (generation >= d->max_depth) return 0;
+    if ((lock = Lock((STRPTR)path, ACCESS_READ)) == 0) return 0;
+    fib = AllocDosObject(DOS_FIB, NULL);
+    if (fib != NULL && Examine(lock, fib) && fib->fib_DirEntryType > 0)
+        while (!found && ExNext(lock, fib))
+            found = wanted(d, path, fib, generation + 1, 0);
+    if (fib != NULL) FreeDosObject(DOS_FIB, fib);
+    UnLock(lock);
+    return found;
+}
+
+/**
+ * @brief Tell whether a directory entry is shown: not an icon (with
+ *        DIRTREE_HideIcons), a file matching DIRTREE_Pattern and not
+ *        DIRTREE_ExcludePattern, and with DIRTREE_HideEmpty a directory
+ *        only if it holds a file matching DIRTREE_Pattern (an excluded one
+ *        counts: e.g. a directory with only its index page is shown).
+ * @param d The instance data.
+ * @param dir The directory the entry is in.
+ * @param fib The entry.
+ * @param generation The entry's generation.
+ * @param listing Non-zero when the entry is listed; zero when only the
+ *        contents of a directory are looked for (DIRTREE_ExcludePattern
+ *        does not apply then).
+ * @return Non-zero if it is shown.
+ */
+static int wanted(DirTreeData *d, const char *dir, struct FileInfoBlock *fib, ULONG generation,
+                  int listing)
+{
+    char *path;
+    int ok;
+    if (fib->fib_DirEntryType <= 0) {
+        if (d->hide_icons && is_icon(fib->fib_FileName)) return 0;
+        if (listing && d->exclude != NULL &&
+            MatchPatternNoCase((STRPTR)d->exclude, (STRPTR)fib->fib_FileName)) return 0;
+        return d->pattern == NULL ||
+               MatchPatternNoCase((STRPTR)d->pattern, (STRPTR)fib->fib_FileName);
+    }
+    if (!d->hide_empty) return 1;
+    if ((path = AllocVec(DIRTREE_PATH_MAX, MEMF_ANY)) == NULL) return 1;
+    strncpy(path, dir, DIRTREE_PATH_MAX - 1);
+    path[DIRTREE_PATH_MAX - 1] = '\0';
+    ok = AddPart((STRPTR)path, (STRPTR)fib->fib_FileName, DIRTREE_PATH_MAX) &&
+         has_shown_file(d, path, generation);
+    FreeVec(path);
+    return ok;
 }
 
 /**
@@ -469,7 +580,7 @@ static int load_children(DirTreeData *d, struct Node *parent, const char *path,
     while (ExNext(lock, fib)) {
         struct Node *child;
         int directory = fib->fib_DirEntryType > 0;
-        if (!directory && d->hide_icons && is_icon(fib->fib_FileName)) continue;
+        if (!wanted(d, path, fib, generation + 1, 1)) continue;
         if (count + (directory ? 2UL : 1UL) > d->max_entries) { ok = 0; break; }
         strncpy(child_path, path, DIRTREE_PATH_MAX - 1);
         child_path[DIRTREE_PATH_MAX - 1] = '\0';
@@ -691,13 +802,13 @@ static ULONG render_entry(struct Hook *hook __asm("a0"), struct Node *node __asm
         x = (WORD)(x + dirtree_icon_width() + TEXT_GAP);
     }
     if (x > b->MaxX) return LBCB_OK;
-    length = strlen(entry->name);
-    fit = TextFit(rp, (STRPTR)entry->name, (UWORD)length, &te, NULL, 1,
+    length = strlen(entry->label);
+    fit = TextFit(rp, (STRPTR)entry->label, (UWORD)length, &te, NULL, 1,
                   (UWORD)(b->MaxX - x + 1), (UWORD)height);
     SetAPen(rp, (UBYTE)fg);
     SetDrMd(rp, JAM1);
     Move(rp, x, (WORD)(b->MinY + (height - rp->TxHeight) / 2 + rp->TxBaseline));
-    Text(rp, (STRPTR)entry->name, (UWORD)fit);
+    Text(rp, (STRPTR)entry->label, (UWORD)fit);
     return LBCB_OK;
 }
 
@@ -869,7 +980,7 @@ static ULONG reconcile(DirTreeData *d, struct Node *parent, const char *path, UL
     while (ExNext(lock, fib)) {
         int directory = fib->fib_DirEntryType > 0, found = 0;
         struct Node *child, *after;
-        if (!directory && d->hide_icons && is_icon(fib->fib_FileName)) continue;
+        if (!wanted(d, path, fib, generation + 1, 1)) continue;
         /* an entry that is there already stays as it is */
         for (node = parent != NULL ? parent->ln_Succ : d->nodes.lh_Head;
              node->ln_Succ != NULL && node_generation(node) > generation; node = node->ln_Succ) {
@@ -1088,6 +1199,52 @@ static int refresh(Class *cl, Object *o, DirTreeData *d, struct GadgetInfo *gi, 
     return done;
 }
 
+/**
+ * @brief Parse an AmigaDOS pattern (ignoring case).
+ * @param pattern The pattern, may be NULL.
+ * @return The parsed pattern (FreeVec() it), or NULL for none or an
+ *         invalid one.
+ */
+static char *parse_pattern(STRPTR pattern)
+{
+    LONG size;
+    char *parsed;
+    if (pattern == NULL || pattern[0] == '\0') return NULL;
+    size = (LONG)strlen((const char *)pattern) * 2 + 2;
+    if ((parsed = AllocVec((ULONG)size, MEMF_ANY)) != NULL &&
+        ParsePatternNoCase(pattern, (STRPTR)parsed, size) < 0) {
+        FreeVec(parsed);
+        parsed = NULL;
+    }
+    return parsed;
+}
+
+/**
+ * @brief DIRTREE_Title: show another text as the column title (until the
+ *        next DIRTREE_Root).
+ * @param cl The class.
+ * @param o The object.
+ * @param d The instance data.
+ * @param gi GadgetInfo, or NULL.
+ * @param text The title (copied; NULL or "" shows the root's name again).
+ */
+static void change_title(Class *cl, Object *o, DirTreeData *d, struct GadgetInfo *gi,
+                         const char *text)
+{
+    struct Node *selected = (struct Node *)super_get(cl, o, LISTBROWSER_SelectedNode);
+    char *copy;
+    if (text == NULL || text[0] == '\0')
+        text = d->root != NULL ? (const char *)FilePart((STRPTR)d->root) : "";
+    if (text[0] == '\0' && d->root != NULL) text = d->root;
+    if ((copy = dup_string(text)) == NULL) return;
+    set_labels(cl, o, gi, (struct List *)~0UL);
+    if (d->title != NULL) FreeVec(d->title);
+    d->title = copy;
+    set_title(cl, o, d, gi);
+    set_labels(cl, o, gi, &d->nodes);
+    if (selected != NULL && node_in_tree(d, selected)) set_selected(cl, o, gi, selected);
+}
+
 /* -- methods -------------------------------------------------------------- */
 
 /**
@@ -1166,6 +1323,13 @@ static ULONG om_new(Class *cl, Object *o, struct opSet *ops)
                                                    (ULONG)"(unavailable)",
                                                    ops->ops_AttrList);
     d->hide_icons = (int)GetTagData(DIRTREE_HideIcons, TRUE, ops->ops_AttrList);
+    d->self = obj;
+    d->sort = GetTagData(DIRTREE_Sort, DIRTREE_SORT_DIRSFIRST, ops->ops_AttrList);
+    d->hide_empty = (int)GetTagData(DIRTREE_HideEmpty, FALSE, ops->ops_AttrList);
+    d->name_hook = (struct Hook *)GetTagData(DIRTREE_NameHook, 0, ops->ops_AttrList);
+    if (d->name_hook != NULL) d->label_buffer = AllocVec(LABEL_MAX, MEMF_ANY);
+    d->pattern = parse_pattern((STRPTR)GetTagData(DIRTREE_Pattern, 0, ops->ops_AttrList));
+    d->exclude = parse_pattern((STRPTR)GetTagData(DIRTREE_ExcludePattern, 0, ops->ops_AttrList));
     class_new_list((struct List *)&d->watches);
     if (GetTagData(DIRTREE_Watch, TRUE, ops->ops_AttrList)) d->port = CreateMsgPort();
     d->render_hook.h_Entry = (ULONG (*)())render_entry;
@@ -1198,6 +1362,8 @@ static ULONG om_new(Class *cl, Object *o, struct opSet *ops)
     }
     root = (STRPTR)GetTagData(DIRTREE_Root, 0, ops->ops_AttrList);
     d->status = root != NULL ? load_root(cl, obj, d, NULL, root) : DIRTREE_ST_OK;
+    if (FindTagItem(DIRTREE_Title, ops->ops_AttrList) != NULL)
+        change_title(cl, obj, d, NULL, (const char *)GetTagData(DIRTREE_Title, 0, ops->ops_AttrList));
     return (ULONG)obj;
 }
 
@@ -1222,6 +1388,7 @@ static ULONG om_set(Class *cl, Object *o, struct opSet *ops)
     ULONG refresh_mode = ops->MethodID == OM_SET
                          ? GetTagData(DIRTREE_Refresh, 0, ops->ops_AttrList) : 0;
     int refreshed = 0;
+    struct TagItem *title_tag = NULL;
     if (ops->MethodID == OM_SET) update_row_height(d, ops->ops_GInfo);
     /* Read the listbrowser's event before the OM_SET reaches it: setting
      * attributes may reset LISTBROWSER_RelEvent. */
@@ -1236,9 +1403,12 @@ static ULONG om_set(Class *cl, Object *o, struct opSet *ops)
         d->status = load_root(cl, o, d, ops->ops_GInfo, (const char *)tag->ti_Data);
     if (handle) d->event = handle_event(cl, o, d, ops->ops_GInfo, event, cursor);
     if (refresh_mode != 0) refreshed = refresh(cl, o, d, ops->ops_GInfo, refresh_mode);
+    if (ops->MethodID == OM_SET &&
+        (title_tag = FindTagItem(DIRTREE_Title, ops->ops_AttrList)) != NULL)
+        change_title(cl, o, d, ops->ops_GInfo, (const char *)title_tag->ti_Data);
     /* A new root or a changed tree needs a full redraw; otherwise follow
      * the listbrowser's request (e.g. scrolling through OM_UPDATE). */
-    if ((tag != NULL && ops->MethodID == OM_SET) || refreshed ||
+    if ((tag != NULL && ops->MethodID == OM_SET) || refreshed || title_tag != NULL ||
         (handle && d->event != DIRTREE_EV_NONE && d->event != DIRTREE_EV_ACTIVATE))
         render_self(cl, o, ops->ops_GInfo, GREDRAW_REDRAW);
     else if (result != 0)
@@ -1267,6 +1437,9 @@ static ULONG om_get(Class *cl, Object *o, struct opGet *opg)
         case DIRTREE_HideIcons:  *opg->opg_Storage = (ULONG)d->hide_icons; return TRUE;
         case DIRTREE_Images:     *opg->opg_Storage = d->icons[DTI_DRAWER] != NULL; return TRUE;
         case DIRTREE_Watch:      *opg->opg_Storage = d->port != NULL; return TRUE;
+        case DIRTREE_Sort:       *opg->opg_Storage = d->sort; return TRUE;
+        case DIRTREE_Title:      *opg->opg_Storage = (ULONG)d->title; return TRUE;
+        case DIRTREE_HideEmpty:  *opg->opg_Storage = (ULONG)d->hide_empty; return TRUE;
         case DIRTREE_SignalMask:
             *opg->opg_Storage = d->port != NULL ? 1UL << d->port->mp_SigBit : 0;
             return TRUE;
@@ -1309,6 +1482,9 @@ static ULONG om_dispose(Class *cl, Object *o, Msg msg)
     if (d->root != NULL) FreeVec(d->root);
     if (d->title != NULL) FreeVec(d->title);
     if (d->active_path != NULL) FreeVec(d->active_path);
+    if (d->pattern != NULL) FreeVec(d->pattern);
+    if (d->exclude != NULL) FreeVec(d->exclude);
+    if (d->label_buffer != NULL) FreeVec(d->label_buffer);
     for (k = 0; k < DTI_COUNT; ++k) icons[k] = d->icons[k];
     result = class_dsm(cl, o, msg);
     if (show != NULL) DisposeObject(show);

@@ -1,0 +1,116 @@
+; HelpViewer.cd - catalog description of the HelpViewer (built-in language: english)
+;
+; Format of CatComp/FlexCat; amiga-devkit/tools/catcomp.py makes
+; helpviewer_strings.h and the catalogs. Keep the format specifiers and
+; the '_' shortcuts unique per window in every language.
+;
+; menus
+MSG_MENU_PROJECT (//)
+Project
+;
+MSG_MENU_OPEN (//)
+Open Directory...
+;
+MSG_MENU_HOME (//)
+Home Page
+;
+MSG_MENU_BACK (//)
+Back
+;
+MSG_MENU_FORWARD (//)
+Forward
+;
+MSG_MENU_SNAPSHOT (//)
+Snapshot Window
+;
+MSG_MENU_ABOUT (//)
+About...
+;
+MSG_MENU_QUIT (//)
+Quit
+;
+MSG_MENU_EDIT (//)
+Edit
+;
+MSG_MENU_COPY (//)
+Copy
+;
+MSG_MENU_SELECTALL (//)
+Select All
+;
+; toolbar
+MSG_TB_HOME (//)
+Home
+;
+MSG_TBH_HOME (//)
+Home page of the help (Amiga+H)
+;
+MSG_TB_BACK (//)
+Back
+;
+MSG_TBH_BACK (//)
+Previous page (Amiga+B)
+;
+MSG_TB_FORWARD (//)
+Forward
+;
+MSG_TBH_FORWARD (//)
+Next page (Amiga+N)
+;
+MSG_TB_OPEN (//)
+Open
+;
+MSG_TBH_OPEN (//)
+Open a help directory (Amiga+O)
+;
+; messages
+MSG_OK (//)
+OK
+;
+MSG_ASL_DIR (//)
+Open help directory
+;
+MSG_NOT_FOUND (//)
+Not found: %s
+;
+MSG_NO_DIR (//)
+Not a directory: %s
+;
+MSG_EXTERNAL (//)
+External link, not opened: %s
+;
+MSG_COPIED (//)
+Copied to the clipboard
+;
+MSG_NOTHING_SELECTED (//)
+Nothing selected (select text with the mouse)
+;
+MSG_ERR_CLASS (//)
+%s cannot be opened.
+;
+MSG_ERR_WINDOW (//)
+The window cannot be opened.
+;
+MSG_ABOUT (//)
+HelpViewer %s\n© 2026 André Gewert\nwww.ubergeek.de - agewert@ubergeek.de\nReleased under the MIT License
+;
+MSG_WELCOME (//)
+<html><head><title>HelpViewer</title></head><body><h1>HelpViewer</h1><p>Open a directory with help pages: <b>Project/Open Directory...</b></p><p>Its <tt>index.html</tt> is shown first; the tree on the left lists the pages by their titles.</p></body></html>
+;
+; status line
+MSG_SNAPSHOT_DONE (//)
+Window position and size saved in the program icon.
+;
+MSG_SNAPSHOT_FAILED (//)
+Could not write the program icon.
+;
+; placeholders of the tree
+MSG_TREE_LOADING (//)
+Loading...
+;
+MSG_TREE_EMPTY (//)
+(no pages)
+;
+MSG_TREE_UNAVAILABLE (//)
+(unavailable)
+;

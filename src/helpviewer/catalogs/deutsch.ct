@@ -1,0 +1,151 @@
+## version $VER: HelpViewer.catalog 1.0 (20.10.2026)
+## codeset 0
+## language deutsch
+;
+; German translation of the HelpViewer (HelpViewer.cd)
+;
+; menus
+MSG_MENU_PROJECT
+Projekt
+; Project
+;
+MSG_MENU_OPEN
+Verzeichnis öffnen...
+; Open Directory...
+;
+MSG_MENU_HOME
+Startseite
+; Home Page
+;
+MSG_MENU_BACK
+Zurück
+; Back
+;
+MSG_MENU_FORWARD
+Vor
+; Forward
+;
+MSG_MENU_SNAPSHOT
+Fenster fixieren
+; Snapshot Window
+;
+MSG_MENU_ABOUT
+Über...
+; About...
+;
+MSG_MENU_QUIT
+Beenden
+; Quit
+;
+MSG_MENU_EDIT
+Bearbeiten
+; Edit
+;
+MSG_MENU_COPY
+Kopieren
+; Copy
+;
+MSG_MENU_SELECTALL
+Alles auswählen
+; Select All
+;
+; toolbar
+MSG_TB_HOME
+Startseite
+; Home
+;
+MSG_TBH_HOME
+Startseite der Hilfe (Amiga+H)
+; Home page of the help (Amiga+H)
+;
+MSG_TB_BACK
+Zurück
+; Back
+;
+MSG_TBH_BACK
+Vorige Seite (Amiga+B)
+; Previous page (Amiga+B)
+;
+MSG_TB_FORWARD
+Vor
+; Forward
+;
+MSG_TBH_FORWARD
+Nächste Seite (Amiga+N)
+; Next page (Amiga+N)
+;
+MSG_TB_OPEN
+Öffnen
+; Open
+;
+MSG_TBH_OPEN
+Ein Hilfeverzeichnis öffnen (Amiga+O)
+; Open a help directory (Amiga+O)
+;
+; messages
+MSG_OK
+OK
+; OK
+;
+MSG_ASL_DIR
+Hilfeverzeichnis öffnen
+; Open help directory
+;
+MSG_NOT_FOUND
+Nicht gefunden: %s
+; Not found: %s
+;
+MSG_NO_DIR
+Kein Verzeichnis: %s
+; Not a directory: %s
+;
+MSG_EXTERNAL
+Externer Link, nicht geöffnet: %s
+; External link, not opened: %s
+;
+MSG_COPIED
+In die Zwischenablage kopiert
+; Copied to the clipboard
+;
+MSG_NOTHING_SELECTED
+Nichts markiert (Text mit der Maus markieren)
+; Nothing selected (select text with the mouse)
+;
+MSG_ERR_CLASS
+%s kann nicht geöffnet werden.
+; %s cannot be opened.
+;
+MSG_ERR_WINDOW
+Das Fenster kann nicht geöffnet werden.
+; The window cannot be opened.
+;
+MSG_ABOUT
+HelpViewer %s\n© 2026 André Gewert\nwww.ubergeek.de - agewert@ubergeek.de\nVeröffentlicht unter der MIT-Lizenz
+; HelpViewer %s\n© 2026 André Gewert\nwww.ubergeek.de - agewert@ubergeek.de\nReleased under the MIT License
+;
+MSG_WELCOME
+<html><head><title>HelpViewer</title></head><body><h1>HelpViewer</h1><p>Öffnen Sie ein Verzeichnis mit Hilfeseiten: <b>Projekt/Verzeichnis öffnen...</b></p><p>Seine <tt>index.html</tt> erscheint zuerst; der Baum links zeigt die Seiten mit ihren Titeln.</p></body></html>
+; <html><head><title>HelpViewer</title></head><body><h1>HelpViewer</h1><p>Open a directory with help pages: <b>Project/Open Directory...</b></p><p>Its <tt>index.html</tt> is shown first; the tree on the left lists the pages by their titles.</p></body></html>
+;
+; status line
+MSG_SNAPSHOT_DONE
+Fensterposition und -größe im Programm-Icon gespeichert.
+; Window position and size saved in the program icon.
+;
+MSG_SNAPSHOT_FAILED
+Das Programm-Icon konnte nicht geschrieben werden.
+; Could not write the program icon.
+;
+; placeholders of the tree
+MSG_TREE_LOADING
+Lade...
+; Loading...
+;
+MSG_TREE_EMPTY
+(keine Seiten)
+; (no pages)
+;
+MSG_TREE_UNAVAILABLE
+(nicht verfügbar)
+; (unavailable)
+;

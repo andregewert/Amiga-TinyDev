@@ -40,6 +40,7 @@ The Makefile explicitly selects `-m68000 -msoft-float -noixemul` and creates:
 - `bin/parsers/c_parser`: Standalone C parser communicating via STDIN/STDOUT (JSON-RPC 2.0).
 - `bin/Classes/Gadgets/dirtree.gadget` and `minimap.gadget`: the folder
   tree and the minimap as reusable ReAction classes (see below).
+- `bin/HelpViewer`: the viewer of HTML help pages (see below).
 
 `bin/` holds only these finished programs and classes, laid out as they are
 used on the Amiga; everything produced on the way (objects, dependency files,
@@ -78,6 +79,44 @@ not LSP and LSP clients or servers cannot talk to it.
 An example ARexx query script is provided in `scripts/tdscout_query.rexx`.
 An AmigaDOS shell script to test/demonstrate the C parser directly is provided in `scripts/test_c_parser.script`.
 
+## HelpViewer
+
+`bin/HelpViewer` shows a directory of HTML help pages without a web
+browser:
+
+    HelpViewer [DIR] <directory or page> [TTF] [FONTSET Vera|DejaVu|Noto] [SIZE n]
+
+The same options are tool types of its icon (`DIR=`, `TTF`, `FONTSET=`,
+`SIZE=`), also read when it is started from the Shell (the arguments win);
+from the Workbench a drawer or page given as project is opened.
+Project/Snapshot Window stores the window's position and size in the icon
+as `WINDOW=left,top,width,height`; other tool types stay as they are.
+Without a directory it opens `PROGDIR:Help` if there is one.
+
+- The tree on the left lists only HTML files (`.htm`, `.html`), by the
+  titles of the pages (the file name if a page has none), in natural order
+  of the file names (`2-...` before `10-...`) with directories among the
+  files. A directory shows the title of its `index.html` and is left out if
+  it holds no page; the index pages themselves get no entry of their own.
+- The home page (the `index.html` of the opened directory) has no entry:
+  its title is the tree's header.
+- A click in the tree shows a page; a click on a directory its
+  `index.html` (or `index.htm`); a double-click opens or closes it.
+  Opening a directory (Project/Open Directory, Amiga+O) shows its index
+  page first.
+- Links between the pages are followed (relative paths, anchors); external
+  links (`http:`, `mailto:` ...) are only shown in the status line.
+- The text toolbar has Home, Back, Forward and Open. Home (Amiga+H) shows
+  the home page again; Back and Forward (Amiga+B, Amiga+N, Backspace)
+  return to the pages seen at their scroll positions.
+- `TTF` uses htmlttf.gadget (TrueType fonts) instead of html.gadget.
+
+It needs html.gadget (or htmlttf.gadget) from the
+[HTML gadget](https://github.com/andregewert/Amiga-HTML-Gadget) project,
+installed in `SYS:Classes/Gadgets/` or next to the program, and
+dirtree.gadget. `src/helpviewer/sample/` is a small help directory to try
+it with. Its texts come from `HelpViewer.catalog` (German included).
+
 ## Gadget classes
 
 TinyDev's own UI components are built as standalone ReAction class
@@ -90,7 +129,7 @@ version therefore hides a fresh build; check with
 
 | Class | Superclass | Purpose |
 |---|---|---|
-| `dirtree.gadget` | `listbrowser.gadget` | Lazily loaded, bounded directory tree with the directory name as column title, built-in entry symbols and hidden `.info` files |
+| `dirtree.gadget` | `listbrowser.gadget` | Lazily loaded, bounded directory tree with the directory name (or a title of its own) as column title, built-in entry symbols and hidden `.info` files; follows changes on disk; optional file pattern and exclude pattern, hook for the shown names (e.g. titles of HTML files), natural order with directories among the files, hiding directories without shown files |
 | `minimap.gadget` | `gadgetclass` | Scaled, coloured overview of a `texteditor.gadget`, rendered in its own process |
 
 The public interface (tags, methods, usage) is documented in

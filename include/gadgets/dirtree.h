@@ -11,6 +11,9 @@
  * (drawer, open drawer, file, source code, script, picture), drawn with the
  * name by the class's render hook; icon files (*.info) are left out. The
  * shown directories are watched, so the tree follows changes on disk.
+ * A pattern can choose the files that are shown, a hook the names they
+ * show (e.g. the titles of HTML files), and the entries can be sorted in
+ * natural order with directories among the files.
  *
  * - Public class name: "dirtree.gadget" (superclass: listbrowser.gadget)
  * - Library: SYS:Classes/Gadgets/dirtree.gadget
@@ -225,6 +228,72 @@
  */
 #define DIRTREE_Refresh         (DIRTREE_Dummy + 16)
 
+/**
+ * @brief AmigaDOS pattern of the files that are shown, e.g.
+ *        "#?.(htm|html)".
+ *
+ * Directories are not matched against it. The pattern is parsed when the
+ * object is created; an invalid pattern shows all files.
+ *
+ * Type: STRPTR. Applicability: I. Default: NULL (all files).
+ */
+#define DIRTREE_Pattern         (DIRTREE_Dummy + 17)
+
+/**
+ * @brief Hook that gives the name an entry shows.
+ *
+ * Called with the object and a struct DirTreeNameMsg for every file and
+ * directory when it is read (on the application's process, from OM_NEW or
+ * OM_SET: DOS may be used, e.g. to read a file's title). It copies the
+ * name into dtnm_Buffer and returns TRUE, or returns FALSE to show the
+ * file name. The order of the entries still follows the file names.
+ *
+ * Type: struct Hook *. Applicability: I. Default: NULL (file names).
+ */
+#define DIRTREE_NameHook        (DIRTREE_Dummy + 18)
+
+/**
+ * @brief Order of the entries of a directory.
+ *
+ * Type: ULONG, a DIRTREE_SORT_ value. Applicability: I G.
+ * Default: #DIRTREE_SORT_DIRSFIRST.
+ */
+#define DIRTREE_Sort            (DIRTREE_Dummy + 19)
+
+/**
+ * @brief Leave out directories that hold no shown file.
+ *
+ * A directory is shown only if it (or one of its subdirectories, as deep
+ * as #DIRTREE_MaxDepth allows) holds a file that is shown (see
+ * #DIRTREE_Pattern and #DIRTREE_HideIcons). This reads the subdirectories
+ * when their parent is read, up to the first such file.
+ *
+ * Type: BOOL. Applicability: I G. Default: FALSE.
+ */
+#define DIRTREE_HideEmpty       (DIRTREE_Dummy + 20)
+
+/**
+ * @brief AmigaDOS pattern of files that are not listed although they
+ *        match #DIRTREE_Pattern, e.g. "index.(htm|html)".
+ *
+ * They still count as contents for #DIRTREE_HideEmpty: a directory that
+ * holds only such a file is shown (it may stand for that file).
+ *
+ * Type: STRPTR. Applicability: I. Default: NULL (none).
+ */
+#define DIRTREE_ExcludePattern  (DIRTREE_Dummy + 21)
+
+/**
+ * @brief Text of the column title above the list.
+ *
+ * Copied. Setting #DIRTREE_Root shows the root's name again; NULL or ""
+ * does that as well. In one tag list #DIRTREE_Title is applied after
+ * #DIRTREE_Root.
+ *
+ * Type: STRPTR. Applicability: I S G. Default: the root's name.
+ */
+#define DIRTREE_Title           (DIRTREE_Dummy + 22)
+
 /** @} */
 
 /** @name Values of DIRTREE_Status */
@@ -242,10 +311,26 @@
 #define DIRTREE_EV_ACTIVATE     3   /**< a file was double-clicked, see #DIRTREE_ActivePath */
 /** @} */
 
+/** @name Values of DIRTREE_Sort */
+/** @{ */
+#define DIRTREE_SORT_DIRSFIRST  0   /**< directories first, then by name ignoring case */
+#define DIRTREE_SORT_NATURAL    1   /**< natural order of the file names ("2" before "10"),
+                                         directories among the files */
+/** @} */
+
 /** @name Values of DIRTREE_Refresh */
 /** @{ */
 #define DIRTREE_RF_CHANGED      1   /**< the directories DOS reported changed */
 #define DIRTREE_RF_ALL          2   /**< the root and every expanded directory */
 /** @} */
+
+/** Message of #DIRTREE_NameHook: the entry whose shown name is asked for. */
+struct DirTreeNameMsg {
+    STRPTR dtnm_Path;       /**< full path of the entry */
+    STRPTR dtnm_Name;       /**< its file name */
+    LONG   dtnm_Directory;  /**< non-zero for a directory */
+    STRPTR dtnm_Buffer;     /**< buffer for the shown name (ISO-8859-1) */
+    ULONG  dtnm_BufferSize; /**< its size, including the terminating NUL */
+};
 
 #endif /* GADGETS_DIRTREE_H */

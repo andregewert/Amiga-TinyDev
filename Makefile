@@ -20,6 +20,15 @@ SCOUT_DEPS := $(SCOUT_OBJECTS:.o=.d)
 
 PARSER_C_TARGET := $(BIN_DIR)/parsers/c_parser
 
+# HelpViewer (src/helpviewer/): shows a directory of HTML help pages with
+# html.gadget (submodule external/html_gadget, for its headers) and
+# dirtree.gadget. Its catalogs are src/helpviewer/catalogs/.
+HV_TARGET := $(BIN_DIR)/HelpViewer
+HV_SOURCES := src/helpviewer/helpviewer.c src/helpviewer/htmltitle.c
+HV_OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(HV_SOURCES))
+HV_DEPS := $(HV_OBJECTS:.o=.d)
+HTML_GADGET := external/html_gadget
+
 # Gadget classes (src/classes/<name>/), each a disk-based class library for
 # SYS:Classes/Gadgets/. They are written to bin/Classes/Gadgets/ so that
 # TinyDev finds them as PROGDIR:Classes/Gadgets/<name>.gadget when they are
@@ -73,7 +82,7 @@ REGEX_HEADERS := $(REGEX_GEN)/regex.h $(REGEX_GEN)/regcomp.ih $(REGEX_GEN)/engin
 REGEX_CFLAGS := -DPOSIX_MISTAKE -I$(REGEX_GEN) -I$(REGEX_DIR) -w
 REGEX_OBJECTS := $(foreach n,$(REGEX_NAMES),$(REGEX_GEN)/$(n).o)
 REGEX_HOST_OBJECTS := $(foreach n,$(REGEX_NAMES),$(REGEX_GEN)/host/$(n).o)
-LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h sfd/*.sfd tests/*.c scripts/* tests-host/* catalogs/* LICENSE Makefile)
+LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h src/helpviewer/*.h src/helpviewer/catalogs/* sfd/*.sfd tests/*.c scripts/* tests-host/* catalogs/* LICENSE Makefile)
 
 # Translations: catalogs/TinyDev.cd holds the built-in English strings,
 # catalogs/<language>.ct the translations. include/tinydev_strings.h is in
@@ -82,9 +91,12 @@ LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*
 CATCOMP := $(DEVKIT)/tools/catcomp.py
 LANGUAGES := $(basename $(notdir $(wildcard catalogs/*.ct)))
 CATALOGS := $(foreach l,$(LANGUAGES),$(BIN_DIR)/Catalogs/$(l)/TinyDev.catalog)
+HV_LANGUAGES := $(basename $(notdir $(wildcard src/helpviewer/catalogs/*.ct)))
+HV_CATALOGS := $(foreach l,$(HV_LANGUAGES),$(BIN_DIR)/Catalogs/$(l)/HelpViewer.catalog)
 
 .PHONY: all clean test icons
-all: charcheck $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(PARSER_C_TARGET) $(CATALOGS)
+all: charcheck $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(PARSER_C_TARGET) $(CATALOGS) \
+     $(HV_TARGET) $(HV_CATALOGS)
 
 # Included after "all" so that charcheck does not become the default goal.
 include $(DEVKIT)/make/charcheck.mk
@@ -97,11 +109,29 @@ $(foreach c,$(CLASS_NAMES),$(eval $(call CLASS_RULES,$(c))))
 # wrong comment (amiga-devkit/docs/Dokumentation.md). Generated headers
 # (catalog strings, sfdc output) are left out.
 include $(DEVKIT)/make/docs.mk
-DOC_SOURCES := $(filter-out include/tinydev_strings.h, \
+DOC_SOURCES := $(filter-out include/tinydev_strings.h src/helpviewer/helpviewer_strings.h, \
     $(wildcard src/*.c src/scout/*.c src/parsers/*.c src/classes/*/*.c src/classes/*/*.h \
+               src/helpviewer/*.c src/helpviewer/*.h \
                include/*.h include/gadgets/*.h tests/*.c))
 $(eval $(call DOXYGEN_DOCS,docs,TinyDev,$(firstword $(subst ", ,$(shell sed -n 's/^.define APP_VERSION "\([^ ]*\).*/\1/p' include/editor.h))),$(DOC_SOURCES),$(BUILD_DIR)/docs))
 $(foreach c,$(CLASS_NAMES),$(eval $(call DOXYGEN_DOCS,docs-$(c),$(c).gadget,1.0,include/gadgets/$(c).h,$(BUILD_DIR)/docs/$(c))))
+
+ifeq ($(wildcard $(HTML_GADGET)/include/gadgets/html.h),)
+$(error $(HTML_GADGET) is missing: git submodule update --init)
+endif
+
+src/helpviewer/helpviewer_strings.h: src/helpviewer/catalogs/HelpViewer.cd $(CATCOMP)
+	python3 $(CATCOMP) header $< $@ HELPVIEWER_STRINGS
+
+$(BIN_DIR)/Catalogs/%/HelpViewer.catalog: src/helpviewer/catalogs/%.ct src/helpviewer/catalogs/HelpViewer.cd $(CATCOMP)
+	@mkdir -p $(dir $@)
+	python3 $(CATCOMP) catalog src/helpviewer/catalogs/HelpViewer.cd $< $@
+
+$(HV_OBJECTS): CPPFLAGS += -Isrc/helpviewer -I$(HTML_GADGET)/include
+
+$(HV_TARGET): $(HV_OBJECTS)
+	@mkdir -p $(BIN_DIR)
+	$(TARGET_CC) $(LDFLAGS) -Wl,-u,___stkinit -o $@ $(HV_OBJECTS)
 
 include/tinydev_strings.h: catalogs/TinyDev.cd $(CATCOMP)
 	python3 $(CATCOMP) header $< $@ TINYDEV_STRINGS
@@ -150,10 +180,12 @@ $(BUILD_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)
 	$(TARGET_CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_scout_json $(BUILD_DIR)/test_c_parser
+test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_scout_json $(BUILD_DIR)/test_c_parser
 	./$(BUILD_DIR)/test_syntax
 	./$(BUILD_DIR)/test_search
 	./$(BUILD_DIR)/test_bmstore
+	./$(BUILD_DIR)/test_dirtree_sort
+	./$(BUILD_DIR)/test_htmltitle
 	./$(BUILD_DIR)/test_scout_json
 	./$(BUILD_DIR)/test_c_parser
 
@@ -168,6 +200,14 @@ $(BUILD_DIR)/test_search: src/search.c tests/test_search.c include/search.h $(RE
 $(BUILD_DIR)/test_bmstore: src/bmstore.c src/scout/scout_json.c tests/test_bmstore.c include/bmstore.h include/scout_json.h
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/bmstore.c src/scout/scout_json.c tests/test_bmstore.c
+
+$(BUILD_DIR)/test_htmltitle: src/helpviewer/htmltitle.c tests/test_htmltitle.c src/helpviewer/htmltitle.h
+	@mkdir -p $(BUILD_DIR)
+	$(HOST_CC) -Isrc/helpviewer -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/helpviewer/htmltitle.c tests/test_htmltitle.c
+
+$(BUILD_DIR)/test_dirtree_sort: src/classes/dirtree/dirtree_sort.c tests/test_dirtree_sort.c src/classes/dirtree/dirtree_sort.h
+	@mkdir -p $(BUILD_DIR)
+	$(HOST_CC) -Isrc/classes/dirtree -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/classes/dirtree/dirtree_sort.c tests/test_dirtree_sort.c
 
 $(BUILD_DIR)/test_scout_json: src/scout/scout_json.c tests/test_scout_json.c include/scout_json.h
 	@mkdir -p $(BUILD_DIR)
@@ -185,4 +225,4 @@ icons:
 clean:
 	rm -rf $(BUILD_DIR) $(BIN_DIR)
 
--include $(DEPS) $(SCOUT_DEPS) $(CLASS_DEPS)
+-include $(DEPS) $(SCOUT_DEPS) $(CLASS_DEPS) $(HV_DEPS)

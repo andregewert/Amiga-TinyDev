@@ -4,3 +4,6 @@
 [submodule "external/regex"]
 	path = external/regex
 	url = https://github.com/garyhouston/regex.git
+[submodule "external/html_gadget"]
+	path = external/html_gadget
+	url = https://github.com/andregewert/Amiga-HTML-Gadget.git

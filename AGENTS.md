@@ -80,7 +80,10 @@ below the tree's root.
   `include/clib` with `sfdc`.
 - `src/classes/dirtree/`: `dirtree.gadget`, the lazy, bounded directory tree
   (listbrowser subclass); `dirtree_icons.c` is its private image class with
-  the built-in entry symbols. It watches the root and the expanded
+  the built-in entry symbols; `dirtree_sort.c` the portable natural order
+  (host-tested in `tests/test_dirtree_sort.c`). Options: file pattern,
+  name hook (shown names), sort order, hiding directories without shown
+  files. It watches the root and the expanded
   directories with `StartNotify()` (port and signal of the creating task,
   `DIRTREE_SignalMask`); the application answers the signal with
   `DIRTREE_Refresh`, which reconciles only the changed directories.
@@ -93,6 +96,16 @@ below the tree's root.
 - `src/scout/`: Scout, the source analysis commodity (`TinyDev-Scout`, ARexx
   port `TINYDEV_SCOUT`), and its JSON/JSON-RPC code. Scout talks to the parsers
   with the Scout protocol, which is modeled on LSP but is not LSP.
+- `src/helpviewer/`: HelpViewer (`bin/HelpViewer`), a small viewer for a
+  directory of HTML help pages: dirtree.gadget on the left (HTML files
+  only, shown by their titles, natural order, index pages only via their
+  directory, directories without pages hidden, the home page's title as
+  header), html.gadget/htmlttf.gadget on the right, a text toolbar (Home,
+  Back, Forward, Open), the status line at the bottom. `htmltitle.c` is
+  portable (titles, links; host-tested in `tests/test_htmltitle.c`); its
+  catalogs are `src/helpviewer/catalogs/` (`helpviewer_strings.h` is
+  generated and checked in); `sample/` is a small help directory for
+  testing. It is kept self-contained so it can move to its own repository.
 - `src/parsers/`: standalone language parsers speaking the Scout protocol over
   STDIN/STDOUT.
 - `include/editor.h`: shared application types and cross-module declarations.
@@ -100,10 +113,15 @@ below the tree's root.
 - `tests/test_syntax.c`: host-native syntax scanner tests.
 - `tests/test_search.c`: host-native tests of the search engine.
 - `tests/test_bmstore.c`: host-native tests of the bookmark store.
+- `tests/test_dirtree_sort.c`: host-native tests of dirtree.gadget's natural order.
+- `tests/test_htmltitle.c`: host-native tests of the HelpViewer's title and link helpers.
 - `tests/test_scout_json.c`, `tests/test_c_parser.c`: host-native tests for the
   Scout JSON code and the C parser.
 - `amiga-devkit/`: git submodule (pinned tag) with shared Amiga tools and AI
   guidelines; see `CLAUDE.md`. Do not edit files inside the submodule.
+- `external/html_gadget/`: git submodule (tag `v1.2`), html.gadget, for
+  the headers the HelpViewer is built with (the class itself is installed
+  separately). Do not edit it.
 - `external/regex/`: git submodule (tag `alpha3.8p1`), Henry Spencer's POSIX
   regex library for `src/search.c`. Its `regex.h` and `*.ih` headers are
   generated with its `mkh` script into `build/regex/`; it is compiled
