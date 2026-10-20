@@ -64,11 +64,29 @@ Find...
 MSG_MENU_FINDNEXT (//)
 Find Next
 ;
+MSG_MENU_BOOKMARKS (//)
+Bookmarks
+;
+MSG_MENU_BM_TOGGLE (//)
+Set/Remove Bookmark
+;
+MSG_MENU_BM_NEXT (//)
+Next Bookmark
+;
+MSG_MENU_BM_PREV (//)
+Previous Bookmark
+;
+MSG_MENU_BM_CLEAR (//)
+Remove All in This File
+;
 MSG_MENU_VIEW (//)
 View
 ;
 MSG_MENU_TREE (//)
 Folder Tree
+;
+MSG_MENU_TREE_REFRESH (//)
+Refresh Folder Tree
 ;
 MSG_MENU_LINENUMBERS (//)
 Line Numbers
@@ -286,6 +304,12 @@ Could not create the tab.
 ;
 MSG_ERR_COLORS (//)
 Could not reserve editor colors on the public screen.
+;
+MSG_ERR_BM_READ (//)
+%s could not be read. The bookmarks of this project are not saved, so the file stays as it is.
+;
+MSG_ERR_BM_WRITE (//)
+The bookmarks could not be saved in %s.
 ;
 MSG_ERR_SAVESETTINGS (//)
 The settings could not be saved in the program icon.

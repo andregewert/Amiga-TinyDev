@@ -39,6 +39,19 @@ below the tree's root.
   hidden pages get these methods without a GadgetInfo (no drawing). The
   project-file search runs step by step in the event loop (the window
   signals itself), lists its hits in a listbrowser and replaces in tabs.
+- `src/bookmarks.c`: bookmarks, using those of `texteditor.gadget` (ARexx
+  `SETBOOKMARK TOGGLE`, `CLEARBOOKMARKS`, `LISTBOOKMARKS`: they move with
+  the text, and the editor draws their marks); TinyDev caches the lines per
+  document, moves the cursor to the next/previous one itself (`GOTOBOOKMARK`
+  leaves the cursor out of sight) and uses an empty left bar
+  (`GA_TEXTEDITOR_LeftBarHook`) as the area where a click toggles a
+  bookmark. Commands go to the editor with the window (it draws the change
+  itself). After a menu pick, `ActivateLayoutGadget()` gives the editor the
+  input focus back; it takes the gadget object, not its ID.
+- `src/bmstore.c`, `include/bmstore.h`: the portable store of a project's
+  bookmarks: reads and writes `<project>/.tinydev/bookmarks.json` (with
+  `src/scout/scout_json.c`) and finds a bookmark's line again in a changed
+  text by its stored line text; no Amiga headers.
 - `src/filescan.c`: step-by-step walk through the files of a directory tree
   (bounded depth, no links, no icons, AmigaDOS name pattern) for the
   project-file search.
@@ -59,7 +72,10 @@ below the tree's root.
   `include/clib` with `sfdc`.
 - `src/classes/dirtree/`: `dirtree.gadget`, the lazy, bounded directory tree
   (listbrowser subclass); `dirtree_icons.c` is its private image class with
-  the built-in entry symbols.
+  the built-in entry symbols. It watches the root and the expanded
+  directories with `StartNotify()` (port and signal of the creating task,
+  `DIRTREE_SignalMask`); the application answers the signal with
+  `DIRTREE_Refresh`, which reconciles only the changed directories.
 - `src/classes/minimap/`: `minimap.gadget`, the scaled overview of a
   `texteditor.gadget` with its own render process (gadgetclass subclass).
 - `src/minimap.c`: connects `minimap.gadget` to the editor (active document,
@@ -75,6 +91,7 @@ below the tree's root.
 - `include/syntax.h`: portable syntax-scanner interface.
 - `tests/test_syntax.c`: host-native syntax scanner tests.
 - `tests/test_search.c`: host-native tests of the search engine.
+- `tests/test_bmstore.c`: host-native tests of the bookmark store.
 - `tests/test_scout_json.c`, `tests/test_c_parser.c`: host-native tests for the
   Scout JSON code and the C parser.
 - `amiga-devkit/`: git submodule (pinned tag) with shared Amiga tools and AI
@@ -142,6 +159,10 @@ make test
   shortcuts unique per window in every language. Strings may be reordered
   until the first release (no catalog version yet).
 
+- Project data goes to the visible directory `<project>/.tinydev/` (made
+  when first needed), as files the user may edit by hand: JSON in
+  ISO-8859-1, indented, written through a temporary file. A file that
+  cannot be read is reported and never overwritten.
 - Preserve LF, CR, and CRLF line endings when loading and saving documents.
 - Keep saves temporary-file based so a failed write does not destroy the
   original file.

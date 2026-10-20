@@ -81,8 +81,12 @@ enum MenuId {
     MID_NEW = 1, MID_OPEN, MID_OPEN_DIRECTORY, MID_SAVE, MID_SAVE_AS, MID_CLOSE, MID_QUIT,
     MID_UNDO, MID_REDO, MID_CUT, MID_COPY, MID_PASTE, MID_SELECT_ALL,
     MID_FOLDER_TREE, MID_LINE_NUMBERS, MID_MINIMAP,
-    MID_ABOUT, MID_SETTINGS, MID_FIND, MID_FIND_NEXT
+    MID_ABOUT, MID_SETTINGS, MID_FIND, MID_FIND_NEXT,
+    MID_BM_TOGGLE, MID_BM_NEXT, MID_BM_PREV, MID_BM_CLEAR, MID_TREE_REFRESH
 };
+
+/** Bookmarks of a document that TinyDev keeps track of. */
+#define BOOKMARKS_MAX 64
 
 typedef enum LineEnding { EOL_LF = 0, EOL_CR = 1, EOL_CRLF = 2 } LineEnding;
 
@@ -107,6 +111,11 @@ typedef struct Document {
     SyntaxLanguage language;
     SyntaxHookContext highlight;
     struct Hook minimap_hook;   /* MINIMAP_ColorHook, h_Data = document */
+    struct Hook leftbar_hook;   /* GA_TEXTEDITOR_LeftBarHook, h_Data = document */
+    ULONG bm_lines[BOOKMARKS_MAX];  /* lines with a bookmark (from the editor, from 0) */
+    long bm_count;
+    LONG bm_click_line;         /* line clicked in the left bar, -1 if none */
+    int bm_apply;               /* the project's bookmarks are still to be set */
 } Document;
 
 typedef struct EditorApp {
@@ -588,6 +597,66 @@ int file_request_open(EditorApp *app);
  */
 int file_request_save(EditorApp *app, Document *doc);
 
+/**
+ * @brief Carry out a command of the Bookmarks menu on the active document.
+ * @param app The application state.
+ * @param id The MID_BM_ command.
+ */
+void bookmarks_command(EditorApp *app, ULONG id);
+/**
+ * @brief Set up a document's left bar hook (before its editor is created).
+ * @param doc The new document.
+ */
+void bookmarks_init_document(Document *doc);
+/**
+ * @brief Set the background pen of the editors' left bar.
+ * @param pen The pen (the screen's BACKGROUNDPEN).
+ */
+void bookmarks_set_background(UWORD pen);
+/**
+ * @brief Read a document's bookmarks again from its editor (they move with
+ *        the text).
+ * @param app The application state.
+ * @param doc The document (may be NULL).
+ */
+void bookmarks_refresh(EditorApp *app, Document *doc);
+/**
+ * @brief Toggle the bookmark of a line clicked in the left bar and set the
+ *        project's bookmarks in documents that were opened.
+ * @param app The application state.
+ */
+void bookmarks_poll(EditorApp *app);
+/**
+ * @brief A directory was opened in the folder tree: save the bookmarks of
+ *        the previous project and read those of the new one.
+ * @param app The application state.
+ */
+void bookmarks_project_opened(EditorApp *app);
+/**
+ * @brief A file was loaded into a document: its bookmarks from the project
+ *        are set one turn of the event loop later.
+ * @param app The application state.
+ * @param doc The document.
+ */
+void bookmarks_document_loaded(EditorApp *app, Document *doc);
+/**
+ * @brief A document is closed: keep its bookmarks in the project.
+ * @param app The application state.
+ * @param doc The document.
+ */
+void bookmarks_document_closing(EditorApp *app, Document *doc);
+/**
+ * @brief Write the project's bookmarks file (after a document was saved).
+ * @param app The application state.
+ */
+void bookmarks_save(EditorApp *app);
+/**
+ * @brief Save the project's bookmarks and free them; call before the
+ *        documents are freed.
+ * @param app The application state.
+ */
+void bookmarks_cleanup(EditorApp *app);
+
 /** A step-by-step walk through the files of a directory tree (filescan.c). */
 typedef struct FileScan FileScan;
 /**
@@ -663,6 +732,29 @@ int tree_request_directory(EditorApp *app);
  * @param app The application state.
  */
 void tree_handle_event(EditorApp *app);
+/**
+ * @brief Return the project directory (the folder tree's root) in its
+ *        full form.
+ * @param app The application state.
+ * @param out The buffer for the name.
+ * @param size Its size.
+ * @return Non-zero if there is a project.
+ */
+int tree_project_root(EditorApp *app, char *out, LONG size);
+/**
+ * @brief Return the signal mask of the folder tree's directory
+ *        notifications (0 if it does not watch).
+ * @param app The application state.
+ * @return The signal mask to include in the main Wait().
+ */
+ULONG tree_signal_mask(EditorApp *app);
+/**
+ * @brief Bring the folder tree up to date.
+ * @param app The application state.
+ * @param all Non-zero to read every shown directory again (Refresh Folder
+ *            Tree), zero for those DOS reported changed.
+ */
+void tree_refresh(EditorApp *app, int all);
 /**
  * @brief Show or hide the folder-tree column.
  * @param app The application state.

@@ -83,6 +83,7 @@ int file_load(EditorApp *app, Document *doc, const char *path)
     SetAttrs(doc->editor, GA_TEXTEDITOR_HasChanged, FALSE,
              GA_TEXTEDITOR_LineEndingExport, LINEENDING_ASIMPORT, TAG_END);
     document_set_dirty(app, doc, 0); ok = 1;
+    bookmarks_document_loaded(app, doc);
     if (app->window != NULL) {
         /* The editor takes text set without the window only with a new
          * layout (otherwise a reused empty tab stays empty); collected with
@@ -179,6 +180,7 @@ int file_save(EditorApp *app, Document *doc, const char *path)
     else document_set_path(app, doc, canonical);
     SetAttrs(doc->editor, GA_TEXTEDITOR_HasChanged, FALSE, TAG_END);
     document_set_dirty(app, doc, 0);
+    bookmarks_save(app);                /* the lines of its bookmarks may have moved */
     return 1;
 replace_failed:
     doc->saved_hash = old_hash; doc->saved_length = old_length;    /* the file did not change */
@@ -201,11 +203,27 @@ replace_failed:
 static int request_file(EditorApp *app, Document *doc, int save)
 {
     struct FileRequester *fr; char path[EDITOR_PATH_MAX]; int result = 0;
+    char drawer[EDITOR_PATH_MAX]; const char *file = "";
+    /* Where the requester starts: a file that has a name in its drawer,
+     * otherwise the project (the folder tree's directory), otherwise the
+     * drawer of the active document. */
+    drawer[0] = '\0';
+    if (save && doc != NULL && doc->path != NULL) {
+        strncpy(drawer, doc->path, sizeof(drawer) - 1); drawer[sizeof(drawer) - 1] = '\0';
+        *PathPart(drawer) = '\0';
+        file = (const char *)FilePart(doc->path);
+    } else if (!tree_project_root(app, drawer, sizeof(drawer)) &&
+               app->active != NULL && app->active->path != NULL) {
+        strncpy(drawer, app->active->path, sizeof(drawer) - 1); drawer[sizeof(drawer) - 1] = '\0';
+        *PathPart(drawer) = '\0';
+    }
     fr = AllocAslRequestTags(ASL_FileRequest, ASLFR_TitleText,
         (ULONG)S(save ? MSG_ASL_SAVE : MSG_ASL_OPEN), ASLFR_DoSaveMode, (ULONG)save,
         ASLFR_RejectIcons, TRUE, TAG_END);
     if (fr == NULL) { ui_error(app, APP_NAME, S(MSG_ERR_FILEREQ)); return 0; }
-    if (AslRequestTags(fr, ASLFR_Window, (ULONG)app->window, ASLFR_SleepWindow, TRUE, TAG_END)) {
+    if (AslRequestTags(fr, ASLFR_Window, (ULONG)app->window, ASLFR_SleepWindow, TRUE,
+                       drawer[0] != '\0' ? ASLFR_InitialDrawer : TAG_IGNORE, (ULONG)drawer,
+                       ASLFR_InitialFile, (ULONG)file, TAG_END)) {
         strncpy(path, fr->fr_Drawer, sizeof(path) - 1); path[sizeof(path) - 1] = '\0';
         if (!AddPart(path, fr->fr_File, sizeof(path))) ui_error(app, APP_NAME, S(MSG_ERR_PATHTOOLONG));
         else result = save ? file_save(app, doc, path) : document_open(app, path) != NULL;

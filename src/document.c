@@ -82,6 +82,7 @@ static Object *create_editor(EditorApp *app, Document *doc,
         GA_TEXTEDITOR_HorizontalScroll, TRUE,
         GA_TEXTEDITOR_ShowLineNumbers, (ULONG)app->line_numbers,
         GA_TEXTEDITOR_HighlighterHook, (ULONG)&doc->highlight.hook,
+        GA_TEXTEDITOR_LeftBarHook, (ULONG)&doc->leftbar_hook,
         GA_TEXTEDITOR_LineEndingExport, LINEENDING_ASIMPORT,
         TAG_END);
 }
@@ -178,6 +179,7 @@ static Document *new_document(EditorApp *app)
     doc->language = SYNTAX_PLAIN;
     syntax_init_hook(&doc->highlight, doc->language);
     minimap_init_document(doc);
+    bookmarks_init_document(doc);
     syntax_set_pens(&doc->highlight,
         (UWORD)app->editor_pens[EDITOR_COLOR_TEXT],
         (UWORD)app->editor_pens[EDITOR_COLOR_KEYWORD],
@@ -507,6 +509,7 @@ int document_close(EditorApp *app, Document *doc, int ask)
     ui_begin_update(app);
     /* The minimap must let go of the editor (and its colour hook, which reads
      * this document) before the page with the editor is disposed. */
+    bookmarks_document_closing(app, doc);
     minimap_forget_document(app, doc);
     find_forget_document(doc);
     next = doc->node.ln_Succ->ln_Succ ? (Document *)doc->node.ln_Succ :

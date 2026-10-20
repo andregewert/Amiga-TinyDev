@@ -226,6 +226,32 @@ search without the window. Case-insensitive search also folds the Latin-1
 letters (Ä/ä ...), and they count as word characters. Replace only replaces
 the hit that is still marked as it was found; Replace all is one undo step.
 A match never spans a line break.
+The Bookmarks menu sets or removes a bookmark on the cursor line
+(Amiga+B), goes to the next or previous one (Amiga+J, Amiga+K, round at
+the end) and removes all of the file. A click into the left bar of the
+editor (next to the line numbers) sets or removes one as well. The
+bookmarks are those of `texteditor.gadget`: they stay on their lines while
+text is inserted or deleted above them, and the editor marks them next to
+the line number.
+The bookmarks of the files of a project (the directory opened in the
+folder tree) are kept in `.tinydev/bookmarks.json` in that directory, a
+visible directory that TinyDev makes when it first saves bookmarks. They
+come back when the directory is opened again and its files are opened.
+The file is written when a bookmark is set or removed and when a file is
+saved or closed, another directory is opened or TinyDev quits. It is JSON
+(ISO-8859-1) and may be edited by hand:
+
+    {
+      "version": 1,
+      "bookmarks": [
+        { "file": "src/ui.c", "line": 99, "text": "void tree_handle_event(EditorApp *app)" }
+      ]
+    }
+
+`line` counts from 1; `text` (the start of the line) finds the line again
+when the file was changed outside TinyDev. A file that cannot be read is
+reported and left as it is (the project's bookmarks are then not saved).
+Bookmarks of files outside the project last only while they are open.
 C highlighting recognizes standard C99 keywords,
 strings/character constants, preprocessor lines, `//` comments, and block
 comments. AmigaDOS keyword matching is case-insensitive and `;` begins a comment.
@@ -274,6 +300,14 @@ directories start collapsed. Opening a child reads only its direct children;
 closing it releases that subtree, so deeper levels are never scanned eagerly.
 The visible tree is bounded to 16 directory levels and 2048 entries; a
 directory that does not fit is shown incompletely and reported.
+The tree follows changes on disk, whoever makes them: `dirtree.gadget`
+watches the root and every expanded directory with DOS notification and
+reads a directory again when a file in it is made, deleted or renamed;
+open drawers, the selection and the scroll position stay. Project/Refresh
+Folder Tree reads all shown directories again, for file systems without
+notification.
+Once a directory is open, the Open and Save requesters for new files
+start in it (Save As of a file that has a name starts in its drawer).
 
 Version one intentionally treats contents as 8-bit text. UTF-8 decoding,
 Unicode shaping, user-configurable colors, sessions, font

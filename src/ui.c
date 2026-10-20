@@ -222,6 +222,7 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NULL, "N", 0, 0, UD(MID_NEW)},
     {NM_ITEM, NULL, "O", 0, 0, UD(MID_OPEN)},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_OPEN_DIRECTORY)},
+    {NM_ITEM, NULL, NULL, 0, 0, UD(MID_TREE_REFRESH)},
     {NM_ITEM, NULL, "S", 0, 0, UD(MID_SAVE)},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_SAVE_AS)},
     {NM_ITEM, NULL, "W", 0, 0, UD(MID_CLOSE)},
@@ -242,6 +243,12 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NULL, "F", 0, 0, UD(MID_FIND)},
     {NM_ITEM, NULL, "G", 0, 0, UD(MID_FIND_NEXT)},
     {NM_TITLE, NULL, NULL, 0, 0, NULL},
+    {NM_ITEM, NULL, "B", 0, 0, UD(MID_BM_TOGGLE)},
+    {NM_ITEM, NULL, "J", 0, 0, UD(MID_BM_NEXT)},
+    {NM_ITEM, NULL, "K", 0, 0, UD(MID_BM_PREV)},
+    {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
+    {NM_ITEM, NULL, NULL, 0, 0, UD(MID_BM_CLEAR)},
+    {NM_TITLE, NULL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE | CHECKED, 0, UD(MID_FOLDER_TREE)},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE | CHECKED, 0, UD(MID_LINE_NUMBERS)},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_MINIMAP)},
@@ -254,6 +261,7 @@ static const LONG menu_texts[] = {
     MSG_MENU_NEW,
     MSG_MENU_OPEN,
     MSG_MENU_OPENDIR,
+    MSG_MENU_TREE_REFRESH,
     MSG_MENU_SAVE,
     MSG_MENU_SAVEAS,
     MSG_MENU_CLOSE,
@@ -273,6 +281,12 @@ static const LONG menu_texts[] = {
     -1,
     MSG_MENU_FIND,
     MSG_MENU_FINDNEXT,
+    MSG_MENU_BOOKMARKS,
+    MSG_MENU_BM_TOGGLE,
+    MSG_MENU_BM_NEXT,
+    MSG_MENU_BM_PREV,
+    -1,
+    MSG_MENU_BM_CLEAR,
     MSG_MENU_VIEW,
     MSG_MENU_TREE,
     MSG_MENU_LINENUMBERS,
@@ -506,6 +520,9 @@ int ui_create(EditorApp *app)
         ui_error(app, APP_NAME, S(MSG_ERR_COLORS));
         return 0;
     }
+    if (app->screen_draw_info != NULL)
+        bookmarks_set_background(app->screen_draw_info->dri_Pens[BACKGROUNDPEN]);
+
     app->pages = NewObject(PAGE_GetClass(), NULL, PAGE_NoDispose, TRUE, TAG_END);
     if (app->pages == NULL) return 0;
     /* The tab close gadgets show a simple built-in black cross. */
@@ -670,8 +687,9 @@ static void editor_command(EditorApp *app, const char *command)
     if (app->window != NULL) {
         RefreshGList((struct Gadget *)app->active->editor, app->window, NULL, 1);
         if (app->layout != NULL)
+            /* the object, not its ID (layout_gc/ActivateLayoutGadget) */
             ActivateLayoutGadget((struct Gadget *)app->layout, app->window,
-                                 NULL, (ULONG)(100 + app->active->number));
+                                 NULL, (ULONG)app->active->editor);
     }
     document_sync_scrollers(app, app->active);
     minimap_request(app);
@@ -837,7 +855,12 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_SELECT_ALL: editor_command(app, "SELECTALL"); break;
         case MID_FIND: find_open(app); break;
         case MID_FIND_NEXT: find_next(app); break;
+        case MID_BM_TOGGLE: case MID_BM_NEXT: case MID_BM_PREV:
+        case MID_BM_CLEAR:
+            bookmarks_command(app, id);
+            break;
         case MID_FOLDER_TREE: tree_set_visible(app, !app->tree_visible); break;
+        case MID_TREE_REFRESH: tree_refresh(app, 1); break;
         case MID_MINIMAP:
             minimap_set_visible(app, !app->minimap_visible);
             if (app->minimap_visible) minimap_request(app);
@@ -956,12 +979,15 @@ int ui_run(EditorApp *app)
     WORD code = 0;
     ULONG scroll_mask = 1UL << (ULONG)app->scroll_signal;
     ULONG minimap_mask = minimap_signal_mask(app);
+    ULONG tree_mask = tree_signal_mask(app);
     GetAttr(WINDOW_SigMask, app->window_object, &mask);
     app->running = 1;
     while (app->running) {
         /* A finished minimap render job only needs to wake the loop: the
          * minimap_poll() at its end shows the new picture. */
-        signals = Wait(mask | scroll_mask | minimap_mask | find_sigmask() | SIGBREAKF_CTRL_C);
+        signals = Wait(mask | scroll_mask | minimap_mask | tree_mask | find_sigmask() | SIGBREAKF_CTRL_C);
+        /* a shown directory changed (a file was made, deleted, renamed) */
+        if ((signals & tree_mask) != 0) tree_refresh(app, 0);
         if ((signals & scroll_mask) != 0) document_scroll_live(app);
         if (signals & SIGBREAKF_CTRL_C) { if (close_all(app)) break; }
         while ((result = DoMethod(app->window_object, WM_HANDLEINPUT, &code)) != WMHI_LASTMSG) {
@@ -989,6 +1015,7 @@ int ui_run(EditorApp *app)
             }
         }
         find_handle(app);
+        bookmarks_poll(app);
         /* The texteditor gadget does not notify listeners when the user
          * scrolls it from the keyboard or mouse, so re-read its scroll
          * position after every batch of input events (the window wakes us
@@ -999,7 +1026,12 @@ int ui_run(EditorApp *app)
         if (app->active != NULL) {
             ULONG changed = 0;
             GetAttr(GA_TEXTEDITOR_HasChanged, app->active->editor, &changed);
-            if (changed) { document_changed(app); minimap_request(app); }
+            if (changed) {
+                document_changed(app);
+                minimap_request(app);
+                /* the bookmarks move with the text */
+                if (app->active->bm_count > 0) bookmarks_refresh(app, app->active);
+            }
         }
         /* The close gadgets on the tabs do not generate a dedicated event, so
          * check for a pending tab close on every wake-up as well. */
@@ -1030,6 +1062,7 @@ int ui_run(EditorApp *app)
 void ui_destroy(EditorApp *app)
 {
     find_cleanup();
+    bookmarks_cleanup(app);
     minimap_forget_document(app, NULL);
     document_free_all(app);
     if (app->window_object != NULL) {

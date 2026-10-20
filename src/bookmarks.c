@@ -1,0 +1,508 @@
+/*
+ * bookmarks.c - bookmarks of the documents
+ *
+ * The bookmarks are those of texteditor.gadget itself (ARexx commands
+ * SETBOOKMARK TOGGLE, CLEARBOOKMARKS, LISTBOOKMARKS): the editor keeps them
+ * on their lines while text is inserted or deleted above and draws a small
+ * mark for them. TinyDev reads them with LISTBOOKMARKS into a per-document
+ * cache; the result lists the lines counted from 0, each in quotes
+ * ("98""130").
+ *
+ * The editor's left bar (GA_TEXTEDITOR_LeftBarHook, 20 pixels, a render
+ * and a mouse message per line) is the place to click: a click toggles the
+ * bookmark of that line (the editor itself does nothing on a click). It
+ * stays empty: a symbol of our own would be drawn from the cache, which
+ * lags behind when lines move (the editor redraws them before TinyDev can
+ * read the new positions), while the editor's own marks are always right.
+ *
+ * The commands are sent with the window (DoGadgetMethod), so the editor
+ * draws the change itself. A menu pick takes the input focus from the
+ * editor; ActivateLayoutGadget() gives it back (with the editor object,
+ * not its ID), otherwise its cursor is not shown.
+ *
+ * Next/Previous bookmark are done here and not with GOTOBOOKMARK, which
+ * scrolls to the bookmark but leaves the cursor where it was: the cursor
+ * is set to the line instead.
+ *
+ * The bookmarks of the project (the directory of the folder tree) are kept
+ * in <project>/.tinydev/bookmarks.json (bmstore.c). While a file is open
+ * its bookmarks live in the editor; the store holds those of the files
+ * that are not open. The file is read when a directory is opened, and
+ * written (open documents and store together) when a bookmark is set or
+ * removed, a document is saved or closed, another directory is opened and
+ * TinyDev quits. A file that cannot be read is never overwritten.
+ */
+#include "editor.h"
+#include "bmstore.h"
+
+#include <dos/dos.h>
+#include <proto/dos.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include <devices/inputevent.h>
+#include <graphics/rastport.h>
+#include <gadgets/layout.h>
+#include <gadgets/texteditor.h>
+#include <proto/exec.h>
+#include <proto/graphics.h>
+#include <proto/intuition.h>
+#include <proto/layout.h>
+#include <clib/alib_protos.h>
+
+#define LEFTBAR_WIDTH 20        /* width of the left bar (texteditor.gadget) */
+
+/** Background pen of the left bar (the editor's background). */
+static UWORD leftbar_background = 0;
+
+/**
+ * @brief Left bar hook: clear the bar of a line, or note a click (handled
+ *        by bookmarks_poll(), as the hook is called during input handling).
+ * @param hook The document's leftbar_hook (h_Data = document).
+ * @param obj Not used (NULL).
+ * @param msg A LeftBarRenderMessage or LeftBarMouseMessage.
+ * @return 0.
+ */
+static ULONG leftbar_entry(struct Hook *hook, Object *obj, APTR msg)
+{
+    Document *doc = (Document *)hook->h_Data;
+    UWORD command = *(UWORD *)msg;
+    (void)obj;
+    if (command == LEFTBAR_RENDERCOMMAND) {
+        struct LeftBarRenderMessage *r = (struct LeftBarRenderMessage *)msg;
+        struct RastPort *rp = r->RastPort;
+        WORD h = rp->Font != NULL ? (WORD)rp->Font->tf_YSize : 8;
+        SetAPen(rp, (UBYTE)leftbar_background);
+        RectFill(rp, rp->cp_x, rp->cp_y, (WORD)(rp->cp_x + LEFTBAR_WIDTH - 1), (WORD)(rp->cp_y + h - 1));
+    } else if (command == LEFTBAR_MOUSECOMMAND) {
+        struct LeftBarMouseMessage *m = (struct LeftBarMouseMessage *)msg;
+        if (m->Code == IECODE_LBUTTON) doc->bm_click_line = (LONG)m->BlockNum;
+    }
+    return 0;
+}
+
+void bookmarks_set_background(UWORD pen)
+{
+    leftbar_background = pen;
+}
+
+void bookmarks_init_document(Document *doc)
+{
+    doc->leftbar_hook.h_Entry = (ULONG (*)())HookEntry;
+    doc->leftbar_hook.h_SubEntry = (ULONG (*)())leftbar_entry;
+    doc->leftbar_hook.h_Data = doc;
+    doc->bm_count = 0;
+    doc->bm_click_line = -1;
+}
+
+/**
+ * @brief Read the document's bookmarks from the editor into its cache.
+ * @param doc The document.
+ * @return Non-zero if the cache changed.
+ */
+static int read_bookmarks(Document *doc)
+{
+    ULONG lines[BOOKMARKS_MAX];
+    long n = 0, i;
+    ULONG r = DoMethod(doc->editor, GM_TEXTEDITOR_ARexxCmd, NULL, (ULONG)"LISTBOOKMARKS");
+    const char *p;
+    /* FALSE: not used, TRUE: no result, otherwise an allocated string */
+    if (r > 1) {
+        for (p = (const char *)r; *p != '\0' && n < BOOKMARKS_MAX; ) {
+            if (*p >= '0' && *p <= '9') {
+                ULONG v = 0;
+                while (*p >= '0' && *p <= '9') v = v * 10 + (ULONG)(*p++ - '0');
+                lines[n++] = v;
+            } else ++p;
+        }
+        FreeVec((APTR)r);
+    }
+    if (n == doc->bm_count) {
+        for (i = 0; i < n && lines[i] == doc->bm_lines[i]; ++i) ;
+        if (i == n) return 0;
+    }
+    for (i = 0; i < n; ++i) doc->bm_lines[i] = lines[i];
+    doc->bm_count = n;
+    return 1;
+}
+
+/**
+ * @brief Send an ARexx command to the active document's editor with the
+ *        window, so it draws the change itself.
+ * @param app The application state.
+ * @param doc The active document.
+ * @param command The command.
+ */
+static void editor_command(EditorApp *app, Document *doc, const char *command)
+{
+    DoGadgetMethod((struct Gadget *)doc->editor, app->window, NULL, GM_TEXTEDITOR_ARexxCmd, 0,
+                   (ULONG)command);
+}
+
+/**
+ * @brief Give the active document's editor the input focus again (menu
+ *        picks take it away) and update the scrollers.
+ * @param app The application state.
+ * @param doc The active document.
+ */
+static void focus_editor(EditorApp *app, Document *doc)
+{
+    if (app->layout != NULL)
+        ActivateLayoutGadget((struct Gadget *)app->layout, app->window, NULL, (ULONG)doc->editor);
+    document_sync_scrollers(app, doc);
+}
+
+/**
+ * @brief Move the cursor to the next (or previous) bookmark, round to the
+ *        first (last) one at the end.
+ * @param app The application state.
+ * @param doc The active document.
+ * @param previous Non-zero for the previous bookmark.
+ */
+static void go_to_bookmark(EditorApp *app, Document *doc, int previous)
+{
+    ULONG y = 0, best = 0, wrap = 0, line;
+    int found = 0, wrapped = 0;
+    long i;
+    read_bookmarks(doc);
+    if (doc->bm_count == 0) {
+        if (app->screen != NULL) DisplayBeep(app->screen);
+        return;
+    }
+    GetAttr(GA_TEXTEDITOR_CursorY, doc->editor, &y);
+    for (i = 0; i < doc->bm_count; ++i) {
+        line = doc->bm_lines[i];
+        if (previous ? line < y && (!found || line > best) : line > y && (!found || line < best)) {
+            best = line;
+            found = 1;
+        }
+        /* round: the first (last) bookmark of the document */
+        if (!wrapped || (previous ? line > wrap : line < wrap)) {
+            wrap = line;
+            wrapped = 1;
+        }
+    }
+    if (!found) best = wrap;
+    SetGadgetAttrs((struct Gadget *)doc->editor, app->window, NULL,
+                   GA_TEXTEDITOR_CursorY, best, GA_TEXTEDITOR_CursorX, 0, TAG_END);
+}
+
+void bookmarks_refresh(EditorApp *app, Document *doc)
+{
+    (void)app;
+    if (doc != NULL) read_bookmarks(doc);
+}
+
+void bookmarks_command(EditorApp *app, ULONG id)
+{
+    Document *doc = app->active;
+    if (doc == NULL || app->window == NULL) return;
+    switch (id) {
+        case MID_BM_TOGGLE: editor_command(app, doc, "SETBOOKMARK TOGGLE"); break;
+        case MID_BM_CLEAR: editor_command(app, doc, "CLEARBOOKMARKS"); break;
+        case MID_BM_NEXT:
+        case MID_BM_PREV:
+            go_to_bookmark(app, doc, id == MID_BM_PREV);
+            break;
+    }
+    read_bookmarks(doc);
+    focus_editor(app, doc);
+    if (id == MID_BM_TOGGLE || id == MID_BM_CLEAR) bookmarks_save(app);
+}
+
+static void apply_project(EditorApp *app, Document *doc);
+
+void bookmarks_poll(EditorApp *app)
+{
+    Document *doc;
+    LONG line;
+    for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ != NULL;
+         doc = (Document *)doc->node.ln_Succ)
+        if (doc->bm_apply) apply_project(app, doc);
+    doc = app->active;
+    if (doc == NULL || doc->bm_click_line < 0 || app->window == NULL) return;
+    line = doc->bm_click_line;
+    doc->bm_click_line = -1;
+    SetGadgetAttrs((struct Gadget *)doc->editor, app->window, NULL,
+                   GA_TEXTEDITOR_CursorY, (ULONG)line, GA_TEXTEDITOR_CursorX, 0, TAG_END);
+    bookmarks_command(app, MID_BM_TOGGLE);
+}
+
+/* ---- the project's bookmarks file ------------------------------------ */
+
+#define BOOKMARKS_DIR  ".tinydev"
+#define BOOKMARKS_FILE "bookmarks.json"
+
+/** The bookmarks of the project. */
+static struct {
+    BmStore store;              /* of the project's files that are not open */
+    char root[EDITOR_PATH_MAX]; /* the project directory, "" if none */
+    int keep_file;              /* the file could not be read: never write it */
+    int reported;               /* a write error was reported */
+} pj;
+
+/**
+ * @brief Return a document's file relative to the project.
+ * @param doc The document.
+ * @return The name relative to the project, or NULL if the file is not
+ *         in the project (or there is none).
+ */
+static const char *relative(const Document *doc)
+{
+    size_t n = strlen(pj.root), i;
+    const char *path = doc->path;
+    if (n == 0 || path == NULL || strlen(path) <= n) return NULL;
+    for (i = 0; i < n; ++i) {
+        char a = path[i], b = pj.root[i];
+        if (a >= 'A' && a <= 'Z') a = (char)(a + 32);
+        if (b >= 'A' && b <= 'Z') b = (char)(b + 32);
+        if (a != b) return NULL;
+    }
+    if (pj.root[n - 1] == ':') return path + n;
+    return path[n] == '/' ? path + n + 1 : NULL;
+}
+
+/**
+ * @brief Build the name of a file in the project's .tinydev directory.
+ * @param out The buffer.
+ * @param size Its size.
+ * @param name The file name, or NULL for the directory.
+ * @return Non-zero on success.
+ */
+static int private_name(char *out, LONG size, const char *name)
+{
+    strncpy(out, pj.root, (size_t)size - 1);
+    out[size - 1] = '\0';
+    if (!AddPart((STRPTR)out, (STRPTR)BOOKMARKS_DIR, (ULONG)size)) return 0;
+    return name == NULL || AddPart((STRPTR)out, (STRPTR)name, (ULONG)size);
+}
+
+/**
+ * @brief Return the text of a line of a document's text.
+ * @param text The text.
+ * @param size Its size.
+ * @param line The line, counted from 0.
+ * @param length Set to the length of the line.
+ * @return The start of the line (not terminated), or NULL.
+ */
+static const char *line_of(const char *text, long size, ULONG line, long *length)
+{
+    long offset = 0, end;
+    ULONG n = 0;
+    for (;;) {
+        end = offset;
+        while (end < size && text[end] != '\n' && text[end] != '\r') ++end;
+        if (n == line) {
+            *length = end - offset;
+            return text + offset;
+        }
+        if (end >= size) return NULL;
+        offset = text[end] == '\r' && end + 1 < size && text[end + 1] == '\n' ? end + 2 : end + 1;
+        ++n;
+    }
+}
+
+/**
+ * @brief Put the bookmarks of an open document into a store (instead of
+ *        those the store had for its file).
+ * @param s The store.
+ * @param doc The document (in the project).
+ * @return Non-zero on success.
+ */
+static int capture(BmStore *s, Document *doc)
+{
+    const char *file = relative(doc), *line;
+    char *text;
+    long size, length, i;
+    int ok = 1;
+    if (file == NULL || doc->bm_apply) return 1;    /* not yet set: the store has them */
+    read_bookmarks(doc);
+    bmstore_remove_file(s, file);
+    if (doc->bm_count == 0) return 1;
+    text = (char *)DoMethod(doc->editor, GM_TEXTEDITOR_ExportText, NULL);
+    size = text != NULL ? (long)strlen(text) : 0;
+    for (i = 0; i < doc->bm_count && ok; ++i) {
+        line = text != NULL ? line_of(text, size, doc->bm_lines[i], &length) : NULL;
+        ok = bmstore_add(s, file, (long)doc->bm_lines[i], line, line != NULL ? length : 0);
+    }
+    if (text != NULL) FreeVec(text);
+    return ok;
+}
+
+/**
+ * @brief Set the project's bookmarks of a document's file in its editor,
+ *        each on its line found again in the (maybe changed) text; they
+ *        then leave the store.
+ * @param app The application state.
+ * @param doc The document.
+ */
+static void apply_project(EditorApp *app, Document *doc)
+{
+    const char *file;
+    char *text;
+    long size, i, line;
+    ULONG x = 0, y = 0;
+    int set = 0;
+    doc->bm_apply = 0;
+    if ((file = relative(doc)) == NULL) return;
+    text = (char *)DoMethod(doc->editor, GM_TEXTEDITOR_ExportText, NULL);
+    if (text == NULL) return;
+    size = (long)strlen(text);
+    GetAttr(GA_TEXTEDITOR_CursorX, doc->editor, &x);
+    GetAttr(GA_TEXTEDITOR_CursorY, doc->editor, &y);
+    for (i = 0; i < pj.store.count; ++i) {
+        BmEntry *e = &pj.store.entries[i];
+        if (!bmstore_same_file(e->file, file)) continue;
+        line = bmstore_relocate(text, size, e->line, e->text);
+        SetAttrs(doc->editor, GA_TEXTEDITOR_CursorY, (ULONG)line, GA_TEXTEDITOR_CursorX, 0, TAG_END);
+        DoMethod(doc->editor, GM_TEXTEDITOR_ARexxCmd, NULL, (ULONG)"SETBOOKMARK");
+        set = 1;
+    }
+    FreeVec(text);
+    if (!set) return;
+    bmstore_remove_file(&pj.store, file);
+    SetAttrs(doc->editor, GA_TEXTEDITOR_CursorY, y, GA_TEXTEDITOR_CursorX, x, TAG_END);
+    read_bookmarks(doc);
+    if (doc == app->active && app->window != NULL)
+        RefreshGList((struct Gadget *)doc->editor, app->window, NULL, 1);
+}
+
+/**
+ * @brief Report a problem with the bookmarks file once per project.
+ * @param app The application state.
+ * @param id The message (MSG_ERR_BM_*, with %s for the file).
+ * @param name The file.
+ */
+static void report(EditorApp *app, LONG id, const char *name)
+{
+    char text[EDITOR_PATH_MAX + 160];
+    if (pj.reported) return;
+    pj.reported = 1;
+    snprintf(text, sizeof(text), S(id), name);
+    ui_error(app, S(MSG_MENU_BOOKMARKS), text);
+}
+
+/**
+ * @brief Read the project's bookmarks file into the store.
+ * @param app The application state.
+ */
+static void load_project(EditorApp *app)
+{
+    char name[EDITOR_PATH_MAX];
+    struct FileInfoBlock *fib;
+    BPTR fh;
+    char *data = NULL;
+    if (!private_name(name, sizeof(name), BOOKMARKS_FILE)) return;
+    if ((fh = Open((STRPTR)name, MODE_OLDFILE)) == 0) return;   /* none yet */
+    fib = AllocDosObject(DOS_FIB, NULL);
+    if (fib != NULL && ExamineFH(fh, fib) && fib->fib_Size >= 0 && fib->fib_Size < 4L * 1024 * 1024 &&
+        (data = malloc((size_t)fib->fib_Size + 1)) != NULL &&
+        Read(fh, data, fib->fib_Size) == fib->fib_Size) {
+        data[fib->fib_Size] = '\0';
+        if (!bmstore_parse(&pj.store, data)) pj.keep_file = 1;
+    } else pj.keep_file = 1;
+    if (fib != NULL) FreeDosObject(DOS_FIB, fib);
+    Close(fh);
+    free(data);
+    if (pj.keep_file) report(app, MSG_ERR_BM_READ, name);
+}
+
+/**
+ * @brief Write a text to a file through a temporary file, so a failed
+ *        write leaves the old file.
+ * @param name The file.
+ * @param text The text.
+ * @return Non-zero on success.
+ */
+static int write_file(const char *name, const char *text)
+{
+    char temp[EDITOR_PATH_MAX + 8];
+    LONG length = (LONG)strlen(text);
+    BPTR fh;
+    int ok;
+    snprintf(temp, sizeof(temp), "%s.tmp", name);
+    if ((fh = Open((STRPTR)temp, MODE_NEWFILE)) == 0) return 0;
+    ok = Write(fh, (APTR)text, length) == length;
+    ok = Close(fh) && ok;
+    if (ok) {
+        DeleteFile((STRPTR)name);
+        ok = Rename((STRPTR)temp, (STRPTR)name) != 0;
+    }
+    if (!ok) DeleteFile((STRPTR)temp);
+    return ok;
+}
+
+void bookmarks_save(EditorApp *app)
+{
+    BmStore all;
+    Document *doc;
+    char dir[EDITOR_PATH_MAX], name[EDITOR_PATH_MAX], *json;
+    BPTR lock;
+    long i;
+    int ok = 1;
+
+    if (pj.root[0] == '\0' || pj.keep_file) return;
+    /* the store and the open documents of the project together */
+    bmstore_init(&all);
+    for (i = 0; i < pj.store.count && ok; ++i) {
+        BmEntry *e = &pj.store.entries[i];
+        ok = bmstore_add(&all, e->file, e->line, e->text, (long)strlen(e->text));
+    }
+    for (doc = (Document *)app->documents.lh_Head; ok && doc->node.ln_Succ != NULL;
+         doc = (Document *)doc->node.ln_Succ)
+        ok = capture(&all, doc);
+    if (!ok || !private_name(dir, sizeof(dir), NULL) ||
+        !private_name(name, sizeof(name), BOOKMARKS_FILE)) {
+        bmstore_clear(&all);
+        return;
+    }
+    /* no bookmarks and no file yet: nothing to write, no directory made */
+    if (all.count == 0 && (lock = Lock((STRPTR)name, ACCESS_READ)) == 0) {
+        bmstore_clear(&all);
+        return;
+    }
+    if (all.count == 0) UnLock(lock);
+    if ((lock = Lock((STRPTR)dir, ACCESS_READ)) == 0) lock = CreateDir((STRPTR)dir);
+    if (lock != 0) UnLock(lock);
+    json = bmstore_format(&all);
+    bmstore_clear(&all);
+    if (lock == 0 || json == NULL || !write_file(name, json)) report(app, MSG_ERR_BM_WRITE, name);
+    free(json);
+}
+
+void bookmarks_project_opened(EditorApp *app)
+{
+    Document *doc;
+    char root[EDITOR_PATH_MAX];
+    if (!tree_project_root(app, root, sizeof(root))) return;
+    if (strcmp(root, pj.root) == 0) return;
+    bookmarks_save(app);                /* the previous project */
+    bmstore_clear(&pj.store);
+    strcpy(pj.root, root);
+    pj.keep_file = pj.reported = 0;
+    load_project(app);
+    for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ != NULL;
+         doc = (Document *)doc->node.ln_Succ)
+        if (relative(doc) != NULL) doc->bm_apply = 1;
+}
+
+void bookmarks_document_loaded(EditorApp *app, Document *doc)
+{
+    (void)app;
+    if (relative(doc) != NULL) doc->bm_apply = 1;
+}
+
+void bookmarks_document_closing(EditorApp *app, Document *doc)
+{
+    if (relative(doc) == NULL) return;
+    capture(&pj.store, doc);
+    bookmarks_save(app);
+}
+
+void bookmarks_cleanup(EditorApp *app)
+{
+    bookmarks_save(app);
+    bmstore_clear(&pj.store);
+    pj.root[0] = '\0';
+}

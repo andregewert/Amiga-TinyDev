@@ -55,7 +55,39 @@ static int load_directory(EditorApp *app, const char *path)
     report_status(app, status, S(MSG_OPENDIR_FAILED), S(MSG_ERR_DIROPEN));
     if (status == DIRTREE_ST_FAILED) return 0;
     ui_relayout(app);
+    bookmarks_project_opened(app);
     return 1;
+}
+
+ULONG tree_signal_mask(EditorApp *app)
+{
+    ULONG mask = 0;
+    if (app->tree != NULL) GetAttr(DIRTREE_SignalMask, app->tree, &mask);
+    return mask;
+}
+
+void tree_refresh(EditorApp *app, int all)
+{
+    ULONG status = DIRTREE_ST_OK;
+    if (app->tree == NULL || app->window == NULL) return;
+    SetGadgetAttrs((struct Gadget *)app->tree, app->window, NULL,
+                   DIRTREE_Refresh, all ? DIRTREE_RF_ALL : DIRTREE_RF_CHANGED, TAG_END);
+    GetAttr(DIRTREE_Status, app->tree, &status);
+    /* only a refresh the user asked for reports a directory it could not read */
+    if (all) report_status(app, status, S(MSG_TREE_TITLE), S(MSG_ERR_TREEMEM));
+}
+
+int tree_project_root(EditorApp *app, char *out, LONG size)
+{
+    STRPTR root = NULL;
+    BPTR lock;
+    int ok;
+    if (app->tree == NULL) return 0;
+    GetAttr(DIRTREE_Root, app->tree, (ULONG *)&root);
+    if (root == NULL || root[0] == '\0' || (lock = Lock(root, ACCESS_READ)) == 0) return 0;
+    ok = NameFromLock(lock, (STRPTR)out, size) != 0;
+    UnLock(lock);
+    return ok;
 }
 
 /**

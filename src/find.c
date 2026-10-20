@@ -684,27 +684,6 @@ static void set_disabled(Object *o, int off)
 }
 
 /**
- * @brief Return the project directory (the folder tree's root) in its
- *        full form.
- * @param app The application state.
- * @param out The buffer for the name.
- * @param size Its size.
- * @return Non-zero if there is a project.
- */
-static int project_root(EditorApp *app, char *out, LONG size)
-{
-    STRPTR root = NULL;
-    BPTR lock;
-    int ok;
-    if (app->tree == NULL) return 0;
-    GetAttr(DIRTREE_Root, app->tree, (ULONG *)&root);
-    if (root == NULL || root[0] == '\0' || (lock = Lock(root, ACCESS_READ)) == 0) return 0;
-    ok = NameFromLock(lock, (STRPTR)out, size) != 0;
-    UnLock(lock);
-    return ok;
-}
-
-/**
  * @brief Describe the current search for the project files, to tell
  *        whether the result list belongs to it.
  * @param key The buffer (sizeof(fw.key)).
@@ -1031,7 +1010,7 @@ static void scan_start(EditorApp *app, int replace)
 {
     scan_finish(1);
     results_clear();
-    if (!project_root(app, fw.project, sizeof(fw.project))) {
+    if (!tree_project_root(app, fw.project, sizeof(fw.project))) {
         status(S(MSG_FIND_NOPROJECT));
         return;
     }
@@ -1140,7 +1119,7 @@ static void results_next(EditorApp *app)
 static void project_find(EditorApp *app)
 {
     char key[sizeof(fw.key)], root[EDITOR_PATH_MAX];
-    if (!project_root(app, root, sizeof(root))) {
+    if (!tree_project_root(app, root, sizeof(root))) {
         status(S(MSG_FIND_NOPROJECT));
         return;
     }

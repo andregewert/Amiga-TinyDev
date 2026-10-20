@@ -49,6 +49,12 @@
 **
 **  DIRTREE_Root and DIRTREE_HandleEvent must be set from a process
 **  (SetGadgetAttrs()), not through a notification (OM_UPDATE).
+**
+**  The shown directories are watched (DIRTREE_Watch): wait for
+**  DIRTREE_SignalMask as well and update the tree when it arrives:
+**
+**      SetGadgetAttrs((struct Gadget *)tree, window, NULL,
+**                     DIRTREE_Refresh, DIRTREE_RF_CHANGED, TAG_END);
 */
 
 #ifndef UTILITY_TAGITEM_H
@@ -103,6 +109,30 @@
 #define DIRTREE_LoadingText     (DIRTREE_Dummy + 7) /* STRPTR */
 #define DIRTREE_EmptyText       (DIRTREE_Dummy + 8) /* STRPTR */
 #define DIRTREE_UnavailableText (DIRTREE_Dummy + 9) /* STRPTR */
+
+/* Watch the directories that are shown (the root and every expanded
+ * directory) with DOS notification (StartNotify()). Default TRUE. The
+ * gadget then has a message port whose signal belongs to the task that
+ * created the object: only that task may wait for DIRTREE_SignalMask and
+ * set DIRTREE_Refresh. File systems without notification are not watched;
+ * DIRTREE_Refresh with DIRTREE_RF_ALL reads the tree again.           (I) */
+#define DIRTREE_Watch           (DIRTREE_Dummy + 14)    /* BOOL */
+
+/* Signal mask of the notifications, 0 without watching. Wait for it
+ * together with the window's signals; when it arrives, set
+ * DIRTREE_Refresh to DIRTREE_RF_CHANGED.                              (G) */
+#define DIRTREE_SignalMask      (DIRTREE_Dummy + 15)    /* ULONG */
+
+/* Read directories again and update the tree (with SetGadgetAttrs(),
+ * from the application's process): new entries are added in order,
+ * removed ones disappear with their subtrees; expanded directories, the
+ * selection and the scroll position stay. DIRTREE_Status tells the
+ * result.                                                             (S) */
+#define DIRTREE_Refresh         (DIRTREE_Dummy + 16)    /* ULONG, DIRTREE_RF_# */
+
+/* DIRTREE_Refresh values */
+#define DIRTREE_RF_CHANGED      1   /* the directories DOS reported changed */
+#define DIRTREE_RF_ALL          2   /* the root and every expanded directory */
 
 /* DIRTREE_Status values */
 #define DIRTREE_ST_OK           0   /* read completely */

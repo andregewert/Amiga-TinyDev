@@ -9,8 +9,16 @@
  * Reading is bounded by DIRTREE_MaxDepth and DIRTREE_MaxEntries.
  *
  * DOS is only used from OM_NEW and OM_SET (DIRTREE_Root,
- * DIRTREE_HandleEvent), which run on the application's process, never
- * from input handling. OM_SET also brings the GadgetInfo for redrawing.
+ * DIRTREE_HandleEvent, DIRTREE_Refresh), which run on the application's
+ * process, never from input handling. OM_SET also brings the GadgetInfo
+ * for redrawing.
+ *
+ * The root and every expanded directory are watched with StartNotify()
+ * (NRF_SEND_MESSAGE to the object's port, NRF_WAIT_REPLY so a busy
+ * directory sends one message until it was handled). A notification only
+ * marks its directory; DIRTREE_Refresh reads the marked directories again
+ * and reconciles their children with the tree. Messages of a request that
+ * was ended meanwhile are recognised by comparing pointers only.
  *
  * Copyright (c) 2026 André Gewert <agewert@ubergeek.de>
  * Released under the MIT License, see LICENSE.
@@ -23,6 +31,7 @@
 #include <proto/graphics.h>
 #include <dos/dos.h>
 #include <dos/exall.h>
+#include <dos/notify.h>
 #include <intuition/classes.h>
 #include <intuition/classusr.h>
 #include <intuition/gadgetclass.h>
@@ -64,12 +73,21 @@ struct Library *ListBrowserBase = NULL;
  * unless the application passes its own images. */
 struct Library *GlyphBase = NULL;
 
+/** DOS notification of a shown directory. */
+typedef struct Watch {
+    struct MinNode node;        /**< in DirTreeData.watches */
+    struct NotifyRequest nr;    /**< nr_Name points to the directory's path */
+    int changed;                /**< a notification arrived */
+} Watch;
+
 /** One tree item; allocated in one block with its path and name. */
 typedef struct TreeEntry {
     int directory;          /**< non-zero for a directory */
     int placeholder;        /**< non-zero for a status placeholder */
     int expanded;           /**< directory children are loaded */
     int kind;               /**< DTI_ symbol, -1 for none */
+    int seen;               /**< found again while a directory is reconciled */
+    Watch *watch;           /**< notification of an expanded directory, or NULL */
     char *name;             /**< display name, stored after the path */
     char path[1];           /**< full path, NUL terminated */
 } TreeEntry;
@@ -95,7 +113,11 @@ typedef struct DirTreeData {
     struct Hook render_hook;    /**< draws symbol and name of every entry */
     WORD row_height;            /**< LBNCA_HookHeight of new entries */
     ULONG event;                /**< DIRTREE_EV_# of the last HandleEvent */
+    struct MsgPort *port;       /**< notifications, NULL without watching */
+    struct MinList watches;     /**< the active Watch requests */
+    Watch *root_watch;          /**< notification of the root, or NULL */
 } DirTreeData;
+
 
 /* -- libraries ------------------------------------------------------------ */
 
@@ -224,12 +246,67 @@ static ULONG node_generation(struct Node *node)
 }
 
 /**
- * @brief Unlink a node and free it with its TreeEntry.
+ * @brief Start watching a directory.
+ * @param d The instance data (no watching without a port).
+ * @param path The directory; must stay valid while it is watched.
+ * @return The request, or NULL (not watched).
+ */
+static Watch *start_watch(DirTreeData *d, const char *path)
+{
+    Watch *w;
+    if (d->port == NULL) return NULL;
+    w = AllocVec(sizeof(*w), MEMF_ANY | MEMF_CLEAR);
+    if (w == NULL) return NULL;
+    w->nr.nr_Name = (STRPTR)path;
+    w->nr.nr_Flags = NRF_SEND_MESSAGE | NRF_WAIT_REPLY;
+    w->nr.nr_stuff.nr_Msg.nr_Port = d->port;
+    w->nr.nr_UserData = (ULONG)w;
+    if (!StartNotify(&w->nr)) {
+        FreeVec(w);
+        return NULL;
+    }
+    AddTail((struct List *)&d->watches, (struct Node *)&w->node);
+    return w;
+}
+
+/**
+ * @brief Stop watching a directory and free the request.
+ * @param w The request (may be NULL).
+ */
+static void end_watch(Watch *w)
+{
+    if (w == NULL) return;
+    EndNotify(&w->nr);
+    Remove((struct Node *)&w->node);
+    FreeVec(w);
+}
+
+/**
+ * @brief Take the notifications from the port: mark their directories
+ *        and reply. A message of an ended request is only replied.
+ * @param d The instance data.
+ */
+static void take_notifications(DirTreeData *d)
+{
+    struct Message *msg;
+    if (d->port == NULL) return;
+    while ((msg = GetMsg(d->port)) != NULL) {
+        struct NotifyRequest *nr = ((struct NotifyMessage *)msg)->nm_NReq;
+        struct MinNode *n;
+        for (n = d->watches.mlh_Head; n->mln_Succ != NULL; n = n->mln_Succ)
+            if (&((Watch *)n)->nr == nr) ((Watch *)n)->changed = 1;
+        ReplyMsg(msg);
+    }
+}
+
+/**
+ * @brief Unlink a node and free it with its TreeEntry (and its watch).
  * @param node The node.
  */
 static void free_node(struct Node *node)
 {
     TreeEntry *entry = node_entry(node);
+    if (entry != NULL && entry->watch != NULL) end_watch(entry->watch);
     Remove(node);
     FreeListBrowserNode(node);
     if (entry != NULL) FreeVec(entry);
@@ -663,6 +740,8 @@ static ULONG load_root(Class *cl, Object *o, DirTreeData *d,
     if (path == NULL) {
         set_labels(cl, o, gi, (struct List *)~0UL);
         free_all(d);
+        end_watch(d->root_watch);
+        d->root_watch = NULL;
         if (d->root != NULL) { FreeVec(d->root); d->root = NULL; }
         if (d->title != NULL) { FreeVec(d->title); d->title = NULL; }
         if (d->active_path != NULL) { FreeVec(d->active_path); d->active_path = NULL; }
@@ -685,12 +764,14 @@ static ULONG load_root(Class *cl, Object *o, DirTreeData *d,
         if (copy != NULL && title != NULL) {
             set_labels(cl, o, gi, (struct List *)~0UL);
             free_all(d);
+            end_watch(d->root_watch);
             if (d->root != NULL) FreeVec(d->root);
             if (d->title != NULL) FreeVec(d->title);
             d->root = copy;
             d->title = title;
             if (d->active_path != NULL) { FreeVec(d->active_path); d->active_path = NULL; }
             status = load_children(d, NULL, d->root, 0) ? DIRTREE_ST_OK : DIRTREE_ST_INCOMPLETE;
+            d->root_watch = start_watch(d, d->root);
             set_title(cl, o, d, gi);
             set_labels(cl, o, gi, &d->nodes);
         } else {
@@ -719,6 +800,7 @@ static ULONG expand_node(DirTreeData *d, struct Node *node, TreeEntry *entry)
     status = load_children(d, node, entry->path, node_generation(node))
              ? DIRTREE_ST_OK : DIRTREE_ST_INCOMPLETE;
     entry->expanded = 1;
+    if (entry->watch == NULL) entry->watch = start_watch(d, entry->path);
     return status;
 }
 
@@ -736,6 +818,8 @@ static ULONG collapse_node(DirTreeData *d, struct Node *node, TreeEntry *entry)
     struct Node *after = node;
     ULONG status = DIRTREE_ST_OK;
     remove_descendants(node);
+    end_watch(entry->watch);
+    entry->watch = NULL;
     if (!insert_placeholder(d, node_generation(node), &after, d->loading_text, 1))
         status = DIRTREE_ST_FAILED;
     SetListBrowserNodeAttrs(node, LBNA_Flags, LBFLG_HASCHILDREN, TAG_END);
@@ -743,6 +827,108 @@ static ULONG collapse_node(DirTreeData *d, struct Node *node, TreeEntry *entry)
     HideListBrowserNodeChildren(node);
     entry->expanded = 0;
     return status;
+}
+
+/**
+ * @brief Read a shown directory again and bring its children up to date:
+ *        new entries are inserted in order, entries that are gone are
+ *        freed with their subtrees, the others (and their expanded
+ *        subtrees) stay. The caller detaches and re-attaches the list.
+ * @param d The instance data.
+ * @param parent The directory node, NULL for the root.
+ * @param path The directory's full path.
+ * @param generation The directory's generation (0 for the root).
+ * @return The DIRTREE_ST_# result.
+ */
+static ULONG reconcile(DirTreeData *d, struct Node *parent, const char *path, ULONG generation)
+{
+    ULONG child_generation = generation + 1, count = node_count(d);
+    struct Node *first = parent != NULL ? parent->ln_Succ : d->nodes.lh_Head, *node, *next;
+    struct FileInfoBlock *fib = NULL;
+    char *child_path = NULL;
+    BPTR lock = 0;
+    int ok = 1, children = 0;
+    TreeEntry *entry;
+
+    if (generation >= d->max_depth) return DIRTREE_ST_OK;
+    for (node = first; node->ln_Succ != NULL && node_generation(node) > generation;
+         node = node->ln_Succ)
+        if ((entry = node_entry(node)) != NULL) entry->seen = 0;
+    lock = Lock((STRPTR)path, ACCESS_READ);
+    fib = AllocDosObject(DOS_FIB, NULL);
+    child_path = AllocVec(DIRTREE_PATH_MAX, MEMF_ANY);
+    if (lock == 0 || fib == NULL || child_path == NULL || !Examine(lock, fib) ||
+        fib->fib_DirEntryType <= 0) {
+        ok = 0;
+        goto done;
+    }
+    while (ExNext(lock, fib)) {
+        int directory = fib->fib_DirEntryType > 0, found = 0;
+        struct Node *child, *after;
+        if (!directory && d->hide_icons && is_icon(fib->fib_FileName)) continue;
+        /* an entry that is there already stays as it is */
+        for (node = parent != NULL ? parent->ln_Succ : d->nodes.lh_Head;
+             node->ln_Succ != NULL && node_generation(node) > generation; node = node->ln_Succ) {
+            entry = node_entry(node);
+            if (node_generation(node) == child_generation && entry != NULL && !entry->placeholder &&
+                entry->directory == directory && strcmp(entry->name, fib->fib_FileName) == 0) {
+                entry->seen = found = 1;
+                break;
+            }
+        }
+        if (found) continue;
+        if (count + (directory ? 2UL : 1UL) > d->max_entries) { ok = 0; break; }
+        strncpy(child_path, path, DIRTREE_PATH_MAX - 1);
+        child_path[DIRTREE_PATH_MAX - 1] = '\0';
+        if (!AddPart(child_path, fib->fib_FileName, DIRTREE_PATH_MAX)) { ok = 0; continue; }
+        child = new_node(d, fib->fib_FileName, child_path, child_generation, directory, 0,
+                         directory ? DTI_DRAWER
+                                   : dirtree_icon_kind(fib->fib_FileName,
+                                                       (ULONG)fib->fib_Protection));
+        if (child == NULL) { ok = 0; break; }
+        node_entry(child)->seen = 1;
+        after = sorted_predecessor(d, parent, generation, fib->fib_FileName, directory);
+        Insert(&d->nodes, child, after);
+        ++count;
+        if (directory) {
+            after = child;
+            if (!insert_placeholder(d, child_generation, &after, d->loading_text, 1)) {
+                ok = 0;
+                break;
+            }
+            HideListBrowserNodeChildren(child);
+            ++count;
+        }
+    }
+    if (ok && IoErr() != ERROR_NO_MORE_ENTRIES) ok = 0;
+done:
+    if (child_path != NULL) FreeVec(child_path);
+    if (fib != NULL) FreeDosObject(DOS_FIB, fib);
+    if (lock != 0) UnLock(lock);
+    /* free what is gone, and the placeholders; count what stays */
+    node = parent != NULL ? parent->ln_Succ : d->nodes.lh_Head;
+    while (node->ln_Succ != NULL && node_generation(node) > generation) {
+        next = node->ln_Succ;
+        entry = node_entry(node);
+        if (node_generation(node) == child_generation) {
+            if (entry != NULL && !entry->placeholder && (entry->seen || !ok)) ++children;
+            else {
+                /* skip its subtree, then free it with it */
+                while (next->ln_Succ != NULL && node_generation(next) > child_generation)
+                    next = next->ln_Succ;
+                remove_descendants(node);
+                free_node(node);
+            }
+        }
+        node = next;
+    }
+    if (children == 0) {
+        struct Node *after = parent != NULL ? parent : (struct Node *)&d->nodes;
+        if (!insert_placeholder(d, generation, &after,
+                                ok ? d->empty_text : d->unavailable_text, 0)) ok = 0;
+    }
+    if (parent != NULL) ShowListBrowserNodeChildren(parent, 1);
+    return ok ? DIRTREE_ST_OK : DIRTREE_ST_INCOMPLETE;
 }
 
 /**
@@ -835,6 +1021,69 @@ static ULONG handle_event(Class *cl, Object *o, DirTreeData *d,
     return result;
 }
 
+/**
+ * @brief DIRTREE_Refresh: read the changed (or all shown) directories
+ *        again. The list is detached meanwhile; the selection and the
+ *        first visible entry are kept.
+ * @param cl The class.
+ * @param o The object.
+ * @param d The instance data.
+ * @param gi GadgetInfo of the OM_SET, for redrawing.
+ * @param mode DIRTREE_RF_CHANGED or DIRTREE_RF_ALL.
+ * @return Non-zero if the tree was read again (and needs a redraw).
+ */
+static int refresh(Class *cl, Object *o, DirTreeData *d, struct GadgetInfo *gi, ULONG mode)
+{
+    struct Node *node, *selected;
+    ULONG top;
+    int all = mode == DIRTREE_RF_ALL, done = 0;
+    TreeEntry *entry;
+
+    take_notifications(d);
+    if (d->root == NULL) return 0;
+    if (!all) {
+        int any = d->root_watch != NULL && d->root_watch->changed;
+        for (node = d->nodes.lh_Head; !any && node->ln_Succ != NULL; node = node->ln_Succ)
+            if ((entry = node_entry(node)) != NULL && entry->watch != NULL && entry->watch->changed)
+                any = 1;
+        if (!any) return 0;
+    }
+    selected = (struct Node *)super_get(cl, o, LISTBROWSER_SelectedNode);
+    top = super_get(cl, o, LISTBROWSER_Top);
+    set_labels(cl, o, gi, (struct List *)~0UL);
+    d->status = DIRTREE_ST_OK;
+    if (all || (d->root_watch != NULL && d->root_watch->changed)) {
+        if (d->root_watch != NULL) d->root_watch->changed = 0;
+        d->status = reconcile(d, NULL, d->root, 0);
+        done = 1;
+    }
+    /* the children of a directory follow it, so they are visited after it
+     * was reconciled; freed nodes are never visited */
+    for (node = d->nodes.lh_Head; node->ln_Succ != NULL; node = node->ln_Succ) {
+        entry = node_entry(node);
+        if (entry == NULL || !entry->directory || !entry->expanded) continue;
+        if (!all && (entry->watch == NULL || !entry->watch->changed)) continue;
+        if (entry->watch != NULL) entry->watch->changed = 0;
+        d->status = worse_status(d->status, reconcile(d, node, entry->path, node_generation(node)));
+        done = 1;
+    }
+    set_labels(cl, o, gi, &d->nodes);
+    if (selected != NULL && node_in_tree(d, selected)) set_selected(cl, o, gi, selected);
+    {
+        struct TagItem tags[2];
+        struct opSet set;
+        tags[0].ti_Tag = LISTBROWSER_Top;
+        tags[0].ti_Data = top;
+        tags[1].ti_Tag = TAG_END;
+        tags[1].ti_Data = 0;
+        set.MethodID = OM_SET;
+        set.ops_AttrList = tags;
+        set.ops_GInfo = gi;
+        class_dsm(cl, o, (Msg)&set);
+    }
+    return done;
+}
+
 /* -- methods -------------------------------------------------------------- */
 
 /**
@@ -913,6 +1162,8 @@ static ULONG om_new(Class *cl, Object *o, struct opSet *ops)
                                                    (ULONG)"(unavailable)",
                                                    ops->ops_AttrList);
     d->hide_icons = (int)GetTagData(DIRTREE_HideIcons, TRUE, ops->ops_AttrList);
+    class_new_list((struct List *)&d->watches);
+    if (GetTagData(DIRTREE_Watch, TRUE, ops->ops_AttrList)) d->port = CreateMsgPort();
     d->render_hook.h_Entry = (ULONG (*)())render_entry;
     d->render_hook.h_Data = d;
     if (symbols) {
@@ -964,6 +1215,9 @@ static ULONG om_set(Class *cl, Object *o, struct opSet *ops)
     struct TagItem *tag = NULL;
     int handle = ops->MethodID == OM_SET &&
                  GetTagData(DIRTREE_HandleEvent, FALSE, ops->ops_AttrList);
+    ULONG refresh_mode = ops->MethodID == OM_SET
+                         ? GetTagData(DIRTREE_Refresh, 0, ops->ops_AttrList) : 0;
+    int refreshed = 0;
     if (ops->MethodID == OM_SET) update_row_height(d, ops->ops_GInfo);
     /* Read the listbrowser's event before the OM_SET reaches it: setting
      * attributes may reset LISTBROWSER_RelEvent. */
@@ -977,9 +1231,10 @@ static ULONG om_set(Class *cl, Object *o, struct opSet *ops)
         (tag = FindTagItem(DIRTREE_Root, ops->ops_AttrList)) != NULL)
         d->status = load_root(cl, o, d, ops->ops_GInfo, (const char *)tag->ti_Data);
     if (handle) d->event = handle_event(cl, o, d, ops->ops_GInfo, event, cursor);
+    if (refresh_mode != 0) refreshed = refresh(cl, o, d, ops->ops_GInfo, refresh_mode);
     /* A new root or a changed tree needs a full redraw; otherwise follow
      * the listbrowser's request (e.g. scrolling through OM_UPDATE). */
-    if ((tag != NULL && ops->MethodID == OM_SET) ||
+    if ((tag != NULL && ops->MethodID == OM_SET) || refreshed ||
         (handle && d->event != DIRTREE_EV_NONE && d->event != DIRTREE_EV_ACTIVATE))
         render_self(cl, o, ops->ops_GInfo, GREDRAW_REDRAW);
     else if (result != 0)
@@ -1007,6 +1262,10 @@ static ULONG om_get(Class *cl, Object *o, struct opGet *opg)
         case DIRTREE_ActivePath: *opg->opg_Storage = (ULONG)d->active_path; return TRUE;
         case DIRTREE_HideIcons:  *opg->opg_Storage = (ULONG)d->hide_icons; return TRUE;
         case DIRTREE_Images:     *opg->opg_Storage = d->icons[DTI_DRAWER] != NULL; return TRUE;
+        case DIRTREE_Watch:      *opg->opg_Storage = d->port != NULL; return TRUE;
+        case DIRTREE_SignalMask:
+            *opg->opg_Storage = d->port != NULL ? 1UL << d->port->mp_SigBit : 0;
+            return TRUE;
         case DIRTREE_SelectedPath: {
             struct Node *node = (struct Node *)super_get(cl, o, LISTBROWSER_SelectedNode);
             TreeEntry *entry = node != NULL ? node_entry(node) : NULL;
@@ -1037,6 +1296,12 @@ static ULONG om_dispose(Class *cl, Object *o, Msg msg)
     int k;
     set_labels(cl, o, NULL, (struct List *)~0UL);
     free_all(d);
+    end_watch(d->root_watch);
+    if (d->port != NULL) {
+        /* no request is left: reply what arrived meanwhile */
+        take_notifications(d);
+        DeleteMsgPort(d->port);
+    }
     if (d->root != NULL) FreeVec(d->root);
     if (d->title != NULL) FreeVec(d->title);
     if (d->active_path != NULL) FreeVec(d->active_path);

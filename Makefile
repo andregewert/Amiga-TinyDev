@@ -6,7 +6,7 @@ HOST_CC ?= cc
 BUILD_DIR := build
 BIN_DIR := bin
 TARGET := $(BIN_DIR)/TinyDev
-SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/splash.c src/prefswin.c src/closeimage.c src/search.c src/find.c src/filescan.c src/locale.c
+SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/splash.c src/prefswin.c src/closeimage.c src/search.c src/find.c src/filescan.c src/locale.c src/bookmarks.c src/bmstore.c src/scout/scout_json.c
 OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
 DEPS := $(OBJECTS:.o=.d)
 CPPFLAGS := -Iinclude
@@ -138,9 +138,10 @@ $(BUILD_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)
 	$(TARGET_CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_scout_json $(BUILD_DIR)/test_c_parser
+test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_scout_json $(BUILD_DIR)/test_c_parser
 	./$(BUILD_DIR)/test_syntax
 	./$(BUILD_DIR)/test_search
+	./$(BUILD_DIR)/test_bmstore
 	./$(BUILD_DIR)/test_scout_json
 	./$(BUILD_DIR)/test_c_parser
 
@@ -151,6 +152,10 @@ $(BUILD_DIR)/test_syntax: src/syntax.c tests/test_syntax.c include/syntax.h
 $(BUILD_DIR)/test_search: src/search.c tests/test_search.c include/search.h $(REGEX_HOST_OBJECTS)
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Iinclude -I$(REGEX_GEN) -std=gnu99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/search.c tests/test_search.c $(REGEX_HOST_OBJECTS)
+
+$(BUILD_DIR)/test_bmstore: src/bmstore.c src/scout/scout_json.c tests/test_bmstore.c include/bmstore.h include/scout_json.h
+	@mkdir -p $(BUILD_DIR)
+	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/bmstore.c src/scout/scout_json.c tests/test_bmstore.c
 
 $(BUILD_DIR)/test_scout_json: src/scout/scout_json.c tests/test_scout_json.c include/scout_json.h
 	@mkdir -p $(BUILD_DIR)

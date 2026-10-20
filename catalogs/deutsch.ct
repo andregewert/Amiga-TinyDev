@@ -81,6 +81,26 @@ MSG_MENU_FINDNEXT
 Weitersuchen
 ; Find Next
 ;
+MSG_MENU_BOOKMARKS
+Lesezeichen
+; Bookmarks
+;
+MSG_MENU_BM_TOGGLE
+Lesezeichen setzen/entfernen
+; Set/Remove Bookmark
+;
+MSG_MENU_BM_NEXT
+Nächstes Lesezeichen
+; Next Bookmark
+;
+MSG_MENU_BM_PREV
+Vorheriges Lesezeichen
+; Previous Bookmark
+;
+MSG_MENU_BM_CLEAR
+Alle in dieser Datei entfernen
+; Remove All in This File
+;
 MSG_MENU_VIEW
 Ansicht
 ; View
@@ -88,6 +108,10 @@ Ansicht
 MSG_MENU_TREE
 Verzeichnisbaum
 ; Folder Tree
+;
+MSG_MENU_TREE_REFRESH
+Verzeichnisbaum aktualisieren
+; Refresh Folder Tree
 ;
 MSG_MENU_LINENUMBERS
 Zeilennummern
@@ -376,6 +400,14 @@ Der Tab konnte nicht angelegt werden.
 MSG_ERR_COLORS
 Die Farben des Editors konnten auf dem Bildschirm nicht reserviert werden.
 ; Could not reserve editor colors on the public screen.
+;
+MSG_ERR_BM_READ
+%s konnte nicht gelesen werden. Die Lesezeichen dieses Projekts werden nicht gespeichert, die Datei bleibt unverändert.
+; %s could not be read. The bookmarks of this project are not saved, so the file stays as it is.
+;
+MSG_ERR_BM_WRITE
+Die Lesezeichen konnten nicht in %s gespeichert werden.
+; The bookmarks could not be saved in %s.
 ;
 MSG_ERR_SAVESETTINGS
 Die Einstellungen konnten nicht im Programm-Icon gespeichert werden.
