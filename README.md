@@ -277,7 +277,8 @@ restored (with a full redraw) once the drag ends or the scrollbar has not
 moved for about a fifth of a second.
 An optional colored minimap can be toggled from the View menu. It appears as a
 column on the right of the window (below the toolbar, beside the editor) and
-renders the active document using the same syntax colors on the same grey
+renders the active document (lines at most two pixels apart, so a short text
+stays at the top) using the same syntax colors on the same grey
 background the editor shows (the screen's `BACKGROUNDPEN`). It also draws a
 simple frame with a slightly darker background that marks the vertically
 visible portion of the editor; only the vertical range matters, so the box

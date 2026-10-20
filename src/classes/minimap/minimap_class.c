@@ -47,6 +47,9 @@
 #define MM_DEFAULT_COLUMNS  128     /**< default of MINIMAP_Columns */
 #define MM_MAX_COLUMNS      1024    /**< largest MINIMAP_Columns */
 #define MM_STACK_SIZE       16384   /**< stack of the render process */
+/** Most pixels per text line: the line and one empty row below it, so a
+ *  short text is not spread over the whole height. */
+#define MM_MAX_PITCH        2
 
 /** @name Commands of a render job */
 /** @{ */
@@ -187,6 +190,22 @@ static ULONG count_lines(const char *text)
 }
 
 /**
+ * @brief Height the lines are spread over: the gadget's height, or less
+ *        for a short text (at most MM_MAX_PITCH pixels per line). The
+ *        picture, the visible range and the pointer all use it, so they
+ *        stay in line.
+ * @param height Height of the gadget.
+ * @param total Number of text lines (at least 1).
+ * @return The height used for the lines.
+ */
+static LONG map_height(LONG height, ULONG total)
+{
+    if (total == 0) total = 1;
+    if (total <= (ULONG)height / MM_MAX_PITCH) return (LONG)(total * MM_MAX_PITCH);
+    return height;
+}
+
+/**
  * @brief Render a job into its bitmap (render process, no Intuition).
  *
  * Reuses or allocates the bitmap, clears it, tints the editor's visible
@@ -201,7 +220,7 @@ static void render_job(RenderJob *job, RenderBuffers *rb)
     struct RastPort rp;
     const char *p;
     ULONG total_lines, acc = 0, col;
-    LONG width = job->width, height = job->height, y = 0;
+    LONG width = job->width, height = job->height, y = 0, lines_height;
     LONG view_top = 0, view_bottom = 0;
     int have_view = 0;
     ULONG state = 0;
@@ -226,11 +245,13 @@ static void render_job(RenderJob *job, RenderBuffers *rb)
     rp.BitMap = job->bitmap;
     SetRast(&rp, (UBYTE)job->background_pen);
 
+    lines_height = map_height(height, job->view_total);
     if (job->view_total > 0 && job->view_visible > 0) {
-        view_top = (LONG)((unsigned long long)job->view_first * (ULONG)height /
+        view_top = (LONG)((unsigned long long)job->view_first * (ULONG)lines_height /
                           job->view_total);
         view_bottom = (LONG)((unsigned long long)(job->view_first + job->view_visible) *
-                             (ULONG)height / job->view_total);
+                             (ULONG)lines_height / job->view_total);
+        if (view_bottom > lines_height) view_bottom = lines_height;
         if (view_bottom > height) view_bottom = height;
         if (view_bottom <= view_top) view_bottom = view_top + 1;
         if (view_bottom > height) view_bottom = height;
@@ -267,8 +288,8 @@ static void render_job(RenderJob *job, RenderBuffers *rb)
             }
         }
         p = next;
-        /* y = line * height / total_lines, kept as a running fraction. */
-        acc += (ULONG)height;
+        /* y = line * lines_height / total_lines, kept as a running fraction. */
+        acc += (ULONG)lines_height;
         while (acc >= total_lines) { acc -= total_lines; ++y; }
     }
 
@@ -574,12 +595,13 @@ static ULONG top_for_mouse(Object *o, MinimapData *d, LONG mouse_y)
 {
     struct Gadget *g = (struct Gadget *)o;
     ULONG first, visible, total;
-    LONG top;
+    LONG top, height;
     editor_view(d, &first, &visible, &total);
     if (g->Height <= 0) return first;
+    height = map_height(g->Height, total);
     if (mouse_y < 0) mouse_y = 0;
-    if (mouse_y >= g->Height) mouse_y = g->Height - 1;
-    top = (LONG)(((unsigned long long)(ULONG)mouse_y * total) / (ULONG)(UWORD)g->Height);
+    if (mouse_y >= height) mouse_y = height - 1;
+    top = (LONG)(((unsigned long long)(ULONG)mouse_y * total) / (ULONG)height);
     top -= (LONG)visible / 2;
     if ((ULONG)top + visible > total) top = (LONG)total - (LONG)visible;
     if (top < 0) top = 0;

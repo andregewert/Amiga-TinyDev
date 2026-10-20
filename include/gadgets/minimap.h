@@ -5,7 +5,9 @@
  *
  * minimap.gadget shows a scaled overview of the text of a connected
  * texteditor.gadget: one pixel per non-blank character, the visible part
- * of the editor as a tinted, framed box. Clicking or dragging in the
+ * of the editor as a tinted, framed box. The lines are spread over the
+ * gadget's height, but at most two pixels apart, so a short text stays at
+ * the top instead of being pulled apart. Clicking or dragging in the
  * minimap reports the line the editor should scroll to.
  *
  * - Public class name: "minimap.gadget" (superclass: gadgetclass)
