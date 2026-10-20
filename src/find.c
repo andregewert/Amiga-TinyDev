@@ -1,5 +1,6 @@
-/*
- * find.c - the find and replace window
+/**
+ * @file find.c
+ * @brief The find and replace window.
  *
  * A window that stays open next to the main window, built like Kickdown's:
  * search text, replacement, case sensitive, whole words, regular
@@ -59,8 +60,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-struct Library *StringBase = NULL;
-extern struct Library *CheckBoxBase;    /* shared with the settings window */
+struct Library *StringBase = NULL;      /**< string.gadget, opened with the window */
+extern struct Library *CheckBoxBase;    /**< checkbox.gadget, shared with the settings window */
 extern struct Library *ListBrowserBase; /* likewise */
 
 enum {
@@ -68,24 +69,27 @@ enum {
     FG_WRAP, FG_LIST, FG_DOFIND, FG_DOREPLACE, FG_REPLACEALL, FG_STOP, FG_CLOSE, FG_STATUS
 };
 
-#define MAXSEARCH 200                   /* length of the text fields */
+#define MAXSEARCH 200                   /**< length of the text fields */
 
 /** Where the search looks (the "Search in" chooser). */
 enum { SCOPE_CURRENT = 0, SCOPE_OPEN, SCOPE_PROJECT };
 
+/** Texts of the "Search in" choices (MSG_), in the order of the scopes. */
 static const LONG scope_texts[] = {
     MSG_FIND_SCOPE_CURRENT, MSG_FIND_SCOPE_OPEN, MSG_FIND_SCOPE_PROJECT
 };
-static STRPTR scope_labels[4];              /* filled from scope_texts[] */
+static STRPTR scope_labels[4];              /**< the chooser's labels, filled from scope_texts[] */
 
-#define MAXRESULTS 500                  /* hits listed for the project files */
-#define MAXFILESIZE (1024L * 1024L)     /* larger files are not searched */
-#define FLUSH_FILES 16                  /* show new hits after so many files */
+#define MAXRESULTS 500                  /**< hits listed for the project files */
+#define MAXFILESIZE (1024L * 1024L)     /**< larger files are not searched */
+#define FLUSH_FILES 16                  /**< show new hits after so many files */
 
 /** A hit in the result list (LBNA_UserData of its node). */
 typedef struct Result {
-    char *path;                         /* full name of the file */
-    long line, col, length;
+    char *path;                         /**< full name of the file */
+    long line;                          /**< line, from 0 */
+    long col;                           /**< column, from 0 */
+    long length;                        /**< length of the hit */
 } Result;
 
 /** Columns of the result list (titles from column_texts[]). */
@@ -95,6 +99,7 @@ static struct ColumnInfo result_columns[] = {
     { 52, NULL, 0 },
     { -1, (STRPTR)~0, (ULONG)-1 }
 };
+/** Titles of the result list's columns (MSG_). */
 static const LONG column_texts[] = { MSG_FIND_COL_FILE, MSG_FIND_COL_LINE, MSG_FIND_COL_TEXT };
 
 /** State of the find window (there is one). */

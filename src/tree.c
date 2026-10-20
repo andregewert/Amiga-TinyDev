@@ -1,3 +1,12 @@
+/**
+ * @file tree.c
+ * @brief Connects dirtree.gadget to the editor: the project directory, opening files, refreshing, showing and hiding the column.
+ *
+ * The folder tree itself (lazy loading, depth and entry limits, node
+ * ownership) lives in dirtree.gadget (src/classes/dirtree/). This module only
+ * connects it to the editor: choosing the root, opening files and
+ * showing/hiding the column.
+ */
 #include "editor.h"
 
 #include <gadgets/dirtree.h>
@@ -9,11 +18,6 @@
 #include <proto/intuition.h>
 
 #include <string.h>
-
-/* The folder tree itself (lazy loading, depth and entry limits, node
- * ownership) lives in dirtree.gadget (src/classes/dirtree/). This module only
- * connects it to the editor: choosing the root, opening files and
- * showing/hiding the column. */
 
 /**
  * @brief Report a dirtree.gadget status as an error requester.
@@ -90,17 +94,6 @@ int tree_project_root(EditorApp *app, char *out, LONG size)
     return ok;
 }
 
-/**
- * @brief Prompt the user for a directory and load it into the tree.
- *
- * Opens an ASL drawers-only file requester, combines the chosen drawer and
- * optional file component into a full path, and loads that directory. Reports
- * an error if the requester cannot be allocated or the combined path is too
- * long. The requester is always freed before returning.
- *
- * @param app The editor application state.
- * @return Non-zero if a directory was successfully loaded, otherwise 0.
- */
 int tree_request_directory(EditorApp *app)
 {
     struct FileRequester *fr = AllocAslRequestTags(ASL_FileRequest,
@@ -118,15 +111,6 @@ int tree_request_directory(EditorApp *app)
     FreeAslRequest(fr); return result;
 }
 
-/**
- * @brief Handle a GADGETUP of the folder tree.
- *
- * Lets dirtree.gadget process the event on this process (it may read a
- * directory, which is not allowed during input handling). A double-clicked
- * file is opened as a document; read errors are reported.
- *
- * @param app The editor application state.
- */
 void tree_handle_event(EditorApp *app)
 {
     ULONG event = DIRTREE_EV_NONE, status = DIRTREE_ST_OK;
@@ -146,19 +130,6 @@ void tree_handle_event(EditorApp *app)
     }
 }
 
-/**
- * @brief Show or hide the folder tree column and relayout the window.
- *
- * Records the requested visibility and adjusts the tree gadget's layout
- * constraints (minimum, maximum, and weighted width) so it either occupies its
- * default width or collapses to zero, then triggers a relayout. Showing the
- * tree always restores the default column width; the previous on-screen width
- * is not remembered. Does nothing if the content layout or tree gadget does
- * not exist.
- *
- * @param app The editor application state.
- * @param visible Non-zero to show the tree, zero to hide it.
- */
 void tree_set_visible(EditorApp *app, int visible)
 {
     app->tree_visible = visible;

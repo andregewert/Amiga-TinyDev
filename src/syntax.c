@@ -1,7 +1,14 @@
+/**
+ * @file syntax.c
+ * @brief Language detection, the portable syntax scanners and the texteditor.gadget highlighter hook.
+ */
 #include "syntax.h"
 
 #include <string.h>
 
+/**
+ * The C keywords that are highlighted; ends with NULL.
+ */
 static const char *const c_keywords[] = {
     "_Bool", "_Complex", "_Imaginary", "asm", "auto", "break", "case",
     "char", "const", "continue", "default", "do", "double", "else",
@@ -11,6 +18,9 @@ static const char *const c_keywords[] = {
     "volatile", "while"
 };
 
+/**
+ * The AmigaDOS commands that are highlighted; ends with NULL.
+ */
 static const char *const dos_keywords[] = {
     "alias", "ask", "assign", "break", "cd", "copy", "date", "delete",
     "dir", "echo", "else", "endif", "endcli", "endshell", "execute",
@@ -54,16 +64,6 @@ static int suffix_equal(const char *value, const char *suffix)
     return 1;
 }
 
-/**
- * @brief Determine the syntax language implied by a file path.
- *
- * Detection is purely extension based: ".c"/".h" map to C and
- * ".script"/".dos" map to AmigaDOS scripts. Any other path (or a NULL path)
- * is treated as plain text.
- *
- * @param path The file path to classify, may be NULL.
- * @return The detected ::SyntaxLanguage.
- */
 SyntaxLanguage syntax_language_for_path(const char *path)
 {
     if (path == NULL) return SYNTAX_PLAIN;
@@ -172,22 +172,6 @@ static size_t quoted(const char *text, size_t i, unsigned char quote)
     return i;
 }
 
-/**
- * @brief Scan a single line of text and emit its highlighted spans.
- *
- * Walks @p text once, emitting keyword, string, comment and preprocessor
- * spans appropriate for @p language via @p emit. Multi-line C block comments
- * are supported through the @p previous / return state: a line that ends
- * inside an unterminated block comment returns ::SYNTAX_STATE_C_COMMENT so the
- * caller can feed it back in for the following line.
- *
- * @param language The ::SyntaxLanguage to scan for; ::SYNTAX_PLAIN emits nothing.
- * @param text The NUL-terminated line to scan, may be NULL.
- * @param previous The carry-in ::SyntaxState from the preceding line.
- * @param emit Callback invoked for each styled span, may be NULL.
- * @param context Opaque context pointer forwarded to @p emit.
- * @return The carry-out ::SyntaxState to pass to the next line.
- */
 SyntaxState syntax_scan_line(SyntaxLanguage language, const char *text,
                              SyntaxState previous, SyntaxEmit emit,
                              void *context)
@@ -323,16 +307,6 @@ static ULONG highlight_entry(struct Hook *hook, APTR object, APTR message)
         (SyntaxState)hm->StatusOfPrevBlock, format_span, hc);
 }
 
-/**
- * @brief Initialise a syntax highlighting hook for a given language.
- *
- * Clears the context, wires up the standard HookEntry dispatcher and the
- * highlight_entry() sub-entry, and records the language. Pens must still be
- * configured separately via syntax_set_pens().
- *
- * @param hc The hook context to initialise.
- * @param language The ::SyntaxLanguage the hook will highlight.
- */
 void syntax_init_hook(SyntaxHookContext *hc, SyntaxLanguage language)
 {
     memset(hc, 0, sizeof(*hc));
@@ -341,16 +315,6 @@ void syntax_init_hook(SyntaxHookContext *hc, SyntaxLanguage language)
     hc->language = language;
 }
 
-/**
- * @brief Configure the rendering pens used by a syntax highlighting hook.
- *
- * @param hc The hook context to update.
- * @param normal_pen Pen used for ordinary, unclassified text.
- * @param keyword_pen Pen used for language keywords.
- * @param string_pen Pen used for string and character literals.
- * @param comment_pen Pen used for comments.
- * @param preprocessor_pen Pen used for preprocessor directives.
- */
 void syntax_set_pens(SyntaxHookContext *hc, unsigned short normal_pen,
                      unsigned short keyword_pen, unsigned short string_pen,
                      unsigned short comment_pen,

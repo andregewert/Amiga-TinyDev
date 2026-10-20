@@ -48,6 +48,11 @@ removes both. `make` first runs
 `make charcheck`, which refuses UTF-8 in the Amiga sources, scripts, the Makefile
 and `LICENSE`; these files are ISO-8859-1.
 
+`make docs` writes HTML documentation of all sources to `build/docs/html/`,
+`make docs-dirtree` and `make docs-minimap` that of the classes' public
+headers (the reference for other programs) to `build/docs/<class>/html/`.
+They need Doxygen on the host and fail on any missing or wrong comment.
+
 ## TinyDev-Scout Commodity & ARexx Interface
 
 `TinyDev-Scout` runs in the background as a standard AmigaOS Commodity (`commodities.library`) managed via Exchange (Enable, Disable, Kill) and exposes an ARexx host port named `TINYDEV_SCOUT`.

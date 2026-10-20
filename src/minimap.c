@@ -1,3 +1,13 @@
+/**
+ * @file minimap.c
+ * @brief Connects minimap.gadget to the editor: active document, syntax colours, re-render requests, scrolling from the minimap.
+ *
+ * The minimap itself (render process, coalesced jobs, scaled picture,
+ * mouse handling) lives in minimap.gadget (src/classes/minimap/). This
+ * module connects it to the editor: which document it shows, its syntax
+ * colours, when it must re-render, and scrolling the editor when the user
+ * clicks or drags in the minimap.
+ */
 #include "editor.h"
 
 #include <gadgets/layout.h>
@@ -12,17 +22,11 @@
 
 #include <string.h>
 
-/* The minimap itself (render process, coalesced jobs, scaled picture,
- * mouse handling) lives in minimap.gadget (src/classes/minimap/). This
- * module connects it to the editor: which document it shows, its syntax
- * colours, when it must re-render, and scrolling the editor when the user
- * clicks or drags in the minimap. */
-
 /** Context of the colour emit callback: the line's pens and the pen set. */
 typedef struct ColorFill {
-    UBYTE *pens;
-    ULONG length;
-    const SyntaxHookContext *colors;
+    UBYTE *pens;        /**< pens of the line's characters */
+    ULONG length;       /**< length of the line */
+    const SyntaxHookContext *colors;    /**< the document's highlighting pens */
 } ColorFill;
 
 /**
@@ -75,10 +79,6 @@ static ULONG minimap_color_line(struct Hook *hook, Object *obj,
                                    minimap_fill_pens, &cf);
 }
 
-/**
- * @brief Set up a document's MINIMAP_ColorHook.
- * @param doc The new document.
- */
 void minimap_init_document(Document *doc)
 {
     memset(&doc->minimap_hook, 0, sizeof(doc->minimap_hook));
@@ -100,17 +100,6 @@ static void minimap_set(EditorApp *app, struct TagItem *tags)
     else SetAttrsA(app->minimap, tags);
 }
 
-/**
- * @brief Create the minimap.gadget.
- *
- * Text is drawn in the editor's text pen, the visible part tinted with the
- * optional view pen; background and frame use the screen's pens like the
- * editor area. Notifications go to the window's IDCMP (IDCMP_IDCMPUPDATE)
- * and are picked up by the window's IDCMP hook.
- *
- * @param app The editor application.
- * @return The gadget, or NULL on failure.
- */
 Object *minimap_create_gadget(EditorApp *app)
 {
     app->minimap_editor = NULL;
@@ -125,18 +114,6 @@ Object *minimap_create_gadget(EditorApp *app)
     return app->minimap;
 }
 
-/**
- * @brief Toggle the visibility of the minimap column in the content layout.
- *
- * Show/hide works like the folder tree: the minimap child always stays in the
- * layout and is only collapsed to zero width when hidden, never added or
- * removed at runtime and never via the WeightBar. A collapsed minimap has no
- * size, so minimap.gadget renders nothing while it is hidden. Showing it
- * always uses the default column width.
- *
- * @param app The editor application whose content layout is updated.
- * @param visible Non-zero to show the minimap column, zero to collapse it.
- */
 void minimap_set_visible(EditorApp *app, int visible)
 {
     app->minimap_visible = visible;
@@ -158,10 +135,6 @@ void minimap_set_visible(EditorApp *app, int visible)
     ui_relayout(app);
 }
 
-/**
- * @brief Tell the minimap that the text of the active document changed.
- * @param app The editor application.
- */
 void minimap_request(EditorApp *app)
 {
     struct TagItem tags[2];
@@ -170,19 +143,6 @@ void minimap_request(EditorApp *app)
     minimap_set(app, tags);
 }
 
-/**
- * @brief Keep the minimap up to date; call after every event batch.
- *
- * Connects the active document's editor and colour hook when the active
- * document changed, then lets minimap.gadget show a finished picture and
- * start a new render job if the text, the editor's scroll position or the
- * gadget's size changed. Skipped while the minimap is hidden and while a
- * scrollbar is dragged, so nothing is
- * re-rendered during scrolling; a minimap drag is the exception, there the
- * viewport box follows the pointer.
- *
- * @param app The editor application.
- */
 void minimap_poll(EditorApp *app)
 {
     struct TagItem tags[4];
@@ -204,15 +164,6 @@ void minimap_poll(EditorApp *app)
     minimap_set(app, tags);
 }
 
-/**
- * @brief Disconnect a document before its editor is disposed.
- *
- * minimap.gadget waits for a running render job (which may still call the
- * document's colour hook) before it lets go of the editor.
- *
- * @param app The editor application.
- * @param doc The document about to be closed, or NULL to disconnect any.
- */
 void minimap_forget_document(EditorApp *app, Document *doc)
 {
     struct TagItem tags[3];
@@ -225,11 +176,6 @@ void minimap_forget_document(EditorApp *app, Document *doc)
     app->minimap_editor = NULL;
 }
 
-/**
- * @brief Signal mask of finished minimap render jobs (for the main Wait()).
- * @param app The editor application.
- * @return The signal mask, or 0 without a minimap.
- */
 ULONG minimap_signal_mask(EditorApp *app)
 {
     ULONG mask = 0;
@@ -237,16 +183,6 @@ ULONG minimap_signal_mask(EditorApp *app)
     return mask;
 }
 
-/**
- * @brief Record a minimap notification (from the window's IDCMP hook).
- *
- * The hook runs inside WM_HANDLEINPUT; the editor is scrolled afterwards by
- * minimap_handle_scroll() in the event loop.
- *
- * @param app The editor application.
- * @param tags The notification's tag list.
- * @return Non-zero if the tags came from the minimap.
- */
 int minimap_handle_notify(EditorApp *app, struct TagItem *tags)
 {
     struct TagItem *top = FindTagItem(MINIMAP_Top, tags);
@@ -257,14 +193,6 @@ int minimap_handle_notify(EditorApp *app, struct TagItem *tags)
     return 1;
 }
 
-/**
- * @brief Scroll the editor to the line chosen in the minimap.
- *
- * At the start of a drag the syntax highlighter is suspended (as for a
- * scrollbar drag), at its end it is restored with a redraw.
- *
- * @param app The editor application.
- */
 void minimap_handle_scroll(EditorApp *app)
 {
     Document *doc = app->active;

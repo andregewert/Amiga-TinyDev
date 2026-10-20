@@ -1,5 +1,6 @@
-/*
- * dirtree_icons.c - the small entry symbols of dirtree.gadget
+/**
+ * @file dirtree_icons.c
+ * @brief The small entry symbols of dirtree.gadget.
  *
  * A private subclass of imageclass that draws one of a few built-in pixel
  * motifs (12 x 11): drawer, open drawer, file, source code, script and
@@ -26,26 +27,42 @@
 #include "classlib.h"
 #include "dirtree_icons.h"
 
+/**
+ * Width of the symbols.
+ */
 #define ICON_W 12
+/**
+ * Height of the symbols.
+ */
 #define ICON_H 11
 
-/* Tags of the private class (not public). */
+/** Tags of the private class (not public). */
 #define DTIA_Kind (TAG_USER + 0x04A80F01)
+/**
+ * Private tag: the tree's shared pens (IconPens *).
+ */
 #define DTIA_Pens (TAG_USER + 0x04A80F02)
 
-/* Colours: K outline, D dark, W white, G grey, Y/O folder light/dark,
+/** Colours: K outline, D dark, W white, G grey, Y/O folder light/dark,
  * B blue, R red, N green, C light blue. '.' is transparent. */
 static const char letters[DTI_COLOURS] = { 'K', 'D', 'W', 'G', 'Y', 'O', 'B', 'R', 'N', 'C' };
+/**
+ * The colours of the letters (0xRRGGBB), obtained as pens.
+ */
 static const ULONG rgb[DTI_COLOURS] = {
     0x282830, 0x484854, 0xFFFFFF, 0x9696A2, 0xFFD460,
     0xD29628, 0x3060D0, 0xD03828, 0x28963C, 0x96C4FF
 };
-/* DrawInfo pens used before (or without) obtained pens. */
+/** DrawInfo pens used before (or without) obtained pens. */
 static const UWORD fallback[DTI_COLOURS] = {
     TEXTPEN, SHADOWPEN, SHINEPEN, SHADOWPEN, FILLPEN,
     SHADOWPEN, FILLPEN, TEXTPEN, TEXTPEN, BACKGROUNDPEN
 };
 
+/**
+ * The symbols, DTI_ order: one letter of letters[] per pixel, '.' is
+ * transparent.
+ */
 static const char *const motifs[DTI_COUNT][ICON_H] = {
     {   /* DTI_DRAWER */
         "............",
@@ -129,10 +146,13 @@ static const char *const motifs[DTI_COUNT][ICON_H] = {
 
 /** Instance data of a symbol. */
 typedef struct IconData {
-    int kind;
-    IconPens *pens;
+    int kind;           /**< DTI_ symbol */
+    IconPens *pens;     /**< the tree's shared pens */
 } IconData;
 
+/**
+ * The private image class of the symbols.
+ */
 static Class *icon_class = NULL;
 
 /**
@@ -216,10 +236,6 @@ static ULONG icon_dispatcher(Class *cl __asm("a0"), Object *o __asm("a2"), Msg m
     }
 }
 
-/**
- * @brief Create the private image class of the symbols.
- * @return TRUE on success.
- */
 BOOL dirtree_icons_init(void)
 {
     icon_class = MakeClass(NULL, (STRPTR)"imageclass", NULL, sizeof(IconData), 0);
@@ -228,19 +244,12 @@ BOOL dirtree_icons_init(void)
     return TRUE;
 }
 
-/** @brief Free the private image class. */
 void dirtree_icons_exit(void)
 {
     if (icon_class != NULL) FreeClass(icon_class);
     icon_class = NULL;
 }
 
-/**
- * @brief Create a symbol image.
- * @param kind A DTI_ kind.
- * @param pens The shared pens.
- * @return The image object, or NULL.
- */
 Object *dirtree_icon_new(int kind, IconPens *pens)
 {
     if (icon_class == NULL) return NULL;
@@ -252,12 +261,6 @@ Object *dirtree_icon_new(int kind, IconPens *pens)
         TAG_END);
 }
 
-/**
- * @brief Create an invisible image (kind -1, draws nothing).
- * @param width Its width.
- * @param height Its height.
- * @return The image object, or NULL.
- */
 Object *dirtree_blank_new(WORD width, WORD height)
 {
     if (icon_class == NULL) return NULL;
@@ -268,12 +271,6 @@ Object *dirtree_blank_new(WORD width, WORD height)
         TAG_END);
 }
 
-/**
- * @brief Obtain the symbols' colours on a screen (once).
- * @param pens The shared pens.
- * @param screen The screen.
- * @param dri The screen's DrawInfo (unused, for later colours), may be NULL.
- */
 void dirtree_icons_obtain(IconPens *pens, struct Screen *screen, struct DrawInfo *dri)
 {
     int i;
@@ -289,10 +286,6 @@ void dirtree_icons_obtain(IconPens *pens, struct Screen *screen, struct DrawInfo
     pens->ok = 1;
 }
 
-/**
- * @brief Release pens obtained by dirtree_icons_obtain().
- * @param pens The shared pens.
- */
 void dirtree_icons_release(IconPens *pens)
 {
     int i;
@@ -302,13 +295,11 @@ void dirtree_icons_release(IconPens *pens)
     pens->ok = 0;
 }
 
-/** @brief Width of the symbols. @return The width in pixels. */
 WORD dirtree_icon_width(void)
 {
     return ICON_W;
 }
 
-/** @brief Height of the symbols. @return The height in pixels. */
 WORD dirtree_icon_height(void)
 {
     return ICON_H;
@@ -337,12 +328,6 @@ static int has_extension(const char *name, const char *list)
     return 0;
 }
 
-/**
- * @brief Choose the symbol of a file.
- * @param name The file name.
- * @param protection fib_Protection of the file.
- * @return A DTI_ kind.
- */
 int dirtree_icon_kind(const char *name, ULONG protection)
 {
     if (has_extension(name, "c|h|cc|cpp|hpp|s|asm|i|e|py|rexx|rx|lua|sfd|fd|mk"))

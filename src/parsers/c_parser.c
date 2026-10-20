@@ -1,3 +1,7 @@
+/**
+ * @file c_parser.c
+ * @brief The C parser of Scout: symbols and diagnostics of C sources, speaking the Scout protocol over STDIN/STDOUT.
+ */
 #include "c_parser.h"
 #include "scout_json.h"
 
@@ -6,6 +10,11 @@
 #include <string.h>
 #include <ctype.h>
 
+/**
+ * @brief Copy a string with malloc().
+ * @param s The string (may be NULL).
+ * @return The copy, or NULL.
+ */
 static char *c_strdup(const char *s)
 {
     if (!s) return NULL;
@@ -17,6 +26,11 @@ static char *c_strdup(const char *s)
     return copy;
 }
 
+/**
+ * @brief Turn a "file://" URI into a path (other strings are copied).
+ * @param uri The URI or path.
+ * @return The path (free() it), or NULL.
+ */
 static char *clean_uri_to_path(const char *uri)
 {
     if (!uri) return NULL;
@@ -26,6 +40,17 @@ static char *clean_uri_to_path(const char *uri)
     return c_strdup(uri);
 }
 
+/**
+ * @brief Append a symbol to a parse result.
+ * @param res The result.
+ * @param name Its name (copied).
+ * @param detail Further information (copied, may be NULL).
+ * @param kind SCOUT_SYMBOL_KIND_ value.
+ * @param s_line First line, 1-based.
+ * @param s_col First column, 1-based.
+ * @param e_line Last line, 1-based.
+ * @param e_col Column after the end, 1-based.
+ */
 static void add_symbol(CParseResult *res, const char *name, const char *detail,
                        int kind, long s_line, long s_col, long e_line, long e_col)
 {
@@ -53,6 +78,16 @@ static void add_symbol(CParseResult *res, const char *name, const char *detail,
     res->symbol_count++;
 }
 
+/**
+ * @brief Append a diagnostic to a parse result.
+ * @param res The result.
+ * @param msg The message (copied).
+ * @param severity SCOUT_DIAGNOSTIC_ value.
+ * @param s_line First line, 1-based.
+ * @param s_col First column, 1-based.
+ * @param e_line Last line, 1-based.
+ * @param e_col Column after the end, 1-based.
+ */
 static void add_diagnostic(CParseResult *res, const char *msg, int severity,
                            long s_line, long s_col, long e_line, long e_col)
 {
@@ -79,7 +114,9 @@ static void add_diagnostic(CParseResult *res, const char *msg, int severity,
     res->diagnostic_count++;
 }
 
-/* C keywords table */
+/**
+ * The C keywords (and NULL, TRUE, FALSE) offered as completions; ends with NULL.
+ */
 static const char *C_KEYWORDS[] = {
     "auto", "break", "case", "char", "const", "continue", "default", "do",
     "double", "else", "enum", "extern", "float", "for", "goto", "if",
@@ -90,6 +127,11 @@ static const char *C_KEYWORDS[] = {
     NULL
 };
 
+/**
+ * @brief Tell whether a name is a C keyword (C_KEYWORDS).
+ * @param name The name.
+ * @return Non-zero for a keyword.
+ */
 static int is_c_keyword(const char *name)
 {
     if (!name) return 0;
@@ -99,11 +141,13 @@ static int is_c_keyword(const char *name)
     return 0;
 }
 
-/* Bracket stack for diagnostic checking */
+/**
+ * An open bracket on the stack used to find unbalanced brackets.
+ */
 typedef struct BracketFrame {
-    char ch;
-    long line;
-    long col;
+    char ch;        /**< the bracket: '(', '[' or '{' */
+    long line;      /**< its line, 1-based */
+    long col;       /**< its column, 1-based */
 } BracketFrame;
 
 CParseResult *c_parser_analyze(const char *source, const char *uri)
@@ -513,6 +557,12 @@ int c_parser_find_definition(const CParseResult *res, const char *symbol_name,
     return 0;
 }
 
+/**
+ * @brief Tell whether a string starts with a prefix, ignoring case.
+ * @param str The string.
+ * @param pfx The prefix (NULL or empty: always).
+ * @return Non-zero if it does.
+ */
 static int str_case_prefix(const char *str, const char *pfx)
 {
     if (!pfx || !*pfx) return 1;
@@ -527,6 +577,14 @@ static int str_case_prefix(const char *str, const char *pfx)
     return 1;
 }
 
+/**
+ * @brief Append a completion candidate unless its label is there already.
+ * @param head The list.
+ * @param count The number of candidates, counted up.
+ * @param label The text to insert (copied).
+ * @param detail Further information (copied, may be NULL).
+ * @param kind SCOUT_COMPLETION_KIND_ value.
+ */
 static void add_completion(CCompletion **head, size_t *count,
                            const char *label, const char *detail, int kind)
 {
@@ -827,6 +885,11 @@ int c_parser_process_jsonrpc(const char *request_json, ScoutJsonWriter *response
 }
 
 #ifndef C_PARSER_NO_MAIN
+/**
+ * @brief The parser program: reads one JSON-RPC request per line from
+ *        STDIN and writes the response as one line to STDOUT.
+ * @return 0 at the end of the input.
+ */
 int main(void)
 {
     char line_buf[4096];

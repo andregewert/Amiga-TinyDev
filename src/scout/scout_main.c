@@ -1,3 +1,7 @@
+/**
+ * @file scout_main.c
+ * @brief Entry point of TinyDev-Scout, the source analysis commodity.
+ */
 #include "scout_server.h"
 
 #include <proto/exec.h>
@@ -5,8 +9,18 @@
 #include <dos/dos.h>
 #include <stdio.h>
 
+/**
+ * The one Scout server of the program.
+ */
 ScoutServer g_scout_server;
 
+/**
+ * @brief Start the commodity and its ARexx port and serve them until it is
+ *        killed or told to quit.
+ * @param argc The argument count (0 from the Workbench).
+ * @param argv The arguments, or the WBStartup message.
+ * @return 0, or 20 if it could not start.
+ */
 int main(int argc, char **argv)
 {
     memset(&g_scout_server, 0, sizeof(ScoutServer));

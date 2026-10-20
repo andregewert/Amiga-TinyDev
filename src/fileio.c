@@ -1,3 +1,7 @@
+/**
+ * @file fileio.c
+ * @brief Loading and saving documents: line endings, safe saves through a temporary file, file requesters.
+ */
 #include "editor.h"
 
 #include <dos/dos.h>
@@ -36,21 +40,6 @@ static int canonical_path(const char *path, char *out, size_t size)
     UnLock(lock); return 1;
 }
 
-/**
- * @brief Load a file's contents into a document.
- *
- * Canonicalises @p path, rejects files that are already open in another tab
- * (activating that tab instead), directories, oversized files (> 8 MiB) and
- * files containing embedded NUL bytes. On success the text is imported into
- * the TextEditor gadget, the imported line-ending style is recorded, the
- * document path is set and the dirty flag cleared. When a window exists the
- * tab page and minimap are refreshed.
- *
- * @param app The application state.
- * @param doc The document to load into.
- * @param path The file path to load.
- * @return Non-zero on success, zero on failure (an error requester is shown).
- */
 int file_load(EditorApp *app, Document *doc, const char *path)
 {
     BPTR file = 0; struct FileInfoBlock *fib = NULL; char *data = NULL;
@@ -124,20 +113,6 @@ static int write_complete(BPTR file, const char *text, LONG length)
     return 1;
 }
 
-/**
- * @brief Save a document to a path using a safe temporary-file scheme.
- *
- * Exports the TextEditor contents, writes them to a sibling temporary file,
- * optionally renames any existing target to a backup, then renames the
- * temporary file into place and removes the backup. If any step fails the
- * original file is left untouched. Refuses to overwrite a file already open
- * in another tab and guards against pre-existing temporary/backup siblings.
- *
- * @param app The application state.
- * @param doc The document being saved.
- * @param path The destination path.
- * @return Non-zero on success, zero on failure (an error requester is shown).
- */
 int file_save(EditorApp *app, Document *doc, const char *path)
 {
     char canonical[EDITOR_PATH_MAX], resolved[EDITOR_PATH_MAX];
@@ -231,18 +206,5 @@ static int request_file(EditorApp *app, Document *doc, int save)
     FreeAslRequest(fr); return result;
 }
 
-/**
- * @brief Prompt the user for a file to open via an ASL requester.
- *
- * @param app The application state.
- * @return Non-zero if a document was opened, zero otherwise.
- */
 int file_request_open(EditorApp *app) { return request_file(app, NULL, 0); }
-/**
- * @brief Prompt the user for a destination and save a document via ASL.
- *
- * @param app The application state.
- * @param doc The document to save.
- * @return Non-zero if the document was saved, zero otherwise.
- */
 int file_request_save(EditorApp *app, Document *doc) { return request_file(app, doc, 1); }

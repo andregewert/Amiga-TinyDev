@@ -1,3 +1,22 @@
+/**
+ * @file toolbar.c
+ * @brief The toolbar: a speedbar with images, images and text or text, ghosted buttons, help bubbles and an overflow chooser.
+ *
+ * The toolbar, built like Kickdown's (see the ReAction style guide in
+ * amiga-devkit, section 6):
+ * - a flat speedbar.gadget: no frame around the bar, buttons without frames
+ *   (TOOLBARFRAMES adds them) that look recessed while pressed;
+ * - AISS images from TBIMAGES:, texts as label.image objects passed as
+ *   SBNA_Image (speedbar.gadget 47.x stores SBNA_Text but never draws it);
+ *   modes IMAGES, BOTH (image with the text below in the smallest real size
+ *   of the screen font) and TEXT (no image is loaded at all); a missing
+ *   image gives the text;
+ * - buttons that would do nothing are ghosted with their \<name\>_g image (or
+ *   a text in a pen halfway between text and background). The ghosted image
+ *   is only loaded when the button is ghosted for the first time;
+ * - a drop-down chooser right of the bar lists the buttons that do not fit;
+ * - help bubbles through WINDOW_HintInfo.
+ */
 #include "editor.h"
 
 #include <classes/window.h>
@@ -26,21 +45,6 @@
 #include <stdio.h>
 #include <string.h>
 
-/* The toolbar, built like Kickdown's (see the ReAction style guide in
- * amiga-devkit, section 6):
- * - a flat speedbar.gadget: no frame around the bar, buttons without frames
- *   (TOOLBARFRAMES adds them) that look recessed while pressed;
- * - AISS images from TBIMAGES:, texts as label.image objects passed as
- *   SBNA_Image (speedbar.gadget 47.x stores SBNA_Text but never draws it);
- *   modes IMAGES, BOTH (image with the text below in the smallest real size
- *   of the screen font) and TEXT (no image is loaded at all); a missing
- *   image gives the text;
- * - buttons that would do nothing are ghosted with their <name>_g image (or
- *   a text in a pen halfway between text and background). The ghosted image
- *   is only loaded when the button is ghosted for the first time;
- * - a drop-down chooser right of the bar lists the buttons that do not fit;
- * - help bubbles through WINDOW_HintInfo. */
-
 /** One toolbar button. */
 typedef struct ToolSpec {
     ULONG command;          /**< MID_ of the button, also its speedbar id */
@@ -50,6 +54,9 @@ typedef struct ToolSpec {
     LONG help;              /**< help bubble (MSG_) */
 } ToolSpec;
 
+/**
+ * The toolbar buttons, in their order; spacing separates the groups.
+ */
 static const ToolSpec tools[] = {
     { MID_NEW,   0, "new",   MSG_TB_NEW, MSG_TBH_NEW },
     { MID_OPEN,  0, "open",  MSG_TB_OPEN, MSG_TBH_OPEN },
@@ -61,8 +68,18 @@ static const ToolSpec tools[] = {
     { MID_PASTE, 0, "paste", MSG_TB_PASTE, MSG_TBH_PASTE },
     { MID_FIND,  8, "find",  MSG_TB_FIND, MSG_TBH_FIND },
 };
+/**
+ * Number of toolbar buttons.
+ */
 #define NUMTOOLS (sizeof(tools) / sizeof(tools[0]))
+/**
+ * @brief The bit of a button in a mask.
+ * @param i The button's index in tools[].
+ */
 #define TOOLBIT(i) (1UL << (i))
+/**
+ * Size of a button's label buffer.
+ */
 #define LABEL_SIZE 32
 
 /** State of the toolbar (there is one window). */
@@ -247,7 +264,7 @@ static int make_button(EditorApp *app, ULONG i)
 /**
  * @brief Load the ghosted look of button i the first time it is needed.
  *
- * Mode IMAGES: <name>_g. Mode BOTH: <name>_g with the text in the ghost
+ * Mode IMAGES: \<name\>_g. Mode BOTH: \<name\>_g with the text in the ghost
  * pen. Text (mode TEXT or no image): the text in the ghost pen. Without a
  * ghosted image the button keeps its normal image (and cannot be pressed).
  *
@@ -268,20 +285,11 @@ static void load_ghost(EditorApp *app, ULONG i)
     tb.ghosts[i] = g;
 }
 
-/**
- * @brief Return the number of toolbar buttons.
- * @return The number of buttons.
- */
 ULONG toolbar_tool_count(void)
 {
     return NUMTOOLS;
 }
 
-/**
- * @brief Build the toolbar (speedbar plus overflow chooser) into app->toolbar.
- * @param app The application state.
- * @return Non-zero on success.
- */
 int toolbar_create(EditorApp *app)
 {
     Object *group;
@@ -361,19 +369,11 @@ int toolbar_create(EditorApp *app)
     return 1;
 }
 
-/**
- * @brief Return the help bubbles for WINDOW_HintInfo.
- * @return The HintInfo array.
- */
 struct HintInfo *toolbar_hints(void)
 {
     return tb.hints;
 }
 
-/**
- * @brief Tell the speedbar its window (for the help bubbles).
- * @param app The application state.
- */
 void toolbar_window_opened(EditorApp *app)
 {
     if (tb.bar != NULL && app->window != NULL)
@@ -459,12 +459,6 @@ static void update_overflow(EditorApp *app)
                    TAG_END);
 }
 
-/**
- * @brief Ghost the buttons that would do nothing and refresh the overflow
- *        list: Save with an unchanged document, Undo/Redo without steps,
- *        Cut/Copy without a selection.
- * @param app The application state.
- */
 void toolbar_update(EditorApp *app)
 {
     ULONG mask = 0, undo = TRUE, redo = TRUE, marked = TRUE, i;
@@ -489,11 +483,6 @@ void toolbar_update(EditorApp *app)
     update_overflow(app);
 }
 
-/**
- * @brief Return the command of an entry of the overflow list.
- * @param index The entry's index.
- * @return The MID_ command, or 0 if none.
- */
 ULONG toolbar_overflow_command(ULONG index)
 {
     struct Node *node;
@@ -505,15 +494,6 @@ ULONG toolbar_overflow_command(ULONG index)
     return command;
 }
 
-/**
- * @brief Free the nodes, images, font and pen of the toolbar.
- *
- * The speedbar frees neither its nodes nor their images; a label disposes
- * its image. Must run after the gadgets are disposed (with the window) and
- * before the screen is unlocked.
- *
- * @param app The application state.
- */
 void toolbar_dispose(EditorApp *app)
 {
     struct Node *node, *next;

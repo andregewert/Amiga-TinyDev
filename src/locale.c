@@ -1,10 +1,11 @@
-/*
- * locale.c - translations through locale.library
+/**
+ * @file locale.c
+ * @brief Translations through locale.library.
  *
  * The built-in strings are English (include/tinydev_strings.h, made from
  * catalogs/TinyDev.cd with amiga-devkit/tools/catcomp.py). OpenCatalog()
- * looks for TinyDev.catalog in PROGDIR:Catalogs/<language>/ and
- * LOCALE:Catalogs/<language>/ for the languages the user prefers; for
+ * looks for TinyDev.catalog in PROGDIR:Catalogs/\<language\>/ and
+ * LOCALE:Catalogs/\<language\>/ for the languages the user prefers; for
  * English (or without a catalog or locale.library) the built-in strings
  * are used. Built like Kickdown's.
  *
@@ -24,7 +25,13 @@
  * with the program, and the strings may still be reordered. With the
  * release, a catalog version is set here and in the .ct files. */
 
+/**
+ * locale.library, NULL if it is not available.
+ */
 struct LocaleBase *LocaleBase = NULL;
+/**
+ * TinyDev's catalog, NULL for the built-in English texts.
+ */
 static struct Catalog *catalog = NULL;
 
 void locale_open(void)

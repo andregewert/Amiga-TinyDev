@@ -1,61 +1,64 @@
-#ifndef GADGETS_DIRTREE_H
-#define GADGETS_DIRTREE_H
+/**
+ * @file dirtree.h
+ * @brief Public interface of dirtree.gadget, a lazily loaded directory
+ *        tree (ReAction class for AmigaOS 3.2).
+ *
+ * dirtree.gadget shows a directory as a hierarchical list. The name of the
+ * directory is the column title above the list, its contents the first
+ * level. Directories are read lazily: only the children of an expanded
+ * directory are read, collapsing a directory frees them again. Depth and
+ * the number of entries are bounded. Entries get small built-in symbols
+ * (drawer, open drawer, file, source code, script, picture), drawn with the
+ * name by the class's render hook; icon files (*.info) are left out. The
+ * shown directories are watched, so the tree follows changes on disk.
+ *
+ * - Public class name: "dirtree.gadget" (superclass: listbrowser.gadget)
+ * - Library: SYS:Classes/Gadgets/dirtree.gadget
+ *
+ * All listbrowser.gadget attributes except LISTBROWSER_Labels,
+ * LISTBROWSER_Hierarchical, LISTBROWSER_ColumnInfo and
+ * LISTBROWSER_ColumnTitles may be used; the class owns its node list and
+ * its column. With the symbols (#DIRTREE_Images) there are no expand
+ * arrows: drawers open and close with a double-click. Without symbols and
+ * without LISTBROWSER_ShowImage/HideImage the class uses glyph.image
+ * arrows (when images/glyph.image is available). LISTBROWSER_ShowSelected
+ * defaults to TRUE, so a clicked entry stays highlighted; the selection is
+ * kept when directories are expanded or collapsed (unless the selected
+ * entry disappears with a collapsed directory).
+ *
+ * @par Usage
+ * Expanding, collapsing and activating happen while Intuition handles the
+ * input, where DOS must not be used. The gadget therefore only reports
+ * them with IDCMP_GADGETUP (WMHI_GADGETUP); the application then lets the
+ * gadget do the work from its own process. SetGadgetAttrs() passes the
+ * GadgetInfo the gadget needs to redraw itself:
+ * @code
+ * ULONG ev = DIRTREE_EV_NONE;
+ * SetGadgetAttrs((struct Gadget *)tree, window, NULL,
+ *                DIRTREE_HandleEvent, TRUE, TAG_END);
+ * GetAttr(DIRTREE_Event, tree, &ev);
+ * if (ev == DIRTREE_EV_ACTIVATE) {
+ *     STRPTR path = NULL;
+ *     GetAttr(DIRTREE_ActivePath, tree, (ULONG *)&path);
+ *     ... open path ...
+ * }
+ * @endcode
+ * #DIRTREE_Root, #DIRTREE_HandleEvent and #DIRTREE_Refresh must be set from
+ * a process (SetGadgetAttrs()), not through a notification (OM_UPDATE).
+ *
+ * The shown directories are watched (#DIRTREE_Watch): wait for
+ * #DIRTREE_SignalMask as well and update the tree when it arrives:
+ * @code
+ * SetGadgetAttrs((struct Gadget *)tree, window, NULL,
+ *                DIRTREE_Refresh, DIRTREE_RF_CHANGED, TAG_END);
+ * @endcode
+ */
 /*
 **  $VER: dirtree.h 1.0 (18.10.2026)
 **  Copyright (c) 2026 André Gewert <agewert@ubergeek.de>, MIT License
-**
-**  Definitions for the dirtree.gadget ReAction class (AmigaOS 3.2)
-**
-**  dirtree.gadget shows a directory as a hierarchical list. The name of
-**  the directory is the column title above the list, its contents the
-**  first level. Directories are read lazily: only the children of an
-**  expanded directory are read, collapsing a directory frees them again.
-**  Depth and the number of entries are bounded. Entries get small built-in
-**  symbols (drawer, open drawer, file, source code, script, picture),
-**  drawn with the name by the class's render hook; icon files (*.info)
-**  are left out.
-**
-**  Public class name: "dirtree.gadget"   (superclass: listbrowser.gadget)
-**  Library:           SYS:Classes/Gadgets/dirtree.gadget
-**
-**  All listbrowser.gadget attributes except LISTBROWSER_Labels,
-**  LISTBROWSER_Hierarchical, LISTBROWSER_ColumnInfo and
-**  LISTBROWSER_ColumnTitles may be used; the class owns its node list and
-**  its column.
-**  With the symbols (DIRTREE_Images) there are no expand arrows: drawers
-**  open and close with a double-click. Without symbols and without LISTBROWSER_ShowImage/HideImage the
-**  class uses glyph.image arrows (when images/glyph.image is available). LISTBROWSER_ShowSelected
-**  defaults to TRUE, so a clicked entry stays highlighted; the selection
-**  is kept when directories are expanded or collapsed (unless the
-**  selected entry disappears with a collapsed directory).
-**
-**  Usage
-**  -----
-**  Expanding, collapsing and activating happen while Intuition handles
-**  the input, where DOS must not be used. The gadget therefore only
-**  reports them with IDCMP_GADGETUP (WMHI_GADGETUP); the application then
-**  lets the gadget do the work from its own process. SetGadgetAttrs()
-**  passes the GadgetInfo the gadget needs to redraw itself:
-**
-**      ULONG ev = DIRTREE_EV_NONE;
-**      SetGadgetAttrs((struct Gadget *)tree, window, NULL,
-**                     DIRTREE_HandleEvent, TRUE, TAG_END);
-**      GetAttr(DIRTREE_Event, tree, &ev);
-**      if (ev == DIRTREE_EV_ACTIVATE) {
-**          STRPTR path = NULL;
-**          GetAttr(DIRTREE_ActivePath, tree, (ULONG *)&path);
-**          ... open path ...
-**      }
-**
-**  DIRTREE_Root and DIRTREE_HandleEvent must be set from a process
-**  (SetGadgetAttrs()), not through a notification (OM_UPDATE).
-**
-**  The shown directories are watched (DIRTREE_Watch): wait for
-**  DIRTREE_SignalMask as well and update the tree when it arrives:
-**
-**      SetGadgetAttrs((struct Gadget *)tree, window, NULL,
-**                     DIRTREE_Refresh, DIRTREE_RF_CHANGED, TAG_END);
 */
+#ifndef GADGETS_DIRTREE_H
+#define GADGETS_DIRTREE_H
 
 #ifndef UTILITY_TAGITEM_H
 #include <utility/tagitem.h>
@@ -64,96 +67,185 @@
 #include <intuition/cghooks.h>
 #endif
 
-#define DIRTREE_CLASSNAME   "dirtree.gadget"
-#define DIRTREE_VERSION     1
+#define DIRTREE_CLASSNAME   "dirtree.gadget"    /**< public name of the class */
+#define DIRTREE_VERSION     1                   /**< library version this header describes */
 
-/*****************************************************************************/
+#define DIRTREE_Dummy       (TAG_USER + 0x04A80000) /**< base of the class's tags */
 
-#define DIRTREE_Dummy       (TAG_USER + 0x04A80000)
+/** @name Attributes */
+/** @{ */
 
-/* Directory shown as the root of the tree. The path is resolved to its
- * full name and copied. Setting it reads the directory's first level;
- * NULL empties the tree. If the directory cannot be read, the old tree
- * stays and DIRTREE_Status is DIRTREE_ST_FAILED.                    (ISG) */
-#define DIRTREE_Root        (DIRTREE_Dummy + 1)     /* STRPTR */
+/**
+ * @brief Directory shown as the root of the tree.
+ *
+ * The path is resolved to its full name and copied. Setting it reads the
+ * directory's first level; NULL empties the tree. If the directory cannot
+ * be read, the old tree stays and #DIRTREE_Status is #DIRTREE_ST_FAILED.
+ *
+ * Type: STRPTR. Applicability: I S G. Default: NULL.
+ */
+#define DIRTREE_Root        (DIRTREE_Dummy + 1)
 
-/* Deepest level that is read below the root (first level = 1).
- * Default 16.                                                         (IG) */
-#define DIRTREE_MaxDepth    (DIRTREE_Dummy + 2)     /* ULONG */
+/**
+ * @brief Deepest level that is read below the root (first level = 1).
+ *
+ * Type: ULONG. Applicability: I G. Default: 16.
+ */
+#define DIRTREE_MaxDepth    (DIRTREE_Dummy + 2)
 
-/* Leave out icon files (*.info). Default TRUE.                      (IG) */
-#define DIRTREE_HideIcons   (DIRTREE_Dummy + 12)    /* BOOL */
+/**
+ * @brief Maximum number of list entries, including placeholders.
+ *
+ * A directory that would exceed it is shown incompletely.
+ *
+ * Type: ULONG. Applicability: I G. Default: 2048.
+ */
+#define DIRTREE_MaxEntries  (DIRTREE_Dummy + 3)
 
-/* Small built-in symbols in front of the entries. Default TRUE.     (IG) */
-#define DIRTREE_Images      (DIRTREE_Dummy + 13)    /* BOOL */
+/**
+ * @brief Result of the last #DIRTREE_Root, #DIRTREE_HandleEvent or
+ *        #DIRTREE_Refresh.
+ *
+ * Type: ULONG, a DIRTREE_ST_ value. Applicability: G.
+ */
+#define DIRTREE_Status      (DIRTREE_Dummy + 4)
 
-/* Maximum number of list entries, including placeholders. A directory
- * that would exceed it is shown incompletely. Default 2048.          (IG) */
-#define DIRTREE_MaxEntries  (DIRTREE_Dummy + 3)     /* ULONG */
+/**
+ * @brief Full path of the file activated (double-clicked) at the last
+ *        #DIRTREE_HandleEvent, NULL otherwise.
+ *
+ * Valid until the next #DIRTREE_HandleEvent, #DIRTREE_Root change or
+ * disposal.
+ *
+ * Type: STRPTR. Applicability: G.
+ */
+#define DIRTREE_ActivePath  (DIRTREE_Dummy + 5)
 
-/* Result of the last DIRTREE_Root or DIRTREE_HandleEvent.             (G) */
-#define DIRTREE_Status      (DIRTREE_Dummy + 4)     /* ULONG, DIRTREE_ST_# */
+/**
+ * @brief Full path of the selected entry, NULL if none or a placeholder.
+ *
+ * Valid until the tree changes.
+ *
+ * Type: STRPTR. Applicability: G.
+ */
+#define DIRTREE_SelectedPath (DIRTREE_Dummy + 6)
 
-/* Full path of the file activated (double-clicked) at the last
- * DIRTREE_HandleEvent, NULL otherwise. Valid until the next
- * DIRTREE_HandleEvent, DIRTREE_Root change or disposal.               (G) */
-#define DIRTREE_ActivePath  (DIRTREE_Dummy + 5)     /* STRPTR */
+/**
+ * @brief Text of the placeholder of a directory that is not read yet.
+ *
+ * For localisation; not copied, it must stay valid while the object
+ * exists.
+ *
+ * Type: STRPTR. Applicability: I. Default: "Loading...".
+ */
+#define DIRTREE_LoadingText     (DIRTREE_Dummy + 7)
 
-/* Full path of the selected entry, NULL if none or a placeholder.
- * Valid until the tree changes.                                       (G) */
-#define DIRTREE_SelectedPath (DIRTREE_Dummy + 6)    /* STRPTR */
+/**
+ * @brief Text of the placeholder of an empty directory.
+ *
+ * Not copied, it must stay valid while the object exists.
+ *
+ * Type: STRPTR. Applicability: I. Default: "(empty)".
+ */
+#define DIRTREE_EmptyText       (DIRTREE_Dummy + 8)
 
-/* Texts of the placeholder entries, for localisation. They are not
- * copied and must stay valid while the object exists.
- * Defaults: "Loading...", "(empty)", "(unavailable)".                 (I) */
-#define DIRTREE_LoadingText     (DIRTREE_Dummy + 7) /* STRPTR */
-#define DIRTREE_EmptyText       (DIRTREE_Dummy + 8) /* STRPTR */
-#define DIRTREE_UnavailableText (DIRTREE_Dummy + 9) /* STRPTR */
+/**
+ * @brief Text of the placeholder of a directory that cannot be read.
+ *
+ * Not copied, it must stay valid while the object exists.
+ *
+ * Type: STRPTR. Applicability: I. Default: "(unavailable)".
+ */
+#define DIRTREE_UnavailableText (DIRTREE_Dummy + 9)
 
-/* Watch the directories that are shown (the root and every expanded
- * directory) with DOS notification (StartNotify()). Default TRUE. The
- * gadget then has a message port whose signal belongs to the task that
- * created the object: only that task may wait for DIRTREE_SignalMask and
- * set DIRTREE_Refresh. File systems without notification are not watched;
- * DIRTREE_Refresh with DIRTREE_RF_ALL reads the tree again.           (I) */
-#define DIRTREE_Watch           (DIRTREE_Dummy + 14)    /* BOOL */
+/**
+ * @brief Do what the listbrowser reported with its last GADGETUP.
+ *
+ * Set it to TRUE after each GADGETUP (with SetGadgetAttrs(), from the
+ * application's process): it expands or collapses the directory or
+ * activates the file. The result is #DIRTREE_Event.
+ *
+ * Type: BOOL. Applicability: S.
+ */
+#define DIRTREE_HandleEvent     (DIRTREE_Dummy + 10)
 
-/* Signal mask of the notifications, 0 without watching. Wait for it
- * together with the window's signals; when it arrives, set
- * DIRTREE_Refresh to DIRTREE_RF_CHANGED.                              (G) */
-#define DIRTREE_SignalMask      (DIRTREE_Dummy + 15)    /* ULONG */
+/**
+ * @brief Result of the last #DIRTREE_HandleEvent.
+ *
+ * Type: ULONG, a DIRTREE_EV_ value. Applicability: G.
+ */
+#define DIRTREE_Event           (DIRTREE_Dummy + 11)
 
-/* Read directories again and update the tree (with SetGadgetAttrs(),
- * from the application's process): new entries are added in order,
- * removed ones disappear with their subtrees; expanded directories, the
- * selection and the scroll position stay. DIRTREE_Status tells the
- * result.                                                             (S) */
-#define DIRTREE_Refresh         (DIRTREE_Dummy + 16)    /* ULONG, DIRTREE_RF_# */
+/**
+ * @brief Leave out icon files (*.info).
+ *
+ * Type: BOOL. Applicability: I G. Default: TRUE.
+ */
+#define DIRTREE_HideIcons   (DIRTREE_Dummy + 12)
 
-/* DIRTREE_Refresh values */
-#define DIRTREE_RF_CHANGED      1   /* the directories DOS reported changed */
-#define DIRTREE_RF_ALL          2   /* the root and every expanded directory */
+/**
+ * @brief Draw small built-in symbols in front of the entries.
+ *
+ * Type: BOOL. Applicability: I G. Default: TRUE.
+ */
+#define DIRTREE_Images      (DIRTREE_Dummy + 13)
 
-/* DIRTREE_Status values */
-#define DIRTREE_ST_OK           0   /* read completely */
-#define DIRTREE_ST_INCOMPLETE   1   /* partly read (error, limits, memory) */
-#define DIRTREE_ST_FAILED       2   /* not read at all */
+/**
+ * @brief Watch the shown directories (the root and every expanded one)
+ *        with DOS notification (StartNotify()).
+ *
+ * The gadget then has a message port whose signal belongs to the task that
+ * created the object: only that task may wait for #DIRTREE_SignalMask and
+ * set #DIRTREE_Refresh. File systems without notification are not watched;
+ * #DIRTREE_Refresh with #DIRTREE_RF_ALL reads the tree again.
+ *
+ * Type: BOOL. Applicability: I G. Default: TRUE.
+ */
+#define DIRTREE_Watch           (DIRTREE_Dummy + 14)
 
-/*****************************************************************************/
+/**
+ * @brief Signal mask of the notifications, 0 without watching.
+ *
+ * Wait for it together with the window's signals; when it arrives, set
+ * #DIRTREE_Refresh to #DIRTREE_RF_CHANGED.
+ *
+ * Type: ULONG. Applicability: G.
+ */
+#define DIRTREE_SignalMask      (DIRTREE_Dummy + 15)
 
-/* Set to TRUE (with SetGadgetAttrs(), from the application's process)
- * after each GADGETUP: expands or collapses the directory or activates
- * the file the listbrowser reported. The result is DIRTREE_Event.      (S) */
-#define DIRTREE_HandleEvent     (DIRTREE_Dummy + 10)    /* BOOL */
+/**
+ * @brief Read directories again and update the tree.
+ *
+ * Set it with SetGadgetAttrs() from the application's process: new entries
+ * are added in order, removed ones disappear with their subtrees; expanded
+ * directories, the selection and the scroll position stay. #DIRTREE_Status
+ * tells the result.
+ *
+ * Type: ULONG, a DIRTREE_RF_ value. Applicability: S.
+ */
+#define DIRTREE_Refresh         (DIRTREE_Dummy + 16)
 
-/* Result of the last DIRTREE_HandleEvent.                              (G) */
-#define DIRTREE_Event           (DIRTREE_Dummy + 11)    /* ULONG, DIRTREE_EV_# */
+/** @} */
 
-/* DIRTREE_Event values */
-#define DIRTREE_EV_NONE         0   /* nothing to do (selection, cursor) */
-#define DIRTREE_EV_EXPANDED     1   /* a directory was read and opened */
-#define DIRTREE_EV_COLLAPSED    2   /* a directory was closed */
-#define DIRTREE_EV_ACTIVATE     3   /* a file was double-clicked, see
-                                       DIRTREE_ActivePath */
+/** @name Values of DIRTREE_Status */
+/** @{ */
+#define DIRTREE_ST_OK           0   /**< read completely */
+#define DIRTREE_ST_INCOMPLETE   1   /**< partly read (error, limits, memory) */
+#define DIRTREE_ST_FAILED       2   /**< not read at all */
+/** @} */
+
+/** @name Values of DIRTREE_Event */
+/** @{ */
+#define DIRTREE_EV_NONE         0   /**< nothing to do (selection, cursor) */
+#define DIRTREE_EV_EXPANDED     1   /**< a directory was read and opened */
+#define DIRTREE_EV_COLLAPSED    2   /**< a directory was closed */
+#define DIRTREE_EV_ACTIVATE     3   /**< a file was double-clicked, see #DIRTREE_ActivePath */
+/** @} */
+
+/** @name Values of DIRTREE_Refresh */
+/** @{ */
+#define DIRTREE_RF_CHANGED      1   /**< the directories DOS reported changed */
+#define DIRTREE_RF_ALL          2   /**< the root and every expanded directory */
+/** @} */
 
 #endif /* GADGETS_DIRTREE_H */

@@ -1,5 +1,6 @@
-/*
- * minimap_class.c - minimap.gadget, a scaled overview of a texteditor.gadget
+/**
+ * @file minimap_class.c
+ * @brief Minimap.gadget, a scaled overview of a texteditor.gadget.
  *
  * Subclass of gadgetclass. The text of the connected editor is exported on
  * the application's process (OM_SET with MINIMAP_Update) and rendered by a
@@ -43,97 +44,94 @@
 #include <gadgets/minimap.h>
 #include "classlib.h"
 
-#define MM_DEFAULT_COLUMNS  128
-#define MM_MAX_COLUMNS      1024
-#define MM_STACK_SIZE       16384
+#define MM_DEFAULT_COLUMNS  128     /**< default of MINIMAP_Columns */
+#define MM_MAX_COLUMNS      1024    /**< largest MINIMAP_Columns */
+#define MM_STACK_SIZE       16384   /**< stack of the render process */
 
-/* Commands of a render job. */
-#define MM_CMD_RENDER       0
-#define MM_CMD_QUIT         1
+/** @name Commands of a render job */
+/** @{ */
+#define MM_CMD_RENDER       0       /**< render a picture */
+#define MM_CMD_QUIT         1       /**< end the render process */
+/** @} */
 
 /** A render job; the single message reused for every job and the quit. */
 typedef struct RenderJob {
-    struct Message msg;
+    struct Message msg;         /**< sent to the render process, replied when done */
     ULONG command;              /**< MM_CMD_# */
     char *text;                 /**< exported text, FreeVec()'d by the task */
     struct Hook *hook;          /**< colour hook or NULL */
     Object *obj;                /**< the minimap, passed to the hook */
     ULONG columns;              /**< text columns mapped onto the width */
-    UWORD text_pen;
-    UWORD background_pen;
-    UWORD view_fill_pen;
-    UWORD view_border_pen;
+    UWORD text_pen;             /**< pen of the text */
+    UWORD background_pen;       /**< pen of the background */
+    UWORD view_fill_pen;        /**< pen tinting the visible part */
+    UWORD view_border_pen;      /**< pen of the visible part's frame */
     ULONG view_first;           /**< editor's first visible line */
     ULONG view_visible;         /**< editor's visible lines */
     ULONG view_total;           /**< editor's total lines */
-    LONG width;                 /**< size of the picture */
-    LONG height;
-    ULONG depth;
-    struct BitMap *friend_bm;
+    LONG width;                 /**< width of the picture */
+    LONG height;                /**< its height */
+    ULONG depth;                /**< its depth (that of the screen) */
+    struct BitMap *friend_bm;   /**< friend bitmap for AllocBitMap() (the screen's) */
     struct BitMap *bitmap;      /**< in: buffer to reuse; out: the picture */
-    LONG bm_width;              /**< size of bitmap (in and out) */
-    LONG bm_height;
+    LONG bm_width;              /**< width of bitmap (in and out) */
+    LONG bm_height;             /**< its height (in and out) */
     int ok;                     /**< out: bitmap holds a finished picture */
 } RenderJob;
 
 /** Startup handshake: the task creates its request port and replies. */
 typedef struct RenderStartup {
-    struct Message msg;
-    struct MsgPort *port;
+    struct Message msg;         /**< sent to the new process, replied when it is ready */
+    struct MsgPort *port;       /**< out: the process's request port, NULL if it failed */
 } RenderStartup;
 
 /** Buffers that belong to the render process. */
 typedef struct RenderBuffers {
-    char *line;
-    ULONG line_size;
-    UBYTE *pens;
-    ULONG pens_size;
-    UWORD *xs;
-    ULONG xs_size;
+    char *line;                 /**< copy of the current line */
+    ULONG line_size;            /**< its size */
+    UBYTE *pens;                /**< pens of its characters (MinimapLineMsg) */
+    ULONG pens_size;            /**< their size */
+    UWORD *xs;                  /**< x position of each text column */
+    ULONG xs_size;              /**< their size */
 } RenderBuffers;
 
 /** Instance data of a minimap.gadget object. */
 typedef struct MinimapData {
     Object *editor;             /**< connected texteditor.gadget or NULL */
     struct Hook *hook;          /**< colour hook or NULL */
-    ULONG columns;
-    LONG text_pen;              /**< pens, -1 = screen default */
-    LONG background_pen;
-    LONG view_fill_pen;
-    LONG view_border_pen;
+    ULONG columns;              /**< MINIMAP_Columns */
+    LONG text_pen;              /**< MINIMAP_TextPen, -1 = screen default */
+    LONG background_pen;        /**< MINIMAP_BackgroundPen, -1 = screen default */
+    LONG view_fill_pen;         /**< MINIMAP_ViewFillPen, -1 = default */
+    LONG view_border_pen;       /**< MINIMAP_ViewBorderPen, -1 = screen default */
     struct Process *proc;       /**< render process or NULL */
     struct MsgPort *reply_port; /**< owned by the application's process */
     struct MsgPort *request_port; /**< owned by the render process */
-    RenderJob job;
+    RenderJob job;              /**< the one job message */
     int busy;                   /**< a job is outstanding */
     int dirty;                  /**< a new picture is needed */
     struct BitMap *front;       /**< picture shown by GM_RENDER */
-    LONG front_width;
-    LONG front_height;
+    LONG front_width;           /**< its width */
+    LONG front_height;          /**< its height */
     struct BitMap *spare;       /**< buffer for the next job */
-    LONG spare_width;
-    LONG spare_height;
-    LONG last_width;            /**< size of the last job */
-    LONG last_height;
-    ULONG last_first;           /**< editor state of the last job */
-    ULONG last_visible;
-    ULONG last_total;
+    LONG spare_width;           /**< its width */
+    LONG spare_height;          /**< its height */
+    LONG last_width;            /**< width of the last job */
+    LONG last_height;           /**< its height */
+    ULONG last_first;           /**< editor's first visible line at the last job */
+    ULONG last_visible;         /**< its visible lines then */
+    ULONG last_total;           /**< its total lines then */
     ULONG top;                  /**< last MINIMAP_Top */
     int dragging;               /**< mouse drag in progress */
 } MinimapData;
 
 /* -- libraries ------------------------------------------------------------ */
 
-/**
- * @brief Nothing beyond the frame's libraries is needed.
- * @return TRUE.
- */
 BOOL class_open_libraries(void)
 {
     return TRUE;
 }
 
-/** @brief Nothing to close. */
 void class_close_libraries(void)
 {
 }
@@ -868,11 +866,6 @@ static ULONG minimap_dispatcher(Class *cl __asm("a0"), Object *o __asm("a2"),
     }
 }
 
-/**
- * @brief Create the minimap.gadget class (subclass of gadgetclass).
- * @param name The public class name.
- * @return The class, or NULL.
- */
 Class *class_create(const char *name)
 {
     Class *cl = MakeClass((STRPTR)name, (STRPTR)"gadgetclass", NULL,

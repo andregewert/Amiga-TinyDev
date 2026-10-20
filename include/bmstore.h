@@ -1,3 +1,7 @@
+/**
+ * @file bmstore.h
+ * @brief Portable store of a project's bookmarks (.tinydev/bookmarks.json).
+ */
 #ifndef TINYDEV_BMSTORE_H
 #define TINYDEV_BMSTORE_H
 
@@ -35,9 +39,9 @@ typedef struct BmEntry {
 
 /** The bookmarks of a project. */
 typedef struct BmStore {
-    BmEntry *entries;
-    long count;
-    long capacity;
+    BmEntry *entries;   /**< the bookmarks (malloc()) */
+    long count;         /**< number of them */
+    long capacity;      /**< size of the array */
 } BmStore;
 
 /**

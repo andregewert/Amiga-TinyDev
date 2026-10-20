@@ -1,5 +1,6 @@
-/*
- * filescan.c - step-by-step walk through the files of a directory tree
+/**
+ * @file filescan.c
+ * @brief Step-by-step walk through the files of a directory tree.
  *
  * Used by the find window to search the project files (the directory of
  * the folder tree) without blocking the event loop: filescan_next()
@@ -20,18 +21,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define FILESCAN_DEPTH 16       /* directory levels, as dirtree.gadget */
-#define FILESCAN_STEP 32        /* directory entries per filescan_next() */
+#define FILESCAN_DEPTH 16       /**< directory levels, as dirtree.gadget */
+#define FILESCAN_STEP 32        /**< directory entries per filescan_next() */
 
 /** State of a walk. */
 struct FileScan {
-    BPTR lock[FILESCAN_DEPTH];                  /* the open directories ... */
-    struct FileInfoBlock *fib[FILESCAN_DEPTH];  /* ... and their ExNext() state */
-    size_t path_length[FILESCAN_DEPTH];         /* length of path for each level */
-    int depth;                                  /* number of open levels */
-    int incomplete;                             /* levels were skipped or unreadable */
-    char *pattern;                              /* parsed pattern, NULL = all files */
-    char path[EDITOR_PATH_MAX];                 /* the current directory */
+    BPTR lock[FILESCAN_DEPTH];                  /**< the open directories ... */
+    struct FileInfoBlock *fib[FILESCAN_DEPTH];  /**< ... and their ExNext() state */
+    size_t path_length[FILESCAN_DEPTH];         /**< length of path for each level */
+    int depth;                                  /**< number of open levels */
+    int incomplete;                             /**< levels were skipped or unreadable */
+    char *pattern;                              /**< parsed pattern, NULL = all files */
+    char path[EDITOR_PATH_MAX];                 /**< the current directory */
 };
 
 /**

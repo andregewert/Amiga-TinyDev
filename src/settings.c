@@ -1,19 +1,8 @@
-#include "editor.h"
-
-#include <dos/dos.h>
-#include <exec/memory.h>
-#include <workbench/icon.h>
-#include <workbench/startup.h>
-#include <workbench/workbench.h>
-#include <proto/dos.h>
-#include <proto/exec.h>
-#include <proto/icon.h>
-#include <proto/utility.h>
-
-#include <stdio.h>
-#include <string.h>
-
-/* Settings are tool types of the program icon (PROGDIR:<program>), also
+/**
+ * @file settings.c
+ * @brief Settings from the tool types of the program icon (and of project icons), and writing them back.
+ *
+ * Settings are tool types of the program icon (PROGDIR:\<program\>), also
  * when TinyDev is started from the Shell; on a Workbench start the tool
  * types of project icons follow and take precedence. The settings window
  * writes them back into the program icon (settings_save()).
@@ -30,6 +19,20 @@
  *                              COLOR_KEYWORD, COLOR_STRING, COLOR_COMMENT,
  *                              COLOR_PREPROCESSOR
  */
+#include "editor.h"
+
+#include <dos/dos.h>
+#include <exec/memory.h>
+#include <workbench/icon.h>
+#include <workbench/startup.h>
+#include <workbench/workbench.h>
+#include <proto/dos.h>
+#include <proto/exec.h>
+#include <proto/icon.h>
+#include <proto/utility.h>
+
+#include <stdio.h>
+#include <string.h>
 
 /** Values of TOOLBAR=, in the order of enum ToolbarMode. */
 static const char *const tbmode_names[TBMODE_COUNT] = { "IMAGES", "BOTH", "TEXT" };
@@ -48,10 +51,6 @@ static const char *const colour_names[SCOL_COUNT] = {
     "COLOR_TEXT", "COLOR_KEYWORD", "COLOR_STRING", "COLOR_COMMENT", "COLOR_PREPROCESSOR"
 };
 
-/**
- * @brief Set the default settings.
- * @param s The settings to fill in.
- */
 void settings_default(Settings *s)
 {
     memset(s, 0, sizeof(*s));
@@ -185,7 +184,7 @@ static void from_icon(Settings *s, BPTR dir, CONST_STRPTR name)
 }
 
 /**
- * @brief Remember the program icon as PROGDIR:<program name>.
+ * @brief Remember the program icon as PROGDIR:\<program name\>.
  * @param s The settings.
  * @param program The program's name or path.
  */
@@ -196,12 +195,6 @@ static void set_icon_name(Settings *s, CONST_STRPTR program)
         s->icon_name[0] = '\0';
 }
 
-/**
- * @brief Read the settings from the program icon and project icons.
- * @param s The settings, preset with settings_default().
- * @param argc The argument count, 0 for a Workbench start.
- * @param argv The arguments, or the WBStartup message for a Workbench start.
- */
 void settings_load(Settings *s, int argc, char **argv)
 {
     if (IconBase == NULL) return;
@@ -234,12 +227,12 @@ int settings_save_toolwindows(const Settings *cur)
     return settings_save(&s);
 }
 
-#define NUMKEYS (9 + SCOL_COUNT)
-#define ENTRYLEN 40
+#define NUMKEYS (9 + SCOL_COUNT)    /**< number of TinyDev's tool types */
+#define ENTRYLEN 40                 /**< longest tool type TinyDev writes */
 
 /** One of our tool types while writing. */
 typedef struct Entry {
-    const char *key;
+    const char *key;                /**< the tool type's name */
     int active;                     /**< not the default value */
     int done;                       /**< written */
     char text[ENTRYLEN];            /**< "KEY" or "KEY=value" */
@@ -275,17 +268,6 @@ static int has_key(CONST_STRPTR tt, const char *key)
     return *key == '\0' && (*p == '\0' || *p == '=' || *p == ')' || *p == ' ');
 }
 
-/**
- * @brief Write the settings into the tool types of the program icon.
- *
- * Other tool types and the NewIcons block (from "*** DON'T EDIT") stay
- * where they are; new entries go in front of the NewIcons block. A setting
- * that is now at its default stays as a disabled entry "(KEY=value)", so
- * the icon keeps showing what can be set.
- *
- * @param s The settings.
- * @return Non-zero on success.
- */
 int settings_save(const Settings *s)
 {
     struct DiskObject *dob;

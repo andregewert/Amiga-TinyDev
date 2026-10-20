@@ -1,3 +1,7 @@
+/**
+ * @file scout_rexx.c
+ * @brief Scout's ARexx port TINYDEV_SCOUT and its commands.
+ */
 #include "scout_server.h"
 #include "scout_json.h"
 
@@ -50,6 +54,13 @@ int scout_rexx_init(ScoutServer *srv)
     return 1;
 }
 
+/**
+ * @brief Answer an ARexx message.
+ * @param srv The server.
+ * @param rx_msg The message.
+ * @param rc The return code (SCOUT_RC_).
+ * @param result_str The result string (only with RESULT; may be NULL).
+ */
 static void reply_rexx(ScoutServer *srv, struct RexxMsg *rx_msg, LONG rc, const char *result_str)
 {
     if (!rx_msg) return;
@@ -64,6 +75,10 @@ static void reply_rexx(ScoutServer *srv, struct RexxMsg *rx_msg, LONG rc, const 
     ReplyMsg((struct Message *)rx_msg);
 }
 
+/**
+ * @brief Skip white space.
+ * @param p The position, moved on.
+ */
 static void skip_spaces(const char **p)
 {
     while (**p && ((unsigned char)**p <= ' ' || **p == '\t')) {
@@ -71,6 +86,13 @@ static void skip_spaces(const char **p)
     }
 }
 
+/**
+ * @brief Read the next argument of a command (in quotes if it has spaces).
+ * @param p The position, moved behind the argument.
+ * @param out The buffer for it.
+ * @param out_max Its size.
+ * @return Non-zero if there was an argument.
+ */
 static int parse_next_arg(const char **p, char *out, size_t out_max)
 {
     skip_spaces(p);
@@ -92,6 +114,12 @@ static int parse_next_arg(const char **p, char *out, size_t out_max)
     return len > 0;
 }
 
+/**
+ * @brief Write symbols of a parser response as ARexx result, one
+ *        "kind line col name" per line (1-based).
+ * @param sym_array The array of symbols.
+ * @param w The writer.
+ */
 static void format_symbols_to_rexx(const ScoutJsonValue *sym_array, ScoutJsonWriter *w)
 {
     if (!sym_array || sym_array->type != SCOUT_JSON_ARRAY || !w) return;
@@ -114,6 +142,12 @@ static void format_symbols_to_rexx(const ScoutJsonValue *sym_array, ScoutJsonWri
     }
 }
 
+/**
+ * @brief Write diagnostics of a parser response as ARexx result, one
+ *        "severity line col message" per line (1-based).
+ * @param diag_array The array of diagnostics.
+ * @param w The writer.
+ */
 static void format_diags_to_rexx(const ScoutJsonValue *diag_array, ScoutJsonWriter *w)
 {
     if (!diag_array || diag_array->type != SCOUT_JSON_ARRAY || !w) return;

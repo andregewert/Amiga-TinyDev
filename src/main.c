@@ -1,3 +1,7 @@
+/**
+ * @file main.c
+ * @brief Program start: libraries and classes, Shell and Workbench arguments, the main loop's set-up and clean-up.
+ */
 #include "editor.h"
 
 #include <dos/dos.h>
@@ -36,13 +40,22 @@ struct Library *ChooserBase = NULL;
 /* Opened when a font is needed: title of splash/About, small toolbar font. */
 struct Library *DiskfontBase = NULL;
 
-/* Version string for the Version command. */
+/** Version string for the Version command. */
 static const char version_tag[] __attribute__((used)) = "$VER: " APP_NAME " " APP_VERSION;
+/**
+ * intuition.library as the startup code opened it, restored at the end.
+ */
 static struct IntuitionBase *old_intuition_base;
+/**
+ * graphics.library as the startup code opened it, restored at the end.
+ */
 static struct GfxBase *old_gfx_base;
+/**
+ * TinyDev was started from the Workbench (errors go to requesters).
+ */
 static int workbench_launch;
 
-/* libnix (linked with -Wl,-u,___stkinit): the startup code swaps to a stack
+/** libnix (linked with -Wl,-u,___stkinit): the startup code swaps to a stack
  * of this size if the current one is smaller. From the Workbench a program
  * often gets only 4 KB, too little for ReAction, ASL and the gadget classes,
  * which run on this stack while they render. */
@@ -116,18 +129,6 @@ static int open_class(struct Library **base, const char *name, ULONG version)
     return *base != NULL;
 }
 
-/**
- * @brief Open the libraries needed before the splash window.
- *
- * Opens intuition.library and graphics.library (saving the previous global
- * bases so they can be restored on shutdown), verifies dos.library and opens
- * utility.library and icon.library. Any failure is reported via
- * report_library_error() and aborts the sequence.
- *
- * @param from_workbench Non-zero when launched from Workbench, which enables
- *        GUI error requesters.
- * @return Non-zero if all of them opened, zero otherwise.
- */
 int app_open_core(int from_workbench)
 {
     struct Library *base;
@@ -146,14 +147,6 @@ int app_open_core(int from_workbench)
            open_one(&IconBase, "icon.library", 47);
 }
 
-/**
- * @brief Open the remaining libraries and the ReAction and TinyDev classes.
- *
- * Runs while the splash window shows; any failure is reported via
- * report_library_error() (which closes the splash window) and aborts.
- *
- * @return Non-zero if all required ones opened, zero otherwise.
- */
 int app_open_classes(void)
 {
     return open_one(&AslBase, "asl.library", 47) &&
@@ -173,16 +166,13 @@ int app_open_classes(void)
 }
 
 /**
- * @brief Close all libraries and classes opened by app_open_libraries().
- *
- * Closes the ReAction classes and helper libraries in reverse order, then
- * restores the intuition.library and graphics.library global bases to the
- * values captured at startup. Safe to call even if opening only partially
- * succeeded.
+ * @brief Close a library and clear its base.
+ * @param x The base (may be NULL).
  */
+#define CLOSE_BASE(x) do { if ((x) != NULL) { CloseLibrary((x)); (x) = NULL; } } while (0)
+
 void app_close_libraries(void)
 {
-#define CLOSE_BASE(x) do { if ((x) != NULL) { CloseLibrary((x)); (x) = NULL; } } while (0)
     prefs_cleanup();
     locale_close();
     CLOSE_BASE(TextFieldBase); CLOSE_BASE(ClickTabBase); CLOSE_BASE(DirTreeBase); CLOSE_BASE(MinimapBase);

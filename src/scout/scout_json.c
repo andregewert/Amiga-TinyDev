@@ -1,3 +1,7 @@
+/**
+ * @file scout_json.c
+ * @brief Small JSON reader and writer and the JSON-RPC 2.0 helpers of the Scout protocol.
+ */
 #include "scout_json.h"
 
 #include <stdlib.h>
@@ -7,6 +11,10 @@
 
 /* Parser internal helpers */
 
+/**
+ * @brief Skip white space.
+ * @param p The position, moved on.
+ */
 static void skip_ws(const char **p)
 {
     while (**p && ((unsigned char)**p <= ' ' || **p == '\t' || **p == '\r' || **p == '\n')) {
@@ -14,6 +22,11 @@ static void skip_ws(const char **p)
     }
 }
 
+/**
+ * @brief Copy a string with malloc().
+ * @param s The string (may be NULL).
+ * @return The copy, or NULL.
+ */
 static char *my_strdup(const char *s)
 {
     if (!s) return NULL;
@@ -25,6 +38,12 @@ static char *my_strdup(const char *s)
     return copy;
 }
 
+/**
+ * @brief Read a string literal (with its escapes).
+ * @param p The position (at the opening quote), moved behind the string.
+ * @param[out] error_pos Set to the error position on failure (may be NULL).
+ * @return The string (free() it), or NULL on error.
+ */
 static char *parse_string_literal(const char **p, const char **error_pos)
 {
     if (**p != '"') {
@@ -116,8 +135,20 @@ static char *parse_string_literal(const char **p, const char **error_pos)
     return NULL;
 }
 
+/**
+ * @brief Read any value.
+ * @param p The position, moved behind the value.
+ * @param[out] error_pos Set to the error position on failure (may be NULL).
+ * @return The value (scout_json_value_free()), or NULL on error.
+ */
 static ScoutJsonValue *parse_val(const char **p, const char **error_pos);
 
+/**
+ * @brief Read an object.
+ * @param p The position (at "{"), moved behind the object.
+ * @param[out] error_pos Set to the error position on failure (may be NULL).
+ * @return The object, or NULL on error.
+ */
 static ScoutJsonValue *parse_obj(const char **p, const char **error_pos)
 {
     if (**p != '{') {
@@ -208,6 +239,12 @@ static ScoutJsonValue *parse_obj(const char **p, const char **error_pos)
     return NULL;
 }
 
+/**
+ * @brief Read an array.
+ * @param p The position (at "["), moved behind the array.
+ * @param[out] error_pos Set to the error position on failure (may be NULL).
+ * @return The array, or NULL on error.
+ */
 static ScoutJsonValue *parse_arr(const char **p, const char **error_pos)
 {
     if (**p != '[') {
@@ -274,6 +311,12 @@ static ScoutJsonValue *parse_arr(const char **p, const char **error_pos)
 }
 
 #ifndef __amigaos__
+/**
+ * @brief Read a floating point number (host only: the Amiga build has no
+ *        floating point numbers).
+ * @param s The text.
+ * @return The number.
+ */
 static double simple_strtod(const char *s)
 {
     if (!s) return 0.0;
@@ -542,6 +585,12 @@ const ScoutJsonValue *scout_json_array_get(const ScoutJsonValue *arr, size_t ind
 
 /* JSON Writer Implementation */
 
+/**
+ * @brief Make room in the writer's buffer; a fixed buffer that is too
+ *        small (or a failed allocation) sets the writer's error.
+ * @param w The writer.
+ * @param needed Number of characters to add.
+ */
 static void ensure_writer_cap(ScoutJsonWriter *w, size_t needed)
 {
     if (w->error) return;
@@ -614,6 +663,12 @@ size_t scout_json_writer_length(const ScoutJsonWriter *w)
     return w ? w->length : 0;
 }
 
+/**
+ * @brief Append text to the writer (nothing after an error).
+ * @param w The writer.
+ * @param s The text.
+ * @param len Its length.
+ */
 static void append_str(ScoutJsonWriter *w, const char *s, size_t len)
 {
     if (!s || len == 0 || w->error) return;

@@ -1,9 +1,10 @@
-/*
- * classlib.c - library frame of the TinyDev gadget classes
+/**
+ * @file classlib.c
+ * @brief Library frame of the TinyDev gadget classes.
  *
  * A classic ReAction class library: OpenLibrary("gadgets/<name>.gadget")
  * creates and publishes the BOOPSI class "<name>.gadget"; the only library
- * function is <NAME>_GetClass(). Name and version come from the class's
+ * function is \<NAME\>_GetClass(). Name and version come from the class's
  * class_config.h, the class itself from class_create().
  *
  * This object must be linked first: running the library as a program
@@ -33,24 +34,53 @@ __asm__(
     "   moveq   #-1,d0\n"
     "   rts\n");
 
+/**
+ * exec.library, from the library's initialisation.
+ */
 struct ExecBase      *SysBase = NULL;
+/**
+ * dos.library, opened by LibInit.
+ */
 struct DosLibrary    *DOSBase = NULL;
+/**
+ * intuition.library, opened by LibInit.
+ */
 struct IntuitionBase *IntuitionBase = NULL;
+/**
+ * graphics.library, opened by LibInit.
+ */
 struct GfxBase       *GfxBase = NULL;
 struct Library       *UtilityBase = NULL;
 
+/**
+ * The library's segment list, unloaded by the expunge.
+ */
 static BPTR SegList = 0;
 
+/**
+ * @brief Make a string of a macro argument.
+ * @param x The argument.
+ */
 #define STR(x) #x
+/**
+ * @brief Make a string of a macro argument after expanding it.
+ * @param x The argument.
+ */
 #define XSTR(x) STR(x)
 
+/**
+ * Name of the library (and of the public class).
+ */
 static const char LibName[] = LIBNAME;
+/**
+ * Version string ($VER) of the library.
+ */
 static const char LibId[] = "$VER: " LIBNAME " " XSTR(LIBVERSION) "."
                             XSTR(LIBREVISION) " (" LIBDATE ")\r\n";
 
 /** Library base: a ClassLibrary, whose cl_Class is the published class. */
 struct ClassBase {
-    struct ClassLibrary cl;
+    struct ClassLibrary cl;     /**< the library base with the class pointer */
 };
 
 static struct Library *LibInit(struct Library *base __asm("d0"),
@@ -62,6 +92,10 @@ static BPTR LibExpunge(struct Library *base __asm("a6"));
 static ULONG LibNull(void);
 static Class *LibGetClass(struct Library *base __asm("a6"));
 
+/**
+ * The library's jump table: Open, Close, Expunge, the reserved
+ * vector and the class's GetClass function, ended by -1.
+ */
 static const APTR FuncTable[] = {
     (APTR)LibOpen,
     (APTR)LibClose,
@@ -71,6 +105,10 @@ static const APTR FuncTable[] = {
     (APTR)-1
 };
 
+/**
+ * MakeLibrary() data for RTF_AUTOINIT: base size, function table,
+ * data table, init function.
+ */
 static const ULONG InitTable[4] = {
     sizeof(struct ClassBase),
     (ULONG)FuncTable,
@@ -78,6 +116,9 @@ static const ULONG InitTable[4] = {
     (ULONG)LibInit
 };
 
+/**
+ * The resident tag that makes the file a library for OpenLibrary().
+ */
 const struct Resident ROMTag = {
     RTC_MATCHWORD,
     (struct Resident *)&ROMTag,

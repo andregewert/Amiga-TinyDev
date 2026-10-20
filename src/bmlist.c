@@ -1,5 +1,6 @@
-/*
- * bmlist.c - the bookmark list, a tool window
+/**
+ * @file bmlist.c
+ * @brief The bookmark list, a tool window.
  *
  * Shows the bookmarks of the active file, of all open files or of the
  * project ("Show" chooser), grouped by file: a row with a document symbol
@@ -43,27 +44,45 @@ extern struct Library *ListBrowserBase;     /* shared with the settings window *
 
 enum { BG_SCOPE = 400, BG_LIST, BG_GOTO, BG_REMOVE };
 
+/**
+ * Smallest width of the window.
+ */
 #define MIN_WIDTH 160
+/**
+ * Smallest height of the window.
+ */
 #define MIN_HEIGHT 100
-#define ROW_PADDING 1               /* above and below a row */
-#define LEFT_PADDING 3              /* left of a symbol */
-#define INDENT 14                   /* of the bookmark rows */
-#define TEXT_GAP 5                  /* between symbol and text */
+#define ROW_PADDING 1               /**< above and below a row */
+#define LEFT_PADDING 3              /**< left of a symbol */
+#define INDENT 14                   /**< of the bookmark rows */
+#define TEXT_GAP 5                  /**< between symbol and text */
 
-/* The symbols, 9 x 11 pixels: the ribbon of a bookmark ('#' red, 'o'
+/** The symbols, 9 x 11 pixels: the ribbon of a bookmark ('#' red, 'o'
  * dark red) and the document of a file ('#' white, 'o' black, '-' blue
  * lines); '.' is transparent. */
 #define SYMBOL_WIDTH 9
+/**
+ * Height of the symbols.
+ */
 #define SYMBOL_HEIGHT 11
+/**
+ * The ribbon of a bookmark row.
+ */
 static const char *const ribbon[SYMBOL_HEIGHT] = {
     "ooooooooo", "o#######o", "o#######o", "o#######o", "o#######o", "o#######o",
     "o#######o", "o###o###o", "o##o.o##o", "o#o...o#o", "oo.....oo",
 };
+/**
+ * The document of a file row.
+ */
 static const char *const document[SYMBOL_HEIGHT] = {
     "oooooo...", "o####oo..", "o####o#o.", "o####oooo", "o#######o", "o#-----#o",
     "o#######o", "o#-----#o", "o#######o", "o#-----#o", "ooooooooo",
 };
 
+/**
+ * Texts of the "Show" choices (MSG_), BMSCOPE_ order.
+ */
 static const LONG scope_texts[BMSCOPE_COUNT] = {
     MSG_BML_SCOPE_CURRENT, MSG_BML_SCOPE_OPEN, MSG_BML_SCOPE_PROJECT
 };

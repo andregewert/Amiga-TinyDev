@@ -1,3 +1,7 @@
+/**
+ * @file scout_parser_runner.c
+ * @brief Runs the language parsers of Scout and talks to them with the Scout protocol over STDIN/STDOUT.
+ */
 #include "scout_server.h"
 #include "scout_json.h"
 
@@ -9,6 +13,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+/**
+ * @brief Copy a string with malloc().
+ * @param s The string (may be NULL).
+ * @return The copy, or NULL.
+ */
 static char *scout_strdup(const char *s)
 {
     if (!s) return NULL;
@@ -50,18 +59,6 @@ void scout_server_clear_search_paths(ScoutServer *srv)
     srv->search_path_count = 0;
 }
 
-/**
- * @brief Resolves the directory containing the running executable.
- *
- * Supports both CLI launches (via GetProgramDir() / GetProgramName() / argv[0])
- * and Workbench launches (via WBStartup argument lock).
- *
- * @param argc CLI argument count (0 if started from Workbench).
- * @param argv CLI argument array or pointer to struct WBStartup.
- * @param out_dir Buffer to receive the directory path.
- * @param out_size Size of out_dir buffer in bytes.
- * @return 1 on success, 0 on failure.
- */
 int app_get_program_directory(int argc, char **argv, char *out_dir, size_t out_size)
 {
     if (!out_dir || out_size == 0) return 0;

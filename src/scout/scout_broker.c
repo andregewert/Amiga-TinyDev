@@ -1,3 +1,7 @@
+/**
+ * @file scout_broker.c
+ * @brief Scout's commodity: the broker, its hot keys and its message handling.
+ */
 #include "scout_server.h"
 
 #include <proto/exec.h>

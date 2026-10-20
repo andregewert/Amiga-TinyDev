@@ -1,3 +1,7 @@
+/**
+ * @file document.c
+ * @brief Documents and their tabs: creating, opening, activating and closing, scrollbar synchronisation and highlighting suspension while scrolling.
+ */
 #include "editor.h"
 
 #include <proto/clicktab.h>
@@ -151,12 +155,6 @@ static void renumber_tabs(EditorApp *app)
  */
 static Document *new_document(EditorApp *app);
 
-/**
- * @brief Create, register and activate a new empty document; the window is
- *        laid out and drawn once at the end (see ui_begin_update()).
- * @param app The owning application.
- * @return The newly created document, or NULL on failure.
- */
 Document *document_new(EditorApp *app)
 {
     Document *doc;
@@ -262,16 +260,6 @@ static Document *new_document(EditorApp *app)
     return doc;
 }
 
-/**
- * @brief Find an open document by its file path.
- *
- * Performs a case-insensitive comparison (Stricmp) of the given path against
- * the stored path of every open document.
- *
- * @param app The application whose documents are searched.
- * @param path The file path to look for.
- * @return The matching document, or NULL if no open document uses @p path.
- */
 Document *document_find_path(EditorApp *app, const char *path)
 {
     Document *doc;
@@ -298,14 +286,6 @@ Document *document_find_path(EditorApp *app, const char *path)
  */
 static Document *open_document(EditorApp *app, const char *path);
 
-/**
- * @brief Open a file; the window is laid out and redrawn only once at the
- *        end (see ui_begin_update()).
- * @param app The owning application.
- * @param path The file path to open.
- * @return The document showing the file, the pre-existing document for a
- *         duplicate, or NULL if opening failed.
- */
 Document *document_open(EditorApp *app, const char *path)
 {
     Document *doc;
@@ -339,16 +319,6 @@ static Document *open_document(EditorApp *app, const char *path)
     return doc;
 }
 
-/**
- * @brief Make the given document the active one and update the UI.
- *
- * Sets app->active, selects the document's tab, brings its page gadget to the
- * front, refreshes the UI, synchronizes the scrollers, and requests a minimap
- * update. Does nothing when @p doc is NULL.
- *
- * @param app The owning application.
- * @param doc The document to activate.
- */
 void document_activate(EditorApp *app, Document *doc)
 {
     if (doc == NULL) return;
@@ -399,18 +369,6 @@ void document_mark_saved(Document *doc, const char *text, long length, int from_
     doc->saved_from_file = from_file;
 }
 
-/**
- * @brief Mark a modified document as unchanged again if its text equals the
- *        one on disk.
- *
- * texteditor.gadget keeps GA_TEXTEDITOR_HasChanged set after its changes
- * were undone, so the exported text is compared with the checksum and
- * length remembered by document_mark_saved(). Called only after Undo and
- * Redo, as it exports the whole text.
- *
- * @param app The owning application.
- * @param doc The document (may be NULL).
- */
 void document_check_unchanged(EditorApp *app, Document *doc)
 {
     char *text;
@@ -459,20 +417,6 @@ void document_change_tick(EditorApp *app)
         document_check_unchanged(app, doc);
 }
 
-/**
- * @brief Set a document's modified (dirty) state and update its tab title.
- *
- * When the state actually changes, updates the tab title to append a '*' marker
- * for dirty documents, pushes the new label to the click-tab gadget as a minor
- * label change (the tab bar redraws itself) and updates the window title. The
- * window is not laid out again: that redrew everything on the first change of
- * a document and on every save. Does nothing when @p doc is NULL or already
- * in the requested state.
- *
- * @param app The owning application.
- * @param doc The document whose dirty state changes.
- * @param dirty Non-zero to mark the document modified, zero to mark it clean.
- */
 void document_set_dirty(EditorApp *app, Document *doc, int dirty)
 {
     if (doc == NULL || doc->dirty == dirty) return;
@@ -484,22 +428,6 @@ void document_set_dirty(EditorApp *app, Document *doc, int dirty)
     ui_refresh(app);
 }
 
-/**
- * @brief Close a document, optionally confirming unsaved changes.
- *
- * When @p ask is set the user is prompted and the close is aborted if declined.
- * Otherwise the document's page is removed from the pager, its tab and list
- * node are unlinked, tabs are renumbered, and all its resources (tab node,
- * page, path buffer, and the document itself) are freed. The next remaining
- * document is activated, or a fresh empty document is created when none remain,
- * followed by a relayout.
- *
- * @param app The owning application.
- * @param doc The document to close.
- * @param ask Non-zero to ask the user for confirmation before closing.
- * @return 1 if the document was closed, 0 if the close was cancelled or
- *         @p doc was NULL.
- */
 int document_close(EditorApp *app, Document *doc, int ask)
 {
     Document *next;
@@ -530,15 +458,6 @@ int document_close(EditorApp *app, Document *doc, int ask)
     return 1;
 }
 
-/**
- * @brief Free every document without touching UI activation logic.
- *
- * Removes each document from the list in turn and releases its tab node, page
- * object, path buffer, and the document structure itself. Intended for teardown
- * where no replacement document should be created.
- *
- * @param app The application whose documents are all released.
- */
 void document_free_all(EditorApp *app)
 {
     Document *doc;
@@ -552,19 +471,6 @@ void document_free_all(EditorApp *app)
     }
 }
 
-/**
- * @brief Assign a file path to a document and derive its title and language.
- *
- * Duplicates the path, replaces any previous path, sets the document title from
- * the path's base name, and selects the syntax language from the path (updating
- * both the document and its highlighter). Toggling the dirty flag on then off
- * refreshes the tab title while leaving the document marked clean. Returns
- * without changes if the path copy could not be allocated.
- *
- * @param app The owning application.
- * @param doc The document to update.
- * @param path The new file path to associate with the document.
- */
 void document_set_path(EditorApp *app, Document *doc, const char *path)
 {
     char *copy = copy_string(path);
@@ -614,17 +520,6 @@ static void set_scroller_state(EditorApp *app, Object *scroller,
     if (app->scroll_signal >= 0) SetSignal(0, 1UL << (ULONG)app->scroll_signal);
 }
 
-/**
- * @brief Synchronize the scrollers with the editor's current view.
- *
- * Queries the TextEditor's vertical and horizontal prop attributes (total
- * entries, visible amount, first line/column) and pushes them to the vertical
- * and horizontal scrollers, clamping zero totals/visibles to one. Does nothing
- * unless @p doc is the active document.
- *
- * @param app The owning application.
- * @param doc The document whose scrollers are synchronized.
- */
 void document_sync_scrollers(EditorApp *app, Document *doc)
 {
     ULONG total = 1, visible = 1, top = 0;
@@ -671,20 +566,6 @@ static void set_highlight_enabled(EditorApp *app, Document *doc, int enabled)
     else SetAttrs(doc->editor, GA_TEXTEDITOR_HighlighterHook, hook, TAG_END);
 }
 
-/**
- * @brief Apply the current scroller position to the active editor on one axis.
- *
- * Reads the top position from the chosen (horizontal or vertical) scroller and,
- * when it differs from the editor's current first line/column, applies it to
- * the editor and redraws only the editor gadget. Refreshing the whole page
- * would also redraw the scroller the user may be dragging, which then loses
- * its pressed look. The scrollers themselves are not written here (see
- * document_sync_scrollers()). Does nothing without an active document and
- * window.
- *
- * @param app The owning application.
- * @param horizontal Non-zero to scroll the horizontal axis, zero for vertical.
- */
 void document_scroll(EditorApp *app, int horizontal)
 {
     Document *doc = app->active;
@@ -700,16 +581,6 @@ void document_scroll(EditorApp *app, int horizontal)
     RefreshGList((struct Gadget *)doc->editor, app->window, NULL, 1);
 }
 
-/**
- * @brief Handle an intermediate scrollbar drag update.
- *
- * On the first live update the highlighter hook is switched off (setting the
- * shared scrolling flag) so the rapid redraws that follow the mouse stay fast;
- * the position of both the vertical and horizontal axes is then mirrored onto
- * the editor.
- *
- * @param app The owning application.
- */
 void document_scroll_live(EditorApp *app)
 {
     app->scrollbar_dragging = 1;
@@ -722,18 +593,6 @@ void document_scroll_live(EditorApp *app)
     document_scroll(app, 1);
 }
 
-/**
- * @brief Handle the end of a scrollbar interaction.
- *
- * Covers button release, arrow, and page-click events on the given axis
- * (GADGETUP) and the end found by document_scroll_tick(). After applying
- * the final position, re-enables highlighting if it was disabled during a
- * drag (clearing the scrolling flag) and forces a full page redraw so the
- * now-visible lines are highlighted again.
- *
- * @param app The owning application.
- * @param horizontal Non-zero for the horizontal axis, zero for vertical.
- */
 void document_scroll_finish(EditorApp *app, int horizontal)
 {
     document_scroll(app, horizontal);
@@ -751,19 +610,6 @@ void document_scroll_finish(EditorApp *app, int horizontal)
     }
 }
 
-/**
- * @brief Finish a scrollbar interaction that sent no GADGETUP.
- *
- * Called for every IntuiTick (about ten per second while the window is
- * active). The scroller sends a GADGETUP only when the button is released
- * over it, and a last "moved" signal can arrive after the GADGETUP; either
- * left the highlighting switched off. So when two ticks pass without a
- * scroll signal, the scrolling counts as finished: both axes are applied
- * and the highlighting comes back. Pausing during a drag does the same,
- * the next movement switches it off again.
- *
- * @param app The owning application.
- */
 void document_scroll_tick(EditorApp *app)
 {
     if (!app->scrollbar_dragging) return;
@@ -772,16 +618,6 @@ void document_scroll_tick(EditorApp *app)
     document_scroll_finish(app, 0);
 }
 
-/**
- * @brief Suspend the syntax highlighter during an interactive minimap drag.
- *
- * Behaves exactly like a scrollbar drag, disabling the highlighter on the
- * active document so the rapid re-scrolls that follow the mouse stay fast. The
- * shared app->scrolling flag also tells minimap_poll() not to re-render the
- * viewport overlay until the drag has finished.
- *
- * @param app The owning application.
- */
 void document_suspend_highlight(EditorApp *app)
 {
     if (app->active != NULL && !app->scrolling) {
@@ -790,15 +626,6 @@ void document_suspend_highlight(EditorApp *app)
     }
 }
 
-/**
- * @brief Restore the syntax highlighter after an interactive minimap drag.
- *
- * Clears the shared scrolling flag, re-enables highlighting on the active
- * document, and forces a full page redraw so the now-visible lines are
- * highlighted again. Does nothing if no drag was in progress.
- *
- * @param app The owning application.
- */
 void document_resume_highlight(EditorApp *app)
 {
     if (app->scrolling) {

@@ -125,6 +125,9 @@ make test
 ```
 
 - Run `make test` for all changes that affect the portable syntax scanner.
+- Run `make docs` (and `make docs-<class>` for a class's public header) when
+  comments or interfaces change; it must finish without Doxygen warnings
+  (rules: `amiga-devkit/docs/Dokumentation.md`).
 - Run `make` for changes to target code when the Amiga cross-toolchain is
   available.
 - A successful host test does not validate ReAction or AmigaOS integration.
@@ -157,7 +160,13 @@ make test
   must remain guarded (for example, with `SYNTAX_HOST_TEST`).
 - Maintain the current 68000, 8-bit-text, and AmigaOS 3.2 compatibility unless
   a task explicitly changes those requirements.
-- Add documentation comments to functions, methods, and type declarations
+- Document every file (`@file`), function (static ones too), type, field,
+  enumerator and interface macro with Doxygen comments in Javadoc style
+  (`/** @brief ... @param ... @return ... */`, `/**< ... */` for fields).
+  Functions declared in a header are documented there, not again at the
+  definition. Public class interfaces are documented in
+  `include/gadgets/<name>.h` (attributes with type, applicability and
+  default, grouped with `@name`); there are no hand-written Autodocs.
 
 ## Behavioral constraints
 

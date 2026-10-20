@@ -1,9 +1,17 @@
+/**
+ * @file test_syntax.c
+ * @brief Host-native tests of the syntax scanners.
+ */
 #include "syntax.h"
 
 #include <assert.h>
 #include <stdio.h>
 
-typedef struct Capture { SyntaxSpan spans[16]; size_t count; } Capture;
+/** Spans emitted by the scanner during one test. */
+typedef struct Capture {
+    SyntaxSpan spans[16];   /**< the spans */
+    size_t count;           /**< number of them */
+} Capture;
 /**
  * @brief SyntaxEmit callback that records emitted spans for inspection.
  *

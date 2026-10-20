@@ -1,3 +1,7 @@
+/**
+ * @file search.h
+ * @brief Portable search engine of the find window (plain text and POSIX regular expressions).
+ */
 #ifndef TINYDEV_SEARCH_H
 #define TINYDEV_SEARCH_H
 
@@ -26,7 +30,7 @@ typedef struct SearchOptions {
 
 /** A compiled search. */
 typedef struct SearchPattern {
-    SearchOptions options;
+    SearchOptions options;  /**< the options it was compiled with */
     char *text;             /**< the text (pattern), folded if case-insensitive */
     long length;            /**< its length */
     void *regex;            /**< regular expression: the compiled regex_t */
@@ -36,16 +40,16 @@ typedef struct SearchPattern {
 
 /** A match within one line (columns, end exclusive). */
 typedef struct SearchMatch {
-    long start;
-    long end;
+    long start;                         /**< first column */
+    long end;                           /**< column after the match */
     long group_start[SEARCH_GROUPS];    /**< -1 for groups that did not take part */
-    long group_end[SEARCH_GROUPS];
+    long group_end[SEARCH_GROUPS];      /**< column after each group, -1 likewise */
 } SearchMatch;
 
 /** A position in the text. */
 typedef struct SearchPos {
-    long line;
-    long col;
+    long line;  /**< line, from 0 */
+    long col;   /**< column, from 0 */
 } SearchPos;
 
 /** A match in the text. */

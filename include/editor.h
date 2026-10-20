@@ -1,3 +1,7 @@
+/**
+ * @file editor.h
+ * @brief Shared types and cross-module declarations of TinyDev.
+ */
 #ifndef TINYDEV_EDITOR_H
 #define TINYDEV_EDITOR_H
 
@@ -13,79 +17,130 @@
 
 struct HintInfo;
 
-/* Name and version; the version changes only with a release. */
-#define APP_NAME "TinyDev"
-#define APP_VERSION "1.0 (18.10.2026)"
+/** @name Program */
+/** @{ */
+#define APP_NAME "TinyDev"                  /**< name of the program (windows, requesters) */
+#define APP_VERSION "1.0 (18.10.2026)"      /**< version and date; changes only with a release */
+/** @} */
 
-#define EDITOR_MAX_FILE (8UL * 1024UL * 1024UL)
-#define EDITOR_PATH_MAX 1024
-#define EDITOR_TITLE_MAX 128
-#define EDITOR_COLOR_COUNT 6
+/** @name Limits */
+/** @{ */
+#define EDITOR_MAX_FILE (8UL * 1024UL * 1024UL) /**< largest file that is loaded (bytes) */
+#define EDITOR_PATH_MAX 1024                /**< size of path buffers */
+#define EDITOR_TITLE_MAX 128                /**< size of a document's title */
+#define EDITOR_COLOR_COUNT 6                /**< number of editor colours (enum EditorColor) */
+/** @} */
 
-/* Content-layout column sizing, shared by the folder tree (tree.c) and the
- * minimap (minimap.c) so both collapse/restore their columns consistently. */
-#define TREE_MIN_WIDTH        140
-#define TREE_DEFAULT_WEIGHT   25
-#define MINIMAP_MIN_WIDTH     48
-#define MINIMAP_DEFAULT_WEIGHT 20
-#define EDITOR_DEFAULT_WEIGHT 75
+/**
+ * @name Column sizes of the content layout
+ * Shared by the folder tree (tree.c) and the minimap (minimap.c), so both
+ * hide and show their columns the same way.
+ */
+/** @{ */
+#define TREE_MIN_WIDTH        140   /**< smallest width of the folder tree */
+#define TREE_DEFAULT_WEIGHT   25    /**< weight of the folder tree column */
+#define MINIMAP_MIN_WIDTH     48    /**< smallest width of the minimap */
+#define MINIMAP_DEFAULT_WEIGHT 20   /**< weight of the minimap column */
+#define EDITOR_DEFAULT_WEIGHT 75    /**< weight of the editor column */
+/** @} */
 
+/** Colours of the editor (pens in EditorApp.editor_pens), in this order. */
 enum EditorColor {
-    EDITOR_COLOR_BACKGROUND = 0,
-    EDITOR_COLOR_TEXT,
-    EDITOR_COLOR_KEYWORD,
-    EDITOR_COLOR_STRING,
-    EDITOR_COLOR_COMMENT,
-    EDITOR_COLOR_PREPROCESSOR
+    EDITOR_COLOR_BACKGROUND = 0,    /**< background of the text */
+    EDITOR_COLOR_TEXT,              /**< normal text */
+    EDITOR_COLOR_KEYWORD,           /**< keywords */
+    EDITOR_COLOR_STRING,            /**< strings and character constants */
+    EDITOR_COLOR_COMMENT,           /**< comments */
+    EDITOR_COLOR_PREPROCESSOR       /**< preprocessor lines */
 };
 
+/** Gadget IDs of the main window (an editor has 100 + its document number). */
 enum GadgetId {
-    GID_TABS = 1,
-    GID_TREE = 2,
-    GID_VSCROLL = 3,
-    GID_HSCROLL = 4,
-    GID_MINIMAP = 5,
-    GID_TOOLBAR = 6,    /* speedbar; the GADGETUP code is the MID_ of the button */
-    GID_OVERFLOW = 7,   /* chooser with the buttons that do not fit */
-    GID_LAST
+    GID_TABS = 1,       /**< clicktab of the documents */
+    GID_TREE = 2,       /**< dirtree.gadget */
+    GID_VSCROLL = 3,    /**< vertical scroller of an editor */
+    GID_HSCROLL = 4,    /**< horizontal scroller of an editor */
+    GID_MINIMAP = 5,    /**< minimap.gadget */
+    GID_TOOLBAR = 6,    /**< speedbar; the GADGETUP code is the MID_ of the button */
+    GID_OVERFLOW = 7,   /**< chooser with the buttons that do not fit */
+    GID_LAST            /**< first free ID */
 };
 
 /** What the toolbar buttons show (tool type TOOLBAR=IMAGES|BOTH|TEXT). */
-enum ToolbarMode { TBMODE_IMAGES = 0, TBMODE_BOTH, TBMODE_TEXT, TBMODE_COUNT };
+enum ToolbarMode {
+    TBMODE_IMAGES = 0,  /**< images (the default) */
+    TBMODE_BOTH,        /**< images with a text below */
+    TBMODE_TEXT,        /**< text only, no images are loaded */
+    TBMODE_COUNT        /**< number of modes */
+};
 
 /** Configurable colours of the editor (syntax highlighting), in this order. */
 enum SettingsColour {
-    SCOL_TEXT = 0, SCOL_KEYWORD, SCOL_STRING, SCOL_COMMENT, SCOL_PREPROCESSOR,
-    SCOL_COUNT
+    SCOL_TEXT = 0,      /**< normal text */
+    SCOL_KEYWORD,       /**< keywords */
+    SCOL_STRING,        /**< strings */
+    SCOL_COMMENT,       /**< comments */
+    SCOL_PREPROCESSOR,  /**< preprocessor lines */
+    SCOL_COUNT          /**< number of colours */
 };
 
-/** Settings from the tool types of the program icon (and project icons),
- *  edited in the settings window. */
+/**
+ * Settings from the tool types of the program icon (and project icons),
+ * edited in the settings window.
+ */
 typedef struct Settings {
-    int tbmode;         /* ToolbarMode, takes effect at the next start */
-    int tbframes;       /* frames around the toolbar buttons (TOOLBARFRAMES) */
-    int splash;         /* splash window while starting (NOSPLASH turns it off) */
-    long winwidth;      /* main window at the start: 0 = automatic */
-    long winheight;
-    long winleft;       /* -1 = centred */
-    long wintop;
-    unsigned long colours[SCOL_COUNT];  /* 0xRRGGBB, SettingsColour order */
-    long bmwin[4];      /* bookmark list as snapshot: left, top, width, height; width 0 = automatic */
-    int bmlist;         /* bookmark list open at the start (BOOKMARKLIST) */
-    char icon_name[300];/* program icon without .info, for splash and About */
+    int tbmode;         /**< ToolbarMode, takes effect at the next start */
+    int tbframes;       /**< frames around the toolbar buttons (TOOLBARFRAMES) */
+    int splash;         /**< splash window while starting (NOSPLASH turns it off) */
+    long winwidth;      /**< width of the main window at the start: 0 = automatic */
+    long winheight;     /**< its height: 0 = automatic */
+    long winleft;       /**< its left edge: -1 = centred */
+    long wintop;        /**< its top edge: -1 = centred */
+    unsigned long colours[SCOL_COUNT];  /**< 0xRRGGBB, SettingsColour order */
+    long bmwin[4];      /**< bookmark list as snapshot: left, top, width, height; width 0 = automatic */
+    int bmlist;         /**< bookmark list open at the start (BOOKMARKLIST) */
+    char icon_name[300];/**< program icon without .info, for splash and About */
 } Settings;
 
 /** Default colours, SettingsColour order. */
 extern const unsigned long settings_default_colours[SCOL_COUNT];
+
 /** Results of prefs_dialog(). */
-enum { PREFS_CANCEL = 0, PREFS_USE, PREFS_SAVE };
+enum {
+    PREFS_CANCEL = 0,   /**< cancelled, nothing changes */
+    PREFS_USE,          /**< use the settings in this session */
+    PREFS_SAVE          /**< use them and write them into the program icon */
+};
+
+/** Commands of the menus and the toolbar (the menu items' user data). */
 enum MenuId {
-    MID_NEW = 1, MID_OPEN, MID_OPEN_DIRECTORY, MID_SAVE, MID_SAVE_AS, MID_CLOSE, MID_QUIT,
-    MID_UNDO, MID_REDO, MID_CUT, MID_COPY, MID_PASTE, MID_SELECT_ALL,
-    MID_FOLDER_TREE, MID_LINE_NUMBERS, MID_MINIMAP,
-    MID_ABOUT, MID_SETTINGS, MID_FIND, MID_FIND_NEXT,
-    MID_BM_TOGGLE, MID_BM_NEXT, MID_BM_PREV, MID_BM_CLEAR, MID_TREE_REFRESH, MID_BM_LIST,
-    MID_SNAPSHOT_TOOLS
+    MID_NEW = 1,        /**< Project/New */
+    MID_OPEN,           /**< Project/Open... */
+    MID_OPEN_DIRECTORY, /**< Project/Open Directory... */
+    MID_SAVE,           /**< Project/Save */
+    MID_SAVE_AS,        /**< Project/Save As... */
+    MID_CLOSE,          /**< Project/Close */
+    MID_QUIT,           /**< Project/Quit */
+    MID_UNDO,           /**< Edit/Undo */
+    MID_REDO,           /**< Edit/Redo */
+    MID_CUT,            /**< Edit/Cut */
+    MID_COPY,           /**< Edit/Copy */
+    MID_PASTE,          /**< Edit/Paste */
+    MID_SELECT_ALL,     /**< Edit/Select All */
+    MID_FOLDER_TREE,    /**< View/Folder Tree (check item) */
+    MID_LINE_NUMBERS,   /**< View/Line Numbers (check item) */
+    MID_MINIMAP,        /**< View/Minimap (check item) */
+    MID_ABOUT,          /**< Project/About... */
+    MID_SETTINGS,       /**< Project/Settings... */
+    MID_FIND,           /**< Edit/Find... */
+    MID_FIND_NEXT,      /**< Edit/Find Next */
+    MID_BM_TOGGLE,      /**< Bookmarks/Set/Remove Bookmark */
+    MID_BM_NEXT,        /**< Bookmarks/Next Bookmark */
+    MID_BM_PREV,        /**< Bookmarks/Previous Bookmark */
+    MID_BM_CLEAR,       /**< Bookmarks/Remove All in This File */
+    MID_TREE_REFRESH,   /**< Project/Refresh Folder Tree */
+    MID_BM_LIST,        /**< View/Bookmarks: the bookmark list (check item) */
+    MID_SNAPSHOT_TOOLS  /**< View/Snapshot Tool Windows */
 };
 
 /** Bookmarks of a document that TinyDev keeps track of. */
@@ -94,99 +149,121 @@ enum MenuId {
 #define BOOKMARK_TEXT_MAX 120
 
 /** Which bookmarks the bookmark list shows. */
-enum { BMSCOPE_CURRENT = 0, BMSCOPE_OPEN, BMSCOPE_PROJECT, BMSCOPE_COUNT };
+enum {
+    BMSCOPE_CURRENT = 0,    /**< those of the active document */
+    BMSCOPE_OPEN,           /**< those of all open documents */
+    BMSCOPE_PROJECT,        /**< those of the project's files, open or not */
+    BMSCOPE_COUNT           /**< number of scopes */
+};
 
-typedef enum LineEnding { EOL_LF = 0, EOL_CR = 1, EOL_CRLF = 2 } LineEnding;
+/** Line endings of a document, as loaded (and saved again). */
+typedef enum LineEnding {
+    EOL_LF = 0,     /**< LF (Amiga, Unix) */
+    EOL_CR = 1,     /**< CR (old Mac OS) */
+    EOL_CRLF = 2    /**< CR LF (DOS, Windows) */
+} LineEnding;
 
+/** A document: a tab with its page, editor and scrollers, and its file. */
 typedef struct Document {
-    struct Node node;
-    Object *page;
-    Object *editor_row;
-    Object *editor;
-    Object *vscroll;
-    Object *hscroll;
-    struct Node *tab;
-    char *path;
-    char title[EDITOR_TITLE_MAX];
-    char tab_title[EDITOR_TITLE_MAX + 2];
-    unsigned long number;
-    int dirty;
-    unsigned long saved_hash;   /* checksum of the text as loaded or saved ... */
-    long saved_length;          /* ... and its length (document_mark_saved()) */
-    int saved_from_file;        /* ... taken from the file, not from the editor */
-    int check_pending;          /* changed since the last document_check_unchanged() */
-    LineEnding eol;
-    SyntaxLanguage language;
-    SyntaxHookContext highlight;
-    struct Hook minimap_hook;   /* MINIMAP_ColorHook, h_Data = document */
-    struct Hook leftbar_hook;   /* GA_TEXTEDITOR_LeftBarHook, h_Data = document */
-    ULONG bm_lines[BOOKMARKS_MAX];  /* lines with a bookmark (from the editor, from 0) */
-    long bm_count;
-    LONG bm_click_line;         /* line clicked in the left bar, -1 if none */
-    int bm_apply;               /* the project's bookmarks are still to be set */
-    long bm_goto;               /* line to go to once they are set, -1 if none ... */
-    char bm_goto_text[BOOKMARK_TEXT_MAX + 1];   /* ... and its text (to find it again) */
+    struct Node node;           /**< in EditorApp.documents (tab order) */
+    Object *page;               /**< its page in the page.gadget */
+    Object *editor_row;         /**< layout of editor and vertical scroller */
+    Object *editor;             /**< texteditor.gadget (GA_ID 100 + number) */
+    Object *vscroll;            /**< vertical scroller */
+    Object *hscroll;            /**< horizontal scroller */
+    struct Node *tab;           /**< its node in the clicktab (TNA_UserData = document) */
+    char *path;                 /**< full name of the file (AllocVec()), NULL if it has none */
+    char title[EDITOR_TITLE_MAX];       /**< file name or "Untitled n" */
+    char tab_title[EDITOR_TITLE_MAX + 2];   /**< title with '*' when modified */
+    unsigned long number;       /**< unique number of the document in this session */
+    int dirty;                  /**< modified since it was loaded or saved */
+    unsigned long saved_hash;   /**< checksum of the text as loaded or saved ... */
+    long saved_length;          /**< ... and its length (document_mark_saved()) */
+    int saved_from_file;        /**< ... taken from the file, not from the editor */
+    int check_pending;          /**< changed since the last document_check_unchanged() */
+    LineEnding eol;             /**< line endings of the file */
+    SyntaxLanguage language;    /**< language for the highlighting */
+    SyntaxHookContext highlight;    /**< the editor's highlighter hook and its state */
+    struct Hook minimap_hook;   /**< MINIMAP_ColorHook, h_Data = document */
+    struct Hook leftbar_hook;   /**< GA_TEXTEDITOR_LeftBarHook, h_Data = document */
+    ULONG bm_lines[BOOKMARKS_MAX];  /**< lines with a bookmark (from the editor, from 0) */
+    long bm_count;              /**< number of them */
+    LONG bm_click_line;         /**< line clicked in the left bar, -1 if none */
+    int bm_apply;               /**< the project's bookmarks are still to be set */
+    long bm_goto;               /**< line to go to once they are set, -1 if none ... */
+    char bm_goto_text[BOOKMARK_TEXT_MAX + 1];   /**< ... and its text (to find it again) */
 } Document;
 
+/** The state of TinyDev: settings, documents, the main window and its gadgets. */
 typedef struct EditorApp {
-    Settings settings;
-    struct List documents;
-    struct List tab_nodes;
-    Document *active;
-    Object *window_object;
-    Object *layout;
-    Object *toolbar;
-    Object *content_layout;
-    Object *tree;               /* dirtree.gadget */
-    /* Close symbol of the tab close gadgets (CLICKTAB_CloseImage): a
-     * built-in black cross (closeimage.c). */
-    Object *tab_close_image;
-    Object *tabs;
-    Object *pages;
-    Object *statusbar;
-    Object *minimap;            /* minimap.gadget */
-    Object *minimap_editor;     /* editor connected to the minimap */
-    struct Window *window;
-    struct Screen *screen;
-    struct DrawInfo *screen_draw_info;
-    struct DrawInfo editor_draw_info;
-    UWORD editor_draw_pens[NUMDRIPENS];
-    struct Hook editor_backfill_hook;
-    struct Hook tab_idcmp_hook;
-    struct Node *pending_close;
-    long editor_pens[EDITOR_COLOR_COUNT];
-    long minimap_view_pen;
-    int editor_colors_open;
-    unsigned long next_document;
-    long scroll_signal;
-    int line_numbers;
-    int tree_visible;
-    int minimap_visible;
-    int minimap_attached;
-    int minimap_dragging;       /* highlighter suspended for a minimap drag */
-    int minimap_notified;       /* a minimap notification is pending */
-    int minimap_drag_state;     /* MINIMAP_Dragging of that notification */
-    ULONG minimap_top;          /* MINIMAP_Top of that notification */
-    int scrolling;
-    int scrollbar_dragging;     /* a scroller is being used, do not write it */
-    int scroll_idle_ticks;      /* IntuiTicks since the last scroll signal */
-    int change_idle_ticks;      /* IntuiTicks since the last change of the text */
-    int focus_editor;           /* give the editor the focus when the window is active */
-    long bm_box[4];             /* box of the bookmark list in this session */
-    int defer_depth;            /* ui_begin_update() nesting */
-    int pending_layout;         /* a relayout was requested meanwhile */
-    int pending_refresh;        /* a page redraw was requested meanwhile */
-    int running;
+    Settings settings;          /**< the settings in use */
+    struct List documents;      /**< the open documents (Document), in tab order */
+    struct List tab_nodes;      /**< the clicktab's nodes */
+    Document *active;           /**< the document in the visible tab, or NULL */
+    Object *window_object;      /**< window.class object of the main window */
+    Object *layout;             /**< its root layout */
+    Object *toolbar;            /**< layout with the speedbar and the overflow chooser */
+    Object *content_layout;     /**< layout of folder tree, editor area and minimap */
+    Object *tree;               /**< dirtree.gadget */
+    Object *tab_close_image;    /**< close symbol of the tabs (CLICKTAB_CloseImage, closeimage.c) */
+    Object *tabs;               /**< clicktab.gadget of the documents */
+    Object *pages;              /**< page.gadget with a page per document */
+    Object *statusbar;          /**< status line (read-only button) */
+    Object *minimap;            /**< minimap.gadget */
+    Object *minimap_editor;     /**< editor connected to the minimap */
+    struct Window *window;      /**< the open main window, NULL when closed */
+    struct Screen *screen;      /**< the locked public screen */
+    struct DrawInfo *screen_draw_info;  /**< its DrawInfo */
+    struct DrawInfo editor_draw_info;   /**< copy for the editors (their own pens) */
+    UWORD editor_draw_pens[NUMDRIPENS]; /**< pens of editor_draw_info */
+    struct Hook editor_backfill_hook;   /**< GA_BackFill of the editors */
+    struct Hook tab_idcmp_hook; /**< window IDCMP hook (tab close, minimap notifications) */
+    struct Node *pending_close; /**< tab whose close gadget was clicked, NULL if none */
+    long editor_pens[EDITOR_COLOR_COUNT];   /**< obtained pens, EditorColor order */
+    long minimap_view_pen;      /**< pen of the minimap's view frame, -1 if none */
+    int editor_colors_open;     /**< the editor pens are obtained */
+    unsigned long next_document;    /**< number of the last document created */
+    long scroll_signal;         /**< signal of the scrollers while they are dragged, -1 if none */
+    int line_numbers;           /**< View/Line Numbers is on */
+    int tree_visible;           /**< View/Folder Tree is on */
+    int minimap_visible;        /**< View/Minimap is on */
+    int minimap_attached;       /**< the minimap is in the content layout */
+    int minimap_dragging;       /**< highlighter suspended for a minimap drag */
+    int minimap_notified;       /**< a minimap notification is pending */
+    int minimap_drag_state;     /**< MINIMAP_Dragging of that notification */
+    ULONG minimap_top;          /**< MINIMAP_Top of that notification */
+    int scrolling;              /**< the highlighting is suspended for scrolling */
+    int scrollbar_dragging;     /**< a scroller is being used, do not write it */
+    int scroll_idle_ticks;      /**< IntuiTicks since the last scroll signal */
+    int change_idle_ticks;      /**< IntuiTicks since the last change of the text */
+    int focus_editor;           /**< give the editor the focus when the window is active */
+    long bm_box[4];             /**< box of the bookmark list in this session */
+    int defer_depth;            /**< ui_begin_update() nesting */
+    int pending_layout;         /**< a relayout was requested meanwhile */
+    int pending_refresh;        /**< a page redraw was requested meanwhile */
+    int running;                /**< the event loop runs */
 } EditorApp;
 
-extern struct Library *AslBase, *GadToolsBase, *IconBase, *UtilityBase;
-extern struct Library *WindowBase, *LayoutBase, *ClickTabBase, *TextFieldBase;
-extern struct Library *ButtonBase, *BitMapBase;
-extern struct Library *DirTreeBase;
-extern struct Library *MinimapBase;
-extern struct Library *ScrollerBase;
-extern struct Library *SpeedBarBase, *LabelBase, *ChooserBase;
-extern struct Library *DiskfontBase;
+/** @name Library bases (main.c; the windows open some classes when needed) */
+/** @{ */
+extern struct Library *AslBase;         /**< asl.library */
+extern struct Library *GadToolsBase;    /**< gadtools.library (menus) */
+extern struct Library *IconBase;        /**< icon.library */
+extern struct Library *UtilityBase;     /**< utility.library */
+extern struct Library *WindowBase;      /**< window.class */
+extern struct Library *LayoutBase;      /**< layout.gadget */
+extern struct Library *ClickTabBase;    /**< clicktab.gadget */
+extern struct Library *TextFieldBase;   /**< texteditor.gadget */
+extern struct Library *ButtonBase;      /**< button.gadget */
+extern struct Library *BitMapBase;      /**< bitmap.image */
+extern struct Library *DirTreeBase;     /**< dirtree.gadget */
+extern struct Library *MinimapBase;     /**< minimap.gadget */
+extern struct Library *ScrollerBase;    /**< scroller.gadget */
+extern struct Library *SpeedBarBase;    /**< speedbar.gadget */
+extern struct Library *LabelBase;       /**< label.image */
+extern struct Library *ChooserBase;     /**< chooser.gadget (may be NULL) */
+extern struct Library *DiskfontBase;    /**< diskfont.library (may be NULL) */
+/** @} */
 
 /** @brief Open locale.library and TinyDev's catalog (if there is one). */
 void locale_open(void);
@@ -205,10 +282,14 @@ const char *S(LONG id);
  */
 void settings_default(Settings *s);
 /**
- * @brief Write the settings into the tool types of the program icon. Other
- *        tool types and the NewIcons block stay; a setting at its default
- *        value stays as a disabled entry "(KEY=value)".
- * @param s The settings (icon_name names the icon).
+ * @brief Write the settings into the tool types of the program icon.
+ *
+ * Other tool types and the NewIcons block (from "*** DON'T EDIT") stay
+ * where they are; new entries go in front of the NewIcons block. A setting
+ * that is now at its default stays as a disabled entry "(KEY=value)", so
+ * the icon keeps showing what can be set.
+ *
+ * @param s The settings.
  * @return Non-zero on success.
  */
 int settings_save(const Settings *s);
@@ -228,11 +309,17 @@ int settings_save_toolwindows(const Settings *cur);
  * @return PREFS_CANCEL, PREFS_USE or PREFS_SAVE.
  */
 int prefs_dialog(EditorApp *app, Settings *s);
-/** @brief Close the classes opened by the settings window. */
+/** @brief Close the classes opened for the settings window. */
 void prefs_cleanup(void);
 /**
- * @brief Take over edited settings: colours at once, the rest at the next
- *        start.
+ * @brief Take over edited settings.
+ *
+ * New highlighting colours take effect at once: the new pens are obtained,
+ * every document's highlighter and the minimap use them, the visible editor
+ * is highlighted and drawn again, then the old pens are released. If a pen
+ * cannot be obtained the old colours stay. Window, splash and toolbar
+ * settings take effect at the next start.
+ *
  * @param app The application state.
  * @param n The new settings.
  */
@@ -268,13 +355,18 @@ void splash_open(const char *icon_name, ULONG steps);
 void splash_status(const char *text);
 /** @brief Advance the splash window's progress bar by one step. */
 void splash_step(void);
-/** @brief Close the splash window if it is open. */
+/** @brief Close the splash window (if it is open). */
 void splash_close(void);
 /**
  * @brief Show the modal About window centred over the main window.
- * @param app The application state.
- * @param details The details below the head, lines separated by '\n'.
- * @return Non-zero if shown, zero if it could not be opened.
+ *
+ * The main window shows the busy pointer and its input is dropped while the
+ * About window is open. Return, Esc, the close gadget and OK close it.
+ *
+ * @param app The application state (main window and screen).
+ * @param details The details, lines separated by '\n'.
+ * @return Non-zero if the window was shown, zero if it could not be opened
+ *         (the caller shows a requester instead).
  */
 int about_window(EditorApp *app, const char *details);
 
@@ -301,7 +393,8 @@ struct HintInfo *toolbar_hints(void);
 void toolbar_window_opened(EditorApp *app);
 /**
  * @brief Ghost the buttons that would do nothing and refresh the overflow
- *        list; call on every tick of the event loop.
+ *        list: Save with an unchanged document, Undo/Redo without steps,
+ *        Cut/Copy without a selection.
  * @param app The application state.
  */
 void toolbar_update(EditorApp *app);
@@ -312,67 +405,135 @@ void toolbar_update(EditorApp *app);
  */
 ULONG toolbar_overflow_command(ULONG index);
 /**
- * @brief Free the toolbar's nodes, images, font and pen; call after the
- *        window (which disposes the gadgets) and before the screen is
- *        unlocked.
+ * @brief Free the nodes, images, font and pen of the toolbar.
+ *
+ * The speedbar frees neither its nodes nor their images; a label disposes
+ * its image. Must run after the gadgets are disposed (with the window) and
+ * before the screen is unlocked.
+ *
  * @param app The application state.
  */
 void toolbar_dispose(EditorApp *app);
 
 /**
- * @brief Open the libraries the splash window and the settings need
- *        (intuition, graphics, utility, icon).
- * @param from_workbench Non-zero when launched from Workbench (enables GUI errors).
+ * @brief Open the libraries needed before the splash window.
+ *
+ * Opens intuition.library and graphics.library (saving the previous global
+ * bases so they can be restored on shutdown), verifies dos.library and opens
+ * utility.library and icon.library. Any failure is reported via
+ * report_library_error() and aborts the sequence.
+ *
+ * @param from_workbench Non-zero when launched from Workbench, which enables
+ *        GUI error requesters.
  * @return Non-zero if all of them opened, zero otherwise.
  */
 int app_open_core(int from_workbench);
 /**
  * @brief Open the remaining libraries and the ReAction and TinyDev classes.
+ *
+ * Runs while the splash window shows; any failure is reported via
+ * report_library_error() (which closes the splash window) and aborts.
+ *
  * @return Non-zero if all required ones opened, zero otherwise.
  */
 int app_open_classes(void);
-/** @brief Close all libraries and classes opened by app_open_libraries(). */
+/**
+ * @brief Close all libraries and classes opened by app_open_libraries().
+ *
+ * Closes the ReAction classes and helper libraries in reverse order, then
+ * restores the intuition.library and graphics.library global bases to the
+ * values captured at startup. Safe to call even if opening only partially
+ * succeeded.
+ */
 void app_close_libraries(void);
 /**
- * @brief Create the main ReAction window and all its gadgets.
- * @param app The application state.
- * @return Non-zero on success, zero on failure.
+ * @brief Build the application's screen resources, gadgets, and main window.
+ *
+ * Locks the public screen, reserves editor colors, and creates the page group,
+ * click tabs (with a masked close image and IDCMP-targeted close notification),
+ * folder tree, minimap gadget, toolbar, content and root layouts, and the
+ * status bar.  Sets up the tab IDCMP hook, creates the window (requesting the
+ * IDCMP flags needed for resizing and minimap interaction), ensures at least
+ * one document exists, opens the window, performs the initial layout and
+ * activation, starts the minimap task, and hides the minimap by default.
+ *
+ * @param app The application to initialize.
+ * @return 1 on success, 0 on any failure.
  */
 int ui_create(EditorApp *app);
 /**
- * @brief Run the main event loop until the user quits.
- * @param app The application state.
- * @return Non-zero on a clean exit.
+ * @brief Run the main event loop until the application should quit.
+ *
+ * Waits on the window, live-scroll, and minimap signals plus CTRL-C, then
+ * services minimap replies, live scrolling, and break requests.  Drains
+ * WM_HANDLEINPUT, dispatching close, tab/tree/scrollbar/toolbar/menu gadget
+ * events and minimap mouse/resize handling.  After each input batch it mirrors
+ * keyboard/mouse-driven editor scrolling onto the scrollbars, marks the active
+ * document dirty when it changed, processes pending tab closes, and refreshes
+ * the status line and minimap.
+ *
+ * @param app The application to run.
+ * @return Always 1 when the loop exits.
  */
 int ui_run(EditorApp *app);
 /**
- * @brief Dispose the window and release all UI resources.
- * @param app The application state.
+ * @brief Tear down the window, gadgets, and screen resources.
+ *
+ * Disconnects the minimap from the editors (it waits for a running render
+ * job, whose colour hook reads the document) and frees all documents; the
+ * minimap.gadget stops its render process itself when it is disposed with the
+ * window.  Disposes
+ * the window/layout/gadget hierarchy following the established ownership and
+ * cleanup ordering, disposes a detached minimap gadget if the column was
+ * hidden, frees toolbar and tree images and the tab close image, releases the
+ * editor colors, unlocks the public screen, and clears all cached pointers.
+ *
+ * @param app The application to tear down.
  */
 void ui_destroy(EditorApp *app);
 /**
- * @brief Refresh the editor view to reflect the active document.
- * @param app The application state.
+ * @brief Update the window title to reflect the active document.
+ *
+ * Sets the title to "TinyDev" when no document is active, otherwise to
+ * "TinyDev - <title>" with a trailing '*' when the active document is dirty.
+ *
+ * @param app The application whose window title is refreshed.
  */
 void ui_refresh(EditorApp *app);
 /**
- * @brief Update the status line with the active document's state.
- * @param app The application state.
+ * @brief Refresh the bottom status line with document and line counts.
+ *
+ * Counts the open documents and reads the line count of the active document
+ * from its texteditor gadget, then updates the status bar text.  Uses
+ * SetGadgetAttrs when a window is open so the gadget redraws, otherwise
+ * SetAttrs.  Does nothing if the status bar does not exist.
+ *
+ * @param app The application whose status line is updated.
  */
 void ui_update_status(EditorApp *app);
 /**
- * @brief Re-run the window layout after a structural change.
- * @param app The application state.
+ * @brief Recompute the window's layout after a structural change.
+ *
+ * Calls RethinkLayout on the root layout when both the window and layout
+ * exist; otherwise does nothing.
+ *
+ * @param app The application whose layout is recomputed.
  */
 void ui_relayout(EditorApp *app);
 /**
- * @brief Redraw a document's page, or note it while updates are collected.
+ * @brief Redraw a document's page (editor and scrollers), or note it for
+ *        ui_end_update() while updates are collected.
  * @param app The application state.
  * @param doc The document.
  */
 void ui_refresh_page(EditorApp *app, Document *doc);
 /**
- * @brief Set up to two attributes of a gadget (with the window if open).
+ * @brief Set up to two attributes of a gadget in the window.
+ *
+ * Always with the window (SetGadgetAttrs()) when it is open: clicktab.gadget
+ * and page.gadget do not take changes made without it (SetAttrs()) properly,
+ * the tabs and the page stayed empty even after a relayout.
+ *
  * @param app The application state.
  * @param obj The gadget.
  * @param tag1 First attribute (TAG_IGNORE for none).
@@ -391,78 +552,130 @@ void ui_gadget_set(EditorApp *app, Object *obj, ULONG tag1, ULONG data1,
 void ui_set_menu_check(EditorApp *app, ULONG id, int on);
 /**
  * @brief Start collecting relayouts and page redraws (nestable).
+ *
+ * An operation that changes several things (opening a file: a new tab, its
+ * page, the loaded text, the tab title) would otherwise lay out and redraw
+ * the whole window several times, which is slow on real hardware.
+ *
  * @param app The application state.
  */
 void ui_begin_update(EditorApp *app);
 /**
- * @brief Finish collecting: at most one relayout or one page redraw.
+ * @brief Finish collecting: one relayout of the window if any was requested
+ *        (it redraws everything), otherwise one redraw of the active page.
  * @param app The application state.
  */
 void ui_end_update(EditorApp *app);
 /**
- * @brief Show a modal error requester (or print to stderr without a window).
- * @param app The application state.
- * @param title The requester title.
- * @param message The message body.
+ * @brief Display a simple modal error/notification requester with an OK button.
+ *
+ * @param app The application; its window is used as the requester parent (may
+ *            be NULL).
+ * @param title The requester title text.
+ * @param message The requester body text.
  */
 void ui_error(EditorApp *app, const char *title, const char *message);
 /**
- * @brief Show the modal About requester with application information.
- * @param app The application state.
+ * @brief Show the About window (as in Kickdown), with a requester as fallback.
+ *
+ * The details name the website, mail address and licence and the versions
+ * of TinyDev's own gadget classes in use.
+ *
+ * @param app The application owning the main window.
  */
 void ui_about(EditorApp *app);
 /**
- * @brief Ask the user whether to close a document with unsaved changes.
- * @param app The application state.
+ * @brief Confirm closing a document, prompting to save unsaved changes.
+ *
+ * Returns immediately allowing the close for a document that is not dirty.
+ * Otherwise presents a Save/Discard/Cancel requester: Discard allows the
+ * close, Cancel blocks it, and Save saves to the document's existing path or
+ * prompts for one before allowing the close.
+ *
+ * @param app The application owning the window used for the requester.
  * @param doc The document being closed.
- * @return Non-zero if the close may proceed, zero to cancel.
+ * @return Nonzero if the document may be closed, 0 to cancel the close.
  */
 int ui_confirm_close(EditorApp *app, Document *doc);
 
 /**
- * @brief Create a new, empty document in its own tab and activate it.
- * @param app The application state.
- * @return The new document, or NULL on failure.
+ * @brief Create, register and activate a new empty document; the window is
+ *        laid out and drawn once at the end (see ui_begin_update()).
+ * @param app The owning application.
+ * @return The newly created document, or NULL on failure.
  */
 Document *document_new(EditorApp *app);
 /**
- * @brief Open a file into a new (or reused) document tab.
- * @param app The application state.
+ * @brief Open a file; the window is laid out and redrawn only once at the
+ *        end (see ui_begin_update()).
+ * @param app The owning application.
  * @param path The file path to open.
- * @return The document holding the file, or NULL on failure.
+ * @return The document showing the file, the pre-existing document for a
+ *         duplicate, or NULL if opening failed.
  */
 Document *document_open(EditorApp *app, const char *path);
 /**
- * @brief Find an open document by its canonical path.
- * @param app The application state.
- * @param path The canonical path to look for.
- * @return The matching document, or NULL if none is open.
+ * @brief Find an open document by its file path.
+ *
+ * Performs a case-insensitive comparison (Stricmp) of the given path against
+ * the stored path of every open document.
+ *
+ * @param app The application whose documents are searched.
+ * @param path The file path to look for.
+ * @return The matching document, or NULL if no open document uses @p path.
  */
 Document *document_find_path(EditorApp *app, const char *path);
 /**
- * @brief Make a document the active tab and refresh the view.
- * @param app The application state.
+ * @brief Make the given document the active one and update the UI.
+ *
+ * Sets app->active, selects the document's tab, brings its page gadget to the
+ * front, refreshes the UI, synchronizes the scrollers, and requests a minimap
+ * update. Does nothing when @p doc is NULL.
+ *
+ * @param app The owning application.
  * @param doc The document to activate.
  */
 void document_activate(EditorApp *app, Document *doc);
 /**
- * @brief Close a document, optionally confirming unsaved changes first.
- * @param app The application state.
+ * @brief Close a document, optionally confirming unsaved changes.
+ *
+ * When @p ask is set the user is prompted and the close is aborted if declined.
+ * Otherwise the document's page is removed from the pager, its tab and list
+ * node are unlinked, tabs are renumbered, and all its resources (tab node,
+ * page, path buffer, and the document itself) are freed. The next remaining
+ * document is activated, or a fresh empty document is created when none remain,
+ * followed by a relayout.
+ *
+ * @param app The owning application.
  * @param doc The document to close.
- * @param ask Non-zero to prompt when the document is dirty.
- * @return Non-zero if the document was closed, zero if cancelled.
+ * @param ask Non-zero to ask the user for confirmation before closing.
+ * @return 1 if the document was closed, 0 if the close was cancelled or
+ *         @p doc was NULL.
  */
 int document_close(EditorApp *app, Document *doc, int ask);
 /**
- * @brief Close and free every open document.
- * @param app The application state.
+ * @brief Free every document without touching UI activation logic.
+ *
+ * Removes each document from the list in turn and releases its tab node, page
+ * object, path buffer, and the document structure itself. Intended for teardown
+ * where no replacement document should be created.
+ *
+ * @param app The application whose documents are all released.
  */
 void document_free_all(EditorApp *app);
 /**
- * @brief Set a document's dirty flag and update its tab/status display.
- * @param app The application state.
- * @param doc The document to update.
- * @param dirty Non-zero to mark the document as modified.
+ * @brief Set a document's modified (dirty) state and update its tab title.
+ *
+ * When the state actually changes, updates the tab title to append a '*' marker
+ * for dirty documents, pushes the new label to the click-tab gadget as a minor
+ * label change (the tab bar redraws itself) and updates the window title. The
+ * window is not laid out again: that redrew everything on the first change of
+ * a document and on every save. Does nothing when @p doc is NULL or already
+ * in the requested state.
+ *
+ * @param app The owning application.
+ * @param doc The document whose dirty state changes.
+ * @param dirty Non-zero to mark the document modified, zero to mark it clean.
  */
 void document_set_dirty(EditorApp *app, Document *doc, int dirty);
 /**
@@ -489,63 +702,129 @@ void document_changed(EditorApp *app);
  */
 void document_change_tick(EditorApp *app);
 /**
- * @brief Mark a modified document as unchanged again if its text equals
- *        the one on disk (call after Undo and Redo).
- * @param app The application state.
+ * @brief Mark a modified document as unchanged again if its text equals the
+ *        one on disk.
+ *
+ * texteditor.gadget keeps GA_TEXTEDITOR_HasChanged set after its changes
+ * were undone, so the exported text is compared with the checksum and
+ * length remembered by document_mark_saved(). Called only after Undo and
+ * Redo, as it exports the whole text.
+ *
+ * @param app The owning application.
  * @param doc The document (may be NULL).
  */
 void document_check_unchanged(EditorApp *app, Document *doc);
 /**
- * @brief Set a document's path, updating its title, tab and language.
- * @param app The application state.
+ * @brief Assign a file path to a document and derive its title and language.
+ *
+ * Duplicates the path, replaces any previous path, sets the document title from
+ * the path's base name, and selects the syntax language from the path (updating
+ * both the document and its highlighter). Toggling the dirty flag on then off
+ * refreshes the tab title while leaving the document marked clean. Returns
+ * without changes if the path copy could not be allocated.
+ *
+ * @param app The owning application.
  * @param doc The document to update.
- * @param path The new canonical path (NULL for an unnamed document).
+ * @param path The new file path to associate with the document.
  */
 void document_set_path(EditorApp *app, Document *doc, const char *path);
 /**
- * @brief Synchronise the scroller gadgets with the document's viewport.
- * @param app The application state.
- * @param doc The document whose scrollers are updated.
+ * @brief Synchronize the scrollers with the editor's current view.
+ *
+ * Queries the TextEditor's vertical and horizontal prop attributes (total
+ * entries, visible amount, first line/column) and pushes them to the vertical
+ * and horizontal scrollers, clamping zero totals/visibles to one. Does nothing
+ * unless @p doc is the active document.
+ *
+ * @param app The owning application.
+ * @param doc The document whose scrollers are synchronized.
  */
 void document_sync_scrollers(EditorApp *app, Document *doc);
 /**
- * @brief Scroll the active document in response to a scroller gadget.
- * @param app The application state.
- * @param horizontal Non-zero for the horizontal scroller, zero for vertical.
+ * @brief Apply the current scroller position to the active editor on one axis.
+ *
+ * Reads the top position from the chosen (horizontal or vertical) scroller and,
+ * when it differs from the editor's current first line/column, applies it to
+ * the editor and redraws only the editor gadget. Refreshing the whole page
+ * would also redraw the scroller the user may be dragging, which then loses
+ * its pressed look. The scrollers themselves are not written here (see
+ * document_sync_scrollers()). Does nothing without an active document and
+ * window.
+ *
+ * @param app The owning application.
+ * @param horizontal Non-zero to scroll the horizontal axis, zero for vertical.
  */
 void document_scroll(EditorApp *app, int horizontal);
 /**
- * @brief Apply a live scroll update while a scroller is being dragged.
- * @param app The application state.
+ * @brief Handle an intermediate scrollbar drag update.
+ *
+ * On the first live update the highlighter hook is switched off (setting the
+ * shared scrolling flag) so the rapid redraws that follow the mouse stay fast;
+ * the position of both the vertical and horizontal axes is then mirrored onto
+ * the editor.
+ *
+ * @param app The owning application.
  */
 void document_scroll_live(EditorApp *app);
 /**
- * @brief Finish a scroll interaction and restore normal rendering.
- * @param app The application state.
- * @param horizontal Non-zero for the horizontal scroller, zero for vertical.
+ * @brief Handle the end of a scrollbar interaction.
+ *
+ * Covers button release, arrow, and page-click events on the given axis
+ * (GADGETUP) and the end found by document_scroll_tick(). After applying
+ * the final position, re-enables highlighting if it was disabled during a
+ * drag (clearing the scrolling flag) and forces a full page redraw so the
+ * now-visible lines are highlighted again.
+ *
+ * @param app The owning application.
+ * @param horizontal Non-zero for the horizontal axis, zero for vertical.
  */
 void document_scroll_finish(EditorApp *app, int horizontal);
 /**
- * @brief Finish a scrollbar interaction after two IntuiTicks without a
- *        scroll signal (it may send no GADGETUP).
- * @param app The application state.
+ * @brief Finish a scrollbar interaction that sent no GADGETUP.
+ *
+ * Called for every IntuiTick (about ten per second while the window is
+ * active). The scroller sends a GADGETUP only when the button is released
+ * over it, and a last "moved" signal can arrive after the GADGETUP; either
+ * left the highlighting switched off. So when two ticks pass without a
+ * scroll signal, the scrolling counts as finished: both axes are applied
+ * and the highlighting comes back. Pausing during a drag does the same,
+ * the next movement switches it off again.
+ *
+ * @param app The owning application.
  */
 void document_scroll_tick(EditorApp *app);
 /**
- * @brief Suspend syntax highlighting during an active scrollbar drag.
- * @param app The application state.
+ * @brief Suspend the syntax highlighter during an interactive minimap drag.
+ *
+ * Behaves exactly like a scrollbar drag, disabling the highlighter on the
+ * active document so the rapid re-scrolls that follow the mouse stay fast. The
+ * shared app->scrolling flag also tells minimap_poll() not to re-render the
+ * viewport overlay until the drag has finished.
+ *
+ * @param app The owning application.
  */
 void document_suspend_highlight(EditorApp *app);
 /**
- * @brief Resume syntax highlighting and force a redraw after a drag.
- * @param app The application state.
+ * @brief Restore the syntax highlighter after an interactive minimap drag.
+ *
+ * Clears the shared scrolling flag, re-enables highlighting on the active
+ * document, and forces a full page redraw so the now-visible lines are
+ * highlighted again. Does nothing if no drag was in progress.
+ *
+ * @param app The owning application.
  */
 void document_resume_highlight(EditorApp *app);
 
 /**
  * @brief Create the minimap.gadget.
- * @param app The application state.
- * @return The created gadget object, or NULL on failure.
+ *
+ * Text is drawn in the editor's text pen, the visible part tinted with the
+ * optional view pen; background and frame use the screen's pens like the
+ * editor area. Notifications go to the window's IDCMP (IDCMP_IDCMPUPDATE)
+ * and are picked up by the window's IDCMP hook.
+ *
+ * @param app The editor application.
+ * @return The gadget, or NULL on failure.
  */
 Object *minimap_create_gadget(EditorApp *app);
 /**
@@ -554,70 +833,115 @@ Object *minimap_create_gadget(EditorApp *app);
  */
 void minimap_init_document(Document *doc);
 /**
- * @brief Show or hide the minimap column.
- * @param app The application state.
- * @param visible Non-zero to show the minimap, zero to hide it.
+ * @brief Toggle the visibility of the minimap column in the content layout.
+ *
+ * Show/hide works like the folder tree: the minimap child always stays in the
+ * layout and is only collapsed to zero width when hidden, never added or
+ * removed at runtime and never via the WeightBar. A collapsed minimap has no
+ * size, so minimap.gadget renders nothing while it is hidden. Showing it
+ * always uses the default column width.
+ *
+ * @param app The editor application whose content layout is updated.
+ * @param visible Non-zero to show the minimap column, zero to collapse it.
  */
 void minimap_set_visible(EditorApp *app, int visible);
 /**
- * @brief Tell the minimap that the active document's text changed.
- * @param app The application state.
+ * @brief Tell the minimap that the text of the active document changed.
+ * @param app The editor application.
  */
 void minimap_request(EditorApp *app);
 /**
- * @brief Connect the active document and let the minimap update itself.
- * @param app The application state.
+ * @brief Keep the minimap up to date; call after every event batch.
+ *
+ * Connects the active document's editor and colour hook when the active
+ * document changed, then lets minimap.gadget show a finished picture and
+ * start a new render job if the text, the editor's scroll position or the
+ * gadget's size changed. Skipped while the minimap is hidden and while a
+ * scrollbar is dragged, so nothing is
+ * re-rendered during scrolling; a minimap drag is the exception, there the
+ * viewport box follows the pointer.
+ *
+ * @param app The editor application.
  */
 void minimap_poll(EditorApp *app);
 /**
- * @brief Disconnect a document from the minimap before it is closed.
- * @param app The application state.
- * @param doc The document, or NULL to disconnect whatever is connected.
+ * @brief Disconnect a document before its editor is disposed.
+ *
+ * minimap.gadget waits for a running render job (which may still call the
+ * document's colour hook) before it lets go of the editor.
+ *
+ * @param app The editor application.
+ * @param doc The document about to be closed, or NULL to disconnect any.
  */
 void minimap_forget_document(EditorApp *app, Document *doc);
 /**
- * @brief Return the signal mask of finished minimap render jobs.
- * @param app The application state.
- * @return The signal mask to include in the main Wait().
+ * @brief Signal mask of finished minimap render jobs (for the main Wait()).
+ * @param app The editor application.
+ * @return The signal mask, or 0 without a minimap.
  */
 ULONG minimap_signal_mask(EditorApp *app);
 /**
- * @brief Record a minimap notification from the window's IDCMP hook.
- * @param app The application state.
- * @param tags The IDCMPUPDATE tag list.
- * @return Non-zero if the notification came from the minimap.
+ * @brief Record a minimap notification (from the window's IDCMP hook).
+ *
+ * The hook runs inside WM_HANDLEINPUT; the editor is scrolled afterwards by
+ * minimap_handle_scroll() in the event loop.
+ *
+ * @param app The editor application.
+ * @param tags The notification's tag list.
+ * @return Non-zero if the tags came from the minimap.
  */
 int minimap_handle_notify(EditorApp *app, struct TagItem *tags);
 /**
- * @brief Scroll the editor to the line last chosen in the minimap.
- * @param app The application state.
+ * @brief Scroll the editor to the line chosen in the minimap.
+ *
+ * At the start of a drag the syntax highlighter is suspended (as for a
+ * scrollbar drag), at its end it is restored with a redraw.
+ *
+ * @param app The editor application.
  */
 void minimap_handle_scroll(EditorApp *app);
 
 /**
  * @brief Load a file's contents into a document.
+ *
+ * Canonicalises @p path, rejects files that are already open in another tab
+ * (activating that tab instead), directories, oversized files (> 8 MiB) and
+ * files containing embedded NUL bytes. On success the text is imported into
+ * the TextEditor gadget, the imported line-ending style is recorded, the
+ * document path is set and the dirty flag cleared. When a window exists the
+ * tab page and minimap are refreshed.
+ *
  * @param app The application state.
  * @param doc The document to load into.
  * @param path The file path to load.
- * @return Non-zero on success, zero on failure.
+ * @return Non-zero on success, zero on failure (an error requester is shown).
  */
 int file_load(EditorApp *app, Document *doc, const char *path);
 /**
  * @brief Save a document to a path using a safe temporary-file scheme.
+ *
+ * Exports the TextEditor contents, writes them to a sibling temporary file,
+ * optionally renames any existing target to a backup, then renames the
+ * temporary file into place and removes the backup. If any step fails the
+ * original file is left untouched. Refuses to overwrite a file already open
+ * in another tab and guards against pre-existing temporary/backup siblings.
+ *
  * @param app The application state.
- * @param doc The document to save.
+ * @param doc The document being saved.
  * @param path The destination path.
- * @return Non-zero on success, zero on failure.
+ * @return Non-zero on success, zero on failure (an error requester is shown).
  */
 int file_save(EditorApp *app, Document *doc, const char *path);
 /**
  * @brief Prompt the user for a file to open via an ASL requester.
+ *
  * @param app The application state.
  * @return Non-zero if a document was opened, zero otherwise.
  */
 int file_request_open(EditorApp *app);
 /**
  * @brief Prompt the user for a destination and save a document via ASL.
+ *
  * @param app The application state.
  * @param doc The document to save.
  * @return Non-zero if the document was saved, zero otherwise.
@@ -674,12 +998,12 @@ void bookmarks_document_loaded(EditorApp *app, Document *doc);
 void bookmarks_document_closing(EditorApp *app, Document *doc);
 /** A bookmark as the bookmark list shows it (bookmarks_collect()). */
 typedef struct BookmarkItem {
-    Document *doc;      /* the open document, NULL for a closed file of the project */
-    char *path;         /* full name of the file, NULL for a document without one */
-    char *name;         /* shown name: relative to the project, or the title */
-    char *file;         /* relative to the project, NULL outside of it */
-    long line;          /* counted from 0 */
-    char *text;         /* the line's text (shortened) */
+    Document *doc;      /**< the open document, NULL for a closed file of the project */
+    char *path;         /**< full name of the file, NULL for a document without one */
+    char *name;         /**< shown name: relative to the project, or the title */
+    char *file;         /**< relative to the project, NULL outside of it */
+    long line;          /**< counted from 0 */
+    char *text;         /**< the line's text (shortened) */
 } BookmarkItem;
 
 /**
@@ -857,14 +1181,25 @@ void find_forget_document(Document *doc);
 void find_cleanup(void);
 
 /**
- * @brief Prompt for and load a directory into the folder tree.
- * @param app The application state.
- * @return Non-zero if a directory was chosen and loaded, zero otherwise.
+ * @brief Prompt the user for a directory and load it into the tree.
+ *
+ * Opens an ASL drawers-only file requester, combines the chosen drawer and
+ * optional file component into a full path, and loads that directory. Reports
+ * an error if the requester cannot be allocated or the combined path is too
+ * long. The requester is always freed before returning.
+ *
+ * @param app The editor application state.
+ * @return Non-zero if a directory was successfully loaded, otherwise 0.
  */
 int tree_request_directory(EditorApp *app);
 /**
- * @brief Handle a folder-tree event (expand, collapse or open a file).
- * @param app The application state.
+ * @brief Handle a GADGETUP of the folder tree.
+ *
+ * Lets dirtree.gadget process the event on this process (it may read a
+ * directory, which is not allowed during input handling). A double-clicked
+ * file is opened as a document; read errors are reported.
+ *
+ * @param app The editor application state.
  */
 void tree_handle_event(EditorApp *app);
 /**
@@ -891,8 +1226,16 @@ ULONG tree_signal_mask(EditorApp *app);
  */
 void tree_refresh(EditorApp *app, int all);
 /**
- * @brief Show or hide the folder-tree column.
- * @param app The application state.
+ * @brief Show or hide the folder tree column and relayout the window.
+ *
+ * Records the requested visibility and adjusts the tree gadget's layout
+ * constraints (minimum, maximum, and weighted width) so it either occupies its
+ * default width or collapses to zero, then triggers a relayout. Showing the
+ * tree always restores the default column width; the previous on-screen width
+ * is not remembered. Does nothing if the content layout or tree gadget does
+ * not exist.
+ *
+ * @param app The editor application state.
  * @param visible Non-zero to show the tree, zero to hide it.
  */
 void tree_set_visible(EditorApp *app, int visible);

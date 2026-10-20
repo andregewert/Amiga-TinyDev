@@ -1,5 +1,6 @@
-/*
- * dirtree_icons.h - the small entry symbols of dirtree.gadget (private)
+/**
+ * @file dirtree_icons.h
+ * @brief The small entry symbols of dirtree.gadget (private).
  *
  * Copyright (c) 2026 André Gewert <agewert@ubergeek.de>
  * Released under the MIT License, see LICENSE.
@@ -51,7 +52,7 @@ void dirtree_icons_exit(void);
 Object *dirtree_icon_new(int kind, IconPens *pens);
 
 /**
- * @brief Create an invisible image (draws nothing).
+ * @brief Create an invisible image (kind -1, draws nothing).
  * @param width Its width.
  * @param height Its height.
  * @return The image object, or NULL.
@@ -62,7 +63,7 @@ Object *dirtree_blank_new(WORD width, WORD height);
  * @brief Obtain the symbols' colours on a screen (once).
  * @param pens The shared pens.
  * @param screen The screen.
- * @param dri The screen's DrawInfo.
+ * @param dri The screen's DrawInfo (unused, for later colours), may be NULL.
  */
 void dirtree_icons_obtain(IconPens *pens, struct Screen *screen, struct DrawInfo *dri);
 

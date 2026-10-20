@@ -1,5 +1,6 @@
-/*
- * dirtree_class.c - dirtree.gadget, a lazily loaded directory tree
+/**
+ * @file dirtree_class.c
+ * @brief Dirtree.gadget, a lazily loaded directory tree.
  *
  * Subclass of listbrowser.gadget. The class owns a hierarchical node list:
  * every node carries a TreeEntry (path, name, kind) as its user data.
@@ -50,18 +51,26 @@
 #include "classlib.h"
 #include "dirtree_icons.h"
 
-/* Path buffers are allocated, not put on the stack: the class runs on the
+/** Path buffers are allocated, not put on the stack: the class runs on the
  * application's stack, often only 4 KB, while the listbrowser renders. */
 #define DIRTREE_PATH_MAX            1024
+/**
+ * Default of DIRTREE_MaxDepth.
+ */
 #define DIRTREE_DEFAULT_DEPTH       16
+/**
+ * Default of DIRTREE_MaxEntries.
+ */
 #define DIRTREE_DEFAULT_ENTRIES     2048
-/* A directory needs room for itself and its placeholder. */
+/** A directory needs room for itself and its placeholder. */
 #define DIRTREE_MIN_ENTRIES         3
-/* Layout of an entry drawn by the render hook (pixels). */
-#define ROW_PADDING                 2   /* above and below the contents */
-#define LEFT_PADDING                3   /* left of the symbol */
-#define TEXT_GAP                    5   /* between symbol and name */
-/* The listbrowser indents the levels itself; an entry without children
+/** @name Layout of an entry drawn by the render hook (pixels) */
+/** @{ */
+#define ROW_PADDING                 2   /**< above and below the contents */
+#define LEFT_PADDING                3   /**< left of the symbol */
+#define TEXT_GAP                    5   /**< between symbol and name */
+/** @} */
+/** The listbrowser indents the levels itself; an entry without children
  * starts this much further right than a directory of the same level (the
  * room of the expand image), measured with listbrowser.gadget 47 and 1 x 1
  * expand images. Directories are moved by it so that all symbols of a
@@ -69,7 +78,7 @@
 #define LEAF_OFFSET                 11
 
 struct Library *ListBrowserBase = NULL;
-/* Optional: without glyph.image the listbrowser has no expand arrows
+/** Optional: without glyph.image the listbrowser has no expand arrows
  * unless the application passes its own images. */
 struct Library *GlyphBase = NULL;
 
@@ -121,10 +130,6 @@ typedef struct DirTreeData {
 
 /* -- libraries ------------------------------------------------------------ */
 
-/**
- * @brief Open listbrowser.gadget (required) and glyph.image (optional).
- * @return TRUE if listbrowser.gadget is available.
- */
 BOOL class_open_libraries(void)
 {
     ListBrowserBase = OpenLibrary("gadgets/listbrowser.gadget", 44);
@@ -138,7 +143,6 @@ BOOL class_open_libraries(void)
     return TRUE;
 }
 
-/** @brief Close the libraries opened by class_open_libraries(). */
 void class_close_libraries(void)
 {
     dirtree_icons_exit();
@@ -1344,11 +1348,6 @@ static ULONG dirtree_dispatcher(Class *cl __asm("a0"), Object *o __asm("a2"),
     }
 }
 
-/**
- * @brief Create the dirtree.gadget class as a subclass of listbrowser.gadget.
- * @param name The public class name.
- * @return The class, or NULL.
- */
 Class *class_create(const char *name)
 {
     Class *cl = MakeClass((STRPTR)name, NULL, LISTBROWSER_GetClass(),

@@ -1,3 +1,7 @@
+/**
+ * @file test_c_parser.c
+ * @brief Host-native tests of the C parser.
+ */
 #include "c_parser.h"
 #include "scout_json.h"
 
@@ -5,9 +9,19 @@
 #include <stdlib.h>
 #include <string.h>
 
+/**
+ * Number of checks made.
+ */
 static int g_test_count = 0;
+/**
+ * Number of checks that failed.
+ */
 static int g_fail_count = 0;
 
+/**
+ * @brief Check a condition and report it if it fails (counting both).
+ * @param cond The condition.
+ */
 #define TEST_ASSERT(cond) do { \
     g_test_count++; \
     if (!(cond)) { \
@@ -16,6 +30,9 @@ static int g_fail_count = 0;
     } \
 } while (0)
 
+/**
+ * @brief Symbols of functions, structs, typedefs, macros and variables.
+ */
 static void test_symbol_extraction(void)
 {
     const char *c_src =
@@ -74,6 +91,9 @@ static void test_symbol_extraction(void)
     c_parse_result_free(res);
 }
 
+/**
+ * @brief Diagnostics of unbalanced brackets.
+ */
 static void test_diagnostics_detection(void)
 {
     /* Test unclosed comment */
@@ -100,6 +120,9 @@ static void test_diagnostics_detection(void)
     c_parse_result_free(res3);
 }
 
+/**
+ * @brief Finding definitions and completing prefixes.
+ */
 static void test_definition_and_completion(void)
 {
     const char *c_src =
@@ -133,6 +156,9 @@ static void test_definition_and_completion(void)
     c_parse_result_free(res);
 }
 
+/**
+ * @brief The parser's JSON-RPC requests and responses.
+ */
 static void test_jsonrpc_protocol(void)
 {
     ScoutJsonWriter resp;
@@ -212,6 +238,10 @@ static void test_jsonrpc_protocol(void)
     scout_json_writer_free(&resp);
 }
 
+/**
+ * @brief Run the C parser tests.
+ * @return 0 if all passed, 1 otherwise.
+ */
 int main(void)
 {
     printf("Running C Language Parser unit tests...\n");

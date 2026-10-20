@@ -1,5 +1,6 @@
-/*
- * bookmarks.c - bookmarks of the documents
+/**
+ * @file bookmarks.c
+ * @brief Bookmarks of the documents.
  *
  * The bookmarks are those of texteditor.gadget itself (ARexx commands
  * SETBOOKMARK TOGGLE, CLEARBOOKMARKS, LISTBOOKMARKS): the editor keeps them
@@ -25,7 +26,7 @@
  * is set to the line instead.
  *
  * The bookmarks of the project (the directory of the folder tree) are kept
- * in <project>/.tinydev/bookmarks.json (bmstore.c). While a file is open
+ * in \<project\>/.tinydev/bookmarks.json (bmstore.c). While a file is open
  * its bookmarks live in the editor; the store holds those of the files
  * that are not open. The file is read when a directory is opened, and
  * written (open documents and store together) when a bookmark is set or
@@ -51,9 +52,9 @@
 #include <proto/layout.h>
 #include <clib/alib_protos.h>
 
-#define LEFTBAR_WIDTH 20        /* width of the left bar (texteditor.gadget) */
+#define LEFTBAR_WIDTH 20        /**< width of the left bar (texteditor.gadget) */
 
-/* Changes of the bookmarks, for the bookmark list. */
+/** Changes of the bookmarks, for the bookmark list. */
 static ULONG generation = 0;
 
 ULONG bookmarks_generation(void)
@@ -244,7 +245,13 @@ void bookmarks_poll(EditorApp *app)
 
 /* ---- the project's bookmarks file ------------------------------------ */
 
+/**
+ * The project's private directory.
+ */
 #define BOOKMARKS_DIR  ".tinydev"
+/**
+ * The bookmarks file in it.
+ */
 #define BOOKMARKS_FILE "bookmarks.json"
 
 /** The bookmarks of the project. */

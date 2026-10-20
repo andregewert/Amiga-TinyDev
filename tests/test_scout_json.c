@@ -1,3 +1,7 @@
+/**
+ * @file test_scout_json.c
+ * @brief Host-native tests of Scout's JSON and JSON-RPC code.
+ */
 #include "scout_json.h"
 
 #include <stdio.h>
@@ -5,9 +9,19 @@
 #include <string.h>
 #include <assert.h>
 
+/**
+ * Number of checks made.
+ */
 static int g_test_count = 0;
+/**
+ * Number of checks that failed.
+ */
 static int g_fail_count = 0;
 
+/**
+ * @brief Check a condition and report it if it fails (counting both).
+ * @param cond The condition.
+ */
 #define TEST_ASSERT(cond) do { \
     g_test_count++; \
     if (!(cond)) { \
@@ -16,6 +30,9 @@ static int g_fail_count = 0;
     } \
 } while (0)
 
+/**
+ * @brief Reading null, truth values, numbers and strings.
+ */
 static void test_json_primitives(void)
 {
     const char *err = NULL;
@@ -75,6 +92,9 @@ static void test_json_primitives(void)
     scout_json_value_free(v);
 }
 
+/**
+ * @brief Reading objects and arrays and their accessors.
+ */
 static void test_json_objects_and_arrays(void)
 {
     const char *err = NULL;
@@ -109,6 +129,9 @@ static void test_json_objects_and_arrays(void)
     scout_json_value_free(root);
 }
 
+/**
+ * @brief Refusing invalid JSON.
+ */
 static void test_json_error_handling(void)
 {
     const char *err = NULL;
@@ -142,6 +165,9 @@ static void test_json_error_handling(void)
     TEST_ASSERT(v == NULL);
 }
 
+/**
+ * @brief Writing JSON, fixed and growing buffers.
+ */
 static void test_json_writer(void)
 {
     ScoutJsonWriter w;
@@ -177,6 +203,9 @@ static void test_json_writer(void)
     scout_json_writer_free(&w);
 }
 
+/**
+ * @brief Reading and writing JSON-RPC messages.
+ */
 static void test_json_rpc_messages(void)
 {
     /* Test Request formatting and parsing */
@@ -244,6 +273,10 @@ static void test_json_rpc_messages(void)
     scout_json_writer_free(&w);
 }
 
+/**
+ * @brief Run the JSON tests.
+ * @return 0 if all passed, 1 otherwise.
+ */
 int main(void)
 {
     printf("Running Scout JSON and JSON-RPC unit tests...\n");

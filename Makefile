@@ -91,6 +91,18 @@ include $(DEVKIT)/make/charcheck.mk
 
 $(foreach c,$(CLASS_NAMES),$(eval $(call CLASS_RULES,$(c))))
 
+# Documentation (HTML in build/docs, Doxygen on the host; not part of
+# "all"): "docs" covers all of TinyDev's own sources, "docs-<class>" the
+# public header of a gadget class. Every target fails on a missing or
+# wrong comment (amiga-devkit/docs/Dokumentation.md). Generated headers
+# (catalog strings, sfdc output) are left out.
+include $(DEVKIT)/make/docs.mk
+DOC_SOURCES := $(filter-out include/tinydev_strings.h, \
+    $(wildcard src/*.c src/scout/*.c src/parsers/*.c src/classes/*/*.c src/classes/*/*.h \
+               include/*.h include/gadgets/*.h tests/*.c))
+$(eval $(call DOXYGEN_DOCS,docs,TinyDev,$(firstword $(subst ", ,$(shell sed -n 's/^.define APP_VERSION "\([^ ]*\).*/\1/p' include/editor.h))),$(DOC_SOURCES),$(BUILD_DIR)/docs))
+$(foreach c,$(CLASS_NAMES),$(eval $(call DOXYGEN_DOCS,docs-$(c),$(c).gadget,1.0,include/gadgets/$(c).h,$(BUILD_DIR)/docs/$(c))))
+
 include/tinydev_strings.h: catalogs/TinyDev.cd $(CATCOMP)
 	python3 $(CATCOMP) header $< $@ TINYDEV_STRINGS
 

@@ -1,3 +1,19 @@
+/**
+ * @file prefswin.c
+ * @brief The settings window (categories Window, Colours, Toolbar), built like Kickdown's.
+ *
+ * Built after the ReAction style guide of amiga-devkit (section 4.2): a
+ * list of categories on the left, the options of the selected one on the
+ * right (page.gadget), Save/Use/Cancel below. The window is modal: the
+ * main window shows the busy pointer and its input is dropped.
+ *
+ * The groups are built with complete tag lists (CHILD_Label applies to the
+ * child of the same tag list). The gadgets of a page keep their height; an
+ * empty group at the end takes the rest. Gadgets on a hidden page are
+ * changed with SetPageGadgetAttrs(). Keyboard shortcuts are unique in the
+ * whole window, in every language. The classes the window needs are
+ * opened when it is first used and closed by prefs_cleanup().
+ */
 #include "editor.h"
 
 #include <classes/window.h>
@@ -28,23 +44,21 @@
 #include <stdio.h>
 #include <string.h>
 
-/* The settings window, built like Kickdown's (ReAction style guide of
- * amiga-devkit, section 4.2): a list of categories on the left, the options
- * of the selected one on the right (page.gadget), Save/Use/Cancel below.
- * The window is modal: the main window shows the busy pointer and its input
- * is dropped.
- *
- * The groups are built with complete tag lists (CHILD_Label applies to the
- * child of the same tag list). The gadgets of a page keep their height; an
- * empty group at the end takes the rest. Gadgets on a hidden page are
- * changed with SetPageGadgetAttrs(). Keyboard shortcuts are unique in the
- * whole window. The texts are English in the code until TinyDev has
- * catalogs. */
-
-/* Opened when the window is first used, closed by prefs_cleanup(). */
+/**
+ * listbrowser.gadget, opened with the window (also used by others).
+ */
 struct Library *ListBrowserBase = NULL;
+/**
+ * checkbox.gadget, opened with the window (also used by others).
+ */
 struct Library *CheckBoxBase = NULL;
+/**
+ * integer.gadget, opened with the window.
+ */
 struct Library *IntegerBase = NULL;
+/**
+ * getcolor.gadget, opened with the window.
+ */
 struct Library *GetColorBase = NULL;
 
 enum {
@@ -55,33 +69,47 @@ enum {
     PG_SAVE, PG_USE, PG_CANCEL
 };
 
+/**
+ * Names of the categories (MSG_), in the order of the pages.
+ */
 static const LONG categories[] = { MSG_CAT_WINDOW, MSG_CAT_COLOURS, MSG_CAT_TOOLBAR };
+/**
+ * Number of categories (pages).
+ */
 #define NUMCATEGORIES 3
 
 /** Chooser labels, in the order of enum ToolbarMode. */
 static const LONG tbmode_texts[TBMODE_COUNT] = {
     MSG_PREFS_TBMODE_IMAGES, MSG_PREFS_TBMODE_BOTH, MSG_PREFS_TBMODE_TEXT
 };
-static STRPTR tbmodes[TBMODE_COUNT + 1];      /* filled from tbmode_texts[] */
+static STRPTR tbmodes[TBMODE_COUNT + 1];      /**< the chooser's labels, filled from tbmode_texts[] */
 
 /** Labels and requester titles of the colours, SettingsColour order. */
 static const LONG colour_labels[SCOL_COUNT] = {
     MSG_PREFS_COL_TEXT, MSG_PREFS_COL_KEYWORD, MSG_PREFS_COL_STRING, MSG_PREFS_COL_COMMENT,
     MSG_PREFS_COL_PREPROC
 };
+/**
+ * Titles of the colour requesters (MSG_), SettingsColour order.
+ */
 static const LONG colour_titles[SCOL_COUNT] = {
     MSG_PREFS_TTL_TEXT, MSG_PREFS_TTL_KEYWORD, MSG_PREFS_TTL_STRING, MSG_PREFS_TTL_COMMENT,
     MSG_PREFS_TTL_PREPROC
 };
 
-/* Spacing in "virtual pixels" (layout.gadget scales them). The labels end
- * with a space: label.image has no margin of its own. */
-#define FRAME_SIDE   8              /* inside the frame of a page */
-#define FRAME_TOPBOT 6
-#define ROW_SPACING  4              /* between the rows of a page */
-#define AREA_SPACING 6              /* window border, list, frame, buttons */
+/**
+ * @name Spacing
+ * In "virtual pixels" (layout.gadget scales them). The labels end with a
+ * space: label.image has no margin of its own.
+ */
+/** @{ */
+#define FRAME_SIDE   8              /**< inside the frame of a page, left and right */
+#define FRAME_TOPBOT 6              /**< inside the frame of a page, above and below */
+#define ROW_SPACING  4              /**< between the rows of a page */
+#define AREA_SPACING 6              /**< window border, list, frame, buttons */
+/** @} */
 
-/* tags of a page: vertical group with a frame and the category as title */
+/** tags of a page: vertical group with a frame and the category as title */
 #define PAGE_GROUP(title) \
     LAYOUT_Orientation, LAYOUT_ORIENT_VERT, LAYOUT_BevelStyle, BVS_GROUP, \
     LAYOUT_Label, (ULONG)(title), LAYOUT_SpaceOuter, TRUE, \
@@ -89,7 +117,7 @@ static const LONG colour_titles[SCOL_COUNT] = {
     LAYOUT_TopSpacing, FRAME_TOPBOT, LAYOUT_BottomSpacing, FRAME_TOPBOT, \
     LAYOUT_InnerSpacing, ROW_SPACING
 
-/* the child just added keeps its height */
+/** the child just added keeps its height */
 #define FIXED       CHILD_WeightedHeight, 0
 
 /** Objects of the open settings window. */
@@ -129,7 +157,6 @@ static int open_classes(EditorApp *app)
     return 1;
 }
 
-/** @brief Close the classes opened for the settings window. */
 void prefs_cleanup(void)
 {
     struct Library **b[] = { &ListBrowserBase, &CheckBoxBase, &IntegerBase, &GetColorBase };
@@ -398,12 +425,6 @@ static void set_page_gadget(Object *o, ULONG tag, ULONG value)
     SetPageGadgetAttrs((struct Gadget *)o, pw.page, pw.win, NULL, tag, value, TAG_END);
 }
 
-/**
- * @brief Show the modal settings window.
- * @param app The application state.
- * @param s In: the current settings; out: the edited ones (not on cancel).
- * @return PREFS_CANCEL, PREFS_USE or PREFS_SAVE.
- */
 int prefs_dialog(EditorApp *app, Settings *s)
 {
     ULONG sig = 0, mainsig = 0, result, i;

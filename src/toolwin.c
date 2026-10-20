@@ -1,5 +1,6 @@
-/*
- * toolwin.c - placement of TinyDev's tool windows
+/**
+ * @file toolwin.c
+ * @brief Placement of TinyDev's tool windows.
  *
  * Tool windows (the bookmark list, later others) stay open next to the
  * main window and can be shown and hidden at any time. The first time a

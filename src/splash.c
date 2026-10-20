@@ -1,3 +1,22 @@
+/**
+ * @file splash.c
+ * @brief The splash window while TinyDev starts and the About window (Intuition and graphics only).
+ *
+ * The splash window while TinyDev starts, and the About window, both as in
+ * Kickdown (ReAction style guide in amiga-devkit, sections 3.5 and 3.6).
+ *
+ * Opening the ReAction and TinyDev classes and loading the toolbar images
+ * takes a while; meanwhile the splash window shows the program icon, name,
+ * version and a progress bar. It is drawn with Intuition and
+ * graphics.library only, so it opens before any class is loaded. It is
+ * borderless, centred and not activated, and closes as soon as the main
+ * window is open and before any error requester. The About window has the
+ * same head (icon, title, subtitle, version, copyright) with the details and
+ * a centred OK button below; it is modal and centred over the main window.
+ *
+ * Everything is optional: without the icon there is no icon, without a big
+ * designed font the title uses the screen font in bold.
+ */
 #include "editor.h"
 
 #include <classes/window.h>
@@ -21,40 +40,33 @@
 #include <stdio.h>
 #include <string.h>
 
-/* The splash window while TinyDev starts, and the About window, both as in
- * Kickdown (ReAction style guide in amiga-devkit, sections 3.5 and 3.6).
- *
- * Opening the ReAction and TinyDev classes and loading the toolbar images
- * takes a while; meanwhile the splash window shows the program icon, name,
- * version and a progress bar. It is drawn with Intuition and
- * graphics.library only, so it opens before any class is loaded. It is
- * borderless, centred and not activated, and closes as soon as the main
- * window is open and before any error requester. The About window has the
- * same head (icon, title, subtitle, version, copyright) with the details and
- * a centred OK button below; it is modal and centred over the main window.
- *
- * Everything is optional: without the icon there is no icon, without a big
- * designed font the title uses the screen font in bold. */
-
-#define MARGIN  14                      /* border to the contents */
-#define GAP     12                      /* icon to text, between blocks */
-#define BAR_H   6                       /* height of the progress bar */
-#define SUBTITLE S(MSG_SUBTITLE)
-#define COPYRIGHT "\251 2026 Andr\351 Gewert"
+#define MARGIN  14                      /**< border to the contents */
+#define GAP     12                      /**< icon to text, between blocks */
+#define BAR_H   6                       /**< height of the progress bar */
+#define SUBTITLE S(MSG_SUBTITLE)        /**< line below the name */
+#define COPYRIGHT "\251 2026 Andr\351 Gewert"  /**< copyright line (ISO-8859-1) */
 
 /** What the head of both windows needs. */
 typedef struct Card {
-    struct Screen *screen;
-    struct DrawInfo *dri;
-    struct DiskObject *icon;
+    struct Screen *screen;              /**< the screen */
+    struct DrawInfo *dri;               /**< its DrawInfo */
+    struct DiskObject *icon;            /**< the program icon, NULL if none */
     struct TextFont *big;               /**< title font, NULL: screen font bold */
     struct TextFont *font;              /**< screen font */
-    LONG pen_bg, pen_title;             /**< obtained pens, -1: none */
-    UWORD bg, title, text, shine, shadow, fill;
-    WORD iconw, iconh;
-    WORD textw, texth;                  /**< the text block of the head */
-    WORD lineh;
-    char version[64];
+    LONG pen_bg;                        /**< obtained background pen, -1: none */
+    LONG pen_title;                     /**< obtained title pen, -1: none */
+    UWORD bg;                           /**< pen of the background */
+    UWORD title;                        /**< pen of the name */
+    UWORD text;                         /**< pen of the text */
+    UWORD shine;                        /**< pen of the raised edges */
+    UWORD shadow;                       /**< pen of the dark edges */
+    UWORD fill;                         /**< pen of the progress bar */
+    WORD iconw;                         /**< width of the icon */
+    WORD iconh;                         /**< its height */
+    WORD textw;                         /**< width of the text block of the head */
+    WORD texth;                         /**< its height */
+    WORD lineh;                         /**< height of a text line */
+    char version[64];                   /**< "Version ..." line */
 } Card;
 
 /**
@@ -350,11 +362,6 @@ static void draw_bar(void)
     }
 }
 
-/**
- * @brief Open the splash window on the default public screen.
- * @param icon_name The program icon (without .info).
- * @param steps Number of steps of the progress bar.
- */
 void splash_open(const char *icon_name, ULONG steps)
 {
     Card *c = &sp.card;
@@ -399,10 +406,6 @@ fail:
     memset(&sp, 0, sizeof(sp));
 }
 
-/**
- * @brief Show the current step below the texts.
- * @param text The step.
- */
 void splash_status(const char *text)
 {
     struct RastPort *r;
@@ -414,7 +417,6 @@ void splash_status(const char *text)
     text_at(r, MARGIN, sp.statusy, sp.card.text, (CONST_STRPTR)text, strlen(text));
 }
 
-/** @brief Advance the progress bar by one step. */
 void splash_step(void)
 {
     if (sp.win == NULL) return;
@@ -422,7 +424,6 @@ void splash_step(void)
     draw_bar();
 }
 
-/** @brief Close the splash window (if it is open). */
 void splash_close(void)
 {
     struct Screen *screen = sp.card.screen;
@@ -469,17 +470,6 @@ static void about_draw(Card *c, struct Window *win, const char *details, WORD se
     }
 }
 
-/**
- * @brief Show the modal About window centred over the main window.
- *
- * The main window shows the busy pointer and its input is dropped while the
- * About window is open. Return, Esc, the close gadget and OK close it.
- *
- * @param app The application state (main window and screen).
- * @param details The details, lines separated by '\n'.
- * @return Non-zero if the window was shown, zero if it could not be opened
- *         (the caller shows a requester instead).
- */
 int about_window(EditorApp *app, const char *details)
 {
     Card c;

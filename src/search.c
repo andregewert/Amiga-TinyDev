@@ -1,5 +1,6 @@
-/*
- * search.c - portable search engine of the find and replace window
+/**
+ * @file search.c
+ * @brief Portable search engine of the find and replace window.
  *
  * Plain text and regular expressions in 8-bit text, line by line, with
  * Latin-1 case folding and whole-word matching. Used by find.c on the text
@@ -25,8 +26,8 @@
 
 /** Buffer for folded lines of case-insensitive regular expressions. */
 struct SearchScratch {
-    char *line;
-    long size;
+    char *line;     /**< the folded line (malloc()) */
+    long size;      /**< size of the buffer */
 };
 
 /**
@@ -67,6 +68,12 @@ static void set_error(SearchPattern *p, const char *text)
 }
 
 /**
+ * @brief Tell whether the class name is s.
+ * @param s The name as a string literal.
+ */
+#define IS(s) (length == (long)sizeof(s) - 1 && memcmp(name, s, sizeof(s) - 1) == 0)
+
+/**
  * @brief Return the Latin-1 characters (0xA0-0xFF) of a character class
  *        that Spencer's ASCII class table lacks.
  * @param name The class name (after "[:").
@@ -83,7 +90,6 @@ static int latin1_class(const char *name, long length, int case_sensitive, char 
 {
     int n = 0, c, upper = 0, lower = 0, punct = 0, graph = 0;
     *ascii = NULL;
-#define IS(s) (length == (long)sizeof(s) - 1 && memcmp(name, s, sizeof(s) - 1) == 0)
     if (IS("alpha") || IS("alnum")) upper = lower = 1;
     else if (IS("upper") || IS("lower")) {
         if (!case_sensitive) {
@@ -110,6 +116,12 @@ static int latin1_class(const char *name, long length, int case_sensitive, char 
 }
 
 /**
+ * @brief Append a character to the output (only counted without one).
+ * @param ch The character.
+ */
+#define PUT(ch) do { char put_ = (ch); if (out != NULL) out[n] = put_; ++n; } while (0)
+
+/**
  * @brief Add the Latin-1 characters to the character classes of a
  *        regular expression (inside bracket expressions).
  * @param pattern The pattern.
@@ -125,7 +137,6 @@ static long latin1_classes(const char *pattern, int case_sensitive, char *out)
     char extra[96];
     int k, count;
 
-#define PUT(ch) do { char put_ = (ch); if (out != NULL) out[n] = put_; ++n; } while (0)
     while (*s != '\0') {
         if (!in_bracket) {
             if (*s == '\\' && s[1] != '\0') {

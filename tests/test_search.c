@@ -1,3 +1,7 @@
+/**
+ * @file test_search.c
+ * @brief Host-native tests of the search engine.
+ */
 #include "search.h"
 
 #include <assert.h>

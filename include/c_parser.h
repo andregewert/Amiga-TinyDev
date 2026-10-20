@@ -1,3 +1,7 @@
+/**
+ * @file c_parser.h
+ * @brief Interface of the C parser of Scout (symbols, diagnostics, the Scout protocol).
+ */
 #ifndef TINYDEV_C_PARSER_H
 #define TINYDEV_C_PARSER_H
 
@@ -8,82 +12,101 @@
 extern "C" {
 #endif
 
-/* Symbol kinds (same numbers as LSP SymbolKind) */
-#define SCOUT_SYMBOL_KIND_FILE        1
-#define SCOUT_SYMBOL_KIND_MODULE      2
-#define SCOUT_SYMBOL_KIND_NAMESPACE   3
-#define SCOUT_SYMBOL_KIND_PACKAGE     4
-#define SCOUT_SYMBOL_KIND_CLASS       5
-#define SCOUT_SYMBOL_KIND_METHOD      6
-#define SCOUT_SYMBOL_KIND_PROPERTY    7
-#define SCOUT_SYMBOL_KIND_FIELD       8
-#define SCOUT_SYMBOL_KIND_CONSTRUCTOR 9
-#define SCOUT_SYMBOL_KIND_ENUM        10
-#define SCOUT_SYMBOL_KIND_INTERFACE   11
-#define SCOUT_SYMBOL_KIND_FUNCTION    12
-#define SCOUT_SYMBOL_KIND_VARIABLE    13
-#define SCOUT_SYMBOL_KIND_CONSTANT    14
-#define SCOUT_SYMBOL_KIND_STRUCT      23
+/**
+ * @name Symbol kinds
+ * The same numbers as the LSP SymbolKind.
+ */
+/** @{ */
+#define SCOUT_SYMBOL_KIND_FILE        1     /**< a file */
+#define SCOUT_SYMBOL_KIND_MODULE      2     /**< a module */
+#define SCOUT_SYMBOL_KIND_NAMESPACE   3     /**< a namespace */
+#define SCOUT_SYMBOL_KIND_PACKAGE     4     /**< a package */
+#define SCOUT_SYMBOL_KIND_CLASS       5     /**< a class */
+#define SCOUT_SYMBOL_KIND_METHOD      6     /**< a method */
+#define SCOUT_SYMBOL_KIND_PROPERTY    7     /**< a property */
+#define SCOUT_SYMBOL_KIND_FIELD       8     /**< a field of a struct or union */
+#define SCOUT_SYMBOL_KIND_CONSTRUCTOR 9     /**< a constructor */
+#define SCOUT_SYMBOL_KIND_ENUM        10    /**< an enumeration */
+#define SCOUT_SYMBOL_KIND_INTERFACE   11    /**< an interface */
+#define SCOUT_SYMBOL_KIND_FUNCTION    12    /**< a function */
+#define SCOUT_SYMBOL_KIND_VARIABLE    13    /**< a variable */
+#define SCOUT_SYMBOL_KIND_CONSTANT    14    /**< a constant (macro, enumerator) */
+#define SCOUT_SYMBOL_KIND_STRUCT      23    /**< a struct or union */
+/** @} */
 
-/* Diagnostic severities (same numbers as LSP DiagnosticSeverity) */
-#define SCOUT_DIAGNOSTIC_ERROR        1
-#define SCOUT_DIAGNOSTIC_WARNING      2
-#define SCOUT_DIAGNOSTIC_INFO         3
-#define SCOUT_DIAGNOSTIC_HINT         4
+/**
+ * @name Diagnostic severities
+ * The same numbers as the LSP DiagnosticSeverity.
+ */
+/** @{ */
+#define SCOUT_DIAGNOSTIC_ERROR        1     /**< an error */
+#define SCOUT_DIAGNOSTIC_WARNING      2     /**< a warning */
+#define SCOUT_DIAGNOSTIC_INFO         3     /**< information */
+#define SCOUT_DIAGNOSTIC_HINT         4     /**< a hint */
+/** @} */
 
-/* Completion item kinds (same numbers as LSP CompletionItemKind) */
-#define SCOUT_COMPLETION_KIND_TEXT        1
-#define SCOUT_COMPLETION_KIND_METHOD      2
-#define SCOUT_COMPLETION_KIND_FUNCTION    3
-#define SCOUT_COMPLETION_KIND_CONSTRUCTOR 4
-#define SCOUT_COMPLETION_KIND_FIELD       5
-#define SCOUT_COMPLETION_KIND_VARIABLE    6
-#define SCOUT_COMPLETION_KIND_CLASS       7
-#define SCOUT_COMPLETION_KIND_INTERFACE   8
-#define SCOUT_COMPLETION_KIND_MODULE      9
-#define SCOUT_COMPLETION_KIND_PROPERTY    10
-#define SCOUT_COMPLETION_KIND_UNIT        11
-#define SCOUT_COMPLETION_KIND_VALUE       12
-#define SCOUT_COMPLETION_KIND_ENUM        13
-#define SCOUT_COMPLETION_KIND_KEYWORD     14
-#define SCOUT_COMPLETION_KIND_SNIPPET     15
-#define SCOUT_COMPLETION_KIND_STRUCT      22
+/**
+ * @name Completion item kinds
+ * The same numbers as the LSP CompletionItemKind.
+ */
+/** @{ */
+#define SCOUT_COMPLETION_KIND_TEXT        1     /**< plain text */
+#define SCOUT_COMPLETION_KIND_METHOD      2     /**< a method */
+#define SCOUT_COMPLETION_KIND_FUNCTION    3     /**< a function */
+#define SCOUT_COMPLETION_KIND_CONSTRUCTOR 4     /**< a constructor */
+#define SCOUT_COMPLETION_KIND_FIELD       5     /**< a field */
+#define SCOUT_COMPLETION_KIND_VARIABLE    6     /**< a variable */
+#define SCOUT_COMPLETION_KIND_CLASS       7     /**< a class */
+#define SCOUT_COMPLETION_KIND_INTERFACE   8     /**< an interface */
+#define SCOUT_COMPLETION_KIND_MODULE      9     /**< a module */
+#define SCOUT_COMPLETION_KIND_PROPERTY    10    /**< a property */
+#define SCOUT_COMPLETION_KIND_UNIT        11    /**< a unit */
+#define SCOUT_COMPLETION_KIND_VALUE       12    /**< a value */
+#define SCOUT_COMPLETION_KIND_ENUM        13    /**< an enumeration */
+#define SCOUT_COMPLETION_KIND_KEYWORD     14    /**< a keyword of the language */
+#define SCOUT_COMPLETION_KIND_SNIPPET     15    /**< a snippet */
+#define SCOUT_COMPLETION_KIND_STRUCT      22    /**< a struct or union */
+/** @} */
 
+/** A symbol found in a C source (a node of a singly linked list). */
 typedef struct CSymbol {
-    char *name;
-    char *detail;
-    int kind;
-    long start_line;    /* 1-based */
-    long start_col;     /* 1-based */
-    long end_line;      /* 1-based */
-    long end_col;       /* 1-based */
-    struct CSymbol *next;
+    char *name;         /**< its name (allocated) */
+    char *detail;       /**< further information, e.g. the declaration (allocated, may be NULL) */
+    int kind;           /**< SCOUT_SYMBOL_KIND_ value */
+    long start_line;    /**< first line, 1-based */
+    long start_col;     /**< first column, 1-based */
+    long end_line;      /**< last line, 1-based */
+    long end_col;       /**< column after the end, 1-based */
+    struct CSymbol *next;   /**< the next symbol, NULL at the end */
 } CSymbol;
 
+/** A problem found in a C source (a node of a singly linked list). */
 typedef struct CDiagnostic {
-    char *message;
-    int severity;
-    long line;          /* 1-based */
-    long col;           /* 1-based */
-    long end_line;      /* 1-based */
-    long end_col;       /* 1-based */
-    struct CDiagnostic *next;
+    char *message;      /**< the description (allocated) */
+    int severity;       /**< SCOUT_DIAGNOSTIC_ value */
+    long line;          /**< first line, 1-based */
+    long col;           /**< first column, 1-based */
+    long end_line;      /**< last line, 1-based */
+    long end_col;       /**< column after the end, 1-based */
+    struct CDiagnostic *next;   /**< the next diagnostic, NULL at the end */
 } CDiagnostic;
 
+/** A completion candidate (a node of a singly linked list). */
 typedef struct CCompletion {
-    char *label;
-    char *detail;
-    int kind;
-    struct CCompletion *next;
+    char *label;        /**< the text to insert (allocated) */
+    char *detail;       /**< further information (allocated, may be NULL) */
+    int kind;           /**< SCOUT_COMPLETION_KIND_ value */
+    struct CCompletion *next;   /**< the next candidate, NULL at the end */
 } CCompletion;
 
+/** The result of parsing a C source: its symbols and diagnostics. */
 typedef struct CParseResult {
-    char *uri;
-    char *filepath;
-    CSymbol *symbols;
-    size_t symbol_count;
-    CDiagnostic *diagnostics;
-    size_t diagnostic_count;
+    char *uri;          /**< URI or path the source was given (allocated) */
+    char *filepath;     /**< path of the file, if it was read from one (allocated, may be NULL) */
+    CSymbol *symbols;   /**< the symbols, in the order found */
+    size_t symbol_count;    /**< number of symbols */
+    CDiagnostic *diagnostics;   /**< the diagnostics */
+    size_t diagnostic_count;    /**< number of diagnostics */
 } CParseResult;
 
 /**
@@ -105,6 +128,8 @@ CParseResult *c_parser_analyze_file(const char *filepath);
 
 /**
  * @brief Free all memory associated with a parse result.
+ * @param res The result of c_parser_analyze() or c_parser_analyze_file()
+ *            (may be NULL).
  */
 void c_parse_result_free(CParseResult *res);
 
@@ -133,7 +158,8 @@ size_t c_parser_get_completions(const CParseResult *res, const char *prefix,
                                 CCompletion **out_list);
 
 /**
- * @brief Free completion candidate list.
+ * @brief Free a list of completion candidates.
+ * @param list The list of c_parser_get_completions() (may be NULL).
  */
 void c_completions_free(CCompletion *list);
 

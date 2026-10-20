@@ -1,3 +1,7 @@
+/**
+ * @file test_bmstore.c
+ * @brief Host-native tests of the bookmark store.
+ */
 #include "bmstore.h"
 
 #include <assert.h>

@@ -8,6 +8,7 @@ Gemeinsame Regeln aller Amiga-Projekte (Submodule `amiga-devkit/`, gepinnt auf e
 
 @amiga-devkit/docs/Amiga-Regeln.md
 @amiga-devkit/docs/ReAction-Styleguide.md
+@amiga-devkit/docs/Dokumentation.md
 
 ## Abweichungen von den Devkit-Regeln
 
@@ -20,6 +21,10 @@ Wo `AGENTS.md` und die Devkit-Dokumente sich widersprechen, gilt Folgendes:
   Schleifen.
 - **Projekt:** Ein geöffnetes Verzeichnis (Wurzel des Verzeichnisbaums) gilt als Projekt.
   Funktionen mit Projektbezug (z. B. Suche in allen Projektdateien) beziehen sich darauf.
+- **Dokumentation:** `make docs` (ganzes Programm) sowie `make docs-dirtree` und
+  `make docs-minimap` (öffentliche Header der Klassen) erzeugen HTML unter `build/docs/` und
+  scheitern bei jeder Doxygen-Warnung. Vor einem Commit, der Kommentare oder Schnittstellen
+  ändert, laufen sie ohne Warnung (Doxygen muss auf dem Host installiert sein).
 - **Host-Tests** heißen `make test` (nicht `make check`), ohne ASan/UBSan und ohne
   `.expected`-Referenzausgaben. Vor einem Commit: `make` (enthält `charcheck`) und `make test`.
 - **Kataloge:** Sichtbare Texte von TinyDev (nicht von Scout und den Gadget-Klassen) kommen
