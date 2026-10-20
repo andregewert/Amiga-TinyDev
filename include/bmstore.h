@@ -74,6 +74,24 @@ int bmstore_add(BmStore *s, const char *file, long line, const char *text, long 
 long bmstore_remove_file(BmStore *s, const char *file);
 
 /**
+ * @brief Remove one bookmark.
+ * @param s The store.
+ * @param file The file, relative to the project (ignoring case).
+ * @param line The line, counted from 0.
+ * @return Non-zero if it was there.
+ */
+int bmstore_remove(BmStore *s, const char *file, long line);
+
+/**
+ * @brief Compare two file names ignoring case (ASCII and Latin-1), for
+ *        sorting.
+ * @param a A name.
+ * @param b Another name.
+ * @return <0, 0 or >0.
+ */
+int bmstore_compare_files(const char *a, const char *b);
+
+/**
  * @brief Tell whether two file names are the same file (ignoring case).
  * @param a A name.
  * @param b Another name.

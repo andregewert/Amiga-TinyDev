@@ -252,6 +252,10 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE | CHECKED, 0, UD(MID_FOLDER_TREE)},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE | CHECKED, 0, UD(MID_LINE_NUMBERS)},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_MINIMAP)},
+    {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
+    {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_BM_LIST)},
+    {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
+    {NM_ITEM, NULL, NULL, 0, 0, UD(MID_SNAPSHOT_TOOLS)},
     {NM_END, NULL, NULL, 0, 0, NULL}
 };
 
@@ -291,6 +295,10 @@ static const LONG menu_texts[] = {
     MSG_MENU_TREE,
     MSG_MENU_LINENUMBERS,
     MSG_MENU_MINIMAP,
+    -1,
+    MSG_MENU_BM_LIST,
+    -1,
+    MSG_MENU_SNAPSHOT_TOOLS,
     -1,
 };
 
@@ -439,6 +447,23 @@ void ui_gadget_set(EditorApp *app, Object *obj, ULONG tag1, ULONG data1,
     else SetAttrs(obj, tag1, data1, tag2, data2, TAG_END);
 }
 
+void ui_set_menu_check(EditorApp *app, ULONG id, int on)
+{
+    struct Menu *strip = NULL, *m;
+    struct MenuItem *item;
+    if (app->window_object == NULL || app->window == NULL) return;
+    GetAttr(WINDOW_MenuStrip, app->window_object, (ULONG *)&strip);
+    if (strip == NULL) return;
+    ClearMenuStrip(app->window);
+    for (m = strip; m != NULL; m = m->NextMenu)
+        for (item = m->FirstItem; item != NULL; item = item->NextItem)
+            if ((ULONG)GTMENUITEM_USERDATA(item) == id) {
+                if (on) item->Flags |= CHECKED;
+                else item->Flags &= (UWORD)~CHECKED;
+            }
+    ResetMenuStrip(app->window, strip);
+}
+
 /**
  * @brief Start collecting relayouts and page redraws (nestable).
  *
@@ -514,6 +539,7 @@ int ui_create(EditorApp *app)
 {
     long win_width, win_height, win_left, win_top;
     int i;
+    memcpy(app->bm_box, app->settings.bmwin, sizeof(app->bm_box));
     app->screen = LockPubScreen(NULL);
     if (app->screen == NULL) return 0;
     if (!open_editor_colors(app)) {
@@ -619,8 +645,11 @@ int ui_create(EditorApp *app)
         if (win_left > sw - win_width) win_left = sw - win_width;
         if (win_top > sh - win_height) win_top = sh - win_height;
     }
-    for (i = 0; i < (int)(sizeof(menu_texts) / sizeof(menu_texts[0])); ++i)
+    for (i = 0; i < (int)(sizeof(menu_texts) / sizeof(menu_texts[0])); ++i) {
         if (menu_texts[i] >= 0) menus[i].nm_Label = (STRPTR)S(menu_texts[i]);
+        if (menus[i].nm_UserData == UD(MID_BM_LIST) && app->settings.bmlist)
+            menus[i].nm_Flags |= CHECKED;
+    }
     app->window_object = NewObject(WINDOW_GetClass(), NULL,
         WA_Title, (ULONG)"TinyDev", WA_DragBar, TRUE, WA_DepthGadget, TRUE,
         WA_CloseGadget, TRUE, WA_SizeGadget, TRUE, WA_Activate, TRUE,
@@ -630,7 +659,7 @@ int ui_create(EditorApp *app)
          * minimap_poll() can have it re-rendered at the new size.
          * IDCMP_INTUITICKS wakes it regularly while the window is active,
          * so the toolbar follows the selection and undo state. */
-        WA_IDCMP, IDCMP_NEWSIZE | IDCMP_MOUSEMOVE | IDCMP_INTUITICKS,
+        WA_IDCMP, IDCMP_NEWSIZE | IDCMP_MOUSEMOVE | IDCMP_INTUITICKS | IDCMP_ACTIVEWINDOW,
         WA_PubScreen, (ULONG)app->screen,
         WA_Width, (ULONG)win_width, WA_Height, (ULONG)win_height,
         app->settings.winleft >= 0 ? WA_Left : TAG_IGNORE, (ULONG)win_left,
@@ -660,6 +689,10 @@ int ui_create(EditorApp *app)
     document_activate(app, app->active);
     ui_update_status(app);
     minimap_set_visible(app, 0);
+    if (app->settings.bmlist) {
+        bmlist_open(app);
+        ui_set_menu_check(app, MID_BM_LIST, bmlist_is_open());
+    }
     return 1;
 }
 
@@ -861,6 +894,19 @@ static void menu_action(EditorApp *app, ULONG id)
             break;
         case MID_FOLDER_TREE: tree_set_visible(app, !app->tree_visible); break;
         case MID_TREE_REFRESH: tree_refresh(app, 1); break;
+        case MID_BM_LIST:
+            if (bmlist_is_open()) bmlist_close(app);
+            else bmlist_open(app);
+            ui_set_menu_check(app, MID_BM_LIST, bmlist_is_open());
+            break;
+        case MID_SNAPSHOT_TOOLS:
+            /* the tool windows' boxes and which are open, into the icon */
+            bmlist_remember(app);
+            memcpy(app->settings.bmwin, app->bm_box, sizeof(app->bm_box));
+            app->settings.bmlist = bmlist_is_open();
+            if (!settings_save_toolwindows(&app->settings))
+                ui_error(app, APP_NAME, S(MSG_ERR_SAVESETTINGS));
+            break;
         case MID_MINIMAP:
             minimap_set_visible(app, !app->minimap_visible);
             if (app->minimap_visible) minimap_request(app);
@@ -985,7 +1031,8 @@ int ui_run(EditorApp *app)
     while (app->running) {
         /* A finished minimap render job only needs to wake the loop: the
          * minimap_poll() at its end shows the new picture. */
-        signals = Wait(mask | scroll_mask | minimap_mask | tree_mask | find_sigmask() | SIGBREAKF_CTRL_C);
+        signals = Wait(mask | scroll_mask | minimap_mask | tree_mask | find_sigmask() |
+                       bmlist_sigmask() | SIGBREAKF_CTRL_C);
         /* a shown directory changed (a file was made, deleted, renamed) */
         if ((signals & tree_mask) != 0) tree_refresh(app, 0);
         if ((signals & scroll_mask) != 0) document_scroll_live(app);
@@ -998,6 +1045,12 @@ int ui_run(EditorApp *app)
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_VSCROLL) document_scroll_finish(app, 0);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_HSCROLL) document_scroll_finish(app, 1);
             else if (kind == WMHI_INTUITICK) { document_scroll_tick(app); document_change_tick(app); }
+            else if (kind == WMHI_ACTIVE && app->focus_editor && app->active != NULL) {
+                /* activated from a tool window: the editor gets the focus */
+                app->focus_editor = 0;
+                ActivateLayoutGadget((struct Gadget *)app->layout, app->window, NULL,
+                                     (ULONG)app->active->editor);
+            }
             /* Clicks and drags in the minimap arrive as IDCMPUPDATE
              * notifications (window IDCMP hook); its GADGETUP needs nothing. */
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_MINIMAP) ;
@@ -1016,6 +1069,7 @@ int ui_run(EditorApp *app)
         }
         find_handle(app);
         bookmarks_poll(app);
+        bmlist_handle(app);
         /* The texteditor gadget does not notify listeners when the user
          * scrolls it from the keyboard or mouse, so re-read its scroll
          * position after every batch of input events (the window wakes us
@@ -1041,6 +1095,7 @@ int ui_run(EditorApp *app)
         ui_update_status(app);
         toolbar_update(app);
         minimap_poll(app);
+        bmlist_update(app);
     }
     return 1;
 }
@@ -1062,6 +1117,7 @@ int ui_run(EditorApp *app)
 void ui_destroy(EditorApp *app)
 {
     find_cleanup();
+    bmlist_cleanup(app);
     bookmarks_cleanup(app);
     minimap_forget_document(app, NULL);
     document_free_all(app);

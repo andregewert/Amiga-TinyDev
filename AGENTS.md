@@ -52,6 +52,14 @@ below the tree's root.
   bookmarks: reads and writes `<project>/.tinydev/bookmarks.json` (with
   `src/scout/scout_json.c`) and finds a bookmark's line again in a changed
   text by its stored line text; no Amiga headers.
+- `src/toolwin.c`: placement of tool windows (remembered box pushed into
+  the screen, otherwise docked right of the main window or over its right
+  edge). Their boxes are kept for the session (`EditorApp`); only
+  View/Snapshot Tool Windows writes them, with the open state, into the
+  program icon (`settings_save_toolwindows()`), not the settings window.
+- `src/bmlist.c`: the bookmark list, a tool window (scope chooser,
+  listbrowser with a render hook drawing a document or ribbon symbol per
+  row); rebuilt when `bookmarks_generation()` changes.
 - `src/filescan.c`: step-by-step walk through the files of a directory tree
   (bounded depth, no links, no icons, AmigaDOS name pattern) for the
   project-file search.

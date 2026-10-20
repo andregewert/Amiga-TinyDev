@@ -70,6 +70,8 @@ typedef struct Settings {
     long winleft;       /* -1 = centred */
     long wintop;
     unsigned long colours[SCOL_COUNT];  /* 0xRRGGBB, SettingsColour order */
+    long bmwin[4];      /* bookmark list as snapshot: left, top, width, height; width 0 = automatic */
+    int bmlist;         /* bookmark list open at the start (BOOKMARKLIST) */
     char icon_name[300];/* program icon without .info, for splash and About */
 } Settings;
 
@@ -82,11 +84,17 @@ enum MenuId {
     MID_UNDO, MID_REDO, MID_CUT, MID_COPY, MID_PASTE, MID_SELECT_ALL,
     MID_FOLDER_TREE, MID_LINE_NUMBERS, MID_MINIMAP,
     MID_ABOUT, MID_SETTINGS, MID_FIND, MID_FIND_NEXT,
-    MID_BM_TOGGLE, MID_BM_NEXT, MID_BM_PREV, MID_BM_CLEAR, MID_TREE_REFRESH
+    MID_BM_TOGGLE, MID_BM_NEXT, MID_BM_PREV, MID_BM_CLEAR, MID_TREE_REFRESH, MID_BM_LIST,
+    MID_SNAPSHOT_TOOLS
 };
 
 /** Bookmarks of a document that TinyDev keeps track of. */
 #define BOOKMARKS_MAX 64
+/** Characters of a bookmark's line that are kept (BMSTORE_TEXT_MAX). */
+#define BOOKMARK_TEXT_MAX 120
+
+/** Which bookmarks the bookmark list shows. */
+enum { BMSCOPE_CURRENT = 0, BMSCOPE_OPEN, BMSCOPE_PROJECT, BMSCOPE_COUNT };
 
 typedef enum LineEnding { EOL_LF = 0, EOL_CR = 1, EOL_CRLF = 2 } LineEnding;
 
@@ -116,6 +124,8 @@ typedef struct Document {
     long bm_count;
     LONG bm_click_line;         /* line clicked in the left bar, -1 if none */
     int bm_apply;               /* the project's bookmarks are still to be set */
+    long bm_goto;               /* line to go to once they are set, -1 if none ... */
+    char bm_goto_text[BOOKMARK_TEXT_MAX + 1];   /* ... and its text (to find it again) */
 } Document;
 
 typedef struct EditorApp {
@@ -161,6 +171,8 @@ typedef struct EditorApp {
     int scrollbar_dragging;     /* a scroller is being used, do not write it */
     int scroll_idle_ticks;      /* IntuiTicks since the last scroll signal */
     int change_idle_ticks;      /* IntuiTicks since the last change of the text */
+    int focus_editor;           /* give the editor the focus when the window is active */
+    long bm_box[4];             /* box of the bookmark list in this session */
     int defer_depth;            /* ui_begin_update() nesting */
     int pending_layout;         /* a relayout was requested meanwhile */
     int pending_refresh;        /* a page redraw was requested meanwhile */
@@ -200,6 +212,14 @@ void settings_default(Settings *s);
  * @return Non-zero on success.
  */
 int settings_save(const Settings *s);
+/**
+ * @brief Write the tool windows' boxes and open state (Snapshot Tool
+ *        Windows) into the program icon; its other settings stay as they
+ *        are in the icon.
+ * @param cur The settings with the tool windows' values.
+ * @return Non-zero on success.
+ */
+int settings_save_toolwindows(const Settings *cur);
 /**
  * @brief Show the modal settings window (categories Window, Colours,
  *        Toolbar).
@@ -362,6 +382,13 @@ void ui_refresh_page(EditorApp *app, Document *doc);
  */
 void ui_gadget_set(EditorApp *app, Object *obj, ULONG tag1, ULONG data1,
                    ULONG tag2, ULONG data2);
+/**
+ * @brief Check or uncheck a menu item of the main window.
+ * @param app The application state.
+ * @param id The item's MID_.
+ * @param on Non-zero to check it.
+ */
+void ui_set_menu_check(EditorApp *app, ULONG id, int on);
 /**
  * @brief Start collecting relayouts and page redraws (nestable).
  * @param app The application state.
@@ -645,6 +672,50 @@ void bookmarks_document_loaded(EditorApp *app, Document *doc);
  * @param doc The document.
  */
 void bookmarks_document_closing(EditorApp *app, Document *doc);
+/** A bookmark as the bookmark list shows it (bookmarks_collect()). */
+typedef struct BookmarkItem {
+    Document *doc;      /* the open document, NULL for a closed file of the project */
+    char *path;         /* full name of the file, NULL for a document without one */
+    char *name;         /* shown name: relative to the project, or the title */
+    char *file;         /* relative to the project, NULL outside of it */
+    long line;          /* counted from 0 */
+    char *text;         /* the line's text (shortened) */
+} BookmarkItem;
+
+/**
+ * @brief Collect the bookmarks of the active document, the open documents
+ *        or the project (open and closed files), sorted by file and line.
+ * @param app The application state.
+ * @param scope BMSCOPE_CURRENT, BMSCOPE_OPEN or BMSCOPE_PROJECT.
+ * @param items Set to the array (bookmarks_free_items()), NULL if none.
+ * @return The number of bookmarks.
+ */
+long bookmarks_collect(EditorApp *app, int scope, BookmarkItem **items);
+/**
+ * @brief Free an array of bookmarks_collect().
+ * @param items The array (may be NULL).
+ * @param count Its size.
+ */
+void bookmarks_free_items(BookmarkItem *items, long count);
+/**
+ * @brief Go to a bookmark: activate its document, or open its file, and
+ *        put the cursor on its line.
+ * @param app The application state.
+ * @param item The bookmark.
+ */
+void bookmarks_go_to(EditorApp *app, const BookmarkItem *item);
+/**
+ * @brief Remove a bookmark (in its editor, or from the project's file).
+ * @param app The application state.
+ * @param item The bookmark.
+ */
+void bookmarks_remove(EditorApp *app, const BookmarkItem *item);
+/**
+ * @brief A number that changes whenever a bookmark was set, removed or
+ *        moved, or a document came or went (for the bookmark list).
+ * @return The number.
+ */
+ULONG bookmarks_generation(void);
 /**
  * @brief Write the project's bookmarks file (after a document was saved).
  * @param app The application state.
@@ -656,6 +727,70 @@ void bookmarks_save(EditorApp *app);
  * @param app The application state.
  */
 void bookmarks_cleanup(EditorApp *app);
+
+/**
+ * @brief Where a tool window opens: its remembered box (pushed into the
+ *        screen), or next to the main window (right of it if there is
+ *        room, otherwise over its right edge).
+ * @param app The application state.
+ * @param saved The remembered box (left, top, width, height; width 0 =
+ *              none).
+ * @param min_width Smallest width.
+ * @param min_height Smallest height.
+ * @param box Out: left, top, width, height.
+ */
+void toolwin_box(EditorApp *app, const long saved[4], WORD min_width, WORD min_height,
+                 WORD box[4]);
+/**
+ * @brief Remember the box of a tool window.
+ * @param win The window (may be NULL).
+ * @param saved Out: left, top, width, height.
+ */
+void toolwin_remember(struct Window *win, long saved[4]);
+
+/**
+ * @brief Open the bookmark list (or bring it to the front).
+ * @param app The application state.
+ */
+void bmlist_open(EditorApp *app);
+/**
+ * @brief Close the bookmark list, remembering its box.
+ * @param app The application state.
+ */
+void bmlist_close(EditorApp *app);
+/**
+ * @brief Tell whether the bookmark list is open.
+ * @return Non-zero if it is.
+ */
+int bmlist_is_open(void);
+/**
+ * @brief Remember the box of the open bookmark list for this session.
+ * @param app The application state.
+ */
+void bmlist_remember(EditorApp *app);
+/**
+ * @brief Return the signal mask of the bookmark list (0 if closed).
+ * @return The signal mask to include in the main Wait().
+ */
+ULONG bmlist_sigmask(void);
+/**
+ * @brief Handle the input of the bookmark list.
+ * @param app The application state.
+ */
+void bmlist_handle(EditorApp *app);
+/**
+ * @brief Build the bookmark list again if the bookmarks (or, for the
+ *        active file, the active document) changed; call on every turn of
+ *        the event loop.
+ * @param app The application state.
+ */
+void bmlist_update(EditorApp *app);
+/**
+ * @brief Close the bookmark list and release its pens. Call before the
+ *        documents are freed.
+ * @param app The application state.
+ */
+void bmlist_cleanup(EditorApp *app);
 
 /** A step-by-step walk through the files of a directory tree (filescan.c). */
 typedef struct FileScan FileScan;

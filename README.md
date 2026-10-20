@@ -155,6 +155,8 @@ settings at the next start.
 | `NOSPLASH` | No splash window while TinyDev starts |
 | `WIDTH=n`, `HEIGHT=n` | Size of the main window at the start (default: 90 % x 80 % of the screen) |
 | `LEFT=n`, `TOP=n` | Position of the main window at the start (default: centred) |
+| `BOOKMARKLIST` | Open the bookmark list at the start (written by View/Snapshot Tool Windows when it is open) |
+| `BOOKMARKWINDOW=l,t,w,h` | Position and size of the bookmark list (default: next to the main window; written by View/Snapshot Tool Windows) |
 | `COLOR_TEXT`, `COLOR_KEYWORD`, `COLOR_STRING`, `COLOR_COMMENT`, `COLOR_PREPROCESSOR` | Colours of the syntax highlighting as `RRGGBB` |
 
 ## Target requirements
@@ -252,6 +254,15 @@ saved or closed, another directory is opened or TinyDev quits. It is JSON
 when the file was changed outside TinyDev. A file that cannot be read is
 reported and left as it is (the project's bookmarks are then not saved).
 Bookmarks of files outside the project last only while they are open.
+View/Bookmarks opens a tool window next to the main window (right of
+it if the screen has room, otherwise over its right edge) that lists the
+bookmarks of the current file, of all open files or of the whole project
+(including files that are not open), grouped by file. A double-click or Go
+to goes to a bookmark (opening its file if needed), Remove removes the
+selected one. The list follows changes at once. Tool windows are shown and
+hidden in the View menu; their positions and sizes are kept for the
+session, and View/Snapshot Tool Windows writes them (and which ones are
+open) into the program icon, so they open there at the next start.
 C highlighting recognizes standard C99 keywords,
 strings/character constants, preprocessor lines, `//` comments, and block
 comments. AmigaDOS keyword matching is case-insensitive and `;` begins a comment.

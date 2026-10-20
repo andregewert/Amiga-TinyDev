@@ -32,13 +32,7 @@ int bmstore_same_file(const char *a, const char *b)
     return *a == '\0' && *b == '\0';
 }
 
-/**
- * @brief Compare two file names ignoring case (for sorting).
- * @param a A name.
- * @param b Another name.
- * @return <0, 0 or >0.
- */
-static int compare_files(const char *a, const char *b)
+int bmstore_compare_files(const char *a, const char *b)
 {
     while (*a != '\0' && fold((unsigned char)*a) == fold((unsigned char)*b)) {
         ++a;
@@ -130,6 +124,19 @@ long bmstore_remove_file(BmStore *s, const char *file)
     return removed;
 }
 
+int bmstore_remove(BmStore *s, const char *file, long line)
+{
+    long i;
+    for (i = 0; i < s->count; ++i)
+        if (s->entries[i].line == line && bmstore_same_file(s->entries[i].file, file)) {
+            free(s->entries[i].file);
+            free(s->entries[i].text);
+            s->entries[i] = s->entries[--s->count];
+            return 1;
+        }
+    return 0;
+}
+
 int bmstore_parse(BmStore *s, const char *json)
 {
     BmStore add;
@@ -174,7 +181,7 @@ int bmstore_parse(BmStore *s, const char *json)
 static int order(const void *a, const void *b)
 {
     const BmEntry *x = a, *y = b;
-    int c = compare_files(x->file, y->file);
+    int c = bmstore_compare_files(x->file, y->file);
     if (c != 0) return c;
     return x->line < y->line ? -1 : x->line > y->line;
 }

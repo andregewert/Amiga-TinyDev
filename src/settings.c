@@ -23,6 +23,9 @@
  *   NOSPLASH                   no splash window while starting
  *   WIDTH=n, HEIGHT=n          size of the main window at the start
  *   LEFT=n, TOP=n              its position (otherwise centred)
+ *   BOOKMARKLIST               open the bookmark list at the start
+ *   BOOKMARKWINDOW=l,t,w,h     where the bookmark list opens (otherwise
+ *                              next to the main window)
  *   COLOR_TEXT=RRGGBB ...      colours of the syntax highlighting:
  *                              COLOR_KEYWORD, COLOR_STRING, COLOR_COMMENT,
  *                              COLOR_PREPROCESSOR
@@ -57,6 +60,9 @@ void settings_default(Settings *s)
     s->splash = 1;
     s->winwidth = s->winheight = 0;
     s->winleft = s->wintop = -1;
+    s->bmwin[0] = s->bmwin[1] = -1;
+    s->bmwin[2] = s->bmwin[3] = 0;
+    s->bmlist = 0;
     memcpy(s->colours, settings_default_colours, sizeof(s->colours));
 }
 
@@ -110,6 +116,29 @@ static int parse_number(CONST_STRPTR v, long min, long *out)
 }
 
 /**
+ * @brief Parse "left,top,width,height" of a window.
+ * @param v The text.
+ * @param box Out: the four numbers (unchanged if the text is not valid).
+ */
+static void parse_box(CONST_STRPTR v, long box[4])
+{
+    long n[4];
+    LONG value, used;
+    int i;
+    for (i = 0; i < 4; ++i) {
+        if ((used = StrToLong((STRPTR)v, &value)) <= 0) return;
+        n[i] = value;
+        v += used;
+        if (i < 3) {
+            if (*v != ',') return;
+            ++v;
+        }
+    }
+    if (n[2] <= 0 || n[3] <= 0) return;
+    for (i = 0; i < 4; ++i) box[i] = n[i];
+}
+
+/**
  * @brief Apply the tool types of one icon.
  * @param s The settings.
  * @param tt The icon's tool type array (may be NULL).
@@ -129,6 +158,8 @@ static void from_tooltypes(Settings *s, STRPTR *tt)
     if ((value = FindToolType(t, (CONST_STRPTR)"HEIGHT")) != NULL) parse_number(value, 0, &s->winheight);
     if ((value = FindToolType(t, (CONST_STRPTR)"LEFT")) != NULL) parse_number(value, -1, &s->winleft);
     if ((value = FindToolType(t, (CONST_STRPTR)"TOP")) != NULL) parse_number(value, -1, &s->wintop);
+    if (FindToolType(t, (CONST_STRPTR)"BOOKMARKLIST") != NULL) s->bmlist = 1;
+    if ((value = FindToolType(t, (CONST_STRPTR)"BOOKMARKWINDOW")) != NULL) parse_box(value, s->bmwin);
     for (i = 0; i < SCOL_COUNT; ++i)
         if ((value = FindToolType(t, (CONST_STRPTR)colour_names[i])) != NULL)
             parse_colour(value, &s->colours[i]);
@@ -192,7 +223,18 @@ void settings_load(Settings *s, int argc, char **argv)
 
 /* -- writing -------------------------------------------------------------- */
 
-#define NUMKEYS (7 + SCOL_COUNT)
+int settings_save_toolwindows(const Settings *cur)
+{
+    Settings s;
+    settings_default(&s);
+    strcpy(s.icon_name, cur->icon_name);
+    from_icon(&s, 0, (CONST_STRPTR)s.icon_name);
+    memcpy(s.bmwin, cur->bmwin, sizeof(s.bmwin));
+    s.bmlist = cur->bmlist;
+    return settings_save(&s);
+}
+
+#define NUMKEYS (9 + SCOL_COUNT)
 #define ENTRYLEN 40
 
 /** One of our tool types while writing. */
@@ -251,6 +293,7 @@ int settings_save(const Settings *s)
     STRPTR *old, *tt = NULL;
     ULONG nold = 0, n = 0, i, k, nicons;
     char wnum[12], hnum[12], lnum[12], tnum[12], buf[SCOL_COUNT][8], *disabled = NULL;
+    char bmbox[48];
     int ok = 0;
 
     if (IconBase == NULL || s->icon_name[0] == '\0') return 0;
@@ -275,6 +318,9 @@ int settings_save(const Settings *s)
     entry(&e[k++], "HEIGHT", s->winheight > 0, hnum);
     entry(&e[k++], "LEFT", s->winleft >= 0, lnum);
     entry(&e[k++], "TOP", s->wintop >= 0, tnum);
+    entry(&e[k++], "BOOKMARKLIST", s->bmlist, NULL);
+    snprintf(bmbox, sizeof(bmbox), "%ld,%ld,%ld,%ld", s->bmwin[0], s->bmwin[1], s->bmwin[2], s->bmwin[3]);
+    entry(&e[k++], "BOOKMARKWINDOW", s->bmwin[2] > 0, bmbox);
     for (i = 0; i < SCOL_COUNT; ++i) {
         snprintf(buf[i], sizeof(buf[i]), "%06lX", s->colours[i] & 0xFFFFFFUL);
         entry(&e[k++], colour_names[i], s->colours[i] != settings_default_colours[i], buf[i]);

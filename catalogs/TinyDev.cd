@@ -79,6 +79,12 @@ Previous Bookmark
 MSG_MENU_BM_CLEAR (//)
 Remove All in This File
 ;
+MSG_MENU_BM_LIST (//)
+Bookmarks
+;
+MSG_MENU_SNAPSHOT_TOOLS (//)
+Snapshot Tool Windows
+;
 MSG_MENU_VIEW (//)
 View
 ;
@@ -416,6 +422,31 @@ _Use
 ;
 MSG_PREFS_CANCEL (//)
 _Cancel
+;
+; bookmark list window
+MSG_BML_TITLE (//)
+Bookmarks
+;
+MSG_BML_NEEDCLASSES (//)
+The bookmark list needs listbrowser.gadget and chooser.gadget.
+;
+MSG_BML_SHOW (//)
+_Show\x20
+;
+MSG_BML_SCOPE_CURRENT (//)
+Current file
+;
+MSG_BML_SCOPE_OPEN (//)
+Open files
+;
+MSG_BML_SCOPE_PROJECT (//)
+Project
+;
+MSG_BML_GOTO (//)
+_Go to
+;
+MSG_BML_REMOVE (//)
+_Remove
 ;
 ; find and replace window
 MSG_FIND_TITLE (//)

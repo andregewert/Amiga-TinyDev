@@ -49,6 +49,10 @@ int main(void)
     assert(t.count == 4 && strcmp(t.entries[0].text, "say \"hi\" \\ there") == 0);
     free(json);
 
+    assert(bmstore_remove(&t, "SRC/UI.C", 10));
+    assert(!bmstore_remove(&t, "src/ui.c", 10));
+    assert(bmstore_add(&t, "src/ui.c", 10, "x", 1));
+    assert(bmstore_compare_files("a/B.c", "a/b.C") == 0 && bmstore_compare_files("a", "b") < 0);
     assert(bmstore_remove_file(&t, "src/ui.c") == 2);
     assert(t.count == 2);
     assert(bmstore_same_file("Src/\xC4.c", "src/\xE4.C"));

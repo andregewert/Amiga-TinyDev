@@ -53,6 +53,14 @@
 
 #define LEFTBAR_WIDTH 20        /* width of the left bar (texteditor.gadget) */
 
+/* Changes of the bookmarks, for the bookmark list. */
+static ULONG generation = 0;
+
+ULONG bookmarks_generation(void)
+{
+    return generation;
+}
+
 /** Background pen of the left bar (the editor's background). */
 static UWORD leftbar_background = 0;
 
@@ -94,6 +102,7 @@ void bookmarks_init_document(Document *doc)
     doc->leftbar_hook.h_Data = doc;
     doc->bm_count = 0;
     doc->bm_click_line = -1;
+    doc->bm_goto = -1;
 }
 
 /**
@@ -124,6 +133,7 @@ static int read_bookmarks(Document *doc)
     }
     for (i = 0; i < n; ++i) doc->bm_lines[i] = lines[i];
     doc->bm_count = n;
+    ++generation;
     return 1;
 }
 
@@ -212,14 +222,17 @@ void bookmarks_command(EditorApp *app, ULONG id)
 }
 
 static void apply_project(EditorApp *app, Document *doc);
+static void go_to_pending(EditorApp *app, Document *doc);
 
 void bookmarks_poll(EditorApp *app)
 {
     Document *doc;
     LONG line;
     for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ != NULL;
-         doc = (Document *)doc->node.ln_Succ)
+         doc = (Document *)doc->node.ln_Succ) {
         if (doc->bm_apply) apply_project(app, doc);
+        if (doc->bm_goto >= 0) go_to_pending(app, doc);
+    }
     doc = app->active;
     if (doc == NULL || doc->bm_click_line < 0 || app->window == NULL) return;
     line = doc->bm_click_line;
@@ -362,6 +375,7 @@ static void apply_project(EditorApp *app, Document *doc)
     FreeVec(text);
     if (!set) return;
     bmstore_remove_file(&pj.store, file);
+    ++generation;
     SetAttrs(doc->editor, GA_TEXTEDITOR_CursorY, y, GA_TEXTEDITOR_CursorX, x, TAG_END);
     read_bookmarks(doc);
     if (doc == app->active && app->window != NULL)
@@ -482,6 +496,7 @@ void bookmarks_project_opened(EditorApp *app)
     strcpy(pj.root, root);
     pj.keep_file = pj.reported = 0;
     load_project(app);
+    ++generation;
     for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ != NULL;
          doc = (Document *)doc->node.ln_Succ)
         if (relative(doc) != NULL) doc->bm_apply = 1;
@@ -495,6 +510,7 @@ void bookmarks_document_loaded(EditorApp *app, Document *doc)
 
 void bookmarks_document_closing(EditorApp *app, Document *doc)
 {
+    ++generation;                       /* it leaves the bookmark list */
     if (relative(doc) == NULL) return;
     capture(&pj.store, doc);
     bookmarks_save(app);
@@ -505,4 +521,218 @@ void bookmarks_cleanup(EditorApp *app)
     bookmarks_save(app);
     bmstore_clear(&pj.store);
     pj.root[0] = '\0';
+}
+
+/* ---- the bookmark list's view ------------------------------------------ */
+
+/**
+ * @brief Copy a string with malloc().
+ * @param text The string (need not be terminated).
+ * @param length Its length.
+ * @return The copy, or NULL.
+ */
+static char *copy_text(const char *text, long length)
+{
+    char *c = malloc((size_t)length + 1);
+    if (c == NULL) return NULL;
+    memcpy(c, text, (size_t)length);
+    c[length] = '\0';
+    return c;
+}
+
+/**
+ * @brief Add a bookmark to the array of bookmarks_collect().
+ * @param items The array.
+ * @param count The number in it.
+ * @param capacity Its size.
+ * @param item The bookmark (its strings are taken over, or freed on error).
+ * @return Non-zero on success.
+ */
+static int add_item(BookmarkItem **items, long *count, long *capacity, BookmarkItem *item)
+{
+    if (item->name == NULL || item->text == NULL) {
+        free(item->path); free(item->name); free(item->file); free(item->text);
+        return 0;
+    }
+    if (*count == *capacity) {
+        long n = *capacity ? *capacity * 2 : 32;
+        BookmarkItem *grown = realloc(*items, (size_t)n * sizeof(*grown));
+        if (grown == NULL) {
+            free(item->path); free(item->name); free(item->file); free(item->text);
+            return 0;
+        }
+        *items = grown;
+        *capacity = n;
+    }
+    (*items)[(*count)++] = *item;
+    return 1;
+}
+
+/**
+ * @brief qsort() order of the list: by shown name, then by line.
+ * @param a A bookmark.
+ * @param b Another bookmark.
+ * @return <0, 0 or >0.
+ */
+static int item_order(const void *a, const void *b)
+{
+    const BookmarkItem *x = a, *y = b;
+    int c = bmstore_compare_files(x->name, y->name);
+    if (c != 0) return c;
+    return x->line < y->line ? -1 : x->line > y->line;
+}
+
+long bookmarks_collect(EditorApp *app, int scope, BookmarkItem **items)
+{
+    long count = 0, capacity = 0, i, size, length;
+    Document *doc;
+    *items = NULL;
+    for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ != NULL;
+         doc = (Document *)doc->node.ln_Succ) {
+        const char *file = relative(doc), *line;
+        char *text;
+        if (scope == BMSCOPE_CURRENT && doc != app->active) continue;
+        if (scope == BMSCOPE_PROJECT && file == NULL) continue;
+        if (doc->bm_apply) continue;            /* not yet set: the store has them */
+        read_bookmarks(doc);
+        if (doc->bm_count == 0) continue;
+        text = (char *)DoMethod(doc->editor, GM_TEXTEDITOR_ExportText, NULL);
+        size = text != NULL ? (long)strlen(text) : 0;
+        for (i = 0; i < doc->bm_count; ++i) {
+            BookmarkItem it;
+            const char *name = file != NULL ? file : doc->title;
+            line = text != NULL ? line_of(text, size, doc->bm_lines[i], &length) : NULL;
+            if (line == NULL) length = 0;
+            if (length > BOOKMARK_TEXT_MAX) length = BOOKMARK_TEXT_MAX;
+            it.doc = doc;
+            it.path = doc->path != NULL ? copy_text(doc->path, (long)strlen(doc->path)) : NULL;
+            it.name = copy_text(name, (long)strlen(name));
+            it.file = file != NULL ? copy_text(file, (long)strlen(file)) : NULL;
+            it.line = (long)doc->bm_lines[i];
+            it.text = copy_text(line != NULL ? line : "", length);
+            add_item(items, &count, &capacity, &it);
+        }
+        if (text != NULL) FreeVec(text);
+    }
+    /* the project's files that are not open (or not yet set) */
+    if (scope == BMSCOPE_PROJECT && pj.root[0] != '\0') {
+        char path[EDITOR_PATH_MAX];
+        for (i = 0; i < pj.store.count; ++i) {
+            BmEntry *e = &pj.store.entries[i];
+            BookmarkItem it;
+            strncpy(path, pj.root, sizeof(path) - 1);
+            path[sizeof(path) - 1] = '\0';
+            if (!AddPart((STRPTR)path, (STRPTR)e->file, sizeof(path))) continue;
+            it.doc = NULL;
+            it.path = copy_text(path, (long)strlen(path));
+            it.name = copy_text(e->file, (long)strlen(e->file));
+            it.file = copy_text(e->file, (long)strlen(e->file));
+            it.line = e->line;
+            it.text = copy_text(e->text, (long)strlen(e->text));
+            add_item(items, &count, &capacity, &it);
+        }
+    }
+    if (count > 1) qsort(*items, (size_t)count, sizeof(**items), item_order);
+    return count;
+}
+
+void bookmarks_free_items(BookmarkItem *items, long count)
+{
+    long i;
+    for (i = 0; i < count; ++i) {
+        free(items[i].path);
+        free(items[i].name);
+        free(items[i].file);
+        free(items[i].text);
+    }
+    free(items);
+}
+
+/**
+ * @brief Tell whether a document is (still) open.
+ * @param app The application state.
+ * @param doc The document.
+ * @return Non-zero if it is in the list of documents.
+ */
+static int is_open(EditorApp *app, Document *doc)
+{
+    Document *d;
+    for (d = (Document *)app->documents.lh_Head; d->node.ln_Succ != NULL;
+         d = (Document *)d->node.ln_Succ)
+        if (d == doc) return 1;
+    return 0;
+}
+
+/**
+ * @brief Put the cursor of the active document on a line and give the
+ *        editor the input focus.
+ * @param app The application state.
+ * @param doc The active document.
+ * @param line The line.
+ */
+static void put_cursor(EditorApp *app, Document *doc, long line)
+{
+    if (app->window == NULL || doc != app->active) return;
+    SetGadgetAttrs((struct Gadget *)doc->editor, app->window, NULL,
+                   GA_TEXTEDITOR_CursorY, (ULONG)line, GA_TEXTEDITOR_CursorX, 0, TAG_END);
+    focus_editor(app, doc);
+}
+
+/**
+ * @brief Go to the line noted for a document that was opened from the
+ *        bookmark list, once its bookmarks are set.
+ * @param app The application state.
+ * @param doc The document.
+ */
+static void go_to_pending(EditorApp *app, Document *doc)
+{
+    char *text;
+    long line = doc->bm_goto;
+    if (doc->bm_apply) return;
+    doc->bm_goto = -1;
+    if (doc != app->active) return;
+    text = (char *)DoMethod(doc->editor, GM_TEXTEDITOR_ExportText, NULL);
+    if (text != NULL) {
+        line = bmstore_relocate(text, (long)strlen(text), line, doc->bm_goto_text);
+        FreeVec(text);
+    }
+    put_cursor(app, doc, line);
+}
+
+void bookmarks_go_to(EditorApp *app, const BookmarkItem *item)
+{
+    Document *doc = item->doc;
+    if (doc != NULL && is_open(app, doc)) {
+        if (doc != app->active) document_activate(app, doc);
+        put_cursor(app, doc, item->line);
+        return;
+    }
+    if (item->path == NULL || (doc = document_open(app, item->path)) == NULL) return;
+    /* its bookmarks are set one turn later; then go to the line */
+    doc->bm_goto = item->line;
+    strncpy(doc->bm_goto_text, item->text, BOOKMARK_TEXT_MAX);
+    doc->bm_goto_text[BOOKMARK_TEXT_MAX] = '\0';
+}
+
+void bookmarks_remove(EditorApp *app, const BookmarkItem *item)
+{
+    Document *doc = item->doc;
+    if (doc != NULL && is_open(app, doc)) {
+        ULONG x = 0, y = 0;
+        int shown = doc == app->active && app->window != NULL;
+        GetAttr(GA_TEXTEDITOR_CursorX, doc->editor, &x);
+        GetAttr(GA_TEXTEDITOR_CursorY, doc->editor, &y);
+        SetAttrs(doc->editor, GA_TEXTEDITOR_CursorY, (ULONG)item->line,
+                 GA_TEXTEDITOR_CursorX, 0, TAG_END);
+        if (shown) editor_command(app, doc, "SETBOOKMARK OFF");
+        else DoMethod(doc->editor, GM_TEXTEDITOR_ARexxCmd, NULL, (ULONG)"SETBOOKMARK OFF");
+        if (shown)
+            SetGadgetAttrs((struct Gadget *)doc->editor, app->window, NULL,
+                           GA_TEXTEDITOR_CursorY, y, GA_TEXTEDITOR_CursorX, x, TAG_END);
+        else SetAttrs(doc->editor, GA_TEXTEDITOR_CursorY, y, GA_TEXTEDITOR_CursorX, x, TAG_END);
+        read_bookmarks(doc);
+    } else if (item->file != NULL && bmstore_remove(&pj.store, item->file, item->line)) {
+        ++generation;
+    }
+    bookmarks_save(app);
 }
