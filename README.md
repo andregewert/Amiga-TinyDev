@@ -141,7 +141,7 @@ it with. Its texts come from `HelpViewer.catalog` (German included).
 TinyDev's help pages are `package/help/<language>/` (`english`,
 `deutsch`): HTML in ISO-8859-1 (umlauts as entities), the same file names
 in every language. `make` copies them to `bin/Help/`. Project/Help... and
-the Help button of the toolbar start `PROGDIR:HelpViewer` on
+the Help button of the toolbar (AISS image `help`) start `PROGDIR:HelpViewer` on
 `PROGDIR:Help` with `PORTNAME TinyDev`, asynchronously from a Shell of its
 own (`SystemTags()` with `SYS_Asynch`): the HelpViewer runs on its own and
 stays open when TinyDev quits, and Help again brings the same viewer to
