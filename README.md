@@ -41,6 +41,7 @@ The Makefile explicitly selects `-m68000 -msoft-float -noixemul` and creates:
 - `bin/Classes/Gadgets/dirtree.gadget` and `minimap.gadget`: the folder
   tree and the minimap as reusable ReAction classes (see below).
 - `bin/HelpViewer`: the viewer of HTML help pages (see below).
+- `bin/Help/<language>/`: the help pages, copied from `package/help/`.
 
 `bin/` holds only these finished programs and classes, laid out as they are
 used on the Amiga; everything produced on the way (objects, dependency files,
@@ -48,6 +49,13 @@ used on the Amiga; everything produced on the way (objects, dependency files,
 removes both. `make` first runs
 `make charcheck`, which refuses UTF-8 in the Amiga sources, scripts, the Makefile
 and `LICENSE`; these files are ISO-8859-1.
+
+`make dist` builds the Aminet archive `dist/TinyDev.lha` (and
+`dist/TinyDev.readme`) with `tools/mkdist.py`: the programs, classes,
+catalogs and help pages from `bin/`, `README.md` as `Docs/`, the complete
+sources (they build without git) and icons of every style. It needs Python
+and `jlha` (or `lha`) on the host. The Aminet readme is
+`package/TinyDev.readme`.
 
 `make docs` writes HTML documentation of all sources to `build/docs/html/`,
 `make docs-dirtree` and `make docs-minimap` that of the classes' public
@@ -85,13 +93,18 @@ An AmigaDOS shell script to test/demonstrate the C parser directly is provided i
 browser:
 
     HelpViewer [DIR] <directory or page> [TTF] [FONTSET Vera|DejaVu|Noto] [SIZE n]
+               [PORTNAME <name>]
 
 The same options are tool types of its icon (`DIR=`, `TTF`, `FONTSET=`,
-`SIZE=`), also read when it is started from the Shell (the arguments win);
+`SIZE=`, `PORTNAME=`), also read when it is started from the Shell (the arguments win);
 from the Workbench a drawer or page given as project is opened.
 Project/Snapshot Window stores the window's position and size in the icon
 as `WINDOW=left,top,width,height`; other tool types stay as they are.
-Without a directory it opens `PROGDIR:Help` if there is one.
+Without a directory (none given as argument, tool type or project) it
+shows a welcome text with a hint to Project/Open Directory. A directory
+without an index page that holds one drawer per language, named like the
+Amiga locales (`english`, `deutsch` ...), opens the drawer of the first
+preferred language of the locale that has one, otherwise `english`.
 
 - The tree on the left lists only HTML files (`.htm`, `.html`), by the
   titles of the pages (the file name if a page has none), in natural order
@@ -110,12 +123,29 @@ Without a directory it opens `PROGDIR:Help` if there is one.
   the home page again; Back and Forward (Amiga+B, Amiga+N, Backspace)
   return to the pages seen at their scroll positions.
 - `TTF` uses htmlttf.gadget (TrueType fonts) instead of html.gadget.
+- `PORTNAME` keeps an application to one viewer: a later start with the
+  same name (e.g. TinyDev's Help again) passes its directory or page to
+  the running viewer through the public port `HELPVIEWER.<NAME>` (the name
+  in capitals), which shows it (unless it shows that directory already)
+  and comes to the front. Without `PORTNAME`, e.g. a double-click, every
+  start opens a viewer of its own.
 
 It needs html.gadget (or htmlttf.gadget) from the
 [HTML gadget](https://github.com/andregewert/Amiga-HTML-Gadget) project,
 installed in `SYS:Classes/Gadgets/` or next to the program, and
 dirtree.gadget. `src/helpviewer/sample/` is a small help directory to try
 it with. Its texts come from `HelpViewer.catalog` (German included).
+
+### TinyDev's help
+
+TinyDev's help pages are `package/help/<language>/` (`english`,
+`deutsch`): HTML in ISO-8859-1 (umlauts as entities), the same file names
+in every language. `make` copies them to `bin/Help/`. Project/Help... and
+the Help button of the toolbar start `PROGDIR:HelpViewer` on
+`PROGDIR:Help` with `PORTNAME TinyDev`, asynchronously from a Shell of its
+own (`SystemTags()` with `SYS_Asynch`): the HelpViewer runs on its own and
+stays open when TinyDev quits, and Help again brings the same viewer to
+the front.
 
 ## Gadget classes
 
@@ -163,6 +193,7 @@ The motifs are in `tools/mkicons.py`, the icon writer comes from
 | `TinyDev` | Editor window with line numbers, coloured code and the minimap |
 | `TinyDev-Scout` | A page of code under a magnifying glass |
 | `c_parser` | A chip with the label of the parser's language ("C") |
+| `HelpViewer` | A blue handbook with a question mark on its cover |
 
 A new Scout parser gets its icon with `parser('<letter>')` in
 `tools/mkicons.py` (the letter needs a glyph in `GLYPHS` and `SMALL`).

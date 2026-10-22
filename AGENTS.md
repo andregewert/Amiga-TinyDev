@@ -69,6 +69,11 @@ below the tree's root.
   headers.
 - `src/document.c`: document/tab lifecycle, scrollbar synchronization, and
   scroll-time highlighting suspension.
+- `src/help.c`: Project/Help... and the toolbar's Help button: starts
+  `PROGDIR:HelpViewer` on `PROGDIR:Help` with `PORTNAME TinyDev`,
+  asynchronously with `SystemTags()` (`SYS_Asynch`), so the HelpViewer is
+  independent of TinyDev and there is one viewer for TinyDev
+  (`OpenWorkbenchObjectA()` cannot pass options).
 - `src/fileio.c`: loading, line-ending preservation, requesters, and safe saves.
 - `src/tree.c`: connects `dirtree.gadget` to the editor (root selection,
   opening files, column visibility).
@@ -101,7 +106,11 @@ below the tree's root.
   only, shown by their titles, natural order, index pages only via their
   directory, directories without pages hidden, the home page's title as
   header), html.gadget/htmlttf.gadget on the right, a text toolbar (Home,
-  Back, Forward, Open), the status line at the bottom. `htmltitle.c` is
+  Back, Forward, Open), the status line at the bottom. With `PORTNAME`
+  one viewer runs per name: a later start with that name passes its
+  location through the public port `HELPVIEWER.<NAME>` (`OpenMessage`) and
+  ends; without it there is no port and every start is a viewer of its
+  own. `htmltitle.c` is
   portable (titles, links; host-tested in `tests/test_htmltitle.c`); its
   catalogs are `src/helpviewer/catalogs/` (`helpviewer_strings.h` is
   generated and checked in); `sample/` is a small help directory for
@@ -127,9 +136,18 @@ below the tree's root.
   generated with its `mkh` script into `build/regex/`; it is compiled
   unchanged and without our warning flags. Do not edit it; its licence
   requires the credit in `README.md`.
-- `tools/mkicons.py`: motifs of the Workbench icons (TinyDev, Scout, parsers)
+- `tools/mkicons.py`: motifs of the Workbench icons (TinyDev, Scout, parsers,
+  HelpViewer)
   for `amiga-devkit/tools/amigaicons.py`; `make icons` writes `icons/`. The
   files in `icons/` are generated, never edited by hand.
+- `package/`: what the Aminet archive needs besides the build:
+  `TinyDev.readme` (the Aminet readme, ISO-8859-1, at most 78 columns) and
+  `help/<language>/` (TinyDev's help pages, HTML in ISO-8859-1 with
+  entities; language drawers named like the Amiga locales, the same file
+  names in every language; `make` copies them to `bin/Help/`).
+- `tools/mkdist.py`: `make dist` builds `dist/TinyDev.lha` from `bin/`,
+  the README, the sources (built without git) and icons, with
+  `amiga-devkit/tools/distlib.py`.
 - `README.md`: supported behavior, runtime dependencies, and known limits.
 
 ## Build and verification
@@ -153,7 +171,8 @@ make test
   unavailable; report that limitation explicitly.
 - Finished Amiga binaries go to `bin/` (`bin/TinyDev`, `bin/TinyDev-Scout`,
   `bin/parsers/c_parser`, `bin/Classes/Gadgets/<name>.gadget`,
-  `bin/Catalogs/<language>/TinyDev.catalog`), laid out as on
+  `bin/Catalogs/<language>/TinyDev.catalog`, `bin/HelpViewer`,
+  `bin/Help/<language>/`), laid out as on
   the Amiga; nothing else goes there. All intermediate files (objects,
   dependency files, `.debug` files, host test binaries) go to `build/`; gadget
   class objects to `build/classes/<name>/`.

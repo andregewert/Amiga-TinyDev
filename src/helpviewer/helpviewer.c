@@ -5,16 +5,23 @@
  *        right (html.gadget or htmlttf.gadget).
  *
  *   HelpViewer [DIR] \<directory or page\> [TTF] [FONTSET Vera|DejaVu|Noto] [SIZE n]
+ *              [PORTNAME \<name\>]
  *
  * The same options are tool types of the program icon (DIR=..., TTF,
- * FONTSET=..., SIZE=...), read also from the Shell (arguments win), with
+ * FONTSET=..., SIZE=..., PORTNAME=...), read also from the Shell (arguments win), with
  * WINDOW=left,top,width,height, which Project/Snapshot Window writes into
  * the icon. From the Workbench a drawer or page
  * given as project (shift-click, drop on the icon) is opened. A directory
  * shows its index.html (or index.htm) first. The tree lists only HTML
  * files, by the titles of the pages, in natural order of the file names
  * with directories among the files; a directory shows the title of its
- * index page and is left out if it holds no page. Back and Forward go
+ * index page and is left out if it holds no page. A directory without an
+ * index page but with language drawers (named like the Amiga locales)
+ * opens the drawer of the user's language. With PORTNAME only one
+ * HelpViewer of that name runs (one per application): a later start with
+ * the same name passes its location to it through the public port
+ * HELPVIEWER.\<NAME\> and ends; without it every start opens a viewer of
+ * its own. Back and Forward go
  * through the pages seen (with their scroll positions).
  *
  * Built on HTMLDemo of html.gadget; no stdio (started from the Workbench,
@@ -154,6 +161,20 @@ typedef struct Visit {
     ULONG top;          /**< its scroll position when it was left */
 } Visit;
 
+/** Prefix of the public port of a named HelpViewer (PORTNAME option). */
+#define PORTPREFIX "HELPVIEWER."
+
+/**
+ * A later start of a HelpViewer with the same PORTNAME passes its location
+ * to the running one through the public port and ends (one viewer per
+ * application, e.g. when TinyDev's Help is used again). The running viewer
+ * replies once it has taken the location.
+ */
+typedef struct OpenMessage {
+    struct Message msg;     /**< the Exec message */
+    char path[PATHMAX];     /**< directory or page (full path), "" to come to the front only */
+} OpenMessage;
+
 /** Options from the command line or the tool types. */
 static struct {
     char dir[PATHMAX];  /**< directory (or page) to open */
@@ -161,6 +182,7 @@ static struct {
     char fontset[32];   /**< its font family */
     LONG size;          /**< its text size, 0 = default */
     LONG box[4];        /**< window left, top, width, height; width 0 = automatic */
+    char portname[48];  /**< PORTNAME: one viewer per name, "" = no port */
     char icon[PATHMAX]; /**< the program icon (without .info), "" if unknown */
 } opt;
 
@@ -192,6 +214,8 @@ static struct {
     char title[300];            /**< text of the window title */
     struct Hook name_hook;      /**< DIRTREE_NameHook: titles of the pages */
     struct Catalog *catalog;    /**< HelpViewer.catalog, NULL for English */
+    struct MsgPort *port;       /**< public port (PORTNAME option), NULL if none */
+    char portname[64];          /**< its name: PORTPREFIX and the name in capitals */
 } hv = { .cur = -1, .ghost_pen = -1 };
 
 /** Scroller to HTML (ICA_MAP). */
@@ -311,6 +335,38 @@ static int find_index(const char *dir, char *out, LONG size)
         }
     }
     return 0;
+}
+
+/**
+ * @brief Go into the language drawer of a multilingual help directory.
+ *
+ * A help directory without an index page may hold one drawer per language,
+ * named like the Amiga locales ("deutsch", "english"). The first of the
+ * user's preferred languages that has one wins, then "english".
+ *
+ * @param[in,out] dir The directory; extended by the language drawer.
+ * @param size Its size.
+ * @return Non-zero if a language drawer was found.
+ */
+static int language_dir(char *dir, LONG size)
+{
+    struct Locale *locale = LocaleBase != NULL ? OpenLocale(NULL) : NULL;
+    char path[PATHMAX];
+    int i, found = 0;
+    for (i = 0; i <= 10 && !found; ++i) {
+        const char *lang = i < 10 ? (locale != NULL ? (const char *)locale->loc_PrefLanguages[i] : NULL)
+                                  : "english";
+        if (lang == NULL || *lang == '\0') continue;
+        strncpy(path, dir, sizeof(path) - 1);
+        path[sizeof(path) - 1] = '\0';
+        if (AddPart((STRPTR)path, (STRPTR)lang, sizeof(path)) && is_directory(path) &&
+            (LONG)strlen(path) < size) {
+            strcpy(dir, path);
+            found = 1;
+        }
+    }
+    if (locale != NULL) CloseLocale(locale);
+    return found;
 }
 
 /**
@@ -572,6 +628,35 @@ static void follow_link(void)
 }
 
 /**
+ * @brief Find out what a location shows: the directory that becomes the
+ *        tree's root (a help directory's language drawer) and the first
+ *        page (the directory's index page, or the page given).
+ * @param path The directory or page.
+ * @param[out] dir The root directory, a full path (PATHMAX bytes).
+ * @param[out] page The first page, "" if none (PATHMAX bytes).
+ * @return Non-zero if the location exists.
+ */
+static int locate(const char *path, char *dir, char *page)
+{
+    BPTR lock;
+    int directory = is_directory(path);
+
+    if ((lock = Lock((STRPTR)path, ACCESS_READ)) == 0) return 0;
+    if (!NameFromLock(lock, (STRPTR)dir, PATHMAX)) dir[0] = '\0';
+    UnLock(lock);
+    if (dir[0] == '\0') return 0;
+    if (directory) {
+        if (!find_index(dir, page, PATHMAX) &&
+            (!language_dir(dir, PATHMAX) || !find_index(dir, page, PATHMAX)))
+            page[0] = '\0';
+    } else {
+        strcpy(page, dir);
+        *PathPart((STRPTR)dir) = '\0';
+    }
+    return 1;
+}
+
+/**
  * @brief Open a directory: it becomes the tree's root and its index page
  *        is shown. A page is shown with its directory as root.
  * @param path The directory or page.
@@ -580,22 +665,11 @@ static void follow_link(void)
 static int open_location(const char *path)
 {
     char dir[PATHMAX], page[PATHMAX];
-    BPTR lock;
-    int directory = is_directory(path);
 
-    if ((lock = Lock((STRPTR)path, ACCESS_READ)) == 0) {
+    if (!locate(path, dir, page)) {
         format(hv.status_text, sizeof(hv.status_text), S(MSG_NOT_FOUND), path);
         set_status(hv.status_text);
         return 0;
-    }
-    if (!NameFromLock(lock, (STRPTR)dir, sizeof(dir))) dir[0] = '\0';
-    UnLock(lock);
-    if (dir[0] == '\0') return 0;
-    if (directory) {
-        if (!find_index(dir, page, sizeof(page))) page[0] = '\0';
-    } else {
-        strcpy(page, dir);
-        *PathPart((STRPTR)dir) = '\0';
     }
     strcpy(hv.root, dir);
     /* the home page (the root's index page) has no entry in the tree: its
@@ -839,6 +913,8 @@ static void icon_options(const char *name)
     if ((v = FindToolType(tt, (STRPTR)"FONTSET")) != NULL)
         strncpy(opt.fontset, (char *)v, sizeof(opt.fontset) - 1);
     if ((v = FindToolType(tt, (STRPTR)"SIZE")) != NULL) StrToLong(v, &opt.size);
+    if ((v = FindToolType(tt, (STRPTR)"PORTNAME")) != NULL)
+        strncpy(opt.portname, (char *)v, sizeof(opt.portname) - 1);
     if ((v = FindToolType(tt, (STRPTR)"DIR")) != NULL)
         strncpy(opt.dir, (char *)v, sizeof(opt.dir) - 1);
     if ((v = FindToolType(tt, (STRPTR)"WINDOW")) != NULL && parse_numbers(v, box, 4) &&
@@ -1090,14 +1166,109 @@ static int handle_input(void)
 }
 
 /**
+ * @brief With a PORTNAME: pass the location to the HelpViewer of that name
+ *        that is already running, or become it (add the public port).
+ *
+ * The port is PORTPREFIX and the name in capitals, so names differing in
+ * case meet and no other program's port is hit. Without a name nothing
+ * happens: every start opens a viewer of its own.
+ *
+ * @param path The location to show (relative to the current directory),
+ *             "" for none.
+ * @return Non-zero if a running HelpViewer took it (this one ends).
+ */
+static int pass_to_running(const char *path)
+{
+    struct MsgPort *port, *reply;
+    OpenMessage *m;
+    BPTR lock;
+    char *p;
+
+    if (opt.portname[0] == '\0') return 0;
+    strcpy(hv.portname, PORTPREFIX);
+    strncat(hv.portname, opt.portname, sizeof(hv.portname) - strlen(hv.portname) - 1);
+    for (p = hv.portname; *p != '\0'; ++p) *p = (char)ToUpper((ULONG)(UBYTE)*p);
+    if ((port = CreateMsgPort()) == NULL) return 0;
+    Forbid();
+    if (FindPort((STRPTR)hv.portname) == NULL) {
+        port->mp_Node.ln_Name = hv.portname;
+        port->mp_Node.ln_Pri = 0;
+        AddPort(port);
+        hv.port = port;
+        Permit();
+        return 0;
+    }
+    Permit();
+    DeleteMsgPort(port);
+    if ((reply = CreateMsgPort()) == NULL) return 0;
+    if ((m = AllocVec(sizeof(*m), MEMF_PUBLIC | MEMF_CLEAR)) == NULL) {
+        DeleteMsgPort(reply);
+        return 0;
+    }
+    /* the running viewer has another current directory: a full path */
+    if (path[0] != '\0' && (lock = Lock((STRPTR)path, ACCESS_READ)) != 0) {
+        if (!NameFromLock(lock, (STRPTR)m->path, sizeof(m->path))) m->path[0] = '\0';
+        UnLock(lock);
+    }
+    m->msg.mn_ReplyPort = reply;
+    m->msg.mn_Length = (UWORD)sizeof(*m);
+    Forbid();                                   /* it may have ended meanwhile */
+    if ((port = FindPort((STRPTR)hv.portname)) != NULL) PutMsg(port, &m->msg);
+    Permit();
+    if (port != NULL) {
+        WaitPort(reply);
+        GetMsg(reply);
+    }
+    FreeVec(m);
+    DeleteMsgPort(reply);
+    return port != NULL;
+}
+
+/**
+ * @brief Take the locations passed by later starts: show each (unless it
+ *        is the root shown already) and come to the front.
+ */
+static void handle_port(void)
+{
+    OpenMessage *m;
+    char dir[PATHMAX], page[PATHMAX];
+    while ((m = (OpenMessage *)GetMsg(hv.port)) != NULL) {
+        if (m->path[0] != '\0' &&
+            (!locate(m->path, dir, page) || Stricmp((STRPTR)dir, (STRPTR)hv.root) != 0 ||
+             !is_directory(m->path)))
+            open_location(m->path);
+        ReplyMsg(&m->msg);
+        if (hv.win != NULL) {
+            WindowToFront(hv.win);
+            ActivateWindow(hv.win);
+        }
+    }
+}
+
+/**
+ * @brief Remove the public port, answering the messages still in it.
+ */
+static void close_port(void)
+{
+    struct Message *m;
+    if (hv.port == NULL) return;
+    Forbid();
+    RemPort(hv.port);
+    Permit();
+    while ((m = GetMsg(hv.port)) != NULL) ReplyMsg(m);
+    DeleteMsgPort(hv.port);
+    hv.port = NULL;
+}
+
+/**
  * @brief The HelpViewer program.
  * @return RETURN_OK, or RETURN_FAIL if it could not start.
  */
 int main(void)
 {
     struct RDArgs *rda = NULL;
-    LONG args[4] = { 0, 0, 0, 0 };      /* DIR, TTF, FONTSET, SIZE */
-    ULONG winsig = 0, treesig = 0;
+    LONG args[5] = { 0, 0, 0, 0, 0 };   /* DIR, TTF, FONTSET, SIZE, PORTNAME */
+    ULONG winsig = 0, treesig = 0, portsig = 0;
     int rc = RETURN_FAIL, done = 0;
     const char *missing = NULL;
     char text[120];
@@ -1112,14 +1283,19 @@ int main(void)
         else
             AddPart((STRPTR)opt.icon, (STRPTR)"HelpViewer", sizeof(opt.icon));
         icon_options(opt.icon);
-        if ((rda = ReadArgs((STRPTR)"DIR,TTF/S,FONTSET/K,SIZE/K/N", args, NULL)) == NULL) {
+        if ((rda = ReadArgs((STRPTR)"DIR,TTF/S,FONTSET/K,SIZE/K/N,PORTNAME/K", args, NULL)) == NULL) {
             PrintFault(IoErr(), (STRPTR)"HelpViewer");
             goto out;
         }
         if (args[0]) strncpy(opt.dir, (char *)args[0], sizeof(opt.dir) - 1);
-        opt.ttf = args[1] != 0;
+        if (args[1]) opt.ttf = TRUE;        /* a switch: only adds to the tool type */
         if (args[2]) strncpy(opt.fontset, (char *)args[2], sizeof(opt.fontset) - 1);
         if (args[3]) opt.size = *(LONG *)args[3];
+        if (args[4]) strncpy(opt.portname, (char *)args[4], sizeof(opt.portname) - 1);
+    }
+    if (pass_to_running(opt.dir)) {
+        rc = RETURN_OK;
+        goto out;
     }
     if ((LocaleBase = (struct LocaleBase *)OpenLibrary((STRPTR)"locale.library", 38)) != NULL)
         hv.catalog = OpenCatalog(NULL, (STRPTR)"HelpViewer.catalog",
@@ -1146,13 +1322,15 @@ int main(void)
         message(S(MSG_ERR_WINDOW));
         goto out;
     }
+    /* without a directory it shows the welcome text (no default) */
     if (opt.dir[0] != '\0') open_location(opt.dir);
-    else if (is_directory("PROGDIR:Help")) open_location("PROGDIR:Help");
 
     GetAttr(WINDOW_SigMask, hv.winobj, &winsig);
     GetAttr(DIRTREE_SignalMask, hv.tree, &treesig);
+    if (hv.port != NULL) portsig = 1UL << hv.port->mp_SigBit;
     while (!done) {
-        ULONG sig = Wait(winsig | treesig | SIGBREAKF_CTRL_C);
+        ULONG sig = Wait(winsig | treesig | portsig | SIGBREAKF_CTRL_C);
+        if (sig & portsig) handle_port();
         if (sig & SIGBREAKF_CTRL_C) done = 1;
         if (sig & treesig)
             SetGadgetAttrs((struct Gadget *)hv.tree, hv.win, NULL,
@@ -1162,6 +1340,7 @@ int main(void)
     rc = RETURN_OK;
 
 out:
+    close_port();
     if (hv.winobj != NULL) DisposeObject(hv.winobj);    /* disposes all gadgets */
     else {
         if (hv.html != NULL) DisposeObject(hv.html);

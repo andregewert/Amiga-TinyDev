@@ -34,6 +34,9 @@ Settings...
 MSG_MENU_ABOUT (//)
 About...
 ;
+MSG_MENU_HELP (//)
+Help...
+;
 MSG_MENU_QUIT (//)
 Quit
 ;
@@ -154,6 +157,15 @@ Find
 ;
 MSG_TBH_FIND (//)
 Find and replace (Amiga+F)
+;
+MSG_TB_HELP (//)
+Help
+;
+MSG_TBH_HELP (//)
+Help pages of TinyDev
+;
+MSG_HELP_FAILED (//)
+The HelpViewer could not be started.\nIt belongs in the drawer of TinyDev,\nthe help pages in its drawer Help.
 ;
 MSG_TB_MORE (//)
 More buttons

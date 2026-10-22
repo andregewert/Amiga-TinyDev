@@ -6,7 +6,7 @@ HOST_CC ?= cc
 BUILD_DIR := build
 BIN_DIR := bin
 TARGET := $(BIN_DIR)/TinyDev
-SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/splash.c src/prefswin.c src/closeimage.c src/search.c src/find.c src/filescan.c src/locale.c src/bookmarks.c src/bmstore.c src/scout/scout_json.c src/toolwin.c src/bmlist.c
+SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/splash.c src/prefswin.c src/closeimage.c src/search.c src/find.c src/filescan.c src/locale.c src/bookmarks.c src/bmstore.c src/scout/scout_json.c src/toolwin.c src/bmlist.c src/help.c
 OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
 DEPS := $(OBJECTS:.o=.d)
 CPPFLAGS := -Iinclude
@@ -28,6 +28,12 @@ HV_SOURCES := src/helpviewer/helpviewer.c src/helpviewer/htmltitle.c
 HV_OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(HV_SOURCES))
 HV_DEPS := $(HV_OBJECTS:.o=.d)
 HTML_GADGET := external/html_gadget
+
+# Help pages (package/help/<language>/, HTML in ISO-8859-1, language drawers
+# named like the Amiga locales): copied to bin/Help/, where TinyDev's
+# Help command and the HelpViewer find them (PROGDIR:Help/).
+HELP_SOURCES := $(shell find package/help -type f 2>/dev/null)
+HELP_FILES := $(patsubst package/help/%,$(BIN_DIR)/Help/%,$(HELP_SOURCES))
 
 # Gadget classes (src/classes/<name>/), each a disk-based class library for
 # SYS:Classes/Gadgets/. They are written to bin/Classes/Gadgets/ so that
@@ -82,7 +88,7 @@ REGEX_HEADERS := $(REGEX_GEN)/regex.h $(REGEX_GEN)/regcomp.ih $(REGEX_GEN)/engin
 REGEX_CFLAGS := -DPOSIX_MISTAKE -I$(REGEX_GEN) -I$(REGEX_DIR) -w
 REGEX_OBJECTS := $(foreach n,$(REGEX_NAMES),$(REGEX_GEN)/$(n).o)
 REGEX_HOST_OBJECTS := $(foreach n,$(REGEX_NAMES),$(REGEX_GEN)/host/$(n).o)
-LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h src/helpviewer/*.h src/helpviewer/catalogs/* sfd/*.sfd tests/*.c scripts/* tests-host/* catalogs/* LICENSE Makefile)
+LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h src/helpviewer/*.h src/helpviewer/catalogs/* sfd/*.sfd tests/*.c scripts/* tests-host/* catalogs/* package/*.readme $(HELP_SOURCES) LICENSE Makefile)
 
 # Translations: catalogs/TinyDev.cd holds the built-in English strings,
 # catalogs/<language>.ct the translations. include/tinydev_strings.h is in
@@ -94,9 +100,9 @@ CATALOGS := $(foreach l,$(LANGUAGES),$(BIN_DIR)/Catalogs/$(l)/TinyDev.catalog)
 HV_LANGUAGES := $(basename $(notdir $(wildcard src/helpviewer/catalogs/*.ct)))
 HV_CATALOGS := $(foreach l,$(HV_LANGUAGES),$(BIN_DIR)/Catalogs/$(l)/HelpViewer.catalog)
 
-.PHONY: all clean test icons
+.PHONY: all clean test icons dist
 all: charcheck $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(PARSER_C_TARGET) $(CATALOGS) \
-     $(HV_TARGET) $(HV_CATALOGS)
+     $(HV_TARGET) $(HV_CATALOGS) $(HELP_FILES)
 
 # Included after "all" so that charcheck does not become the default goal.
 include $(DEVKIT)/make/charcheck.mk
@@ -132,6 +138,10 @@ $(HV_OBJECTS): CPPFLAGS += -Isrc/helpviewer -I$(HTML_GADGET)/include
 $(HV_TARGET): $(HV_OBJECTS)
 	@mkdir -p $(BIN_DIR)
 	$(TARGET_CC) $(LDFLAGS) -Wl,-u,___stkinit -o $@ $(HV_OBJECTS)
+
+$(BIN_DIR)/Help/%: package/help/%
+	@mkdir -p $(dir $@)
+	cp $< $@
 
 include/tinydev_strings.h: catalogs/TinyDev.cd $(CATCOMP)
 	python3 $(CATCOMP) header $< $@ TINYDEV_STRINGS
@@ -222,7 +232,11 @@ $(BUILD_DIR)/test_c_parser: src/parsers/c_parser.c src/scout/scout_json.c tests/
 icons:
 	python3 tools/mkicons.py
 
+# Aminet archive dist/TinyDev.lha (+ TinyDev.readme), see tools/mkdist.py
+dist: all
+	python3 tools/mkdist.py
+
 clean:
-	rm -rf $(BUILD_DIR) $(BIN_DIR)
+	rm -rf $(BUILD_DIR) $(BIN_DIR) dist
 
 -include $(DEPS) $(SCOUT_DEPS) $(CLASS_DEPS) $(HV_DEPS)

@@ -12,6 +12,7 @@
 #   tinydev    the editor window: line numbers, coloured code, the minimap
 #   scout      a page of code under a magnifying glass
 #   parser_<x> a chip with the label of the parser's language (parser())
+#   helpviewer a blue handbook with a question mark on its cover
 #
 # Run directly (or "make icons") to write sample icons of all styles to
 # icons/<Style>/ and a preview picture icons/preview.png.
@@ -35,10 +36,12 @@ KEYWORD, STRING, PREPRO = BLUE[1], GREEN[1], RED[1]
 GLYPHS = {
     'C': ('.###.', '#...#', '#....', '#....', '#....', '#...#', '.###.'),
     'S': ('.####', '#....', '#....', '.###.', '....#', '....#', '####.'),
+    '?': ('.###.', '#...#', '....#', '...#.', '..#..', '.....', '..#..'),
 }
 SMALL = {
     'C': ('.##', '#..', '#..', '#..', '.##'),
     'S': ('###', '#..', '###', '..#', '###'),
+    '?': ('##.', '..#', '.#.', '...', '.#.'),
 }
 
 
@@ -130,6 +133,23 @@ def classic_parser(letter):
     return pic
 
 
+def pic_helpviewer():
+    c = ai.Canvas(36, 24)
+    c.rect(26, 3, 29, 22, 2)                  # the pages, at the right
+    for y in range(5, 22, 3):
+        c.rect(27, y, 29, y, 0)
+    c.frame(26, 3, 29, 22, 1, 1)
+    c.rect(7, 1, 27, 21, 3)                   # the cover
+    c.frame(7, 1, 27, 21, 1, 1)
+    c.rect(9, 1, 9, 21, 1)                    # the spine's fold
+    # the question mark, twice the size of the small letters
+    for dy, row in enumerate(SMALL['?']):
+        for dx, p in enumerate(row):
+            if p == '#':
+                c.rect(14 + 3 * dx, 4 + 3 * dy, 16 + 3 * dx, 6 + 3 * dy, 2)
+    return c
+
+
 # --------------------------------------------- GlowIcons motifs ---
 
 def m_tinydev(s, c):
@@ -155,6 +175,22 @@ def m_tinydev(s, c):
     for row, x0, x1, kind in code_rows(22)[:6]:
         y = 26 + row
         c.line(35 + x0 // 4, y, 35 + x1 // 6, y, GLOW_KIND[kind])
+
+
+def m_helpviewer(s, c):
+    pages = [(30, 6), (35, 9), (35, 37), (30, 37)]
+    c.poly(pages, s.ramp(*PAPER)(30, 6, 35, 37), s.line(GREY[1]))
+    for y in range(10, 36, 3):
+        c.line(31, y, 34, y, GREY[0])
+    c.rect(5, 2, 31, 34, s.line(BLUE[1]))                       # the cover
+    c.rect(6, 3, 30, 33, s.ramp(*BLUE)(6, 3, 30, 33))
+    c.rect(6, 3, 8, 33, s.ramp(BLUE[1], ai.mix(BLUE[1], BLACK, 0.4))(6, 3, 8, 33))   # spine
+    c.line(9, 3, 9, 33, ai.mix(BLUE[0], WHITE, 0.4))
+    # the question mark: the 5 x 7 letter, each dot 3 x 3
+    for dy, row in enumerate(GLYPHS['?']):
+        for dx, p in enumerate(row):
+            if p == '#':
+                c.rect(12 + 3 * dx, 7 + 3 * dy, 14 + 3 * dx, 9 + 3 * dy, WHITE)
 
 
 def ring(c, cx, cy, r, colour):
@@ -256,6 +292,25 @@ def n_scout(c, sel):
             c.put(x, y, ai.N_YELLOW)
 
 
+def n_helpviewer(c, sel):
+    """ an upright blue handbook on its platform, a question mark on its
+        cover; selected: the question mark lights up yellow              """
+    book = ai.Box(10, 9, 8, 3, 22)
+    ai.platform(c, 6, 32, 12, 5, book)
+    book.draw(c, WHITE, ai.N_G51, ai.N_BLUE, edge=ai.N_BLUE)
+    book.top_line(c, 2, 3, 2 * (book.a + book.b) - 2, ai.N_G170)    # pages
+    for t in (3, book.h - 2):                                       # bands on the spine
+        for u in range(1, 2 * book.b):
+            c.put(book.x0 + u, book.ymid(u) + t, ai.N_LBLUE)
+    mark = ai.N_YELLOW if sel else WHITE
+    for dy, row in enumerate(GLYPHS['?']):                          # pixel pairs
+        for dx, p in enumerate(row):
+            if p == '#':
+                u = 2 * book.b + 3 + 2 * dx
+                for t in (5 + 2 * dy, 6 + 2 * dy):
+                    book.face_line(c, t, u, u + 1, mark)
+
+
 def ni_parser(letter, colour):
     def n(c, sel):
         """ a chip on its platform, pins along its long side, the language
@@ -313,17 +368,19 @@ def parser(letter, colour=BLUE, ni_colour=ai.N_BLUE):
 
 ai.register('tinydev', pic_tinydev, m_tinydev, n_tinydev)
 ai.register('scout', pic_scout, m_scout, n_scout)
+ai.register('helpviewer', pic_helpviewer, m_helpviewer, n_helpviewer)
 PARSER_C = parser('C')
 
 
 # ---------------------------------------------------------------- samples ---
 
-ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, 'readme', 'license')
+ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, 'helpviewer', 'readme', 'license')
 
 SAMPLES = (('Drawer', 'drawer', WBDRAWER, {}),
            ('TinyDev', 'tinydev', WBTOOL, {'stack': 32768}),
            ('TinyDev-Scout', 'scout', WBTOOL, {'stack': 16384}),
            ('c_parser', PARSER_C, WBTOOL, {'stack': 16384}),
+           ('HelpViewer', 'helpviewer', WBTOOL, {'stack': 32768}),
            ('ReadMe', 'readme', WBPROJECT, {'default_tool': 'SYS:Utilities/MultiView'}),
            ('License', 'license', WBPROJECT, {'default_tool': 'SYS:Utilities/MultiView'}))
 

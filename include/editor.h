@@ -140,7 +140,8 @@ enum MenuId {
     MID_BM_CLEAR,       /**< Bookmarks/Remove All in This File */
     MID_TREE_REFRESH,   /**< Project/Refresh Folder Tree */
     MID_BM_LIST,        /**< View/Bookmarks: the bookmark list (check item) */
-    MID_SNAPSHOT_TOOLS  /**< View/Snapshot Tool Windows */
+    MID_SNAPSHOT_TOOLS, /**< View/Snapshot Tool Windows */
+    MID_HELP            /**< Project/Help...: starts the HelpViewer */
 };
 
 /** Bookmarks of a document that TinyDev keeps track of. */
@@ -1071,6 +1072,15 @@ void toolwin_box(EditorApp *app, const long saved[4], WORD min_width, WORD min_h
  * @param saved Out: left, top, width, height.
  */
 void toolwin_remember(struct Window *win, long saved[4]);
+
+/**
+ * @brief Start the HelpViewer (PROGDIR:HelpViewer) on the help pages in
+ *        PROGDIR:Help, independent of TinyDev (it stays open when TinyDev
+ *        quits), as TinyDev's single viewer (PORTNAME TinyDev). Shows a
+ *        requester if that fails.
+ * @param app The application state.
+ */
+void help_open(EditorApp *app);
 
 /**
  * @brief Open the bookmark list (or bring it to the front).

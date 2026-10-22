@@ -67,6 +67,7 @@ static const ToolSpec tools[] = {
     { MID_COPY,  0, "copy",  MSG_TB_COPY, MSG_TBH_COPY },
     { MID_PASTE, 0, "paste", MSG_TB_PASTE, MSG_TBH_PASTE },
     { MID_FIND,  8, "find",  MSG_TB_FIND, MSG_TBH_FIND },
+    { MID_HELP,  8, "help",  MSG_TB_HELP, MSG_TBH_HELP },
 };
 /**
  * Number of toolbar buttons.

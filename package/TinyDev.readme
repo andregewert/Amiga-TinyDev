@@ -1,0 +1,82 @@
+Short:        Text editor for programmers, with project tree and help
+Author:       André Gewert <agewert@ubergeek.de>
+Uploader:     André Gewert <agewert@ubergeek.de>
+Type:         text/edit
+Version:      1.0
+Architecture: m68k-amigaos >= 3.2.0
+Requires:     AmigaOS 3.2, dev/gui/html_gadget.lha (1.2, for the help)
+Distribution: Aminet
+
+TinyDev is a text editor for programmers on AmigaOS 3.2, built with
+ReAction. It runs on a 68000, but is meant for 68030 to 68060 machines.
+
+TinyDev
+-------
+ - several documents in tabs, each a texteditor.gadget: selection,
+   clipboard, undo/redo, line numbers; LF, CR and CRLF line endings are
+   kept; safe saves through a temporary file
+ - syntax highlighting of C and AmigaDOS scripts
+ - folder tree of the project (dirtree.gadget) that follows changes on
+   disk, and a minimap (minimap.gadget)
+ - find and replace in the document, in all open documents or in all
+   files of the project, as plain text or with regular expressions
+ - bookmarks, saved per project, with a bookmark list
+ - toolbar with AISS images, images and text or text only
+ - help pages in English and German, shown by the HelpViewer
+ - settings saved as tool types of the TinyDev icon
+
+HelpViewer
+----------
+Shows a drawer of HTML help pages with html.gadget: the pages by their
+titles in a tree on the left, Back, Forward and Home. It runs on its
+own, so TinyDev can be quit while the help stays open.
+
+Installation
+------------
+TinyDev runs directly from the archive: it finds its classes, catalogs
+and help pages next to it (Classes/, Catalogs/, Help/). html.gadget must
+be installed in SYS:Classes/Gadgets/ or lie next to the HelpViewer.
+
+Contents
+--------
+ TinyDev              the editor
+ TinyDev-Scout        source analysis commodity (ARexx port TINYDEV_SCOUT)
+ parsers/c_parser     the C parser of Scout
+ HelpViewer           the help viewer
+ Help/                help pages (english, deutsch)
+ Classes/Gadgets/     dirtree.gadget and minimap.gadget
+ Catalogs/            translations (German)
+ Docs/                documentation (README.md)
+ Icons/               the archive's icons as GlowIcons and NewIcons (and
+                      scripts that put them in place)
+ Source/              complete source code (C, cross compiled with
+                      bebbo's amiga-gcc)
+
+History
+-------
+1.0
+ - first release
+
+License
+-------
+MIT License, see LICENSE.
+regex: Henry Spencer's regular expression library, see
+Source/external/regex/COPYRIGHT.
+
+Deutsch
+-------
+TinyDev ist ein Texteditor für Programmierer unter AmigaOS 3.2, gebaut
+mit ReAction: mehrere Dokumente in Reitern, Syntaxhervorhebung für C
+und AmigaDOS-Skripte, ein Verzeichnisbaum des Projekts, eine Minimap,
+Suchen und Ersetzen im Dokument, in allen offenen Dokumenten oder im
+ganzen Projekt (auch mit regulären Ausdrücken) und Lesezeichen pro
+Projekt. Die Hilfe (Deutsch und Englisch) zeigt der HelpViewer, der
+unabhängig von TinyDev weiterläuft.
+Voraussetzungen: AmigaOS 3.2, html.gadget (Aminet dev/gui/html_gadget.lha)
+für die Hilfe und AISS für die Toolbar-Bilder. TinyDev läuft direkt
+aus dem Archiv.
+
+Versionsgeschichte
+------------------
+1.0
+ - erste Veröffentlichung

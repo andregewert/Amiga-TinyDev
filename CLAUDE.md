@@ -33,8 +33,9 @@ Wo `AGENTS.md` und die Devkit-Dokumente sich widersprechen, gilt Folgendes:
   Texte umsortiert werden, eine Katalogversion (`OC_Version`) gibt es erst dann.
   `include/tinydev_strings.h` wird erzeugt und eingecheckt. Kürzel (`_`) pro Fenster und
   Sprache eindeutig halten. Ausgaben auf `stderr` bleiben englisch.
-- **Noch nicht vorhanden** (nur nach Absprache einführen): `README.de.md`, `package/` mit
-  Aminet-Readme, `make dist`.
+- **Noch nicht vorhanden** (nur nach Absprache einführen): `README.de.md` und ein
+  Installer-Skript (`package/Install`). `package/` enthält die Aminet-Readme und die
+  Hilfeseiten (`package/help/<Sprache>/`), `make dist` baut das Archiv.
 - **Versionen:** Das erste Release von TinyDev und seinen Gadget-Klassen wird 1.0. Bis dahin
   lädt TinyDev die Klassen aus `bin/` (`PROGDIR:Classes/Gadgets/`).
 - **Schrift:** Der Editor nutzt immer die Standard-Bildschirmschrift, eine Schriftwahl gibt es
