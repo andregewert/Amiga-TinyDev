@@ -1,6 +1,15 @@
 /**
  * @file ui.c
  * @brief The main window: menus, status line, event loop, editor colours and settings that take effect at once.
+ *
+ * Editor colours: every editor gets a backfill hook and an editor-local
+ * DrawInfo with a white background pen, black for normal text and dark
+ * screen pens (ObtainBestPen) for keywords, strings, comments and
+ * preprocessor lines. The OS 3.2 texteditor.gadget paints its text area
+ * with the screen's BACKGROUNDPEN and ignores GA_BackFill and GA_DrawInfo
+ * there; GA_TEXTEDITOR_Pen and GA_TEXTEDITOR_ColorMap are not implemented
+ * and GA_TEXTEDITOR_Transparent is OS4 only. The text area therefore keeps
+ * the Workbench background until a subclass draws it itself.
  */
 #include "editor.h"
 

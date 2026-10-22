@@ -10,6 +10,10 @@ Gemeinsame Regeln aller Amiga-Projekte (Submodule `amiga-devkit/`, gepinnt auf e
 @amiga-devkit/docs/ReAction-Styleguide.md
 @amiga-devkit/docs/Dokumentation.md
 
+Technische Notizen, die mehrere Module betreffen, stehen in `TECHNICAL.md` (nicht
+automatisch geladen; `AGENTS.md` nennt unter „Technical notes“, welcher Abschnitt vor welcher
+Änderung zu lesen ist).
+
 ## Abweichungen von den Devkit-Regeln
 
 Wo `AGENTS.md` und die Devkit-Dokumente sich widersprechen, gilt Folgendes:

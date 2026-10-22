@@ -1,6 +1,12 @@
 /**
  * @file syntax.c
  * @brief Language detection, the portable syntax scanners and the texteditor.gadget highlighter hook.
+ *
+ * The language follows the file name: C (.c, .h) and AmigaDOS scripts
+ * (.script, .dos); other files stay plain text. C: the C99 keywords,
+ * strings and character constants, preprocessor lines, // and block
+ * comments. AmigaDOS: keywords without regard to case, ';' starts a
+ * comment.
  */
 #include "syntax.h"
 

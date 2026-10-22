@@ -56,7 +56,8 @@ def main():
     src = os.path.join(PKG, 'Source')
     for d in ('src', 'include', 'sfd', 'catalogs', 'tests', 'tests-host', 'scripts', 'tools', 'package'):
         copytree(b(d), os.path.join(src, d), ignore=('__pycache__',))
-    for f in ('Makefile', 'README.md', 'LICENSE', 'AGENTS.md', 'CLAUDE.md', 'FUTURE.md', 'screenshot.png'):
+    for f in ('Makefile', 'README.md', 'LICENSE', 'AGENTS.md', 'CLAUDE.md', 'TECHNICAL.md', 'FUTURE.md',
+              'screenshot.png'):
         copy(b(f), os.path.join(src, f))
     copy(b('icons', 'preview.png'), os.path.join(src, 'icons', 'preview.png'))
     copytree(b('external', 'regex'), os.path.join(src, 'external', 'regex'), ignore=('.git',))

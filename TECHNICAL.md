@@ -1,0 +1,95 @@
+# TinyDev – technical notes
+
+Notes that concern several modules: how the parts work together, and
+findings about the OS 3.2 classes that more than one place depends on.
+What belongs to one module is in that module's Doxygen comments
+(`@file` head or function); the public interfaces of the gadget classes
+are in `include/gadgets/<name>.h`. `AGENTS.md` says which section to read
+before which change.
+
+## Event flow between TinyDev and its classes
+
+`dirtree.gadget` and `minimap.gadget` must not use DOS or read the editor
+while Intuition handles input (GM_HANDLEINPUT runs on input.device's task).
+Both therefore only report, and TinyDev does the work from its own
+process:
+
+- **dirtree.gadget** reports expand, collapse and double-click with a
+  `GADGETUP`; `tree.c` answers with `DIRTREE_HandleEvent` (through
+  `SetGadgetAttrs()`), which reads the directory and redraws. Changes on
+  disk arrive as DOS notifications on the gadget's signal
+  (`DIRTREE_SignalMask`); the event loop answers with `DIRTREE_Refresh`,
+  which reads only the changed directories. Project/Refresh Folder Tree
+  reads all shown directories, for file systems without notification.
+- **minimap.gadget** reads the editor and starts a render job only when
+  `minimap.c` sets `MINIMAP_Update`: after every batch of input events and
+  when its signal arrives. Clicks and drags come back as notifications
+  (`MINIMAP_Top`, `MINIMAP_Dragging`) and TinyDev scrolls the editor. The
+  colours come from a per-line hook that runs TinyDev's syntax scanner on
+  the document, so a document is disconnected
+  (`minimap_forget_document()`) before its editor is disposed.
+
+## Scrolling, highlighting and the minimap viewport
+
+While a scrollbar is dragged, the syntax highlighting is suspended and the
+minimap's viewport box is not updated; both come back (with a full redraw)
+when the drag ends. The end is the scroller's `GADGETUP` or two IntuiTicks
+without a scroll signal (`document.c`, `ui.c`). A drag in the minimap
+suspends the highlighting in the same way until the button is released.
+
+## Editor colours and texteditor.gadget
+
+TinyDev's syntax colours are real screen pens (`ObtainBestPen`), handed to
+the highlighter hook (`syntax.c`) and to the minimap's colour hook. The
+OS 3.2 `texteditor.gadget` paints its text area with the screen's
+`BACKGROUNDPEN` and ignores `GA_BackFill` and `GA_DrawInfo` there;
+`GA_TEXTEDITOR_Pen`/`GA_TEXTEDITOR_ColorMap` are not implemented and
+`GA_TEXTEDITOR_Transparent` is OS4 only (details in `ui.c`). The minimap
+uses the same background pen so both look alike.
+
+## The project
+
+The directory opened in the folder tree is the project. What refers to it:
+
+- the project-file search of the find window (`find.c`, `filescan.c`),
+  bounded like the tree (16 levels, no links, no icons);
+- the bookmarks of the project's files in `<project>/.tinydev/bookmarks.json`
+  (`bookmarks.c`, `bmstore.c`); the directory is visible and made when first
+  needed, the file is JSON in ISO-8859-1 that may be edited by hand and is
+  never overwritten when it cannot be read;
+- the start drawer of the file requesters (`fileio.c`).
+
+## Help: TinyDev, HelpViewer and the help pages
+
+- The pages are `package/help/<language>/` (Amiga locale names, the same
+  file names in every language); `make` copies them to `bin/Help/`.
+- `help.c` starts `PROGDIR:HelpViewer "PROGDIR:Help" PORTNAME TinyDev` with
+  `SystemTags()` and `SYS_Asynch`, so the viewer outlives TinyDev.
+  `OpenWorkbenchObjectA()` would be the Workbench way, but it cannot pass
+  options.
+- The HelpViewer opens the language drawer of the user's locale when a
+  directory has no index page but language drawers.
+- With `PORTNAME` the HelpViewer adds the public port
+  `HELPVIEWER.<NAME>`; a later start with that name sends an
+  `OpenMessage` with the location as full path and ends. Without
+  `PORTNAME` there is no port, every start is a viewer of its own.
+- On a Shell start the HelpViewer reads the tool types of its icon first,
+  then the arguments; a switch argument (`TTF`) may only switch on, never
+  off what the tool type set.
+
+## Classes: installed or next to the program
+
+TinyDev and the HelpViewer open an installed class first
+(`gadgets/<name>.gadget`) and otherwise the copy in
+`PROGDIR:Classes/Gadgets/`, where the build puts it. An installed older
+version therefore hides a fresh build; check with
+`Version gadgets/dirtree.gadget FULL` before looking for a bug.
+
+## Build layout and the archive
+
+- `bin/` is laid out as on the Amiga (programs, `Classes/Gadgets/`,
+  `Catalogs/<language>/`, `Help/<language>/`), `build/` holds everything in
+  between, `dist/` the archive.
+- `tools/mkdist.py` copies `bin/` as it is, so the archive runs without
+  installing; the sources in it must build without git (submodule
+  contents and the devkit are copied).

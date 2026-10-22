@@ -1,6 +1,18 @@
 /**
  * @file document.c
  * @brief Documents and their tabs: creating, opening, activating and closing, scrollbar synchronisation and highlighting suspension while scrolling.
+ *
+ * A document whose changes are all undone (or redone back to the saved
+ * text) is marked unchanged again: after Undo and Redo and whenever editing
+ * pauses (for texts up to 256 KB) the text is compared with a checksum of
+ * the text as loaded or saved (text_hash(); the line-end style and line
+ * ends at the end of the text do not count).
+ *
+ * To keep dragging a scrollbar as smooth as the editor's own wheel
+ * scrolling, syntax highlighting is suspended while a scrollbar is dragged
+ * and restored with a full redraw when the drag ends: at the scroller's
+ * GADGETUP or after two IntuiTicks without a scroll signal (the scroller
+ * sends no GADGETUP when the button is released outside it).
  */
 #include "editor.h"
 

@@ -1,6 +1,13 @@
 /**
  * @file fileio.c
  * @brief Loading and saving documents: line endings, safe saves through a temporary file, file requesters.
+ *
+ * Contents are 8-bit text (no UTF-8 decoding); files with NUL bytes are
+ * refused. LF, CR and CRLF are kept as loaded. A save writes a temporary
+ * file first, so a failed write leaves the original intact. Opening a file
+ * that is open already shows its tab. Once a directory is open, the
+ * requesters for new files start in it (Save As of a named file starts in
+ * its drawer).
  */
 #include "editor.h"
 

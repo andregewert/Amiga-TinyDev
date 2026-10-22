@@ -148,7 +148,13 @@ below the tree's root.
 - `tools/mkdist.py`: `make dist` builds `dist/TinyDev.lha` from `bin/`,
   the README, the sources (built without git) and icons, with
   `amiga-devkit/tools/distlib.py`.
-- `README.md`: supported behavior, runtime dependencies, and known limits.
+- `README.md`: for users: features, requirements, usage, tool types, limits
+  and building, kept short.
+- `TECHNICAL.md`: notes that concern several modules (event flow between
+  TinyDev and its classes, scrolling and highlighting, editor colours and
+  texteditor.gadget, the project, help and HelpViewer, class loading, build
+  layout). Not loaded every session: read the section named in "Technical
+  notes" below before such a change.
 
 ## Build and verification
 
@@ -251,12 +257,32 @@ make test
   document (`minimap_forget_document()`) before the document's editor is
   disposed.
 
+## Technical notes
+
+Read the section of `TECHNICAL.md` before changing:
+
+- tree.c, minimap.c or the event loop's handling of the classes' signals:
+  "Event flow between TinyDev and its classes";
+- scrolling, the highlighter hook or the minimap viewport: "Scrolling,
+  highlighting and the minimap viewport";
+- editor pens, backfill or colour settings: "Editor colours and
+  texteditor.gadget";
+- the find window's project search, bookmarks or `.tinydev/`: "The
+  project";
+- help.c, the HelpViewer's start options or its port: "Help: TinyDev,
+  HelpViewer and the help pages";
+- how classes are opened, or `bin/`, `make dist`: "Classes" and "Build
+  layout".
+
 ## Change discipline
 
 - Read the relevant module and shared headers before editing cross-module data
   structures or ReAction object ownership.
-- Update `README.md` when supported features, requirements, or intentional
-  limitations change.
+- Documentation goes where it is read (`amiga-devkit/docs/Dokumentation.md`,
+  "Wohin welches Wissen gehört"): a short entry in `README.md` for what
+  users see (feature bullet, tool type row, limit); module details in the
+  module's Doxygen comments; what spans modules in `TECHNICAL.md`. No
+  implementation details in the README.
 - Add or extend host tests for portable scanner behavior and edge cases.
 - Do not overwrite unrelated working-tree changes or commit generated binaries
   and object files unless the task explicitly requires them.
