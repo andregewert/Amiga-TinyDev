@@ -40,7 +40,7 @@ struct HintInfo;
 #define TREE_MIN_WIDTH        140   /**< smallest width of the folder tree */
 #define TREE_DEFAULT_WEIGHT   25    /**< weight of the folder tree column */
 #define MINIMAP_MIN_WIDTH     48    /**< smallest width of the minimap */
-#define MINIMAP_DEFAULT_WEIGHT 20   /**< weight of the minimap column */
+#define MINIMAP_DEFAULT_WEIGHT 9    /**< weight of the minimap column (tree 25, editor 75: about 1/12 of the width) */
 #define EDITOR_DEFAULT_WEIGHT 75    /**< weight of the editor column */
 /** @} */
 
