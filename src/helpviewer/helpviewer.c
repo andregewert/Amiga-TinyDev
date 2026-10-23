@@ -22,7 +22,9 @@
  * the same name passes its location to it through the public port
  * HELPVIEWER.\<NAME\> and ends; without it every start opens a viewer of
  * its own. Back and Forward go
- * through the pages seen (with their scroll positions).
+ * through the pages seen (with their scroll positions). Project/Print
+ * prints the page shown, also as PostScript or PDF (printwin.c); its
+ * options are tool types as well.
  *
  * Built on HTMLDemo of html.gadget; no stdio (started from the Workbench,
  * libnix would add its console handling for it).
@@ -71,6 +73,7 @@
 
 #define HELPVIEWER_STRINGS     /**< the built-in strings are defined here */
 #include "helpviewer_strings.h"
+#include "helpviewer.h"
 #include "htmltitle.h"
 
 /** Version string for the Version command; changes only with a release. */
@@ -105,15 +108,16 @@ struct LocaleBase *LocaleBase = NULL;   /**< locale.library, NULL without it */
 enum { GID_HTML = 1, GID_VSCROLL, GID_HSCROLL, GID_TREE, GID_TOOLBAR, GID_STATUS };
 /** Menu and toolbar commands (the menu items' user data, the buttons' IDs). */
 enum { MID_OPEN = 1, MID_BACK, MID_FORWARD, MID_ABOUT, MID_QUIT, MID_COPY, MID_SELALL, MID_HOME,
-       MID_SNAPSHOT };
+       MID_SNAPSHOT, MID_PRINT };
 
 #define MAXHIST 64              /**< pages kept for Back and Forward */
-#define PATHMAX 512             /**< size of path buffers */
 #define TITLE_READ 4096         /**< bytes of a page searched for its title */
-#define NUMTOOLS 4              /**< toolbar buttons */
+#define NUMTOOLS 5              /**< toolbar buttons */
 #define TOOL_HOME 0             /**< index of Home in tools[] */
 #define TOOL_BACK 1             /**< index of Back */
 #define TOOL_FORWARD 2          /**< index of Forward */
+#define TOOL_OPEN 3             /**< index of Open */
+#define TOOL_PRINT 4            /**< index of Print */
 
 /** The menus; texts from menu_texts[] (catalog). */
 static struct NewMenu menus[] = {
@@ -123,6 +127,8 @@ static struct NewMenu menus[] = {
     { NM_ITEM,  NULL, (STRPTR)"H",   0, 0, (APTR)MID_HOME },
     { NM_ITEM,  NULL, (STRPTR)"B",   0, 0, (APTR)MID_BACK },
     { NM_ITEM,  NULL, (STRPTR)"N",   0, 0, (APTR)MID_FORWARD },
+    { NM_ITEM,  NM_BARLABEL, 0,      0, 0, 0 },
+    { NM_ITEM,  NULL, (STRPTR)"P",   0, 0, (APTR)MID_PRINT },
     { NM_ITEM,  NM_BARLABEL, 0,      0, 0, 0 },
     { NM_ITEM,  NULL, 0,             0, 0, (APTR)MID_SNAPSHOT },
     { NM_ITEM,  NM_BARLABEL, 0,      0, 0, 0 },
@@ -137,7 +143,7 @@ static struct NewMenu menus[] = {
 /** Texts of menus[] (MSG_), -1 for bars and the end. */
 static const LONG menu_texts[] = {
     MSG_MENU_PROJECT, MSG_MENU_OPEN, -1, MSG_MENU_HOME, MSG_MENU_BACK, MSG_MENU_FORWARD, -1,
-    MSG_MENU_SNAPSHOT, -1, MSG_MENU_ABOUT, MSG_MENU_QUIT, MSG_MENU_EDIT, MSG_MENU_COPY, MSG_MENU_SELECTALL, -1
+    MSG_MENU_PRINT, -1, MSG_MENU_SNAPSHOT, -1, MSG_MENU_ABOUT, MSG_MENU_QUIT, MSG_MENU_EDIT, MSG_MENU_COPY, MSG_MENU_SELECTALL, -1
 };
 
 /** One toolbar button. */
@@ -153,6 +159,7 @@ static const ToolSpec tools[NUMTOOLS] = {
     { MID_BACK,    MSG_TB_BACK,    MSG_TBH_BACK },
     { MID_FORWARD, MSG_TB_FORWARD, MSG_TBH_FORWARD },
     { MID_OPEN,    MSG_TB_OPEN,    MSG_TBH_OPEN },
+    { MID_PRINT,   MSG_TB_PRINT,   MSG_TBH_PRINT },
 };
 
 /** A page seen, for Back and Forward. */
@@ -230,12 +237,7 @@ static struct TagItem html_map[] = {
     { TAG_DONE, 0 }
 };
 
-/**
- * @brief Return a text in the user's language.
- * @param id The MSG_ number.
- * @return The text from the catalog, or the built-in English one.
- */
-static const char *S(LONG id)
+const char *hv_text(LONG id)
 {
     const char *builtin = id >= 0 && id < MSG_COUNT ? msg_builtin[id] : "";
     if (hv.catalog == NULL) return builtin;
@@ -264,12 +266,7 @@ static void format(char *out, long size, const char *format, const char *arg)
     out[n] = '\0';
 }
 
-/**
- * @brief Show a message: a requester (also from the Shell, as it may come
- *        before or without the window).
- * @param text The message.
- */
-static void message(const char *text)
+void message(const char *text)
 {
     struct EasyStruct es;
     es.es_StructSize = sizeof(es);
@@ -280,11 +277,7 @@ static void message(const char *text)
     EasyRequest(hv.win, &es, NULL, (ULONG)text);
 }
 
-/**
- * @brief Show a text in the status line.
- * @param text The text.
- */
-static void set_status(const char *text)
+void set_status(const char *text)
 {
     if (text != hv.status_text) {
         strncpy(hv.status_text, text, sizeof(hv.status_text) - 1);
@@ -452,7 +445,7 @@ static int make_toolbar(void)
             hv.labels[i] != NULL ? SBNA_Image : SBNA_Text,
             hv.labels[i] != NULL ? (ULONG)hv.labels[i] : (ULONG)S(tools[i].label),
             SBNA_Enabled, TRUE,
-            SBNA_Spacing, i == TOOL_BACK || i == NUMTOOLS - 1 ? 8 : 0,
+            SBNA_Spacing, i == TOOL_BACK || i == TOOL_OPEN ? 8 : 0,
             SBNA_Highlight, SBH_RECESS,
             TAG_END);
         if (hv.nodes[i] == NULL) return 0;
@@ -475,7 +468,8 @@ static int make_toolbar(void)
     return hv.bar != NULL;
 }
 
-/** @brief Ghost Home, Back and Forward when there is no page to go to. */
+/** @brief Ghost Home, Back and Forward when there is no page to go to,
+ *         Print when no page is shown. */
 static void update_toolbar(void)
 {
     ULONG mask = 0, changed;
@@ -483,6 +477,7 @@ static void update_toolbar(void)
     if (hv.home[0] == '\0') mask |= 1UL << TOOL_HOME;
     if (hv.cur <= 0) mask |= 1UL << TOOL_BACK;
     if (hv.cur < 0 || hv.cur >= hv.nhist - 1) mask |= 1UL << TOOL_FORWARD;
+    if (hv.cur < 0) mask |= 1UL << TOOL_PRINT;
     if ((changed = mask ^ hv.disabled) == 0 || hv.bar == NULL) return;
     hv.disabled = mask;
     SetGadgetAttrs((struct Gadget *)hv.bar, hv.win, NULL, SPEEDBAR_Buttons, ~0UL, TAG_END);
@@ -791,20 +786,85 @@ static void put_number(char **p, LONG n)
 }
 
 /**
- * @brief Write the window's position and size as WINDOW= into the program
- *        icon (Project/Snapshot Window).
- *
- * Replaces an existing WINDOW= (or disabled "(WINDOW=...)") in its place;
- * otherwise the entry goes in front of a NewIcons block. Other tool types
- * stay as they are. Reports the result in the status line.
+ * @brief The key of a tool type, also of a disabled one ("(KEY=...)").
+ * @param tt The tool type.
+ * @param key The key.
+ * @return Non-zero if the tool type has this key.
  */
-static void snapshot_window(void)
+static int has_key(CONST_STRPTR tt, const char *key)
+{
+    const char *p = (const char *)tt;
+    if (*p == '(') p++;
+    while (*key && (*p | 0x20) == (*key | 0x20)) p++, key++;
+    return !*key && (!*p || *p == '=' || *p == ')' || *p == ' ');
+}
+
+int write_tooltypes(ToolTypeEntry *e, int count)
 {
     struct DiskObject *dob;
     STRPTR *old, *tt;
-    char entry[64], *p = entry;
-    ULONG n = 0, i, at;
-    int ok = 0;
+    char *disabled, *dp;
+    ULONG nold = 0, n = 0, i, nicons;
+    int k, ok = 0;
+
+    if (IconBase == NULL || opt.icon[0] == '\0' ||
+        ((dob = GetDiskObject((STRPTR)opt.icon)) == NULL &&
+         (dob = GetDiskObjectNew((STRPTR)opt.icon)) == NULL))
+        return 0;
+    for (k = 0; k < count; ++k) e[k].done = FALSE;
+    old = (STRPTR *)dob->do_ToolTypes;
+    while (old != NULL && old[nold] != NULL) ++nold;
+    /* new entries go in front of the NewIcons block */
+    for (nicons = 0; nicons < nold; ++nicons)
+        if (strncmp((const char *)old[nicons], "*** DON'T EDIT", 14) == 0) {
+            if (nicons != 0 && strcmp((const char *)old[nicons - 1], " ") == 0) --nicons;
+            break;
+        }
+    /* old entries + ours + disabled copies ("(" old ")") + NULL */
+    if ((tt = AllocVec((nold + (ULONG)count + 1) * sizeof(STRPTR), MEMF_ANY | MEMF_CLEAR)) != NULL &&
+        (disabled = AllocVec((ULONG)count * (TOOLTYPE_LEN + 2), MEMF_ANY)) != NULL) {
+        dp = disabled;
+        for (i = 0; i <= nold; ++i) {
+            if (i == nicons)                    /* not yet in the icon */
+                for (k = 0; k < count; ++k)
+                    if (!e[k].done && e[k].active) {
+                        tt[n++] = (STRPTR)e[k].text;
+                        e[k].done = TRUE;
+                    }
+            if (i == nold) break;
+            for (k = 0; k < count && !has_key(old[i], e[k].key); ++k) ;
+            if (k == count) tt[n++] = old[i];   /* not ours */
+            else if (!e[k].done) {
+                e[k].done = TRUE;
+                if (e[k].active) tt[n++] = (STRPTR)e[k].text;
+                else if (old[i][0] == '(') tt[n++] = old[i];
+                else if (strlen((const char *)old[i]) < TOOLTYPE_LEN) {    /* default now: disable it */
+                    strcpy(dp, "(");
+                    strcat(dp, (const char *)old[i]);
+                    strcat(dp, ")");
+                    tt[n++] = (STRPTR)dp;
+                    dp += strlen(dp) + 1;
+                }
+            }                                   /* duplicates are dropped */
+        }
+        dob->do_ToolTypes = tt;
+        ok = PutDiskObject((STRPTR)opt.icon, dob) != 0;
+        dob->do_ToolTypes = old;
+        FreeVec(disabled);
+    }
+    if (tt != NULL) FreeVec(tt);
+    FreeDiskObject(dob);
+    return ok;
+}
+
+/**
+ * @brief Write the window's position and size as WINDOW= into the program
+ *        icon (Project/Snapshot Window) and report it in the status line.
+ */
+static void snapshot_window(void)
+{
+    ToolTypeEntry e;
+    char *p = e.text;
 
     if (hv.win == NULL) return;
     strcpy(p, "WINDOW=");
@@ -813,39 +873,9 @@ static void snapshot_window(void)
     put_number(&p, hv.win->TopEdge); *p++ = ',';
     put_number(&p, hv.win->Width); *p++ = ',';
     put_number(&p, hv.win->Height);
-    if (IconBase != NULL && opt.icon[0] != '\0' &&
-        ((dob = GetDiskObject((STRPTR)opt.icon)) != NULL ||
-         (dob = GetDiskObjectNew((STRPTR)opt.icon)) != NULL)) {
-        old = (STRPTR *)dob->do_ToolTypes;
-        while (old != NULL && old[n] != NULL) ++n;
-        for (at = 0; at < n; ++at) {
-            const char *t = (const char *)old[at];
-            if (*t == '(') ++t;
-            if (Strnicmp((STRPTR)t, (STRPTR)"WINDOW=", 7) == 0) break;
-        }
-        if (at == n)                            /* new: in front of NewIcons */
-            for (at = 0; at < n; ++at)
-                if (strncmp((const char *)old[at], "*** DON'T EDIT", 14) == 0) {
-                    if (at != 0 && strcmp((const char *)old[at - 1], " ") == 0) --at;
-                    break;
-                }
-        if ((tt = AllocVec((n + 2) * sizeof(STRPTR), MEMF_ANY | MEMF_CLEAR)) != NULL) {
-            ULONG k = 0;
-            for (i = 0; i < at; ++i) tt[k++] = old[i];
-            tt[k++] = (STRPTR)entry;
-            for (i = at; i < n; ++i) {          /* without the old WINDOW= */
-                const char *t = (const char *)old[i];
-                if (*t == '(') ++t;
-                if (Strnicmp((STRPTR)t, (STRPTR)"WINDOW=", 7) != 0) tt[k++] = old[i];
-            }
-            dob->do_ToolTypes = tt;
-            ok = PutDiskObject((STRPTR)opt.icon, dob) != 0;
-            dob->do_ToolTypes = old;
-            FreeVec(tt);
-        }
-        FreeDiskObject(dob);
-    }
-    set_status(S(ok ? MSG_SNAPSHOT_DONE : MSG_SNAPSHOT_FAILED));
+    e.key = "WINDOW";
+    e.active = TRUE;
+    set_status(S(write_tooltypes(&e, 1) ? MSG_SNAPSHOT_DONE : MSG_SNAPSHOT_FAILED));
 }
 
 /**
@@ -863,6 +893,9 @@ static int command(ULONG id)
             break;
         case MID_BACK: go(-1); break;
         case MID_FORWARD: go(1); break;
+        case MID_PRINT:
+            if (hv.cur >= 0) print_page(hv.screen, hv.winobj, hv.html, hv.hist[hv.cur].path);
+            break;
         case MID_SNAPSHOT: snapshot_window(); break;
         case MID_ABOUT: about(); break;
         case MID_QUIT: return 1;
@@ -909,6 +942,7 @@ static void icon_options(const char *name)
     LONG box[4];
     if (IconBase == NULL || (dob = GetDiskObject((STRPTR)name)) == NULL) return;
     tt = (CONST_STRPTR *)dob->do_ToolTypes;
+    print_options(tt);
     if (FindToolType(tt, (STRPTR)"TTF")) opt.ttf = TRUE;
     if ((v = FindToolType(tt, (STRPTR)"FONTSET")) != NULL)
         strncpy(opt.fontset, (char *)v, sizeof(opt.fontset) - 1);
@@ -1366,6 +1400,7 @@ out:
         if (hv.dri != NULL) FreeScreenDrawInfo(hv.screen, hv.dri);
         UnlockPubScreen(NULL, hv.screen);
     }
+    print_cleanup();
     if (HTMLBase != NULL) CloseLibrary(HTMLBase);
     if (DirTreeBase != NULL) CloseLibrary(DirTreeBase);
     if (ListBrowserBase != NULL) CloseLibrary(ListBrowserBase);

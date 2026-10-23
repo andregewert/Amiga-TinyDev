@@ -106,11 +106,14 @@ below the tree's root.
   only, shown by their titles, natural order, index pages only via their
   directory, directories without pages hidden, the home page's title as
   header), html.gadget/htmlttf.gadget on the right, a text toolbar (Home,
-  Back, Forward, Open), the status line at the bottom. With `PORTNAME`
+  Back, Forward, Open, Print), the status line at the bottom. With `PORTNAME`
   one viewer runs per name: a later start with that name passes its
   location through the public port `HELPVIEWER.<NAME>` (`OpenMessage`) and
   ends; without it there is no port and every start is a viewer of its
-  own. `htmltitle.c` is
+  own. `printwin.c` prints the page shown (taken over from Kickdown:
+  printer.device as graphics, PostScript or PDF through html.gadget 1.2,
+  options as tool types); `helpviewer.h` is what its modules share.
+  `htmltitle.c` is
   portable (titles, links; host-tested in `tests/test_htmltitle.c`); its
   catalogs are `src/helpviewer/catalogs/` (`helpviewer_strings.h` is
   generated and checked in); `sample/` is a small help directory for

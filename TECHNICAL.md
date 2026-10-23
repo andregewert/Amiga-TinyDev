@@ -76,6 +76,10 @@ The directory opened in the folder tree is the project. What refers to it:
 - On a Shell start the HelpViewer reads the tool types of its icon first,
   then the arguments; a switch argument (`TTF`) may only switch on, never
   off what the tool type set.
+- Printing (`printwin.c`) is Kickdown's print window with the same
+  options and tool type names; what was found there about printer.device
+  and TurboPrint is in its `@file` comment. A fix in one should go to the
+  other as well.
 
 ## Classes: installed or next to the program
 

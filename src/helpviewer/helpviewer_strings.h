@@ -37,7 +37,67 @@
 #define MSG_TREE_LOADING             32
 #define MSG_TREE_EMPTY               33
 #define MSG_TREE_UNAVAILABLE         34
-#define MSG_COUNT                    35
+#define MSG_MENU_PRINT               35
+#define MSG_TB_PRINT                 36
+#define MSG_TBH_PRINT                37
+#define MSG_PR_TITLE                 38
+#define MSG_PR_OUTPUT                39
+#define MSG_PR_PAGE                  40
+#define MSG_PR_MODE                  41
+#define MSG_PR_MODE_PRINTER          42
+#define MSG_PR_DEST                  43
+#define MSG_PR_DEST_FILE             44
+#define MSG_PR_DEST_PRT              45
+#define MSG_PR_DEST_PS               46
+#define MSG_PR_DEST_DEVICE           47
+#define MSG_PR_FILE                  48
+#define MSG_PR_FILE_TITLE            49
+#define MSG_PR_DEVICE                50
+#define MSG_PR_IMAGEDPI              51
+#define MSG_PR_IMAGEDPI_ORIGINAL     52
+#define MSG_PR_PRINTER               53
+#define MSG_PR_FROM                  54
+#define MSG_PR_TO                    55
+#define MSG_PR_COPIES                56
+#define MSG_PR_RANGE_NOTE            57
+#define MSG_PR_PAPER                 58
+#define MSG_PR_MARGINS               59
+#define MSG_PR_LEFT                  60
+#define MSG_PR_TOP                   61
+#define MSG_PR_RIGHT                 62
+#define MSG_PR_BOTTOM                63
+#define MSG_PR_FONT                  64
+#define MSG_PR_SANS                  65
+#define MSG_PR_SERIF                 66
+#define MSG_PR_SIZE                  67
+#define MSG_PR_PAGENUMBERS           68
+#define MSG_PR_BACKGROUNDS           69
+#define MSG_PR_MARGIN_NOTE           70
+#define MSG_PR_PRINT                 71
+#define MSG_PR_CANCEL                72
+#define MSG_PR_FOOTER                73
+#define MSG_PR_PROGRESS_TITLE        74
+#define MSG_PR_STOP                  75
+#define MSG_PR_PREPARING             76
+#define MSG_PR_WRITING               77
+#define MSG_PR_PRINTING              78
+#define MSG_PR_PRINTED1              79
+#define MSG_PR_PRINTED               80
+#define MSG_PR_WRITTEN1              81
+#define MSG_PR_WRITTEN               82
+#define MSG_PR_STOPPED               83
+#define MSG_PR_ERROR                 84
+#define MSG_PR_NODEVICE              85
+#define MSG_PR_NOPAGES               86
+#define MSG_PR_NEEDGADGET            87
+#define MSG_PR_NOPS                  88
+#define MSG_PR_TURBOPRINT            89
+#define MSG_PR_CANNOT_OPEN           90
+#define MSG_PR_WRITE_FAILED          91
+#define MSG_PR_NOMEM                 92
+#define MSG_REPLACE_CANCEL           93
+#define MSG_FILE_EXISTS              94
+#define MSG_COUNT                    95
 
 /* the built-in (English) strings, defined where HELPVIEWER_STRINGS is set */
 #ifdef HELPVIEWER_STRINGS
@@ -77,6 +137,66 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Loading...",
     "(no pages)",
     "(unavailable)",
+    "Print...",
+    "Print",
+    "Print the page, also as PostScript or PDF (Amiga+P)",
+    "Print",
+    "Output",
+    "Page",
+    "_Type ",
+    "Printer (graphics)",
+    "_Destination ",
+    "File",
+    "PRT:",
+    "PS: (TurboPrint)",
+    "Device",
+    "_File ",
+    "Save as PostScript or PDF",
+    "De_vice ",
+    "Ima_ge resolution ",
+    "As in the picture",
+    "Printer ",
+    "Pages fro_m ",
+    "t_o ",
+    "Cop_ies ",
+    "\"to\" 0 = up to the last page.",
+    "Pape_r ",
+    "Margins (mm) ",
+    "left ",
+    "top ",
+    "right ",
+    "bottom ",
+    "Fo_nt ",
+    "Sans serif (Helvetica)",
+    "Serif (Times)",
+    "_Size (pt) ",
+    "Page n_umbers",
+    "_Background colours",
+    "The printer adds its own margins (often 3-5 mm).\nThe font is used for PostScript and PDF; the printer\noutput uses the fonts of the page view.",
+    "_Print",
+    "_Cancel",
+    "Page %p of %n",
+    "Printing",
+    "_Stop",
+    "Preparing ...",
+    "Writing page %ld of %ld",
+    "Printing page %ld of %ld",
+    "%ld page printed",
+    "%ld pages printed",
+    "%ld page written to %s",
+    "%ld pages written to %s",
+    "Printing stopped",
+    "Printer error %ld",
+    "printer.device cannot be opened.",
+    "The page cannot be prepared for printing.",
+    "Printing needs html.gadget or htmlttf.gadget 1.2 or newer.",
+    "PS: is not available (TurboPrint is not installed or not running).",
+    "With TurboPrint, HelpViewer prints through PostScript:\nchoose PostScript and PS: as destination.",
+    "Cannot open the output",
+    "Writing failed",
+    "Not enough memory for printing.",
+    "Replace|Cancel",
+    "%s\nalready exists. Replace it?",
 };
 #endif
 

@@ -24,7 +24,7 @@ PARSER_C_TARGET := $(BIN_DIR)/parsers/c_parser
 # html.gadget (submodule external/html_gadget, for its headers) and
 # dirtree.gadget. Its catalogs are src/helpviewer/catalogs/.
 HV_TARGET := $(BIN_DIR)/HelpViewer
-HV_SOURCES := src/helpviewer/helpviewer.c src/helpviewer/htmltitle.c
+HV_SOURCES := src/helpviewer/helpviewer.c src/helpviewer/printwin.c src/helpviewer/htmltitle.c
 HV_OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(HV_SOURCES))
 HV_DEPS := $(HV_OBJECTS:.o=.d)
 HTML_GADGET := external/html_gadget

@@ -28,8 +28,9 @@ TinyDev
 HelpViewer
 ----------
 Shows a drawer of HTML help pages with html.gadget: the pages by their
-titles in a tree on the left, Back, Forward and Home. It runs on its
-own, so TinyDev can be quit while the help stays open.
+titles in a tree on the left, Back, Forward and Home. It prints a page
+to the printer or as PostScript or PDF. It runs on its own, so TinyDev
+can be quit while the help stays open.
 
 Installation
 ------------
@@ -71,7 +72,8 @@ und AmigaDOS-Skripte, ein Verzeichnisbaum des Projekts, eine Minimap,
 Suchen und Ersetzen im Dokument, in allen offenen Dokumenten oder im
 ganzen Projekt (auch mit regulären Ausdrücken) und Lesezeichen pro
 Projekt. Die Hilfe (Deutsch und Englisch) zeigt der HelpViewer, der
-unabhängig von TinyDev weiterläuft.
+unabhängig von TinyDev weiterläuft und Seiten drucken kann (auch als
+PostScript oder PDF).
 Voraussetzungen: AmigaOS 3.2, html.gadget (Aminet dev/gui/html_gadget.lha)
 für die Hilfe und AISS für die Toolbar-Bilder. TinyDev läuft direkt
 aus dem Archiv.
