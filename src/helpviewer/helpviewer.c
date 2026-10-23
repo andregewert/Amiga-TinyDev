@@ -424,7 +424,7 @@ static Object *make_label(int i, LONG pen)
 }
 
 /**
- * @brief Build the speedbar with its text buttons and help bubbles.
+ * @brief Build the speedbar with its framed text buttons and help bubbles.
  * @return Non-zero on success.
  */
 static int make_toolbar(void)
@@ -463,7 +463,9 @@ static int make_toolbar(void)
         SPEEDBAR_Orientation, SBORIENT_HORIZ,
         SPEEDBAR_Buttons, (ULONG)&hv.buttons,
         SPEEDBAR_BevelStyle, BVS_NONE,
-        SPEEDBAR_ButtonBevelStyle, BVS_NONE,
+        /* text buttons need the standard frame to be seen as buttons
+         * (ButtonBevelStyle is V47, older versions frame them anyway) */
+        SPEEDBAR_ButtonBevelStyle, BVS_BUTTON,
         TAG_END);
     return hv.bar != NULL;
 }
