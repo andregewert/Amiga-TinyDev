@@ -144,7 +144,8 @@ enum MenuId {
     MID_TREE_REFRESH,   /**< Project/Refresh Folder Tree */
     MID_BM_LIST,        /**< View/Bookmarks: the bookmark list (check item) */
     MID_SNAPSHOT_TOOLS, /**< View/Snapshot Tool Windows */
-    MID_HELP            /**< Project/Help...: starts the HelpViewer */
+    MID_HELP,           /**< Project/Help...: starts the HelpViewer */
+    MID_ICONIFY         /**< Project/Iconify: the main window becomes an icon */
 };
 
 /** Bookmarks of a document that TinyDev keeps track of. */
@@ -242,6 +243,10 @@ typedef struct EditorApp {
     int change_idle_ticks;      /**< IntuiTicks since the last change of the text */
     int focus_editor;           /**< give the editor the focus when the window is active */
     long bm_box[4];             /**< box of the bookmark list in this session */
+    struct MsgPort *app_port;   /**< AppPort of the main window (iconifying), NULL if none */
+    WORD main_box[4];           /**< box of the main window while it is iconified */
+    int find_was_open;          /**< the find window was open when the main window was iconified */
+    int bmlist_was_open;        /**< the bookmark list was open when the main window was iconified */
     int defer_depth;            /**< ui_begin_update() nesting */
     int pending_layout;         /**< a relayout was requested meanwhile */
     int pending_refresh;        /**< a page redraw was requested meanwhile */
@@ -395,6 +400,10 @@ struct HintInfo *toolbar_hints(void);
  * @param app The application state.
  */
 void toolbar_window_opened(EditorApp *app);
+/**
+ * @brief Tell the toolbar that its window closes (iconifying).
+ */
+void toolbar_window_closed(void);
 /**
  * @brief Ghost the buttons that would do nothing and refresh the overflow
  *        list: Save with an unchanged document, Undo/Redo without steps,
@@ -1192,6 +1201,18 @@ void find_forget_document(Document *doc);
  *        before the main window is closed.
  */
 void find_cleanup(void);
+/**
+ * @brief Close the find window while the main window is iconified,
+ *        remembering its box; a project search pauses.
+ * @return Non-zero if the window was open.
+ */
+int find_hide(void);
+/**
+ * @brief Open the find window again after find_hide(), in its box, and
+ *        let a paused project search go on.
+ * @param app The application state.
+ */
+void find_show(EditorApp *app);
 
 /**
  * @brief Prompt the user for a directory and load it into the tree.

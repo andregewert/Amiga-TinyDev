@@ -62,6 +62,7 @@ From the Workbench, TinyDev opens the files given as project icons.
 | Amiga+B, J, K | Set/remove bookmark, next and previous bookmark |
 | Amiga+, | Settings |
 | Amiga+? | About |
+| Amiga+I | Iconify (also the window's iconify gadget); open tool windows come back with the window |
 
 ### Regular expressions
 

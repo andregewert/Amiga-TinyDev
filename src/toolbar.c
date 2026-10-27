@@ -375,6 +375,11 @@ int toolbar_create(EditorApp *app)
     return 1;
 }
 
+void toolbar_window_closed(void)
+{
+    if (tb.bar != NULL) SetAttrs(tb.bar, SPEEDBAR_Window, 0, TAG_END);
+}
+
 struct HintInfo *toolbar_hints(void)
 {
     return tb.hints;

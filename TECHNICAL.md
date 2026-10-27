@@ -81,6 +81,28 @@ The directory opened in the folder tree is the project. What refers to it:
   and TurboPrint is in its `@file` comment. A fix in one should go to the
   other as well.
 
+## Iconifying and the tool windows
+
+The main window has an AppPort, so window.class can iconify it (gadget in
+the title bar, Project/Iconify); the program icon is the AppIcon.
+`ui_iconify()` and `ui_uniconify()` (`ui.c`) take the tool windows along:
+
+- Before iconifying, the open tool windows are noted and closed:
+  `find_hide()` keeps the find window's box and pauses a project search
+  (it goes on after `find_show()`), `bmlist_close()` keeps the bookmark
+  list's box for the session. Neither changes the settings.
+- window.class builds the menu strip anew from `menus[]` at every
+  `WM_OPEN`, so `set_menu_checks()` writes the current check marks into
+  the table first.
+- The window's port changes with iconifying: the event loop reads
+  `WINDOW_SigMask` on every turn. While iconified `app->window` is NULL;
+  code that draws or opens windows must check it.
+- After `WM_OPEN` the window is put back into its box, the toolbar gets
+  its window again, the tool windows reopen and the tree is refreshed
+  (notifications that came meanwhile).
+
+A new tool window must be added to both functions.
+
 ## Classes: installed or next to the program
 
 TinyDev and the HelpViewer open an installed class first

@@ -15,7 +15,8 @@ below the tree's root.
 ## Repository layout
 
 - `src/main.c`: library lifecycle, CLI/Workbench startup, and application entry.
-- `src/ui.c`: ReAction window, menus, status line, event loop, and editor
+- `src/ui.c`: ReAction window, menus, status line, event loop, iconifying,
+  and editor
   colors.
 - `src/toolbar.c`: the speedbar toolbar (modes IMAGES/BOTH/TEXT, ghosted
   buttons with lazily loaded `_g` images, overflow chooser, help bubbles),
@@ -276,7 +277,8 @@ Read the section of `TECHNICAL.md` before changing:
 - help.c, the HelpViewer's start options or its port: "Help: TinyDev,
   HelpViewer and the help pages";
 - how classes are opened, or `bin/`, `make dist`: "Classes" and "Build
-  layout".
+  layout";
+- iconifying, or a new tool window: "Iconifying and the tool windows".
 
 ## Change discipline
 

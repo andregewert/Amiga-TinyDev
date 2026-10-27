@@ -107,6 +107,7 @@ static struct {
     Object *winobj, *root, *find, *replace, *scope, *files, *casesens, *words, *regex, *backwards,
            *wrap, *list, *stop, *status;
     struct Window *win;
+    WORD box[4];                        /* its box while the main window is iconified */
     int focus;                          /* activate the search field when active */
     char text[MAXSEARCH + 1];           /* last search, also for Find next */
     char with[MAXSEARCH + 1];           /* last replacement */
@@ -1381,6 +1382,28 @@ static void find_close(void)
         DoMethod(fw.winobj, WM_CLOSE, NULL);
         fw.win = NULL;
     }
+}
+
+int find_hide(void)
+{
+    if (fw.win == NULL) return 0;
+    fw.box[0] = fw.win->LeftEdge;
+    fw.box[1] = fw.win->TopEdge;
+    fw.box[2] = fw.win->Width;
+    fw.box[3] = fw.win->Height;
+    read_gadgets();
+    DoMethod(fw.winobj, WM_CLOSE, NULL);
+    fw.win = NULL;
+    return 1;
+}
+
+void find_show(EditorApp *app)
+{
+    find_open(app);
+    if (fw.win == NULL) return;
+    /* where it was, not centred over the main window again */
+    ChangeWindowBox(fw.win, fw.box[0], fw.box[1], fw.box[2], fw.box[3]);
+    if (fw.scan != NULL && fw.signal >= 0) Signal(FindTask(NULL), 1UL << fw.signal);
 }
 
 ULONG find_sigmask(void)

@@ -41,6 +41,10 @@ MSG_MENU_ABOUT
 Über...
 ; About...
 ;
+MSG_MENU_ICONIFY
+Ikonifizieren
+; Iconify
+;
 MSG_MENU_HELP
 Hilfe...
 ; Help...
@@ -452,6 +456,10 @@ Die Lesezeichen konnten nicht in %s gespeichert werden.
 MSG_ERR_SAVESETTINGS
 Die Einstellungen konnten nicht im Programm-Icon gespeichert werden.
 ; The settings could not be saved in the program icon.
+;
+MSG_ERR_REOPEN
+Das Fenster lässt sich nicht wieder öffnen; TinyDev bleibt ein Icon.
+; The window cannot be opened again; TinyDev stays an icon.
 ;
 ; settings window
 MSG_PREFS_TITLE

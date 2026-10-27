@@ -34,6 +34,9 @@ Settings...
 MSG_MENU_ABOUT (//)
 About...
 ;
+MSG_MENU_ICONIFY (//)
+Iconify
+;
 MSG_MENU_HELP (//)
 Help...
 ;
@@ -343,6 +346,9 @@ The bookmarks could not be saved in %s.
 ;
 MSG_ERR_SAVESETTINGS (//)
 The settings could not be saved in the program icon.
+;
+MSG_ERR_REOPEN (//)
+The window cannot be opened again; TinyDev stays an icon.
 ;
 ; settings window
 MSG_PREFS_TITLE (//)

@@ -26,11 +26,13 @@
 #include <graphics/rastport.h>
 #include <graphics/view.h>
 #include <intuition/icclass.h>
+#include <workbench/workbench.h>
 #include <proto/clicktab.h>
 #include <proto/button.h>
 #include <proto/bitmap.h>
 #include <proto/exec.h>
 #include <proto/graphics.h>
+#include <proto/icon.h>
 #include <proto/intuition.h>
 #include <proto/layout.h>
 #include <proto/texteditor.h>
@@ -237,6 +239,7 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_HELP)},
     {NM_ITEM, NULL, "?", 0, 0, UD(MID_ABOUT)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
+    {NM_ITEM, NULL, "I", 0, 0, UD(MID_ICONIFY)},
     {NM_ITEM, NULL, "Q", 0, 0, UD(MID_QUIT)},
     {NM_TITLE, NULL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, "Z", 0, 0, UD(MID_UNDO)},
@@ -281,6 +284,7 @@ static const LONG menu_texts[] = {
     MSG_MENU_HELP,
     MSG_MENU_ABOUT,
     -1,
+    MSG_MENU_ICONIFY,
     MSG_MENU_QUIT,
     MSG_MENU_EDIT,
     MSG_MENU_UNDO,
@@ -441,9 +445,35 @@ int ui_confirm_close(EditorApp *app, Document *doc)
 
 
 
+/**
+ * @brief Set the check marks of the View menu in menus[] from the state.
+ *
+ * window.class builds the menu strip anew from menus[] at every WM_OPEN,
+ * also after iconifying, so the table must hold the current marks then.
+ *
+ * @param app The application state.
+ * @param bm_open Non-zero if the bookmark list is (going to be) open.
+ */
+static void set_menu_checks(EditorApp *app, int bm_open)
+{
+    int i;
+    for (i = 0; menus[i].nm_Type != NM_END; ++i) {
+        APTR ud = menus[i].nm_UserData;
+        int on;
+        if (ud == UD(MID_BM_LIST)) on = bm_open;
+        else if (ud == UD(MID_FOLDER_TREE)) on = app->tree_visible;
+        else if (ud == UD(MID_LINE_NUMBERS)) on = app->line_numbers;
+        else if (ud == UD(MID_MINIMAP)) on = app->minimap_visible;
+        else continue;
+        if (on) menus[i].nm_Flags |= CHECKED;
+        else menus[i].nm_Flags &= (UWORD)~CHECKED;
+    }
+}
+
 int ui_create(EditorApp *app)
 {
     long win_width, win_height, win_left, win_top;
+    struct DiskObject *icon = NULL;
     int i;
     memcpy(app->bm_box, app->settings.bmwin, sizeof(app->bm_box));
     app->screen = LockPubScreen(NULL);
@@ -551,14 +581,14 @@ int ui_create(EditorApp *app)
         if (win_left > sw - win_width) win_left = sw - win_width;
         if (win_top > sh - win_height) win_top = sh - win_height;
     }
-    for (i = 0; i < (int)(sizeof(menu_texts) / sizeof(menu_texts[0])); ++i) {
+    for (i = 0; i < (int)(sizeof(menu_texts) / sizeof(menu_texts[0])); ++i)
         if (menu_texts[i] >= 0) menus[i].nm_Label = (STRPTR)S(menu_texts[i]);
-        if ((menus[i].nm_UserData == UD(MID_BM_LIST) && app->settings.bmlist) ||
-            (menus[i].nm_UserData == UD(MID_FOLDER_TREE) && app->tree_visible) ||
-            (menus[i].nm_UserData == UD(MID_LINE_NUMBERS) && app->line_numbers) ||
-            (menus[i].nm_UserData == UD(MID_MINIMAP) && app->minimap_visible))
-            menus[i].nm_Flags |= CHECKED;
-    }
+    set_menu_checks(app, app->settings.bmlist);
+    /* AppPort: the window can be iconified, with the program icon as AppIcon */
+    app->app_port = CreateMsgPort();
+    if (app->app_port != NULL && IconBase != NULL && app->settings.icon_name[0] != '\0' &&
+        (icon = GetDiskObject((STRPTR)app->settings.icon_name)) != NULL)
+        icon->do_CurrentX = icon->do_CurrentY = (LONG)NO_ICON_POSITION;
     /* the folder tree as the settings want it at the start, before the
      * window opens (the layout has it shown) */
     if (!app->tree_visible) tree_set_visible(app, 0);
@@ -584,12 +614,19 @@ int ui_create(EditorApp *app)
         /* Enable the IDCMPUPDATE class so the clicktab close notification
          * (routed to the window IDCMP via ICA_TARGET) actually reaches us
          * through this hook. */
+        app->app_port != NULL ? WINDOW_AppPort : TAG_IGNORE, (ULONG)app->app_port,
+        app->app_port != NULL ? WINDOW_IconifyGadget : TAG_IGNORE, TRUE,
+        WINDOW_IconTitle, (ULONG)APP_NAME,
+        icon != NULL ? WINDOW_Icon : TAG_IGNORE, (ULONG)icon,   /* disposed with the window */
         WINDOW_HintInfo, (ULONG)toolbar_hints(),
         WINDOW_GadgetHelp, TRUE,
         WINDOW_IDCMPHook, (ULONG)&app->tab_idcmp_hook,
         WINDOW_IDCMPHookBits, (ULONG)IDCMP_IDCMPUPDATE,
         TAG_END);
-    if (app->window_object == NULL) return 0;
+    if (app->window_object == NULL) {
+        if (icon != NULL) FreeDiskObject(icon);
+        return 0;
+    }
     if (IsListEmpty(&app->documents) && document_new(app) == NULL) return 0;
     splash_status(S(MSG_SPLASH_WINDOW));
     app->window = (struct Window *)DoMethod(app->window_object, WM_OPEN, NULL);
@@ -762,6 +799,69 @@ void ui_apply_settings(EditorApp *app, const Settings *n)
     for (i = 0; i < SCOL_COUNT; ++i) ReleasePen(cm, (ULONG)pens[i]);
 }
 
+/**
+ * @brief Iconify the main window: the open tool windows close (and are
+ *        remembered), the window becomes the program icon on the Workbench.
+ * @param app The application state.
+ */
+static void ui_iconify(EditorApp *app)
+{
+    struct Window *still = NULL;
+    if (app->window == NULL || app->app_port == NULL) return;
+    app->find_was_open = find_hide();
+    app->bmlist_was_open = bmlist_is_open();
+    if (app->bmlist_was_open) bmlist_close(app);   /* remembers its box */
+    app->main_box[0] = app->window->LeftEdge;
+    app->main_box[1] = app->window->TopEdge;
+    app->main_box[2] = app->window->Width;
+    app->main_box[3] = app->window->Height;
+    app->scrollbar_dragging = 0;
+    toolbar_window_closed();
+    DoMethod(app->window_object, WM_ICONIFY, NULL);
+    GetAttr(WINDOW_Window, app->window_object, (ULONG *)&still);
+    if (still != NULL) {                /* not iconified: everything as it was */
+        toolbar_window_opened(app);
+        if (app->bmlist_was_open) bmlist_open(app);
+        if (app->find_was_open) find_show(app);
+        return;
+    }
+    app->window = NULL;
+}
+
+/**
+ * @brief Open the main window again after ui_iconify(), where it was, with
+ *        the tool windows that were open.
+ * @param app The application state.
+ * @return Non-zero if the window is open.
+ */
+static int ui_uniconify(EditorApp *app)
+{
+    struct Window *w;
+    if (app->window != NULL) return 1;
+    set_menu_checks(app, app->bmlist_was_open);
+    if ((w = (struct Window *)DoMethod(app->window_object, WM_OPEN, NULL)) == NULL) return 0;
+    app->window = w;
+    if (w->LeftEdge != app->main_box[0] || w->TopEdge != app->main_box[1] ||
+        w->Width != app->main_box[2] || w->Height != app->main_box[3])
+        ChangeWindowBox(w, app->main_box[0], app->main_box[1], app->main_box[2], app->main_box[3]);
+    toolbar_window_opened(app);
+    ui_relayout(app);
+    /* the tool windows in front of the main window, the main window active */
+    if (app->bmlist_was_open) {
+        bmlist_open(app);
+        ui_set_menu_check(app, MID_BM_LIST, bmlist_is_open());
+    }
+    if (app->find_was_open) find_show(app);
+    app->bmlist_was_open = app->find_was_open = 0;
+    ActivateWindow(w);
+    if (app->active != NULL && app->layout != NULL)
+        ActivateLayoutGadget((struct Gadget *)app->layout, w, NULL, (ULONG)app->active->editor);
+    /* what changed meanwhile: directories on disk, the minimap */
+    tree_refresh(app, 0);
+    minimap_request(app);
+    return 1;
+}
+
 static void menu_action(EditorApp *app, ULONG id)
 {
     Document *doc;
@@ -775,6 +875,7 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_ABOUT: ui_about(app); break;
         case MID_HELP: help_open(app); break;
         case MID_SETTINGS: edit_settings(app); break;
+        case MID_ICONIFY: ui_iconify(app); break;
         case MID_QUIT: if (close_all(app)) app->running = 0; break;
         case MID_UNDO:
             editor_command(app, "UNDO");
@@ -914,9 +1015,11 @@ int ui_run(EditorApp *app)
     ULONG scroll_mask = 1UL << (ULONG)app->scroll_signal;
     ULONG minimap_mask = minimap_signal_mask(app);
     ULONG tree_mask = tree_signal_mask(app);
-    GetAttr(WINDOW_SigMask, app->window_object, &mask);
     app->running = 1;
     while (app->running) {
+        /* iconifying changes the window's port: read the mask every time */
+        mask = 0;
+        GetAttr(WINDOW_SigMask, app->window_object, &mask);
         /* A finished minimap render job only needs to wake the loop: the
          * minimap_poll() at its end shows the new picture. */
         signals = Wait(mask | scroll_mask | minimap_mask | tree_mask | find_sigmask() |
@@ -928,6 +1031,14 @@ int ui_run(EditorApp *app)
         while ((result = DoMethod(app->window_object, WM_HANDLEINPUT, &code)) != WMHI_LASTMSG) {
             ULONG kind = result & WMHI_CLASSMASK;
             if (kind == WMHI_CLOSEWINDOW) { if (close_all(app)) app->running = 0; }
+            else if (kind == WMHI_ICONIFY) ui_iconify(app);
+            else if (kind == WMHI_UNICONIFY) {
+                if (!ui_uniconify(app)) {
+                    /* back as an icon rather than lose unsaved documents */
+                    ui_error(app, APP_NAME, S(MSG_ERR_REOPEN));
+                    DoMethod(app->window_object, WM_ICONIFY, NULL);
+                }
+            }
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_TABS) tab_event(app);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_TREE) tree_handle_event(app);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_VSCROLL) document_scroll_finish(app, 0);
@@ -997,7 +1108,7 @@ void ui_destroy(EditorApp *app)
     document_free_all(app);
     if (app->window_object != NULL) {
         if (app->window != NULL) DoMethod(app->window_object, WM_CLOSE, NULL);
-        DisposeObject(app->window_object);
+        DisposeObject(app->window_object);  /* also the AppIcon and the icon */
     }
     else if (app->layout != NULL) DisposeObject(app->layout);
     else {
@@ -1023,6 +1134,12 @@ void ui_destroy(EditorApp *app)
     close_image_free_class();
     close_editor_colors(app);
     if (app->screen != NULL) UnlockPubScreen(NULL, app->screen);
+    if (app->app_port != NULL) {        /* after the window that used it */
+        struct Message *m;
+        while ((m = GetMsg(app->app_port)) != NULL) ReplyMsg(m);
+        DeleteMsgPort(app->app_port);
+        app->app_port = NULL;
+    }
     app->window_object = app->layout = app->toolbar = app->content_layout = NULL;
     app->statusbar = NULL;
     app->minimap = NULL;
