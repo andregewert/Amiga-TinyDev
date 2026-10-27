@@ -212,7 +212,40 @@
 #define MSG_TREE_LOADING             207
 #define MSG_TREE_EMPTY               208
 #define MSG_TREE_UNAVAILABLE         209
-#define MSG_COUNT                    210
+#define MSG_MENU_BUILD               210
+#define MSG_MENU_PROJSETTINGS        211
+#define MSG_PJ_WINDOW                212
+#define MSG_PJ_TITLE                 213
+#define MSG_PJ_CAT_BUILD             214
+#define MSG_PJ_CAT_RUN               215
+#define MSG_PJ_CAT_DEBUG             216
+#define MSG_PJ_COL_NAME              217
+#define MSG_PJ_COL_COMMAND           218
+#define MSG_PJ_ADD                   219
+#define MSG_PJ_EDIT                  220
+#define MSG_PJ_REMOVE                221
+#define MSG_PJ_UP                    222
+#define MSG_PJ_DOWN                  223
+#define MSG_PJ_DEFAULTNOTE           224
+#define MSG_PJ_NOPROJECT             225
+#define MSG_PJ_READ                  226
+#define MSG_PJ_WRITE                 227
+#define MSG_PJ_NOMEM                 228
+#define MSG_PJE_TITLE_ADD            229
+#define MSG_PJE_TITLE_EDIT           230
+#define MSG_PJE_NAME                 231
+#define MSG_PJE_COMMAND              232
+#define MSG_PJE_DIR                  233
+#define MSG_PJE_CHOOSE               234
+#define MSG_PJE_DEFAULT              235
+#define MSG_PJE_NOTE_LINES           236
+#define MSG_PJE_NOTE_PLACEHOLDERS    237
+#define MSG_PJE_NOTE_DIR             238
+#define MSG_PJE_OK                   239
+#define MSG_PJE_CANCEL               240
+#define MSG_PJE_NOCOMMAND            241
+#define MSG_PJE_ASL                  242
+#define MSG_COUNT                    243
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -427,6 +460,39 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Loading...",
     "(empty)",
     "(unavailable)",
+    "Build",
+    "Project Settings...",
+    "Project Settings",
+    "Project Settings: %s",
+    "Build",
+    "Run",
+    "Debug",
+    "Name",
+    "Command",
+    "_Add...",
+    "_Edit...",
+    "_Remove",
+    "_Up",
+    "_Down",
+    "The checked command is the one the action runs; without a check, the first one.",
+    "There is no project. Open a directory first (Project/Open Directory...); its settings are kept in it.",
+    "%s could not be read or is no project file. It stays as it is; please correct it first.",
+    "The project settings could not be saved in %s.",
+    "Not enough memory.",
+    "New Command",
+    "Edit Command",
+    "_Name ",
+    "Command ",
+    "D_rawer ",
+    "C_hoose...",
+    "Run by _default",
+    "One command per line; several lines run as a script.",
+    "{file}: active document, {base}: the same without extension, {project}: project",
+    "Without a drawer, the command runs in the project.",
+    "_OK",
+    "_Cancel",
+    "Please enter a command.",
+    "Drawer of the command",
 };
 #endif
 

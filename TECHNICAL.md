@@ -54,11 +54,13 @@ The directory opened in the folder tree is the project. What refers to it:
 - the project-file search of the find window (`find.c`, `filescan.c`),
   bounded like the tree (16 levels, no links, no icons);
 - the bookmarks of the project's files in `<project>/.tinydev/bookmarks.json`
-  (`bookmarks.c`, `bmstore.c`); the directory is visible and made when first
+  (`bookmarks.c`, `bmstore.c`); the files of `.tinydev/` are read and
+  written by `projdata.c`; the directory is visible and made when first
   needed, the file is JSON in ISO-8859-1 that may be edited by hand and is
   never overwritten when it cannot be read;
 - the project's settings in `<project>/.tinydev/project.json`, read and
-  written by `projconf.c`: lists of Shell commands for the actions Build, Run and
+  written by `projconf.c`, edited in the window of `projwin.c`
+  (Build/Project Settings...): lists of Shell commands for the actions Build, Run and
   Debug, each with a default (format in `include/projconf.h`). The file is
   meant to be shared (checked in with the project), so nothing personal of
   a session goes into it; writing keeps the keys TinyDev does not know,

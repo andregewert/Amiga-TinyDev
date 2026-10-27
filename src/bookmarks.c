@@ -246,10 +246,6 @@ void bookmarks_poll(EditorApp *app)
 /* ---- the project's bookmarks file ------------------------------------ */
 
 /**
- * The project's private directory.
- */
-#define BOOKMARKS_DIR  ".tinydev"
-/**
  * The bookmarks file in it.
  */
 #define BOOKMARKS_FILE "bookmarks.json"
@@ -281,21 +277,6 @@ static const char *relative(const Document *doc)
     }
     if (pj.root[n - 1] == ':') return path + n;
     return path[n] == '/' ? path + n + 1 : NULL;
-}
-
-/**
- * @brief Build the name of a file in the project's .tinydev directory.
- * @param out The buffer.
- * @param size Its size.
- * @param name The file name, or NULL for the directory.
- * @return Non-zero on success.
- */
-static int private_name(char *out, LONG size, const char *name)
-{
-    strncpy(out, pj.root, (size_t)size - 1);
-    out[size - 1] = '\0';
-    if (!AddPart((STRPTR)out, (STRPTR)BOOKMARKS_DIR, (ULONG)size)) return 0;
-    return name == NULL || AddPart((STRPTR)out, (STRPTR)name, (ULONG)size);
 }
 
 /**
@@ -411,55 +392,20 @@ static void report(EditorApp *app, LONG id, const char *name)
 static void load_project(EditorApp *app)
 {
     char name[EDITOR_PATH_MAX];
-    struct FileInfoBlock *fib;
-    BPTR fh;
-    char *data = NULL;
-    if (!private_name(name, sizeof(name), BOOKMARKS_FILE)) return;
-    if ((fh = Open((STRPTR)name, MODE_OLDFILE)) == 0) return;   /* none yet */
-    fib = AllocDosObject(DOS_FIB, NULL);
-    if (fib != NULL && ExamineFH(fh, fib) && fib->fib_Size >= 0 && fib->fib_Size < 4L * 1024 * 1024 &&
-        (data = malloc((size_t)fib->fib_Size + 1)) != NULL &&
-        Read(fh, data, fib->fib_Size) == fib->fib_Size) {
-        data[fib->fib_Size] = '\0';
-        if (!bmstore_parse(&pj.store, data)) pj.keep_file = 1;
-    } else pj.keep_file = 1;
-    if (fib != NULL) FreeDosObject(DOS_FIB, fib);
-    Close(fh);
+    char *data;
+    int r = projdata_read(pj.root, BOOKMARKS_FILE, &data);
+    if (r == 0) return;                 /* none yet */
+    if (r < 0 || !bmstore_parse(&pj.store, data)) pj.keep_file = 1;
     free(data);
-    if (pj.keep_file) report(app, MSG_ERR_BM_READ, name);
-}
-
-/**
- * @brief Write a text to a file through a temporary file, so a failed
- *        write leaves the old file.
- * @param name The file.
- * @param text The text.
- * @return Non-zero on success.
- */
-static int write_file(const char *name, const char *text)
-{
-    char temp[EDITOR_PATH_MAX + 8];
-    LONG length = (LONG)strlen(text);
-    BPTR fh;
-    int ok;
-    snprintf(temp, sizeof(temp), "%s.tmp", name);
-    if ((fh = Open((STRPTR)temp, MODE_NEWFILE)) == 0) return 0;
-    ok = Write(fh, (APTR)text, length) == length;
-    ok = Close(fh) && ok;
-    if (ok) {
-        DeleteFile((STRPTR)name);
-        ok = Rename((STRPTR)temp, (STRPTR)name) != 0;
-    }
-    if (!ok) DeleteFile((STRPTR)temp);
-    return ok;
+    if (pj.keep_file && projdata_path(pj.root, BOOKMARKS_FILE, name, sizeof(name)))
+        report(app, MSG_ERR_BM_READ, name);
 }
 
 void bookmarks_save(EditorApp *app)
 {
     BmStore all;
     Document *doc;
-    char dir[EDITOR_PATH_MAX], name[EDITOR_PATH_MAX], *json;
-    BPTR lock;
+    char name[EDITOR_PATH_MAX], *json;
     long i;
     int ok = 1;
 
@@ -473,22 +419,16 @@ void bookmarks_save(EditorApp *app)
     for (doc = (Document *)app->documents.lh_Head; ok && doc->node.ln_Succ != NULL;
          doc = (Document *)doc->node.ln_Succ)
         ok = capture(&all, doc);
-    if (!ok || !private_name(dir, sizeof(dir), NULL) ||
-        !private_name(name, sizeof(name), BOOKMARKS_FILE)) {
-        bmstore_clear(&all);
-        return;
-    }
     /* no bookmarks and no file yet: nothing to write, no directory made */
-    if (all.count == 0 && (lock = Lock((STRPTR)name, ACCESS_READ)) == 0) {
+    if (!ok || !projdata_path(pj.root, BOOKMARKS_FILE, name, sizeof(name)) ||
+        (all.count == 0 && !projdata_exists(pj.root, BOOKMARKS_FILE))) {
         bmstore_clear(&all);
         return;
     }
-    if (all.count == 0) UnLock(lock);
-    if ((lock = Lock((STRPTR)dir, ACCESS_READ)) == 0) lock = CreateDir((STRPTR)dir);
-    if (lock != 0) UnLock(lock);
     json = bmstore_format(&all);
     bmstore_clear(&all);
-    if (lock == 0 || json == NULL || !write_file(name, json)) report(app, MSG_ERR_BM_WRITE, name);
+    if (json == NULL || !projdata_write(pj.root, BOOKMARKS_FILE, json))
+        report(app, MSG_ERR_BM_WRITE, name);
     free(json);
 }
 

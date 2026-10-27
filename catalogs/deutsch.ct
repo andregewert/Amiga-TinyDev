@@ -852,3 +852,135 @@ MSG_TREE_UNAVAILABLE
 (nicht verfügbar)
 ; (unavailable)
 ;
+MSG_MENU_BUILD
+Erstellen
+; Build
+;
+MSG_MENU_PROJSETTINGS
+Projekteinstellungen...
+; Project Settings...
+;
+MSG_PJ_WINDOW
+Projekteinstellungen
+; Project Settings
+;
+MSG_PJ_TITLE
+Projekteinstellungen: %s
+; Project Settings: %s
+;
+MSG_PJ_CAT_BUILD
+Erstellen
+; Build
+;
+MSG_PJ_CAT_RUN
+Ausführen
+; Run
+;
+MSG_PJ_CAT_DEBUG
+Debuggen
+; Debug
+;
+MSG_PJ_COL_NAME
+Name
+; Name
+;
+MSG_PJ_COL_COMMAND
+Kommando
+; Command
+;
+MSG_PJ_ADD
+_Hinzufügen...
+; _Add...
+;
+MSG_PJ_EDIT
+_Bearbeiten...
+; _Edit...
+;
+MSG_PJ_REMOVE
+_Entfernen
+; _Remove
+;
+MSG_PJ_UP
+Nach _oben
+; _Up
+;
+MSG_PJ_DOWN
+Nach _unten
+; _Down
+;
+MSG_PJ_DEFAULTNOTE
+Die Aktion führt das markierte Kommando aus, ohne Markierung das erste.
+; The checked command is the one the action runs; without a check, the first one.
+;
+MSG_PJ_NOPROJECT
+Es ist kein Projekt geöffnet. Bitte zuerst ein Verzeichnis öffnen (Projekt/Verzeichnis öffnen...); seine Einstellungen werden darin gespeichert.
+; There is no project. Open a directory first (Project/Open Directory...); its settings are kept in it.
+;
+MSG_PJ_READ
+%s konnte nicht gelesen werden oder ist keine Projektdatei. Die Datei bleibt unverändert; bitte zuerst korrigieren.
+; %s could not be read or is no project file. It stays as it is; please correct it first.
+;
+MSG_PJ_WRITE
+Die Projekteinstellungen konnten nicht in %s gespeichert werden.
+; The project settings could not be saved in %s.
+;
+MSG_PJ_NOMEM
+Nicht genug Speicher.
+; Not enough memory.
+;
+MSG_PJE_TITLE_ADD
+Neues Kommando
+; New Command
+;
+MSG_PJE_TITLE_EDIT
+Kommando bearbeiten
+; Edit Command
+;
+MSG_PJE_NAME
+_Name 
+; _Name 
+;
+MSG_PJE_COMMAND
+Kommando 
+; Command 
+;
+MSG_PJE_DIR
+_Verzeichnis 
+; D_rawer 
+;
+MSG_PJE_CHOOSE
+Aus_wählen...
+; C_hoose...
+;
+MSG_PJE_DEFAULT
+Als _Standard ausführen
+; Run by _default
+;
+MSG_PJE_NOTE_LINES
+Ein Kommando pro Zeile; mehrere Zeilen laufen als Skript.
+; One command per line; several lines run as a script.
+;
+MSG_PJE_NOTE_PLACEHOLDERS
+{file}: aktives Dokument, {base}: dasselbe ohne Endung, {project}: Projekt
+; {file}: active document, {base}: the same without extension, {project}: project
+;
+MSG_PJE_NOTE_DIR
+Ohne Verzeichnis läuft das Kommando im Projekt.
+; Without a drawer, the command runs in the project.
+;
+MSG_PJE_OK
+_OK
+; _OK
+;
+MSG_PJE_CANCEL
+_Abbrechen
+; _Cancel
+;
+MSG_PJE_NOCOMMAND
+Bitte ein Kommando eingeben.
+; Please enter a command.
+;
+MSG_PJE_ASL
+Verzeichnis des Kommandos
+; Drawer of the command
+;

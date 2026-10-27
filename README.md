@@ -31,6 +31,9 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
   or in all files of the project, as plain text or with regular expressions.
 - Bookmarks (Amiga+B, Amiga+J, Amiga+K, or a click into the editor's left
   bar), saved per project, and a bookmark list (View/Bookmarks).
+- Project settings (Build/Project Settings...): Shell commands for
+  building, running and debugging the project, several per action with
+  one default.
 - Toolbar with AISS images, images and text, or text only; a settings
   window for window, colours and toolbar.
 - English and German texts (catalogs), help pages shown by the HelpViewer
@@ -84,6 +87,26 @@ counts from 1, `text` finds the line again after changes outside TinyDev):
       "bookmarks": [
         { "file": "src/ui.c", "line": 99, "text": "void tree_handle_event(EditorApp *app)" }
       ]
+    }
+
+### Project file
+
+The project settings are kept in `.tinydev/project.json` in the project
+directory, a file you may edit by hand and keep with the project (JSON,
+ISO-8859-1). Each action has a list of commands; `command` is a Shell
+command line or a list of lines run as a script, `name` and `dir` (relative
+to the project) are optional, `default` marks the command the action runs.
+`{file}`, `{base}` (without extension) and `{project}` are replaced with
+the active document and the project directory:
+
+    {
+      "version": 1,
+      "build": [
+        { "name": "Build", "command": "make", "default": true },
+        { "name": "Clean", "command": ["Delete build ALL QUIET", "Delete bin/TinyDev QUIET"] }
+      ],
+      "run": [ { "command": "TinyDev", "dir": "bin" } ],
+      "debug": []
     }
 
 ### Settings (tool types)

@@ -59,6 +59,14 @@ below the tree's root.
   commands of the actions Build, Run and Debug, the default of each, and
   the placeholders `{project}`, `{file}`, `{base}`; writing keeps the keys
   it does not know; no Amiga headers.
+- `src/projdata.c`: reading and writing the files of
+  `<project>/.tinydev/` (whole files; writes through a temporary file,
+  making the directory when needed), for bookmarks and project settings.
+- `src/projwin.c`: the modal project settings window
+  (Build/Project Settings...), built like the settings window: a page per
+  action with a listbrowser of its commands (checkbox = default), buttons
+  beside the page, and a modal window to edit one command; "Save" writes
+  `project.json` with `projconf_format()`.
 - `src/toolwin.c`: placement of tool windows (remembered box pushed into
   the screen, otherwise docked right of the main window or over its right
   edge). Their boxes are kept for the session (`EditorApp`); only

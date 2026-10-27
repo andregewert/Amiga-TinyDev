@@ -645,3 +645,115 @@ MSG_TREE_EMPTY (//)
 MSG_TREE_UNAVAILABLE (//)
 (unavailable)
 ;
+;
+; project settings
+MSG_MENU_BUILD (//)
+Build
+;
+MSG_MENU_PROJSETTINGS (//)
+Project Settings...
+;
+; title of messages about the project settings
+MSG_PJ_WINDOW (//)
+Project Settings
+;
+; title of the project settings window (%s: the project)
+MSG_PJ_TITLE (//)
+Project Settings: %s
+;
+; categories of the project settings window
+MSG_PJ_CAT_BUILD (//)
+Build
+;
+MSG_PJ_CAT_RUN (//)
+Run
+;
+MSG_PJ_CAT_DEBUG (//)
+Debug
+;
+; columns of the command list
+MSG_PJ_COL_NAME (//)
+Name
+;
+MSG_PJ_COL_COMMAND (//)
+Command
+;
+; buttons next to the command list (shortcuts unique with Save and Cancel)
+MSG_PJ_ADD (//)
+_Add...
+;
+MSG_PJ_EDIT (//)
+_Edit...
+;
+MSG_PJ_REMOVE (//)
+_Remove
+;
+MSG_PJ_UP (//)
+_Up
+;
+MSG_PJ_DOWN (//)
+_Down
+;
+; note below the command list
+MSG_PJ_DEFAULTNOTE (//)
+The checked command is the one the action runs; without a check, the first one.
+;
+MSG_PJ_NOPROJECT (//)
+There is no project. Open a directory first (Project/Open Directory...); its settings are kept in it.
+;
+; %s: the project file
+MSG_PJ_READ (//)
+%s could not be read or is no project file. It stays as it is; please correct it first.
+;
+; %s: the project file
+MSG_PJ_WRITE (//)
+The project settings could not be saved in %s.
+;
+MSG_PJ_NOMEM (//)
+Not enough memory.
+;
+; titles of the command window
+MSG_PJE_TITLE_ADD (//)
+New Command
+;
+MSG_PJE_TITLE_EDIT (//)
+Edit Command
+;
+; labels of the command window (shortcuts unique in it)
+MSG_PJE_NAME (//)
+_Name 
+;
+MSG_PJE_COMMAND (//)
+Command 
+;
+MSG_PJE_DIR (//)
+D_rawer 
+;
+MSG_PJE_CHOOSE (//)
+C_hoose...
+;
+MSG_PJE_DEFAULT (//)
+Run by _default
+;
+; notes in the command window
+MSG_PJE_NOTE_LINES (//)
+One command per line; several lines run as a script.
+;
+MSG_PJE_NOTE_PLACEHOLDERS (//)
+{file}: active document, {base}: the same without extension, {project}: project
+;
+MSG_PJE_NOTE_DIR (//)
+Without a drawer, the command runs in the project.
+;
+MSG_PJE_OK (//)
+_OK
+;
+MSG_PJE_CANCEL (//)
+_Cancel
+;
+MSG_PJE_NOCOMMAND (//)
+Please enter a command.
+;
+; title of the drawer requester
+MSG_PJE_ASL (//)
+Drawer of the command

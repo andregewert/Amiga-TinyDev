@@ -259,6 +259,8 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_BM_CLEAR)},
     {NM_TITLE, NULL, NULL, 0, 0, NULL},
+    {NM_ITEM, NULL, NULL, 0, 0, UD(MID_PROJECT_SETTINGS)},
+    {NM_TITLE, NULL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_FOLDER_TREE)},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_LINE_NUMBERS)},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_MINIMAP)},
@@ -303,6 +305,8 @@ static const LONG menu_texts[] = {
     MSG_MENU_BM_PREV,
     -1,
     MSG_MENU_BM_CLEAR,
+    MSG_MENU_BUILD,
+    MSG_MENU_PROJSETTINGS,
     MSG_MENU_VIEW,
     MSG_MENU_TREE,
     MSG_MENU_LINENUMBERS,
@@ -875,6 +879,7 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_ABOUT: ui_about(app); break;
         case MID_HELP: help_open(app); break;
         case MID_SETTINGS: edit_settings(app); break;
+        case MID_PROJECT_SETTINGS: project_settings(app); break;
         case MID_ICONIFY: ui_iconify(app); break;
         case MID_QUIT: if (close_all(app)) app->running = 0; break;
         case MID_UNDO:

@@ -145,7 +145,8 @@ enum MenuId {
     MID_BM_LIST,        /**< View/Bookmarks: the bookmark list (check item) */
     MID_SNAPSHOT_TOOLS, /**< View/Snapshot Tool Windows */
     MID_HELP,           /**< Project/Help...: starts the HelpViewer */
-    MID_ICONIFY         /**< Project/Iconify: the main window becomes an icon */
+    MID_ICONIFY,        /**< Project/Iconify: the main window becomes an icon */
+    MID_PROJECT_SETTINGS /**< Build/Project Settings...: the project's commands */
 };
 
 /** Bookmarks of a document that TinyDev keeps track of. */
@@ -320,6 +321,17 @@ int settings_save_toolwindows(const Settings *cur);
 int prefs_dialog(EditorApp *app, Settings *s);
 /** @brief Close the classes opened for the settings window. */
 void prefs_cleanup(void);
+/**
+ * @brief Show the modal project settings window: the commands of the
+ *        actions Build, Run and Debug of the project (the folder tree's
+ *        root), saved in \<project\>/.tinydev/project.json.
+ *
+ * Without a project, or if the project file cannot be read, it shows a
+ * message instead.
+ *
+ * @param app The application state (main window and screen).
+ */
+void project_settings(EditorApp *app);
 /**
  * @brief Take over edited settings.
  *
@@ -1009,6 +1021,44 @@ void bookmarks_document_loaded(EditorApp *app, Document *doc);
  * @param doc The document.
  */
 void bookmarks_document_closing(EditorApp *app, Document *doc);
+/* projdata.c */
+
+/**
+ * @brief Build the name of a file in a project's directory .tinydev.
+ * @param root The project directory.
+ * @param name The file name, or NULL for the directory itself.
+ * @param out The buffer.
+ * @param size Its size.
+ * @return Non-zero on success (zero without a project or if too long).
+ */
+int projdata_path(const char *root, const char *name, char *out, LONG size);
+/**
+ * @brief Read a file of a project's directory .tinydev whole.
+ * @param root The project directory.
+ * @param name The file name.
+ * @param[out] text The contents, NUL-terminated (free() it); NULL unless
+ *                  1 is returned.
+ * @return 1 if read; 0 if there is no such file; -1 if it cannot be read
+ *         (also when too large or out of memory).
+ */
+int projdata_read(const char *root, const char *name, char **text);
+/**
+ * @brief Tell whether a file of a project's directory .tinydev exists.
+ * @param root The project directory.
+ * @param name The file name.
+ * @return Non-zero if it exists.
+ */
+int projdata_exists(const char *root, const char *name);
+/**
+ * @brief Write a file of a project's directory .tinydev through a
+ *        temporary file; the directory is made if needed.
+ * @param root The project directory.
+ * @param name The file name.
+ * @param text The contents.
+ * @return Non-zero on success (a failed write leaves the old file).
+ */
+int projdata_write(const char *root, const char *name, const char *text);
+
 /** A bookmark as the bookmark list shows it (bookmarks_collect()). */
 typedef struct BookmarkItem {
     Document *doc;      /**< the open document, NULL for a closed file of the project */
