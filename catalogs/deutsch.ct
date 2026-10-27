@@ -1072,3 +1072,27 @@ MSG_BUILD_QUIT_GADGETS
 Abbrechen und beenden|Zurück
 ; Stop and Quit|Cancel
 ;
+MSG_TB_BUILD
+Erstellen
+; Build
+;
+MSG_TBH_BUILD
+Projekt erstellen (Amiga+E)
+; Build the project (Amiga+E)
+;
+MSG_TB_RUN
+Ausführen
+; Run
+;
+MSG_TBH_RUN
+Projekt ausführen (Amiga+R)
+; Run the project (Amiga+R)
+;
+MSG_TB_DEBUG
+Debuggen
+; Debug
+;
+MSG_TBH_DEBUG
+Projekt debuggen (Amiga+D)
+; Debug the project (Amiga+D)
+;

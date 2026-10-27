@@ -56,9 +56,10 @@ typedef struct ToolSpec {
 
 /**
  * The toolbar buttons, in their order; spacing separates the groups (File |
- * Undo | Clipboard | Find | Program). speedbar.gadget of OS 3.2 has no
- * separator (SBNA_Separator is OS4 only). The images exist in AISS Classic
- * and AISS 4.
+ * Undo | Clipboard | Find | Build | Program). speedbar.gadget of OS 3.2 has
+ * no separator (SBNA_Separator is OS4 only). The images exist in AISS
+ * Classic and AISS 4; "a|b" takes the first that exists ("debug" is only in
+ * AISS 4, "eye" in both).
  */
 static const ToolSpec tools[] = {
     { MID_NEW,            0, "new",    MSG_TB_NEW, MSG_TBH_NEW },
@@ -71,6 +72,9 @@ static const ToolSpec tools[] = {
     { MID_COPY,           0, "copy",   MSG_TB_COPY, MSG_TBH_COPY },
     { MID_PASTE,          0, "paste",  MSG_TB_PASTE, MSG_TBH_PASTE },
     { MID_FIND,           8, "find",   MSG_TB_FIND, MSG_TBH_FIND },
+    { MID_BUILD,          8, "tool",   MSG_TB_BUILD, MSG_TBH_BUILD },
+    { MID_RUN,            0, "run",    MSG_TB_RUN, MSG_TBH_RUN },
+    { MID_DEBUG,          0, "debug|eye", MSG_TB_DEBUG, MSG_TBH_DEBUG },
     { MID_SETTINGS,       8, "prefs",  MSG_TB_SETTINGS, MSG_TBH_SETTINGS },
     { MID_HELP,           0, "help",   MSG_TB_HELP, MSG_TBH_HELP },
 };
@@ -191,19 +195,27 @@ static LONG ghost_pen(void)
 /**
  * @brief Load an AISS image from TBIMAGES:, remapped for the screen.
  * @param app The application state.
- * @param name The image name.
+ * @param name The image name, or several separated by '|' (the first that
+ *             exists is taken).
  * @param suffix "" or "_g".
  * @return The bitmap.image, or NULL if there is none.
  */
 static Object *load_image(EditorApp *app, const char *name, const char *suffix)
 {
     char file[64];
-    snprintf(file, sizeof(file), "TBIMAGES:%s%s", name, suffix);
-    return NewObject(BITMAP_GetClass(), NULL,
-        BITMAP_SourceFile, (ULONG)file,
-        BITMAP_Screen, (ULONG)app->screen,
-        BITMAP_Masking, TRUE,
-        TAG_END);
+    Object *o = NULL;
+    while (o == NULL && *name != '\0') {
+        const char *end = strchr(name, '|');
+        int n = end != NULL ? (int)(end - name) : (int)strlen(name);
+        snprintf(file, sizeof(file), "TBIMAGES:%.*s%s", n, name, suffix);
+        o = NewObject(BITMAP_GetClass(), NULL,
+            BITMAP_SourceFile, (ULONG)file,
+            BITMAP_Screen, (ULONG)app->screen,
+            BITMAP_Masking, TRUE,
+            TAG_END);
+        name = end != NULL ? end + 1 : name + n;
+    }
+    return o;
 }
 
 /**
@@ -487,6 +499,7 @@ void toolbar_update(EditorApp *app)
             case MID_REDO: if (!redo) mask |= TOOLBIT(i); break;
             case MID_CUT:
             case MID_COPY: if (!marked) mask |= TOOLBIT(i); break;
+            case MID_BUILD: if (build_running()) mask |= TOOLBIT(i); break;
             default: break;
         }
     }

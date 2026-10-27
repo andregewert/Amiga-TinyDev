@@ -267,7 +267,13 @@
 #define MSG_BUILD_BUSY               262
 #define MSG_BUILD_QUIT               263
 #define MSG_BUILD_QUIT_GADGETS       264
-#define MSG_COUNT                    265
+#define MSG_TB_BUILD                 265
+#define MSG_TBH_BUILD                266
+#define MSG_TB_RUN                   267
+#define MSG_TBH_RUN                  268
+#define MSG_TB_DEBUG                 269
+#define MSG_TBH_DEBUG                270
+#define MSG_COUNT                    271
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -537,6 +543,12 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "A build is already running.",
     "A build is running. Stop it and quit?",
     "Stop and Quit|Cancel",
+    "Build",
+    "Build the project (Amiga+E)",
+    "Run",
+    "Run the project (Amiga+R)",
+    "Debug",
+    "Debug the project (Amiga+D)",
 };
 #endif
 

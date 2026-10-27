@@ -36,7 +36,8 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
   one default. Build (Amiga+E) saves the modified documents and runs in
   the background, its output in the output window (View/Output Window);
   Run (Amiga+R) and
-  Debug (Amiga+D) start in a console window of their own.
+  Debug (Amiga+D) start in a console window of their own; all three are
+  also in the toolbar.
 - Toolbar with AISS images, images and text, or text only; a settings
   window for window, colours and toolbar.
 - English and German texts (catalogs), help pages shown by the HelpViewer

@@ -829,3 +829,22 @@ A build is running. Stop it and quit?
 ;
 MSG_BUILD_QUIT_GADGETS (//)
 Stop and Quit|Cancel
+;
+; toolbar buttons of the Build menu
+MSG_TB_BUILD (//)
+Build
+;
+MSG_TBH_BUILD (//)
+Build the project (Amiga+E)
+;
+MSG_TB_RUN (//)
+Run
+;
+MSG_TBH_RUN (//)
+Run the project (Amiga+R)
+;
+MSG_TB_DEBUG (//)
+Debug
+;
+MSG_TBH_DEBUG (//)
+Debug the project (Amiga+D)
