@@ -204,6 +204,98 @@ static void test_json_writer(void)
 }
 
 /**
+ * @brief Writing numbers and control characters without stdio.
+ */
+static void test_json_write_scalars(void)
+{
+    JsonWriter w;
+    json_writer_init_alloc(&w, 64);
+    json_write_int(&w, 0);
+    json_write_raw(&w, " ");
+    json_write_int(&w, -42);
+    json_write_raw(&w, " ");
+    json_write_int(&w, 2147483647L);
+    json_write_raw(&w, " ");
+    json_write_int(&w, -2147483647L - 1);
+    json_write_raw(&w, " ");
+    json_write_string(&w, "a\x01\x1f\xE4");
+    TEST_ASSERT(strcmp(json_writer_get(&w),
+                       "0 -42 2147483647 -2147483648 \"a\\u0001\\u001f\xE4\"") == 0);
+    json_writer_free(&w);
+}
+
+/**
+ * @brief Building and changing trees, and writing them indented and on
+ *        one line.
+ */
+static void test_json_trees(void)
+{
+    JsonWriter w;
+    JsonValue *root = json_parse("{\"version\": 1, \"pi\": 3.25e2, \"keep\": {\"a\": [1, -0.5]},"
+                                 " \"list\": [{\"x\": \"y\"}]}", NULL);
+    JsonValue *arr, *entry;
+    TEST_ASSERT(root != NULL);
+
+    /* set replaces in place, adds at the end; remove */
+    TEST_ASSERT(json_obj_set(root, "version", json_new_int(2)));
+    TEST_ASSERT(json_obj_remove(root, "list"));
+    TEST_ASSERT(!json_obj_remove(root, "list"));
+    arr = json_new_array();
+    entry = json_new_object();
+    TEST_ASSERT(json_obj_set(entry, "name", json_new_string("Build")));
+    TEST_ASSERT(json_obj_set(entry, "on", json_new_bool(1)));
+    TEST_ASSERT(json_obj_set(entry, "lines", json_new_array()));
+    TEST_ASSERT(json_array_append(arr, entry));
+    TEST_ASSERT(json_array_append(arr, json_new_string("q\"")));
+    TEST_ASSERT(json_obj_set(root, "list", arr));
+    TEST_ASSERT(json_obj_set(root, "empty", json_new_object()));
+    /* failures free what they take and refuse NULL */
+    TEST_ASSERT(!json_array_append(root, json_new_int(1)));
+    TEST_ASSERT(!json_obj_set(arr, "k", json_new_int(1)));
+    TEST_ASSERT(!json_array_append(arr, NULL));
+    TEST_ASSERT(json_new_string(NULL) == NULL);
+
+    json_writer_init_alloc(&w, 64);
+    json_write_value(&w, root, 0);
+    TEST_ASSERT(strcmp(json_writer_get(&w),
+        "{\n"
+        "  \"version\": 2,\n"
+        "  \"pi\": 3.25e2,\n"
+        "  \"keep\": { \"a\": [1, -0.5] },\n"
+        "  \"list\": [\n"
+        "    { \"name\": \"Build\", \"on\": true, \"lines\": [] },\n"
+        "    \"q\\\"\"\n"
+        "  ],\n"
+        "  \"empty\": {}\n"
+        "}") == 0);
+    json_writer_free(&w);
+
+    json_writer_init_alloc(&w, 64);
+    json_write_value(&w, root, -1);
+    TEST_ASSERT(strcmp(json_writer_get(&w),
+        "{ \"version\": 2, \"pi\": 3.25e2, \"keep\": { \"a\": [1, -0.5] },"
+        " \"list\": [{ \"name\": \"Build\", \"on\": true, \"lines\": [] }, \"q\\\"\"],"
+        " \"empty\": {} }") == 0);
+    /* what was written reads back */
+    {
+        JsonValue *back = json_parse(json_writer_get(&w), NULL);
+        TEST_ASSERT(back != NULL && json_obj_get_int(back, "version", 0) == 2);
+        json_value_free(back);
+    }
+    json_writer_free(&w);
+    json_value_free(root);
+
+    /* a nested structure below the top goes over several lines */
+    root = json_parse("[[{\"a\": 1}], [1, [2, 3]]]", NULL);
+    json_writer_init_alloc(&w, 64);
+    json_write_value(&w, root, 0);
+    TEST_ASSERT(strcmp(json_writer_get(&w),
+                       "[\n  [\n    { \"a\": 1 }\n  ],\n  [1, [2, 3]]\n]") == 0);
+    json_writer_free(&w);
+    json_value_free(root);
+}
+
+/**
  * @brief Run the JSON tests.
  * @return 0 if all passed, 1 otherwise.
  */
@@ -215,6 +307,8 @@ int main(void)
     test_json_objects_and_arrays();
     test_json_error_handling();
     test_json_writer();
+    test_json_write_scalars();
+    test_json_trees();
 
     printf("JSON tests completed: %d tests run, %d failures.\n", g_test_count, g_fail_count);
     return g_fail_count == 0 ? 0 : 1;

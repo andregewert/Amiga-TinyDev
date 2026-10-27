@@ -6,8 +6,6 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <ctype.h>
 
 /* Parser internal helpers */
 
@@ -417,6 +415,10 @@ static JsonValue *parse_val(const char **p, const char **error_pos)
         v->type = JSON_NUMBER;
         v->u.num_val.is_float = is_float;
         v->u.num_val.int_val = strtol(num_start, NULL, 10);
+        v->u.num_val.text = (char *)malloc((size_t)(*p - num_start) + 1);
+        if (!v->u.num_val.text) { free(v); return NULL; }
+        memcpy(v->u.num_val.text, num_start, (size_t)(*p - num_start));
+        v->u.num_val.text[*p - num_start] = '\0';
 #ifndef __amigaos__
         if (is_float) {
             v->u.num_val.double_val = simple_strtod(num_start);
@@ -462,6 +464,9 @@ void json_value_free(JsonValue *val)
     switch (val->type) {
         case JSON_STRING:
             if (val->u.str_val) free(val->u.str_val);
+            break;
+        case JSON_NUMBER:
+            free(val->u.num_val.text);
             break;
         case JSON_ARRAY: {
             JsonElement *elem = val->u.array_val.first;
@@ -685,9 +690,16 @@ void json_write_bool(JsonWriter *w, int val)
 
 void json_write_int(JsonWriter *w, long val)
 {
-    char tmp[32];
-    snprintf(tmp, sizeof(tmp), "%ld", val);
-    append_str(w, tmp, strlen(tmp));
+    /* By hand rather than with snprintf(), which would pull in stdio. */
+    char tmp[16];
+    char *p = tmp + sizeof(tmp);
+    unsigned long u = val < 0 ? 0UL - (unsigned long)val : (unsigned long)val;
+    do {
+        *--p = (char)('0' + u % 10);
+        u /= 10;
+    } while (u != 0);
+    if (val < 0) *--p = '-';
+    append_str(w, p, (size_t)(tmp + sizeof(tmp) - p));
 }
 
 void json_write_string(JsonWriter *w, const char *str)
@@ -708,8 +720,9 @@ void json_write_string(JsonWriter *w, const char *str)
             case '\t': append_str(w, "\\t", 2); break;
             default:
                 if ((unsigned char)*p < 32) {
-                    char hex[8];
-                    snprintf(hex, sizeof(hex), "\\u%04x", (unsigned char)*p);
+                    char hex[7] = "\\u0000";
+                    hex[4] = "0123456789abcdef"[(unsigned char)*p >> 4];
+                    hex[5] = "0123456789abcdef"[*p & 15];
                     append_str(w, hex, 6);
                 } else {
                     append_str(w, p, 1);
@@ -744,4 +757,225 @@ void json_write_arr_start(JsonWriter *w)
 void json_write_arr_end(JsonWriter *w)
 {
     append_str(w, "]", 1);
+}
+
+/* Building and changing trees */
+
+/**
+ * @brief Allocate a value of a type (with everything zero).
+ * @param type The type.
+ * @return The value, or NULL if out of memory.
+ */
+static JsonValue *new_value(JsonType type)
+{
+    JsonValue *v = (JsonValue *)calloc(1, sizeof(JsonValue));
+    if (v) v->type = type;
+    return v;
+}
+
+JsonValue *json_new_object(void)
+{
+    return new_value(JSON_OBJECT);
+}
+
+JsonValue *json_new_array(void)
+{
+    return new_value(JSON_ARRAY);
+}
+
+JsonValue *json_new_bool(int val)
+{
+    JsonValue *v = new_value(JSON_BOOL);
+    if (v) v->u.bool_val = val != 0;
+    return v;
+}
+
+JsonValue *json_new_int(long val)
+{
+    JsonValue *v = new_value(JSON_NUMBER);
+    if (v) {
+        v->u.num_val.int_val = val;
+        v->u.num_val.double_val = (double)val;
+    }
+    return v;
+}
+
+JsonValue *json_new_string(const char *str)
+{
+    size_t n;
+    JsonValue *v;
+    if (!str) return NULL;
+    n = strlen(str) + 1;
+    v = new_value(JSON_STRING);
+    if (!v) return NULL;
+    v->u.str_val = (char *)malloc(n);
+    if (!v->u.str_val) {
+        free(v);
+        return NULL;
+    }
+    memcpy(v->u.str_val, str, n);
+    return v;
+}
+
+int json_array_append(JsonValue *arr, JsonValue *val)
+{
+    JsonElement *e;
+    if (!val) return 0;
+    if (!arr || arr->type != JSON_ARRAY ||
+        (e = (JsonElement *)malloc(sizeof(JsonElement))) == NULL) {
+        json_value_free(val);
+        return 0;
+    }
+    e->value = val;
+    e->next = NULL;
+    if (arr->u.array_val.last) arr->u.array_val.last->next = e;
+    else arr->u.array_val.first = e;
+    arr->u.array_val.last = e;
+    arr->u.array_val.count++;
+    return 1;
+}
+
+int json_obj_set(JsonValue *obj, const char *key, JsonValue *val)
+{
+    JsonMember *m;
+    size_t n;
+    if (!val) return 0;
+    if (!obj || obj->type != JSON_OBJECT || !key) {
+        json_value_free(val);
+        return 0;
+    }
+    for (m = obj->u.obj_val.first; m; m = m->next)
+        if (strcmp(m->key, key) == 0) {
+            json_value_free(m->value);
+            m->value = val;
+            return 1;
+        }
+    n = strlen(key) + 1;
+    m = (JsonMember *)malloc(sizeof(JsonMember));
+    if (!m || (m->key = (char *)malloc(n)) == NULL) {
+        free(m);
+        json_value_free(val);
+        return 0;
+    }
+    memcpy(m->key, key, n);
+    m->value = val;
+    m->next = NULL;
+    if (obj->u.obj_val.last) obj->u.obj_val.last->next = m;
+    else obj->u.obj_val.first = m;
+    obj->u.obj_val.last = m;
+    obj->u.obj_val.count++;
+    return 1;
+}
+
+int json_obj_remove(JsonValue *obj, const char *key)
+{
+    JsonMember *m, *prev = NULL;
+    if (!obj || obj->type != JSON_OBJECT || !key) return 0;
+    for (m = obj->u.obj_val.first; m; prev = m, m = m->next)
+        if (strcmp(m->key, key) == 0) {
+            if (prev) prev->next = m->next;
+            else obj->u.obj_val.first = m->next;
+            if (obj->u.obj_val.last == m) obj->u.obj_val.last = prev;
+            obj->u.obj_val.count--;
+            free(m->key);
+            json_value_free(m->value);
+            free(m);
+            return 1;
+        }
+    return 0;
+}
+
+/* Writing trees */
+
+/**
+ * @brief Tell whether a container holds no objects and no arrays with
+ *        containers, so it fits on one line.
+ * @param v The value.
+ * @return Non-zero if it is flat (scalars are flat).
+ */
+static int is_flat(const JsonValue *v)
+{
+    if (v->type == JSON_ARRAY) {
+        const JsonElement *e;
+        for (e = v->u.array_val.first; e; e = e->next)
+            if (e->value->type == JSON_OBJECT ||
+                (e->value->type == JSON_ARRAY && !is_flat(e->value))) return 0;
+    } else if (v->type == JSON_OBJECT) {
+        const JsonMember *m;
+        for (m = v->u.obj_val.first; m; m = m->next)
+            if (m->value->type == JSON_OBJECT ||
+                (m->value->type == JSON_ARRAY && !is_flat(m->value))) return 0;
+    }
+    return 1;
+}
+
+/**
+ * @brief Start a new line indented for a depth.
+ * @param w The writer.
+ * @param depth The depth (two spaces each).
+ */
+static void new_line(JsonWriter *w, int depth)
+{
+    append_str(w, "\n", 1);
+    while (depth-- > 0) append_str(w, "  ", 2);
+}
+
+void json_write_value(JsonWriter *w, const JsonValue *v, int depth)
+{
+    /* depth < 0: all on one line; flat containers below the top on one line */
+    int lines;
+    if (!v) {
+        json_write_null(w);
+        return;
+    }
+    lines = depth >= 0 && !(depth > 0 && is_flat(v));
+    switch (v->type) {
+        case JSON_NULL:
+            json_write_null(w);
+            break;
+        case JSON_BOOL:
+            json_write_bool(w, v->u.bool_val);
+            break;
+        case JSON_NUMBER:
+            if (v->u.num_val.text) json_write_raw(w, v->u.num_val.text);
+            else json_write_int(w, v->u.num_val.int_val);
+            break;
+        case JSON_STRING:
+            json_write_string(w, v->u.str_val);
+            break;
+        case JSON_ARRAY: {
+            const JsonElement *e;
+            if (!v->u.array_val.first) {
+                append_str(w, "[]", 2);
+                break;
+            }
+            append_str(w, "[", 1);
+            for (e = v->u.array_val.first; e; e = e->next) {
+                if (lines) new_line(w, depth + 1);
+                json_write_value(w, e->value, lines ? depth + 1 : -1);
+                if (e->next) append_str(w, lines ? "," : ", ", lines ? 1 : 2);
+            }
+            if (lines) new_line(w, depth);
+            append_str(w, "]", 1);
+            break;
+        }
+        case JSON_OBJECT: {
+            const JsonMember *m;
+            if (!v->u.obj_val.first) {
+                append_str(w, "{}", 2);
+                break;
+            }
+            append_str(w, lines ? "{" : "{ ", lines ? 1 : 2);
+            for (m = v->u.obj_val.first; m; m = m->next) {
+                if (lines) new_line(w, depth + 1);
+                json_write_string(w, m->key);
+                append_str(w, ": ", 2);
+                json_write_value(w, m->value, lines ? depth + 1 : -1);
+                if (m->next) append_str(w, lines ? "," : ", ", lines ? 1 : 2);
+            }
+            if (lines) new_line(w, depth);
+            append_str(w, lines ? "}" : " }", lines ? 1 : 2);
+            break;
+        }
+    }
 }

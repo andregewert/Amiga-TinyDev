@@ -57,12 +57,12 @@ The directory opened in the folder tree is the project. What refers to it:
   (`bookmarks.c`, `bmstore.c`); the directory is visible and made when first
   needed, the file is JSON in ISO-8859-1 that may be edited by hand and is
   never overwritten when it cannot be read;
-- the project's settings in `<project>/.tinydev/project.json`, read by
-  `projconf.c`: lists of Shell commands for the actions Build, Run and
+- the project's settings in `<project>/.tinydev/project.json`, read and
+  written by `projconf.c`: lists of Shell commands for the actions Build, Run and
   Debug, each with a default (format in `include/projconf.h`). The file is
   meant to be shared (checked in with the project), so nothing personal of
-  a session goes into it; whoever writes it must keep keys TinyDev does not
-  know;
+  a session goes into it; writing keeps the keys TinyDev does not know,
+  also those of the entries;
 - the start drawer of the file requesters (`fileio.c`).
 
 ## Help: TinyDev, HelpViewer and the help pages

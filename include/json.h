@@ -49,6 +49,7 @@ struct JsonValue {
             long int_val;           /**< the number as an integer */
             double double_val;      /**< as a floating point number (host only; 0 on the Amiga) */
             int is_float;           /**< it had a fraction or an exponent */
+            char *text;             /**< the number as read (allocated; NULL if made with json_new_int()), written back as it is */
         } num_val;
         char *str_val;              /**< JSON_STRING: the string (allocated, 8-bit as read) */
         /** JSON_ARRAY */
@@ -146,6 +147,67 @@ size_t json_array_length(const JsonValue *arr);
 const JsonValue *json_array_get(const JsonValue *arr, size_t index);
 
 /**
+ * @brief Make an empty object.
+ * @return The value (free it with json_value_free()), or NULL if out of memory.
+ */
+JsonValue *json_new_object(void);
+/**
+ * @brief Make an empty array.
+ * @return The value (free it with json_value_free()), or NULL if out of memory.
+ */
+JsonValue *json_new_array(void);
+/**
+ * @brief Make a truth value.
+ * @param val The truth value.
+ * @return The value (free it with json_value_free()), or NULL if out of memory.
+ */
+JsonValue *json_new_bool(int val);
+/**
+ * @brief Make an integer.
+ * @param val The number.
+ * @return The value (free it with json_value_free()), or NULL if out of memory.
+ */
+JsonValue *json_new_int(long val);
+/**
+ * @brief Make a string (copied).
+ * @param str The string (NULL gives NULL).
+ * @return The value (free it with json_value_free()), or NULL if out of memory.
+ */
+JsonValue *json_new_string(const char *str);
+
+/**
+ * @brief Append a value to an array.
+ *
+ * Takes the value over: it belongs to the array, or is freed if it cannot
+ * be added. A NULL value (a failed json_new_...()) fails, so calls can be
+ * nested.
+ *
+ * @param arr The array.
+ * @param val The value.
+ * @return 1 on success, 0 if out of memory or @p arr is no array.
+ */
+int json_array_append(JsonValue *arr, JsonValue *val);
+/**
+ * @brief Set a member of an object: an existing one gets the new value in
+ *        its place, otherwise the member is added at the end.
+ *
+ * Takes the value over like json_array_append().
+ *
+ * @param obj The object.
+ * @param key The key (copied).
+ * @param val The value.
+ * @return 1 on success, 0 if out of memory or @p obj is no object.
+ */
+int json_obj_set(JsonValue *obj, const char *key, JsonValue *val);
+/**
+ * @brief Remove a member of an object and free its value.
+ * @param obj The object.
+ * @param key The key.
+ * @return 1 if it was there, 0 otherwise.
+ */
+int json_obj_remove(JsonValue *obj, const char *key);
+
+/**
  * A writer that builds JSON text in a buffer, either a fixed one or one
  * that grows. Commas and spacing are written by the caller
  * (json_write_raw()).
@@ -220,6 +282,22 @@ void json_write_string(JsonWriter *w, const char *str);
  * @param raw The text (NULL writes nothing).
  */
 void json_write_raw(JsonWriter *w, const char *raw);
+
+/**
+ * @brief Write a value and everything below it.
+ *
+ * Indented (for files people may edit): objects and arrays one member per
+ * line, two spaces per depth, except below the top those that hold no
+ * objects (and no arrays that do), which go on one line, e.g.
+ * { "name": "Build", "command": "make" }. Numbers are written as they
+ * were read; no newline at the end.
+ *
+ * @param w The writer.
+ * @param v The value (NULL writes null).
+ * @param depth The depth the value starts at (0 for the top); a negative
+ *              depth writes everything on one line.
+ */
+void json_write_value(JsonWriter *w, const JsonValue *v, int depth);
 
 /**
  * @brief Write the start of an object ("{").

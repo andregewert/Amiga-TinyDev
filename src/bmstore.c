@@ -2,8 +2,8 @@
  * @file bmstore.c
  * @brief Portable store of the bookmarks of a project.
  *
- * Reads and writes \<project\>/.tinydev/bookmarks.json (with Scout's JSON
- * code) and finds the line of a bookmark again in a changed text. Used by
+ * Reads and writes \<project\>/.tinydev/bookmarks.json (with json.c) and
+ * finds the line of a bookmark again in a changed text. Used by
  * bookmarks.c; no Amiga headers, so the host tests can use it.
  */
 #include "bmstore.h"

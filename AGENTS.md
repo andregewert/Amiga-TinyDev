@@ -54,10 +54,11 @@ below the tree's root.
   bookmarks: reads and writes `<project>/.tinydev/bookmarks.json` (with
   `src/json.c`) and finds a bookmark's line again in a changed
   text by its stored line text; no Amiga headers.
-- `src/projconf.c`, `include/projconf.h`: the portable reader of a
-  project's settings (`<project>/.tinydev/project.json`): the Shell
+- `src/projconf.c`, `include/projconf.h`: the portable reader and writer
+  of a project's settings (`<project>/.tinydev/project.json`): the Shell
   commands of the actions Build, Run and Debug, the default of each, and
-  the placeholders `{project}`, `{file}`, `{base}`; no Amiga headers.
+  the placeholders `{project}`, `{file}`, `{base}`; writing keeps the keys
+  it does not know; no Amiga headers.
 - `src/toolwin.c`: placement of tool windows (remembered box pushed into
   the screen, otherwise docked right of the main window or over its right
   edge). Their boxes are kept for the session (`EditorApp`); only
@@ -109,8 +110,10 @@ below the tree's root.
   `include/scout_rpc.h`). Scout talks to the parsers with the Scout
   protocol, which is modeled on LSP but is not LSP.
 - `src/json.c`, `include/json.h`: the portable JSON code (values, reader,
-  accessors, writer) of TinyDev, Scout and the parsers; strings stay 8-bit
-  as read (ISO-8859-1); no Amiga headers.
+  accessors, building and changing trees, writer, indented output of a
+  tree) of TinyDev, Scout and the parsers; strings stay 8-bit as read
+  (ISO-8859-1), numbers are written back as read; no stdio, no Amiga
+  headers.
 - `src/helpviewer/`: HelpViewer (`bin/HelpViewer`), a small viewer for a
   directory of HTML help pages: dirtree.gadget on the left (HTML files
   only, shown by their titles, natural order, index pages only via their

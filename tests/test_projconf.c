@@ -28,6 +28,111 @@ static void check_expand(const char *text, const char *file, const char *expecte
 }
 
 /**
+ * @brief Editing commands and writing the file: copy, add, change, remove,
+ *        move, default, the text of a command, unknown keys kept, a new
+ *        file, and reading back what was written.
+ */
+static void test_edit_and_format(void)
+{
+    ProjConf c, d;
+    char *text, *json, *again;
+    const char *old =
+        "{\n"
+        "  \"version\": 1,\n"
+        "  \"editor\": { \"tabs\": 4 },\n"
+        "  \"build\": [\n"
+        "    { \"name\": \"Build\", \"command\": \"make\", \"env\": \"x\" },\n"
+        "    { \"command\": \"make docs\", \"default\": true }\n"
+        "  ],\n"
+        "  \"later\": [1, 2.5]\n"
+        "}\n";
+
+    projconf_init(&c);
+    assert(projconf_parse(&c, old) == 1);
+
+    /* copy */
+    assert(projconf_copy(&d, &c));
+    assert(d.count[PROJ_BUILD] == 2 && strcmp(d.commands[PROJ_BUILD][1].name, "make docs") == 0);
+    assert(d.commands[PROJ_BUILD][1].is_default);
+    projconf_clear(&d);
+
+    /* change: blank lines and CRs dropped, extra keys kept */
+    assert(projconf_set(&c, PROJ_BUILD, 0, "Build all", "make\r\n  \nmake test\n\n", "", 1) == 1);
+    assert(c.commands[PROJ_BUILD][0].line_count == 2);
+    assert(strcmp(c.commands[PROJ_BUILD][0].lines[1], "make test") == 0);
+    assert(c.commands[PROJ_BUILD][0].dir == NULL);
+    assert(projconf_default(&c, PROJ_BUILD) == 0 && !c.commands[PROJ_BUILD][1].is_default);
+    text = projconf_command_text(&c.commands[PROJ_BUILD][0]);
+    assert(text != NULL && strcmp(text, "make\nmake test") == 0);
+    free(text);
+
+    /* empty commands are refused */
+    assert(projconf_set(&c, PROJ_BUILD, 0, "x", " \n\t\n", NULL, 0) == 0);
+    assert(projconf_set(&c, PROJ_BUILD, -1, "x", "", NULL, 0) == 0);
+    assert(projconf_set(&c, PROJ_BUILD, -1, "x", NULL, NULL, 0) == 0);
+    assert(c.count[PROJ_BUILD] == 2);
+
+    /* add */
+    assert(projconf_set(&c, PROJ_RUN, -1, NULL, "TinyDev", "bin", 0) == 1);
+    assert(projconf_set(&c, PROJ_RUN, -1, "Gr\xF6\xDF" "e", "TinyDev LARGE", NULL, 1) == 1);
+    assert(c.count[PROJ_RUN] == 2 && strcmp(c.commands[PROJ_RUN][0].name, "TinyDev") == 0);
+    assert(projconf_default(&c, PROJ_RUN) == 1);
+    assert(projconf_set(&c, PROJ_DEBUG, -1, "Debugger", "BDebug bin/TinyDev", NULL, 0) == 1);
+
+    /* move and remove */
+    assert(projconf_move(&c, PROJ_RUN, 1, -1) == 0);
+    assert(projconf_move(&c, PROJ_RUN, 0, -1) == 0);
+    assert(projconf_move(&c, PROJ_RUN, 1, 1) == 1);
+    assert(strcmp(c.commands[PROJ_RUN][0].name, "Gr\xF6\xDF" "e") == 0);
+    projconf_set_default(&c, PROJ_RUN, 1);
+    assert(projconf_default(&c, PROJ_RUN) == 1 && !c.commands[PROJ_RUN][0].is_default);
+    projconf_remove(&c, PROJ_DEBUG, 0);
+    assert(c.count[PROJ_DEBUG] == 0 && c.commands[PROJ_DEBUG] == NULL);
+
+    /* write: the lists replace the old ones, the rest stays */
+    json = projconf_format(&c, old);
+    assert(json != NULL);
+    assert(strcmp(json,
+        "{\n"
+        "  \"version\": 1,\n"
+        "  \"editor\": { \"tabs\": 4 },\n"
+        "  \"build\": [\n"
+        "    { \"name\": \"Build all\", \"command\": [\"make\", \"make test\"], \"env\": \"x\", \"default\": true },\n"
+        "    { \"command\": \"make docs\" }\n"
+        "  ],\n"
+        "  \"later\": [1, 2.5],\n"
+        "  \"run\": [\n"
+        "    { \"name\": \"Gr\xF6\xDF" "e\", \"command\": \"TinyDev LARGE\" },\n"
+        "    { \"command\": \"TinyDev\", \"dir\": \"bin\", \"default\": true }\n"
+        "  ],\n"
+        "  \"debug\": []\n"
+        "}\n") == 0);
+
+    /* read back and write again: the same text */
+    projconf_init(&d);
+    assert(projconf_parse(&d, json) == 1);
+    assert(d.count[PROJ_BUILD] == 2 && d.count[PROJ_RUN] == 2 && projconf_default(&d, PROJ_RUN) == 1);
+    again = projconf_format(&d, json);
+    assert(again != NULL && strcmp(again, json) == 0);
+    free(again);
+    projconf_clear(&d);
+    free(json);
+
+    /* a new file; other texts are refused */
+    json = projconf_format(&c, NULL);
+    assert(json != NULL && strncmp(json, "{\n  \"version\": 1,\n  \"build\": [\n", 31) == 0);
+    assert(strstr(json, "\"debug\": []\n}\n") != NULL);
+    free(json);
+    json = projconf_format(&c, "");
+    assert(json != NULL);
+    free(json);
+    assert(projconf_format(&c, "[1]") == NULL);
+    assert(projconf_format(&c, "{") == NULL);
+
+    projconf_clear(&c);
+}
+
+/**
  * @brief Host-native tests of the project settings: the three actions,
  *        names, drawers, command lines as string or array, the default
  *        command, skipped entries, refused files, and the placeholders.
@@ -113,6 +218,7 @@ int main(void)
         free(s);
     }
 
+    test_edit_and_format();
     puts("project settings tests passed");
     return 0;
 }

@@ -1,11 +1,10 @@
 /**
  * @file projconf.c
- * @brief Portable reader of a project's settings.
+ * @brief Portable reader and writer of a project's settings.
  *
- * Reads \<project\>/.tinydev/project.json (with Scout's JSON code) into the
- * commands of the actions Build, Run and Debug, and replaces the
- * placeholders of a command. No Amiga headers, so the host tests can use
- * it.
+ * Reads and writes \<project\>/.tinydev/project.json (with json.c): the
+ * commands of the actions Build, Run and Debug; replaces the placeholders
+ * of a command. No Amiga headers, so the host tests can use it.
  */
 #include "projconf.h"
 #include "json.h"
@@ -41,6 +40,7 @@ static void free_command(ProjCommand *cmd)
     free(cmd->lines);
     free(cmd->name);
     free(cmd->dir);
+    free(cmd->extra);
 }
 
 void projconf_clear(ProjConf *c)
@@ -106,7 +106,15 @@ static int read_command(const JsonValue *e, ProjCommand *cmd)
     cmd->name = copy(name[0] != '\0' ? name : cmd->lines[0] != NULL ? cmd->lines[0] : "");
     if (dir[0] != '\0') cmd->dir = copy(dir);
     cmd->is_default = json_obj_get_bool(e, "default", 0);
-    if (cmd->line_count < n || cmd->name == NULL || (dir[0] != '\0' && cmd->dir == NULL)) {
+    {
+        JsonWriter w;
+        json_writer_init_alloc(&w, 128);
+        json_write_value(&w, e, -1);
+        if (!w.error) cmd->extra = copy(json_writer_get(&w));
+        json_writer_free(&w);
+    }
+    if (cmd->line_count < n || cmd->name == NULL || cmd->extra == NULL ||
+        (dir[0] != '\0' && cmd->dir == NULL)) {
         free_command(cmd);
         memset(cmd, 0, sizeof(*cmd));
         return -1;
@@ -213,4 +221,259 @@ char *projconf_expand(const char *text, const char *project, const char *file, i
     }
     out[length] = '\0';
     return out;
+}
+
+/**
+ * @brief Copy a string that may be NULL.
+ * @param text The string, or NULL.
+ * @param[out] ok Cleared if out of memory.
+ * @return The copy (free() it), or NULL.
+ */
+static char *copy_or_null(const char *text, int *ok)
+{
+    char *c;
+    if (text == NULL) return NULL;
+    if ((c = copy(text)) == NULL) *ok = 0;
+    return c;
+}
+
+int projconf_copy(ProjConf *dst, const ProjConf *src)
+{
+    int a, ok = 1;
+    long i, k;
+    projconf_init(dst);
+    for (a = 0; a < PROJ_ACTIONS && ok; ++a) {
+        if (src->count[a] == 0) continue;
+        dst->commands[a] = calloc((size_t)src->count[a], sizeof(ProjCommand));
+        if (dst->commands[a] == NULL) break;
+        for (i = 0; i < src->count[a] && ok; ++i) {
+            const ProjCommand *s = &src->commands[a][i];
+            ProjCommand *d = &dst->commands[a][i];
+            dst->count[a] = i + 1;
+            d->is_default = s->is_default;
+            d->name = copy_or_null(s->name, &ok);
+            d->dir = copy_or_null(s->dir, &ok);
+            d->extra = copy_or_null(s->extra, &ok);
+            d->lines = calloc((size_t)s->line_count, sizeof(char *));
+            if (d->lines == NULL) ok = 0;
+            for (k = 0; k < s->line_count && ok; ++k) {
+                d->lines[k] = copy_or_null(s->lines[k], &ok);
+                d->line_count = k + 1;
+            }
+        }
+    }
+    if (a < PROJ_ACTIONS || !ok) {
+        projconf_clear(dst);
+        return 0;
+    }
+    return 1;
+}
+
+/**
+ * @brief Tell whether a line holds nothing but spaces and tabs.
+ * @param line The line.
+ * @param length Its length.
+ * @return Non-zero if it is blank.
+ */
+static int blank(const char *line, size_t length)
+{
+    size_t i;
+    for (i = 0; i < length; ++i)
+        if (line[i] != ' ' && line[i] != '\t') return 0;
+    return 1;
+}
+
+int projconf_set(ProjConf *c, ProjAction action, long index, const char *name,
+                 const char *command, const char *dir, int is_default)
+{
+    ProjCommand cmd;
+    const char *p, *end;
+    long n = 0;
+
+    memset(&cmd, 0, sizeof(cmd));
+    /* count the lines that are not blank, then copy them */
+    for (p = command; p != NULL && *p != '\0'; p = *end != '\0' ? end + 1 : end) {
+        size_t length;
+        end = strchr(p, '\n');
+        if (end == NULL) end = p + strlen(p);
+        length = (size_t)(end - p);
+        if (length > 0 && p[length - 1] == '\r') --length;
+        if (blank(p, length)) continue;
+        if (cmd.lines == NULL) {
+            /* first pass: count; at most one line per LF plus one */
+            const char *q;
+            long lines = 1;
+            for (q = command; *q != '\0'; ++q) if (*q == '\n') ++lines;
+            if ((cmd.lines = calloc((size_t)lines, sizeof(char *))) == NULL) return -1;
+        }
+        if ((cmd.lines[n] = malloc(length + 1)) == NULL) {
+            cmd.line_count = n;
+            free_command(&cmd);
+            return -1;
+        }
+        memcpy(cmd.lines[n], p, length);
+        cmd.lines[n][length] = '\0';
+        cmd.line_count = ++n;
+    }
+    if (n == 0) return 0;
+
+    cmd.name = copy(name != NULL && name[0] != '\0' ? name : cmd.lines[0]);
+    if (dir != NULL && dir[0] != '\0') cmd.dir = copy(dir);
+    if (index >= 0 && c->commands[action][index].extra != NULL)
+        cmd.extra = copy(c->commands[action][index].extra);
+    if (cmd.name == NULL || (dir != NULL && dir[0] != '\0' && cmd.dir == NULL) ||
+        (index >= 0 && c->commands[action][index].extra != NULL && cmd.extra == NULL)) {
+        free_command(&cmd);
+        return -1;
+    }
+    cmd.is_default = is_default != 0;
+
+    if (index < 0) {
+        ProjCommand *grown = realloc(c->commands[action],
+                                     (size_t)(c->count[action] + 1) * sizeof(*grown));
+        if (grown == NULL) {
+            free_command(&cmd);
+            return -1;
+        }
+        c->commands[action] = grown;
+        index = c->count[action]++;
+    } else free_command(&c->commands[action][index]);
+    c->commands[action][index] = cmd;
+    if (is_default) projconf_set_default(c, action, index);
+    return 1;
+}
+
+void projconf_remove(ProjConf *c, ProjAction action, long index)
+{
+    long i;
+    free_command(&c->commands[action][index]);
+    for (i = index + 1; i < c->count[action]; ++i)
+        c->commands[action][i - 1] = c->commands[action][i];
+    if (--c->count[action] == 0) {
+        free(c->commands[action]);
+        c->commands[action] = NULL;
+    }
+}
+
+long projconf_move(ProjConf *c, ProjAction action, long index, int delta)
+{
+    long to = index + delta;
+    ProjCommand t;
+    if (to < 0 || to >= c->count[action]) return index;
+    t = c->commands[action][index];
+    c->commands[action][index] = c->commands[action][to];
+    c->commands[action][to] = t;
+    return to;
+}
+
+void projconf_set_default(ProjConf *c, ProjAction action, long index)
+{
+    long i;
+    for (i = 0; i < c->count[action]; ++i)
+        c->commands[action][i].is_default = i == index;
+}
+
+char *projconf_command_text(const ProjCommand *cmd)
+{
+    size_t length = 0;
+    long i;
+    char *text, *p;
+    for (i = 0; i < cmd->line_count; ++i) length += strlen(cmd->lines[i]) + 1;
+    if ((text = p = malloc(length + 1)) == NULL) return NULL;
+    for (i = 0; i < cmd->line_count; ++i) {
+        size_t n = strlen(cmd->lines[i]);
+        if (i > 0) *p++ = '\n';
+        memcpy(p, cmd->lines[i], n);
+        p += n;
+    }
+    *p = '\0';
+    return text;
+}
+
+/**
+ * @brief Make the JSON entry of a command, starting from the entry as it
+ *        was read.
+ * @param cmd The command.
+ * @return The entry (an object), or NULL if out of memory.
+ */
+static JsonValue *make_entry(const ProjCommand *cmd)
+{
+    JsonValue *e = cmd->extra != NULL ? json_parse(cmd->extra, NULL) : NULL;
+    JsonValue *command;
+    long i;
+    int ok;
+
+    if (e != NULL && e->type != JSON_OBJECT) {
+        json_value_free(e);
+        e = NULL;
+    }
+    if (e == NULL && (e = json_new_object()) == NULL) return NULL;
+    if (cmd->line_count == 1) command = json_new_string(cmd->lines[0]);
+    else {
+        command = json_new_array();
+        for (i = 0; command != NULL && i < cmd->line_count; ++i)
+            if (!json_array_append(command, json_new_string(cmd->lines[i]))) {
+                json_value_free(command);
+                command = NULL;
+            }
+    }
+    /* the order of a new entry: name, command, dir, default */
+    if (strcmp(cmd->name, cmd->lines[0]) == 0) {
+        json_obj_remove(e, "name");
+        ok = 1;
+    } else ok = json_obj_set(e, "name", json_new_string(cmd->name));
+    if (ok) ok = json_obj_set(e, "command", command);
+    else json_value_free(command);
+    if (cmd->dir != NULL) ok = ok && json_obj_set(e, "dir", json_new_string(cmd->dir));
+    else json_obj_remove(e, "dir");
+    if (cmd->is_default) ok = ok && json_obj_set(e, "default", json_new_bool(1));
+    else json_obj_remove(e, "default");
+    if (!ok) {
+        json_value_free(e);
+        return NULL;
+    }
+    return e;
+}
+
+char *projconf_format(const ProjConf *c, const char *old_json)
+{
+    JsonValue *root;
+    JsonWriter w;
+    char *text = NULL;
+    int a, ok = 1;
+    long i;
+
+    if (old_json != NULL && old_json[0] != '\0') {
+        root = json_parse(old_json, NULL);
+        if (root != NULL && root->type != JSON_OBJECT) {
+            json_value_free(root);
+            return NULL;
+        }
+    } else {
+        root = json_new_object();
+        if (root != NULL && !json_obj_set(root, "version", json_new_int(1))) {
+            json_value_free(root);
+            root = NULL;
+        }
+    }
+    if (root == NULL) return NULL;
+
+    for (a = 0; a < PROJ_ACTIONS && ok; ++a) {
+        JsonValue *list = json_new_array();
+        for (i = 0; list != NULL && i < c->count[a]; ++i)
+            if (!json_array_append(list, make_entry(&c->commands[a][i]))) {
+                json_value_free(list);
+                list = NULL;
+            }
+        ok = json_obj_set(root, action_keys[a], list);
+    }
+    if (ok) {
+        json_writer_init_alloc(&w, 512);
+        json_write_value(&w, root, 0);
+        json_write_raw(&w, "\n");
+        if (!w.error) text = copy(json_writer_get(&w));
+        json_writer_free(&w);
+    }
+    json_value_free(root);
+    return text;
 }
