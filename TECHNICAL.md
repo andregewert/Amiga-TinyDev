@@ -64,7 +64,9 @@ The directory opened in the folder tree is the project. What refers to it:
   Debug, each with a default (format in `include/projconf.h`). The file is
   meant to be shared (checked in with the project), so nothing personal of
   a session goes into it; writing keeps the keys TinyDev does not know,
-  also those of the entries;
+  also those of the entries; `build.c` runs the default commands (Build in
+  a process of its own with its output in the output window of
+  `outwin.c`, Run and Debug detached; details in its file comment);
 - the start drawer of the file requesters (`fileio.c`).
 
 ## Help: TinyDev, HelpViewer and the help pages
@@ -98,7 +100,8 @@ the title bar, Project/Iconify); the program icon is the AppIcon.
 - Before iconifying, the open tool windows are noted and closed:
   `find_hide()` keeps the find window's box and pauses a project search
   (it goes on after `find_show()`), `bmlist_close()` keeps the bookmark
-  list's box for the session. Neither changes the settings.
+  list's box for the session, and so does `outwin_close()` for the output
+  window. None of them changes the settings. A running build goes on.
 - window.class builds the menu strip anew from `menus[]` at every
   `WM_OPEN`, so `set_menu_checks()` writes the current check marks into
   the table first.

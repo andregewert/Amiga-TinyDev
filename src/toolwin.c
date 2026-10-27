@@ -2,10 +2,13 @@
  * @file toolwin.c
  * @brief Placement of TinyDev's tool windows.
  *
- * Tool windows (the bookmark list, later others) stay open next to the
- * main window and can be shown and hidden at any time. The first time a
- * window opens next to the main window: right of it if the screen has
- * room, otherwise over its right edge, as high as the main window. Once
+ * Tool windows (the bookmark list, the output window) stay open next to
+ * the main window and can be shown and hidden at any time. The first time
+ * a window opens next to the main window: right of it if the screen has
+ * room, otherwise over its right edge, as high as the main window; or,
+ * for a wide window such as the output, below it, as wide as the main
+ * window and a quarter of the screen high, over its lower edge if the
+ * screen has no room below. Once
  * moved or sized, its box is remembered (in the settings, saved with them
  * in the program icon) and used again, pushed into the screen if it no
  * longer fits.
@@ -16,7 +19,7 @@
 #include <intuition/screens.h>
 
 void toolwin_box(EditorApp *app, const long saved[4], WORD min_width, WORD min_height,
-                 WORD box[4])
+                 int below, WORD box[4])
 {
     struct Window *main_win = app->window;
     WORD sw = app->screen != NULL ? app->screen->Width : 640;
@@ -29,6 +32,19 @@ void toolwin_box(EditorApp *app, const long saved[4], WORD min_width, WORD min_h
         t = (WORD)saved[1];
         w = (WORD)saved[2];
         h = (WORD)saved[3];
+    } else if (below) {
+        /* as wide as the main window, a quarter of the screen high */
+        h = (WORD)(sh / 4);
+        if (main_win != NULL) {
+            w = main_win->Width;
+            l = main_win->LeftEdge;
+            t = (WORD)(main_win->TopEdge + main_win->Height);
+            if (t + h > sh) t = (WORD)(sh - h);
+        } else {
+            w = sw;
+            l = 0;
+            t = (WORD)(sh - h);
+        }
     } else {
         /* a quarter of the screen wide, as high as the main window */
         w = (WORD)(sw / 4);

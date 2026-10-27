@@ -355,7 +355,7 @@ void bmlist_open(EditorApp *app)
     bl.row_height = (WORD)((h > SYMBOL_HEIGHT ? h : SYMBOL_HEIGHT) + 2 * ROW_PADDING);
     for (i = 0; i < BMSCOPE_COUNT; ++i) bl.scope_labels[i] = (STRPTR)S(scope_texts[i]);
     bl.scope_labels[BMSCOPE_COUNT] = NULL;
-    toolwin_box(app, app->bm_box, MIN_WIDTH, MIN_HEIGHT, box);
+    toolwin_box(app, app->bm_box, MIN_WIDTH, MIN_HEIGHT, 0, box);
 
     bl.scope = NewObject(CHOOSER_GetClass(), NULL, GA_ID, BG_SCOPE, GA_RelVerify, TRUE,
         CHOOSER_PopUp, TRUE, CHOOSER_LabelArray, (ULONG)bl.scope_labels,

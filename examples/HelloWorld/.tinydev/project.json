@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "build": [
+    { "name": "Build", "command": "make" },
+    { "name": "Rebuild", "command": ["make clean", "make"], "default": true },
+    { "name": "Compile file", "command": "vc -O1 -c \"{file}\" -o \"{base}.o\"" },
+    { "name": "Compile error (demo)", "command": "vc -O1 -o error error.c" }
+  ],
+  "run": [
+    { "name": "Hello", "command": "hello", "default": true }
+  ],
+  "debug": [
+    { "name": "Hello with return code", "command": ["Echo \"Starting hello...\"", "hello", "Echo \"Return code: $RC\""], "default": true }
+  ]
+}

@@ -9,3 +9,5 @@
 __pycache__/
 *.pyc
 /dist/
+/examples/HelloWorld/hello
+/examples/HelloWorld/error

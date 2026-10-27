@@ -259,6 +259,11 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_BM_CLEAR)},
     {NM_TITLE, NULL, NULL, 0, 0, NULL},
+    {NM_ITEM, NULL, "E", 0, 0, UD(MID_BUILD)},
+    {NM_ITEM, NULL, "R", 0, 0, UD(MID_RUN)},
+    {NM_ITEM, NULL, "D", 0, 0, UD(MID_DEBUG)},
+    {NM_ITEM, NULL, NULL, 0, 0, UD(MID_STOP)},
+    {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_PROJECT_SETTINGS)},
     {NM_TITLE, NULL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_FOLDER_TREE)},
@@ -266,6 +271,7 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_MINIMAP)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_BM_LIST)},
+    {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_OUTPUT)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_SNAPSHOT_TOOLS)},
     {NM_END, NULL, NULL, 0, 0, NULL}
@@ -306,6 +312,11 @@ static const LONG menu_texts[] = {
     -1,
     MSG_MENU_BM_CLEAR,
     MSG_MENU_BUILD,
+    MSG_MENU_DO_BUILD,
+    MSG_MENU_DO_RUN,
+    MSG_MENU_DO_DEBUG,
+    MSG_MENU_STOP,
+    -1,
     MSG_MENU_PROJSETTINGS,
     MSG_MENU_VIEW,
     MSG_MENU_TREE,
@@ -313,6 +324,7 @@ static const LONG menu_texts[] = {
     MSG_MENU_MINIMAP,
     -1,
     MSG_MENU_BM_LIST,
+    MSG_MENU_OUTPUT,
     -1,
     MSG_MENU_SNAPSHOT_TOOLS,
     -1,
@@ -468,6 +480,7 @@ static void set_menu_checks(EditorApp *app, int bm_open)
         else if (ud == UD(MID_FOLDER_TREE)) on = app->tree_visible;
         else if (ud == UD(MID_LINE_NUMBERS)) on = app->line_numbers;
         else if (ud == UD(MID_MINIMAP)) on = app->minimap_visible;
+        else if (ud == UD(MID_OUTPUT)) on = app->outwin_was_open;
         else continue;
         if (on) menus[i].nm_Flags |= CHECKED;
         else menus[i].nm_Flags &= (UWORD)~CHECKED;
@@ -480,6 +493,7 @@ int ui_create(EditorApp *app)
     struct DiskObject *icon = NULL;
     int i;
     memcpy(app->bm_box, app->settings.bmwin, sizeof(app->bm_box));
+    memcpy(app->out_box, app->settings.outwin, sizeof(app->out_box));
     app->screen = LockPubScreen(NULL);
     if (app->screen == NULL) return 0;
     if (!open_editor_colors(app)) {
@@ -587,7 +601,9 @@ int ui_create(EditorApp *app)
     }
     for (i = 0; i < (int)(sizeof(menu_texts) / sizeof(menu_texts[0])); ++i)
         if (menu_texts[i] >= 0) menus[i].nm_Label = (STRPTR)S(menu_texts[i]);
+    app->outwin_was_open = app->settings.outlist;      /* for the check mark */
     set_menu_checks(app, app->settings.bmlist);
+    app->outwin_was_open = 0;
     /* AppPort: the window can be iconified, with the program icon as AppIcon */
     app->app_port = CreateMsgPort();
     if (app->app_port != NULL && IconBase != NULL && app->settings.icon_name[0] != '\0' &&
@@ -646,6 +662,10 @@ int ui_create(EditorApp *app)
     if (app->settings.bmlist) {
         bmlist_open(app);
         ui_set_menu_check(app, MID_BM_LIST, bmlist_is_open());
+    }
+    if (app->settings.outlist) {
+        outwin_open(app);
+        ui_set_menu_check(app, MID_OUTPUT, outwin_is_open());
     }
     return 1;
 }
@@ -713,6 +733,7 @@ static int save_active(EditorApp *app, int save_as)
 static int close_all(EditorApp *app)
 {
     Document *doc, *next;
+    if (!build_may_quit(app)) return 0;
     for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ; doc = next) {
         next = (Document *)doc->node.ln_Succ;
         if (!ui_confirm_close(app, doc)) return 0;
@@ -815,6 +836,8 @@ static void ui_iconify(EditorApp *app)
     app->find_was_open = find_hide();
     app->bmlist_was_open = bmlist_is_open();
     if (app->bmlist_was_open) bmlist_close(app);   /* remembers its box */
+    app->outwin_was_open = outwin_is_open();
+    if (app->outwin_was_open) outwin_close(app);   /* likewise */
     app->main_box[0] = app->window->LeftEdge;
     app->main_box[1] = app->window->TopEdge;
     app->main_box[2] = app->window->Width;
@@ -826,7 +849,9 @@ static void ui_iconify(EditorApp *app)
     if (still != NULL) {                /* not iconified: everything as it was */
         toolbar_window_opened(app);
         if (app->bmlist_was_open) bmlist_open(app);
+        if (app->outwin_was_open) outwin_open(app);
         if (app->find_was_open) find_show(app);
+        app->outwin_was_open = 0;
         return;
     }
     app->window = NULL;
@@ -855,8 +880,12 @@ static int ui_uniconify(EditorApp *app)
         bmlist_open(app);
         ui_set_menu_check(app, MID_BM_LIST, bmlist_is_open());
     }
+    if (app->outwin_was_open) {
+        outwin_open(app);
+        ui_set_menu_check(app, MID_OUTPUT, outwin_is_open());
+    }
     if (app->find_was_open) find_show(app);
-    app->bmlist_was_open = app->find_was_open = 0;
+    app->bmlist_was_open = app->find_was_open = app->outwin_was_open = 0;
     ActivateWindow(w);
     if (app->active != NULL && app->layout != NULL)
         ActivateLayoutGadget((struct Gadget *)app->layout, w, NULL, (ULONG)app->active->editor);
@@ -880,6 +909,14 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_HELP: help_open(app); break;
         case MID_SETTINGS: edit_settings(app); break;
         case MID_PROJECT_SETTINGS: project_settings(app); break;
+        case MID_BUILD: case MID_RUN: case MID_DEBUG: case MID_STOP:
+            build_action(app, id);
+            break;
+        case MID_OUTPUT:
+            if (outwin_is_open()) outwin_close(app);
+            else outwin_open(app);
+            ui_set_menu_check(app, MID_OUTPUT, outwin_is_open());
+            break;
         case MID_ICONIFY: ui_iconify(app); break;
         case MID_QUIT: if (close_all(app)) app->running = 0; break;
         case MID_UNDO:
@@ -912,6 +949,9 @@ static void menu_action(EditorApp *app, ULONG id)
             bmlist_remember(app);
             memcpy(app->settings.bmwin, app->bm_box, sizeof(app->bm_box));
             app->settings.bmlist = bmlist_is_open();
+            outwin_remember(app);
+            memcpy(app->settings.outwin, app->out_box, sizeof(app->out_box));
+            app->settings.outlist = outwin_is_open();
             if (!settings_save_toolwindows(&app->settings))
                 ui_error(app, APP_NAME, S(MSG_ERR_SAVESETTINGS));
             break;
@@ -1028,7 +1068,8 @@ int ui_run(EditorApp *app)
         /* A finished minimap render job only needs to wake the loop: the
          * minimap_poll() at its end shows the new picture. */
         signals = Wait(mask | scroll_mask | minimap_mask | tree_mask | find_sigmask() |
-                       bmlist_sigmask() | SIGBREAKF_CTRL_C);
+                       bmlist_sigmask() | outwin_sigmask() | build_sigmask() | SIGBREAKF_CTRL_C);
+        build_handle(app, signals);
         /* a shown directory changed (a file was made, deleted, renamed) */
         if ((signals & tree_mask) != 0) tree_refresh(app, 0);
         if ((signals & scroll_mask) != 0) document_scroll_live(app);
@@ -1074,6 +1115,7 @@ int ui_run(EditorApp *app)
         find_handle(app);
         bookmarks_poll(app);
         bmlist_handle(app);
+        outwin_handle(app);
         /* The texteditor gadget does not notify listeners when the user
          * scrolls it from the keyboard or mouse, so re-read its scroll
          * position after every batch of input events (the window wakes us
@@ -1106,6 +1148,8 @@ int ui_run(EditorApp *app)
 
 void ui_destroy(EditorApp *app)
 {
+    build_cleanup(app);
+    outwin_cleanup(app);
     find_cleanup();
     bmlist_cleanup(app);
     bookmarks_cleanup(app);

@@ -984,3 +984,91 @@ MSG_PJE_ASL
 Verzeichnis des Kommandos
 ; Drawer of the command
 ;
+MSG_MENU_DO_BUILD
+Projekt erstellen
+; Build Project
+;
+MSG_MENU_DO_RUN
+Ausführen
+; Run
+;
+MSG_MENU_DO_DEBUG
+Debuggen
+; Debug
+;
+MSG_MENU_STOP
+Erstellen abbrechen
+; Stop Build
+;
+MSG_MENU_OUTPUT
+Ausgabefenster
+; Output Window
+;
+MSG_OUT_TITLE
+Ausgabe
+; Output
+;
+MSG_OUT_STOP
+_Abbrechen
+; _Stop
+;
+MSG_OUT_CLEAR
+_Leeren
+; C_lear
+;
+MSG_OUT_NEEDCLASSES
+Das Ausgabefenster benötigt listbrowser.gadget.
+; The output window needs listbrowser.gadget.
+;
+MSG_BUILD_RUNNING
+%s läuft...
+; %s is running...
+;
+MSG_BUILD_STOPPING
+Wird abgebrochen...
+; Stopping...
+;
+MSG_BUILD_DONE
+%s ist fertig.
+; %s has finished.
+;
+MSG_BUILD_FAILED
+%s ist fehlgeschlagen (Rückgabewert %ld).
+; %s has failed (return code %ld).
+;
+MSG_BUILD_STOPPED
+%s wurde abgebrochen.
+; %s was stopped.
+;
+MSG_BUILD_NOSTART
+%s konnte nicht gestartet werden.
+; %s could not be started.
+;
+MSG_BUILD_NOCOMMAND
+Für "%s" gibt es kein Kommando. Bitte eines unter Erstellen/Projekteinstellungen... eintragen.
+; There is no command for %s. Please add one in Build/Project Settings....
+;
+MSG_BUILD_NOFILE
+Das Kommando braucht ein Dokument mit Namen ({file} oder {base}).
+; The command needs a document with a name ({file} or {base}).
+;
+MSG_BUILD_NODIR
+Das Verzeichnis %s wurde nicht gefunden.
+; The drawer %s cannot be found.
+;
+MSG_BUILD_SCRIPT
+Das Kommando konnte in T: nicht vorbereitet werden.
+; The command could not be prepared in T:.
+;
+MSG_BUILD_BUSY
+Es läuft bereits ein Erstellen.
+; A build is already running.
+;
+MSG_BUILD_QUIT
+Ein Erstellen läuft noch. Abbrechen und beenden?
+; A build is running. Stop it and quit?
+;
+MSG_BUILD_QUIT_GADGETS
+Abbrechen und beenden|Zurück
+; Stop and Quit|Cancel
+;

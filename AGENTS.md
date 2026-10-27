@@ -67,6 +67,16 @@ below the tree's root.
   action with a listbrowser of its commands (checkbox = default), buttons
   beside the page, and a modal window to edit one command; "Save" writes
   `project.json` with `projconf_format()`.
+- `src/build.c`: the Build menu's actions: the default command of Build,
+  Run or Debug from `project.json`, written as a script to `T:`
+  (placeholders replaced, "Stack 65536" first). Build runs in a process
+  of its own (synchronous `SystemTags()`, return code by message) with
+  its output in a file in `T:` read every 0.25 s (timer.device) into the
+  output window; Stop sends Ctrl-C to its Shell. Run and Debug start
+  detached in a console window.
+- `src/outwin.c`: the output window, a tool window (View/Output Window,
+  first placed below the main window, as wide as it): the build's lines
+  (kept also while it is closed, at most 2000), status line, Stop, Clear.
 - `src/toolwin.c`: placement of tool windows (remembered box pushed into
   the screen, otherwise docked right of the main window or over its right
   edge). Their boxes are kept for the session (`EditorApp`); only
@@ -174,6 +184,9 @@ below the tree's root.
 - `tools/mkdist.py`: `make dist` builds `dist/TinyDev.lha` from `bin/`,
   the README, the sources (built without git) and icons, with
   `amiga-devkit/tools/distlib.py`.
+- `examples/HelloWorld/`: a demo project for the Build menu (hello.c, a
+  Makefile for vbcc, error.c that fails on purpose, and its
+  `.tinydev/project.json`); ISO-8859-1 like the sources.
 - `README.md`: for users: features, requirements, usage, tool types, limits
   and building, kept short.
 - `TECHNICAL.md`: notes that concern several modules (event flow between

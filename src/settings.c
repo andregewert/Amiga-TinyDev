@@ -22,6 +22,9 @@
  *   BOOKMARKLIST               open the bookmark list at the start
  *   BOOKMARKWINDOW=l,t,w,h     where the bookmark list opens (otherwise
  *                              next to the main window)
+ *   OUTPUT                     open the output window at the start
+ *   OUTPUTWINDOW=l,t,w,h       where the output window opens (otherwise
+ *                              below the main window)
  *   COLOR_TEXT=RRGGBB ...      colours of the syntax highlighting:
  *                              COLOR_KEYWORD, COLOR_STRING, COLOR_COMMENT,
  *                              COLOR_PREPROCESSOR
@@ -72,6 +75,9 @@ void settings_default(Settings *s)
     s->bmwin[0] = s->bmwin[1] = -1;
     s->bmwin[2] = s->bmwin[3] = 0;
     s->bmlist = 0;
+    s->outwin[0] = s->outwin[1] = -1;
+    s->outwin[2] = s->outwin[3] = 0;
+    s->outlist = 0;
     memcpy(s->colours, settings_default_colours, sizeof(s->colours));
 }
 
@@ -172,6 +178,8 @@ static void from_tooltypes(Settings *s, STRPTR *tt)
     if ((value = FindToolType(t, (CONST_STRPTR)"TOP")) != NULL) parse_number(value, -1, &s->wintop);
     if (FindToolType(t, (CONST_STRPTR)"BOOKMARKLIST") != NULL) s->bmlist = 1;
     if ((value = FindToolType(t, (CONST_STRPTR)"BOOKMARKWINDOW")) != NULL) parse_box(value, s->bmwin);
+    if (FindToolType(t, (CONST_STRPTR)"OUTPUT") != NULL) s->outlist = 1;
+    if ((value = FindToolType(t, (CONST_STRPTR)"OUTPUTWINDOW")) != NULL) parse_box(value, s->outwin);
     for (i = 0; i < SCOL_COUNT; ++i)
         if ((value = FindToolType(t, (CONST_STRPTR)colour_names[i])) != NULL)
             parse_colour(value, &s->colours[i]);
@@ -237,10 +245,12 @@ int settings_save_toolwindows(const Settings *cur)
     from_icon(&s, 0, (CONST_STRPTR)s.icon_name);
     memcpy(s.bmwin, cur->bmwin, sizeof(s.bmwin));
     s.bmlist = cur->bmlist;
+    memcpy(s.outwin, cur->outwin, sizeof(s.outwin));
+    s.outlist = cur->outlist;
     return settings_save(&s);
 }
 
-#define NUMKEYS (12 + SCOL_COUNT)    /**< number of TinyDev's tool types */
+#define NUMKEYS (14 + SCOL_COUNT)    /**< number of TinyDev's tool types */
 #define ENTRYLEN 40                 /**< longest tool type TinyDev writes */
 
 /** One of our tool types while writing. */
@@ -288,7 +298,7 @@ int settings_save(const Settings *s)
     STRPTR *old, *tt = NULL;
     ULONG nold = 0, n = 0, i, k, nicons;
     char wnum[12], hnum[12], lnum[12], tnum[12], buf[SCOL_COUNT][8], *disabled = NULL;
-    char bmbox[48];
+    char bmbox[48], outbox[48];
     int ok = 0;
 
     if (IconBase == NULL || s->icon_name[0] == '\0') return 0;
@@ -319,6 +329,9 @@ int settings_save(const Settings *s)
     entry(&e[k++], "BOOKMARKLIST", s->bmlist, NULL);
     snprintf(bmbox, sizeof(bmbox), "%ld,%ld,%ld,%ld", s->bmwin[0], s->bmwin[1], s->bmwin[2], s->bmwin[3]);
     entry(&e[k++], "BOOKMARKWINDOW", s->bmwin[2] > 0, bmbox);
+    entry(&e[k++], "OUTPUT", s->outlist, NULL);
+    snprintf(outbox, sizeof(outbox), "%ld,%ld,%ld,%ld", s->outwin[0], s->outwin[1], s->outwin[2], s->outwin[3]);
+    entry(&e[k++], "OUTPUTWINDOW", s->outwin[2] > 0, outbox);
     for (i = 0; i < SCOL_COUNT; ++i) {
         snprintf(buf[i], sizeof(buf[i]), "%06lX", s->colours[i] & 0xFFFFFFUL);
         entry(&e[k++], colour_names[i], s->colours[i] != settings_default_colours[i], buf[i]);

@@ -757,3 +757,75 @@ Please enter a command.
 ; title of the drawer requester
 MSG_PJE_ASL (//)
 Drawer of the command
+;
+; items of the Build menu
+MSG_MENU_DO_BUILD (//)
+Build Project
+;
+MSG_MENU_DO_RUN (//)
+Run
+;
+MSG_MENU_DO_DEBUG (//)
+Debug
+;
+MSG_MENU_STOP (//)
+Stop Build
+;
+MSG_MENU_OUTPUT (//)
+Output Window
+;
+; the output window
+MSG_OUT_TITLE (//)
+Output
+;
+MSG_OUT_STOP (//)
+_Stop
+;
+MSG_OUT_CLEAR (//)
+C_lear
+;
+MSG_OUT_NEEDCLASSES (//)
+The output window needs listbrowser.gadget.
+;
+; status of the build (%s: the command's name)
+MSG_BUILD_RUNNING (//)
+%s is running...
+;
+MSG_BUILD_STOPPING (//)
+Stopping...
+;
+MSG_BUILD_DONE (//)
+%s has finished.
+;
+; %s: the command's name, %ld: its return code
+MSG_BUILD_FAILED (//)
+%s has failed (return code %ld).
+;
+MSG_BUILD_STOPPED (//)
+%s was stopped.
+;
+MSG_BUILD_NOSTART (//)
+%s could not be started.
+;
+; %s: the action
+MSG_BUILD_NOCOMMAND (//)
+There is no command for %s. Please add one in Build/Project Settings....
+;
+MSG_BUILD_NOFILE (//)
+The command needs a document with a name ({file} or {base}).
+;
+; %s: the drawer
+MSG_BUILD_NODIR (//)
+The drawer %s cannot be found.
+;
+MSG_BUILD_SCRIPT (//)
+The command could not be prepared in T:.
+;
+MSG_BUILD_BUSY (//)
+A build is already running.
+;
+MSG_BUILD_QUIT (//)
+A build is running. Stop it and quit?
+;
+MSG_BUILD_QUIT_GADGETS (//)
+Stop and Quit|Cancel

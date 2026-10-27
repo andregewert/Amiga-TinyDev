@@ -17,6 +17,12 @@ given. In a command, <tt>{file}</tt> stands for the active document,
 <tt>{base}</tt> for the same without its extension and
 <tt>{project}</tt> for the project drawer. Put quotes around them if a
 name may contain spaces.</p>
+<p>Build/Build Project (Amiga+E) saves the modified documents and runs the
+default Build command in the background; its output appears in the output
+window (View/Output Window), which also tells how it ended. Stop ends
+it. Build/Run (Amiga+R) and Build/Debug (Amiga+D) start their default
+command in a console window of their own. Commands get a stack of 64 KB;
+a <tt>Stack</tt> line in the command sets another.</p>
 <p>The settings are saved in <tt>.tinydev/project.json</tt> in the project
 drawer, a file that may be edited by hand and kept with the project.</p>
 <p>Back to <a href="index.html">Working with projects</a>.</p>

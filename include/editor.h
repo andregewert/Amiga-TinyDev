@@ -102,6 +102,8 @@ typedef struct Settings {
     unsigned long colours[SCOL_COUNT];  /**< 0xRRGGBB, SettingsColour order */
     long bmwin[4];      /**< bookmark list as snapshot: left, top, width, height; width 0 = automatic */
     int bmlist;         /**< bookmark list open at the start (BOOKMARKLIST) */
+    long outwin[4];     /**< output window as snapshot (OUTPUTWINDOW); width 0 = automatic */
+    int outlist;        /**< output window open at the start (OUTPUT) */
     char icon_name[300];/**< program icon without .info, for splash and About */
 } Settings;
 
@@ -146,7 +148,12 @@ enum MenuId {
     MID_SNAPSHOT_TOOLS, /**< View/Snapshot Tool Windows */
     MID_HELP,           /**< Project/Help...: starts the HelpViewer */
     MID_ICONIFY,        /**< Project/Iconify: the main window becomes an icon */
-    MID_PROJECT_SETTINGS /**< Build/Project Settings...: the project's commands */
+    MID_PROJECT_SETTINGS, /**< Build/Project Settings...: the project's commands */
+    MID_BUILD,          /**< Build/Build Project: the default Build command */
+    MID_RUN,            /**< Build/Run: the default Run command */
+    MID_DEBUG,          /**< Build/Debug: the default Debug command */
+    MID_STOP,           /**< Build/Stop Build */
+    MID_OUTPUT          /**< View/Output Window (check item) */
 };
 
 /** Bookmarks of a document that TinyDev keeps track of. */
@@ -248,6 +255,8 @@ typedef struct EditorApp {
     WORD main_box[4];           /**< box of the main window while it is iconified */
     int find_was_open;          /**< the find window was open when the main window was iconified */
     int bmlist_was_open;        /**< the bookmark list was open when the main window was iconified */
+    long out_box[4];            /**< box of the output window in this session */
+    int outwin_was_open;        /**< the output window was open when the main window was iconified */
     int defer_depth;            /**< ui_begin_update() nesting */
     int pending_layout;         /**< a relayout was requested meanwhile */
     int pending_refresh;        /**< a page redraw was requested meanwhile */
@@ -1021,6 +1030,119 @@ void bookmarks_document_loaded(EditorApp *app, Document *doc);
  * @param doc The document.
  */
 void bookmarks_document_closing(EditorApp *app, Document *doc);
+/* build.c */
+
+/**
+ * @brief Run a command of the Build menu: Build, Run, Debug (each the
+ *        action's default command from the project settings) or Stop.
+ *
+ * Build saves the modified documents with a name and runs in the
+ * background, its output in the output window; Run and Debug start in a
+ * console window of their own. Problems are shown as messages.
+ *
+ * @param app The application state.
+ * @param id MID_BUILD, MID_RUN, MID_DEBUG or MID_STOP.
+ */
+void build_action(EditorApp *app, ULONG id);
+/**
+ * @brief Stop the build that runs (Ctrl-C to its Shell).
+ * @param app The application state.
+ */
+void build_stop(EditorApp *app);
+/**
+ * @brief Tell whether a build runs.
+ * @return Non-zero if one runs.
+ */
+int build_running(void);
+/**
+ * @brief Return the signals a running build wakes the event loop with.
+ * @return The mask, 0 if no build runs.
+ */
+ULONG build_sigmask(void);
+/**
+ * @brief Handle the signals of a running build: read its output, notice
+ *        its end.
+ * @param app The application state.
+ * @param signals The signals received.
+ */
+void build_handle(EditorApp *app, ULONG signals);
+/**
+ * @brief Ask before quitting while a build runs.
+ * @param app The application state.
+ * @return Non-zero if TinyDev may quit (no build, or the user agreed to
+ *         stop it).
+ */
+int build_may_quit(EditorApp *app);
+/**
+ * @brief Stop a running build and wait for its end; remove the scripts of
+ *        Run and Debug. Called when TinyDev quits.
+ * @param app The application state.
+ */
+void build_cleanup(EditorApp *app);
+
+/* outwin.c */
+
+/**
+ * @brief Add text to the output: complete lines are shown, an unfinished
+ *        one waits for the rest.
+ * @param app The application state.
+ * @param text The text (need not be terminated).
+ * @param length Its length.
+ */
+void outwin_add_text(EditorApp *app, const char *text, long length);
+/**
+ * @brief Show an unfinished last line of the output.
+ * @param app The application state.
+ */
+void outwin_flush(EditorApp *app);
+/**
+ * @brief Remove all lines of the output.
+ * @param app The application state.
+ */
+void outwin_clear(EditorApp *app);
+/**
+ * @brief Set the status line of the output window.
+ * @param text The text (copied).
+ * @param running Non-zero while a build runs (Stop is not ghosted).
+ */
+void outwin_set_status(const char *text, int running);
+/**
+ * @brief Open the output window (or bring it to the front).
+ * @param app The application state.
+ */
+void outwin_open(EditorApp *app);
+/**
+ * @brief Remember the box of the open output window (for the session).
+ * @param app The application state.
+ */
+void outwin_remember(EditorApp *app);
+/**
+ * @brief Close the output window, keeping its box for the session (the
+ *        lines stay).
+ * @param app The application state.
+ */
+void outwin_close(EditorApp *app);
+/**
+ * @brief Tell whether the output window is open.
+ * @return Non-zero if it is open.
+ */
+int outwin_is_open(void);
+/**
+ * @brief Return the signal mask of the output window.
+ * @return The mask, 0 if it is closed.
+ */
+ULONG outwin_sigmask(void);
+/**
+ * @brief Handle the output window's input.
+ * @param app The application state.
+ */
+void outwin_handle(EditorApp *app);
+/**
+ * @brief Close the output window and free its lines.
+ * @param app The application state.
+ */
+void outwin_cleanup(EditorApp *app);
+
 /* projdata.c */
 
 /**
@@ -1118,16 +1240,18 @@ void bookmarks_cleanup(EditorApp *app);
 /**
  * @brief Where a tool window opens: its remembered box (pushed into the
  *        screen), or next to the main window (right of it if there is
- *        room, otherwise over its right edge).
+ *        room, otherwise over its right edge; or below it).
  * @param app The application state.
  * @param saved The remembered box (left, top, width, height; width 0 =
  *              none).
  * @param min_width Smallest width.
  * @param min_height Smallest height.
+ * @param below Non-zero for a wide window below the main window (as wide
+ *              as it, over its lower edge if the screen has no room).
  * @param box Out: left, top, width, height.
  */
 void toolwin_box(EditorApp *app, const long saved[4], WORD min_width, WORD min_height,
-                 WORD box[4]);
+                 int below, WORD box[4]);
 /**
  * @brief Remember the box of a tool window.
  * @param win The window (may be NULL).

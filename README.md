@@ -33,7 +33,10 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
   bar), saved per project, and a bookmark list (View/Bookmarks).
 - Project settings (Build/Project Settings...): Shell commands for
   building, running and debugging the project, several per action with
-  one default.
+  one default. Build (Amiga+E) saves the modified documents and runs in
+  the background, its output in the output window (View/Output Window);
+  Run (Amiga+R) and
+  Debug (Amiga+D) start in a console window of their own.
 - Toolbar with AISS images, images and text, or text only; a settings
   window for window, colours and toolbar.
 - English and German texts (catalogs), help pages shown by the HelpViewer
@@ -63,6 +66,7 @@ From the Workbench, TinyDev opens the files given as project icons.
 | Amiga+Z, Y, X, C, V, A | Undo, Redo, Cut, Copy, Paste, Select All |
 | Amiga+F, G | Find and replace, Find Next |
 | Amiga+B, J, K | Set/remove bookmark, next and previous bookmark |
+| Amiga+E, R, D | Build project, Run, Debug (the default commands of the project settings) |
 | Amiga+, | Settings |
 | Amiga+? | About |
 | Amiga+I | Iconify (also the window's iconify gadget); open tool windows come back with the window |
@@ -125,9 +129,12 @@ the icon, "Use" keeps them for this session.
 | `LEFT=n`, `TOP=n` | Position of the main window (default: centred) |
 | `BOOKMARKLIST` | Open the bookmark list at the start |
 | `BOOKMARKWINDOW=l,t,w,h` | Position and size of the bookmark list |
+| `OUTPUT` | Open the output window at the start |
+| `OUTPUTWINDOW=l,t,w,h` | Position and size of the output window (otherwise below the main window) |
 | `COLOR_TEXT`, `COLOR_KEYWORD`, `COLOR_STRING`, `COLOR_COMMENT`, `COLOR_PREPROCESSOR` | Colours of the syntax highlighting as `RRGGBB` |
 
-View/Snapshot Tool Windows writes `BOOKMARKLIST` and `BOOKMARKWINDOW`.
+View/Snapshot Tool Windows writes `BOOKMARKLIST`, `BOOKMARKWINDOW`, `OUTPUT`
+and `OUTPUTWINDOW`.
 
 ### Limits
 

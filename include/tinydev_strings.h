@@ -245,7 +245,29 @@
 #define MSG_PJE_CANCEL               240
 #define MSG_PJE_NOCOMMAND            241
 #define MSG_PJE_ASL                  242
-#define MSG_COUNT                    243
+#define MSG_MENU_DO_BUILD            243
+#define MSG_MENU_DO_RUN              244
+#define MSG_MENU_DO_DEBUG            245
+#define MSG_MENU_STOP                246
+#define MSG_MENU_OUTPUT              247
+#define MSG_OUT_TITLE                248
+#define MSG_OUT_STOP                 249
+#define MSG_OUT_CLEAR                250
+#define MSG_OUT_NEEDCLASSES          251
+#define MSG_BUILD_RUNNING            252
+#define MSG_BUILD_STOPPING           253
+#define MSG_BUILD_DONE               254
+#define MSG_BUILD_FAILED             255
+#define MSG_BUILD_STOPPED            256
+#define MSG_BUILD_NOSTART            257
+#define MSG_BUILD_NOCOMMAND          258
+#define MSG_BUILD_NOFILE             259
+#define MSG_BUILD_NODIR              260
+#define MSG_BUILD_SCRIPT             261
+#define MSG_BUILD_BUSY               262
+#define MSG_BUILD_QUIT               263
+#define MSG_BUILD_QUIT_GADGETS       264
+#define MSG_COUNT                    265
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -493,6 +515,28 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "_Cancel",
     "Please enter a command.",
     "Drawer of the command",
+    "Build Project",
+    "Run",
+    "Debug",
+    "Stop Build",
+    "Output Window",
+    "Output",
+    "_Stop",
+    "C_lear",
+    "The output window needs listbrowser.gadget.",
+    "%s is running...",
+    "Stopping...",
+    "%s has finished.",
+    "%s has failed (return code %ld).",
+    "%s was stopped.",
+    "%s could not be started.",
+    "There is no command for %s. Please add one in Build/Project Settings....",
+    "The command needs a document with a name ({file} or {base}).",
+    "The drawer %s cannot be found.",
+    "The command could not be prepared in T:.",
+    "A build is already running.",
+    "A build is running. Stop it and quit?",
+    "Stop and Quit|Cancel",
 };
 #endif
 
