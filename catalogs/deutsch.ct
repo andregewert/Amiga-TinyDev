@@ -150,6 +150,14 @@ MSG_TBH_OPEN
 Datei öffnen (Amiga+O)
 ; Open a file (Amiga+O)
 ;
+MSG_TB_OPENDIR
+Verzeichnis
+; Directory
+;
+MSG_TBH_OPENDIR
+Verzeichnis als Projekt öffnen
+; Open a directory as the project
+;
 MSG_TB_SAVE
 Speichern
 ; Save
@@ -205,6 +213,14 @@ Suchen
 MSG_TBH_FIND
 Suchen und ersetzen (Amiga+F)
 ; Find and replace (Amiga+F)
+;
+MSG_TB_SETTINGS
+Einstellungen
+; Settings
+;
+MSG_TBH_SETTINGS
+Einstellungen von TinyDev (Amiga+,)
+; Settings of TinyDev (Amiga+,)
 ;
 MSG_TB_HELP
 Hilfe

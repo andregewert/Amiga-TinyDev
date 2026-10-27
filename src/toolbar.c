@@ -55,19 +55,24 @@ typedef struct ToolSpec {
 } ToolSpec;
 
 /**
- * The toolbar buttons, in their order; spacing separates the groups.
+ * The toolbar buttons, in their order; spacing separates the groups (File |
+ * Undo | Clipboard | Find | Program). speedbar.gadget of OS 3.2 has no
+ * separator (SBNA_Separator is OS4 only). The images exist in AISS Classic
+ * and AISS 4.
  */
 static const ToolSpec tools[] = {
-    { MID_NEW,   0, "new",   MSG_TB_NEW, MSG_TBH_NEW },
-    { MID_OPEN,  0, "open",  MSG_TB_OPEN, MSG_TBH_OPEN },
-    { MID_SAVE,  0, "save",  MSG_TB_SAVE, MSG_TBH_SAVE },
-    { MID_UNDO,  8, "undo",  MSG_TB_UNDO, MSG_TBH_UNDO },
-    { MID_REDO,  0, "redo",  MSG_TB_REDO, MSG_TBH_REDO },
-    { MID_CUT,   8, "cut",   MSG_TB_CUT, MSG_TBH_CUT },
-    { MID_COPY,  0, "copy",  MSG_TB_COPY, MSG_TBH_COPY },
-    { MID_PASTE, 0, "paste", MSG_TB_PASTE, MSG_TBH_PASTE },
-    { MID_FIND,  8, "find",  MSG_TB_FIND, MSG_TBH_FIND },
-    { MID_HELP,  8, "help",  MSG_TB_HELP, MSG_TBH_HELP },
+    { MID_NEW,            0, "new",    MSG_TB_NEW, MSG_TBH_NEW },
+    { MID_OPEN,           0, "open",   MSG_TB_OPEN, MSG_TBH_OPEN },
+    { MID_OPEN_DIRECTORY, 0, "drawer", MSG_TB_OPENDIR, MSG_TBH_OPENDIR },
+    { MID_SAVE,           0, "save",   MSG_TB_SAVE, MSG_TBH_SAVE },
+    { MID_UNDO,           8, "undo",   MSG_TB_UNDO, MSG_TBH_UNDO },
+    { MID_REDO,           0, "redo",   MSG_TB_REDO, MSG_TBH_REDO },
+    { MID_CUT,            8, "cut",    MSG_TB_CUT, MSG_TBH_CUT },
+    { MID_COPY,           0, "copy",   MSG_TB_COPY, MSG_TBH_COPY },
+    { MID_PASTE,          0, "paste",  MSG_TB_PASTE, MSG_TBH_PASTE },
+    { MID_FIND,           8, "find",   MSG_TB_FIND, MSG_TBH_FIND },
+    { MID_SETTINGS,       8, "prefs",  MSG_TB_SETTINGS, MSG_TBH_SETTINGS },
+    { MID_HELP,           0, "help",   MSG_TB_HELP, MSG_TBH_HELP },
 };
 /**
  * Number of toolbar buttons.
