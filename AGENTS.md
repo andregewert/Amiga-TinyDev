@@ -54,6 +54,10 @@ below the tree's root.
   bookmarks: reads and writes `<project>/.tinydev/bookmarks.json` (with
   `src/scout/scout_json.c`) and finds a bookmark's line again in a changed
   text by its stored line text; no Amiga headers.
+- `src/projconf.c`, `include/projconf.h`: the portable reader of a
+  project's settings (`<project>/.tinydev/project.json`): the Shell
+  commands of the actions Build, Run and Debug, the default of each, and
+  the placeholders `{project}`, `{file}`, `{base}`; no Amiga headers.
 - `src/toolwin.c`: placement of tool windows (remembered box pushed into
   the screen, otherwise docked right of the main window or over its right
   edge). Their boxes are kept for the session (`EditorApp`); only
@@ -127,6 +131,7 @@ below the tree's root.
 - `tests/test_syntax.c`: host-native syntax scanner tests.
 - `tests/test_search.c`: host-native tests of the search engine.
 - `tests/test_bmstore.c`: host-native tests of the bookmark store.
+- `tests/test_projconf.c`: host-native tests of the project settings.
 - `tests/test_dirtree_sort.c`: host-native tests of dirtree.gadget's natural order.
 - `tests/test_htmltitle.c`: host-native tests of the HelpViewer's title and link helpers.
 - `tests/test_scout_json.c`, `tests/test_c_parser.c`: host-native tests for the

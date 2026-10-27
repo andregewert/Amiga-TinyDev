@@ -6,7 +6,7 @@ HOST_CC ?= cc
 BUILD_DIR := build
 BIN_DIR := bin
 TARGET := $(BIN_DIR)/TinyDev
-SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/splash.c src/prefswin.c src/closeimage.c src/search.c src/find.c src/filescan.c src/locale.c src/bookmarks.c src/bmstore.c src/scout/scout_json.c src/toolwin.c src/bmlist.c src/help.c
+SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/splash.c src/prefswin.c src/closeimage.c src/search.c src/find.c src/filescan.c src/locale.c src/bookmarks.c src/bmstore.c src/projconf.c src/scout/scout_json.c src/toolwin.c src/bmlist.c src/help.c
 OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
 DEPS := $(OBJECTS:.o=.d)
 CPPFLAGS := -Iinclude
@@ -190,10 +190,11 @@ $(BUILD_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)
 	$(TARGET_CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_scout_json $(BUILD_DIR)/test_c_parser
+test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_projconf $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_scout_json $(BUILD_DIR)/test_c_parser
 	./$(BUILD_DIR)/test_syntax
 	./$(BUILD_DIR)/test_search
 	./$(BUILD_DIR)/test_bmstore
+	./$(BUILD_DIR)/test_projconf
 	./$(BUILD_DIR)/test_dirtree_sort
 	./$(BUILD_DIR)/test_htmltitle
 	./$(BUILD_DIR)/test_scout_json
@@ -214,6 +215,10 @@ $(BUILD_DIR)/test_bmstore: src/bmstore.c src/scout/scout_json.c tests/test_bmsto
 $(BUILD_DIR)/test_htmltitle: src/helpviewer/htmltitle.c tests/test_htmltitle.c src/helpviewer/htmltitle.h
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Isrc/helpviewer -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/helpviewer/htmltitle.c tests/test_htmltitle.c
+
+$(BUILD_DIR)/test_projconf: src/projconf.c src/scout/scout_json.c tests/test_projconf.c include/projconf.h include/scout_json.h
+	@mkdir -p $(BUILD_DIR)
+	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/projconf.c src/scout/scout_json.c tests/test_projconf.c
 
 $(BUILD_DIR)/test_dirtree_sort: src/classes/dirtree/dirtree_sort.c tests/test_dirtree_sort.c src/classes/dirtree/dirtree_sort.h
 	@mkdir -p $(BUILD_DIR)
