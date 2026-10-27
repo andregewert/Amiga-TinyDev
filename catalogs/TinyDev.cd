@@ -339,8 +339,8 @@ TinyDev settings
 MSG_PREFS_NEEDCLASS (//)
 The settings need %s.
 ;
-MSG_CAT_WINDOW (//)
-Window
+MSG_CAT_GENERAL (//)
+General
 ;
 MSG_CAT_COLOURS (//)
 Colours
@@ -349,13 +349,34 @@ MSG_CAT_TOOLBAR (//)
 Toolbar
 ;
 MSG_PREFS_SPLASH (//)
-Show s_plash window at the start
+S_plash window
+;
+MSG_PREFS_GRP_WINDOW (//)
+Window
+;
+MSG_PREFS_GRP_VIEW (//)
+View
+;
+MSG_PREFS_ATSTART (//)
+Show at the start:
+;
+MSG_PREFS_FOLDERTREE (//)
+Folder tr_ee
+;
+MSG_PREFS_LINENUMBERS (//)
+Line num_bers
+;
+MSG_PREFS_MINIMAP (//)
+_Minimap
+;
+MSG_PREFS_VIEWNOTE (//)
+These take effect at the next start. The View menu\nchanges the view of this session only.
 ;
 MSG_PREFS_WIDTH (//)
 _Width (0 = auto) 
 ;
 MSG_PREFS_HEIGHT (//)
-H_eight (0 = auto) 
+_Height (0 = auto) 
 ;
 MSG_PREFS_LEFT (//)
 _Left (-1 = centred) 
@@ -379,10 +400,10 @@ MSG_PREFS_COL_KEYWORD (//)
 _Keywords 
 ;
 MSG_PREFS_COL_STRING (//)
-Stri_ngs 
+Strin_gs 
 ;
 MSG_PREFS_COL_COMMENT (//)
-Co_mments 
+Comme_nts 
 ;
 MSG_PREFS_COL_PREPROC (//)
 Prepr_ocessor 

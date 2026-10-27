@@ -256,8 +256,8 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_BM_CLEAR)},
     {NM_TITLE, NULL, NULL, 0, 0, NULL},
-    {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE | CHECKED, 0, UD(MID_FOLDER_TREE)},
-    {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE | CHECKED, 0, UD(MID_LINE_NUMBERS)},
+    {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_FOLDER_TREE)},
+    {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_LINE_NUMBERS)},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_MINIMAP)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_BM_LIST)},
@@ -553,9 +553,15 @@ int ui_create(EditorApp *app)
     }
     for (i = 0; i < (int)(sizeof(menu_texts) / sizeof(menu_texts[0])); ++i) {
         if (menu_texts[i] >= 0) menus[i].nm_Label = (STRPTR)S(menu_texts[i]);
-        if (menus[i].nm_UserData == UD(MID_BM_LIST) && app->settings.bmlist)
+        if ((menus[i].nm_UserData == UD(MID_BM_LIST) && app->settings.bmlist) ||
+            (menus[i].nm_UserData == UD(MID_FOLDER_TREE) && app->tree_visible) ||
+            (menus[i].nm_UserData == UD(MID_LINE_NUMBERS) && app->line_numbers) ||
+            (menus[i].nm_UserData == UD(MID_MINIMAP) && app->minimap_visible))
             menus[i].nm_Flags |= CHECKED;
     }
+    /* the folder tree as the settings want it at the start, before the
+     * window opens (the layout has it shown) */
+    if (!app->tree_visible) tree_set_visible(app, 0);
     app->window_object = NewObject(WINDOW_GetClass(), NULL,
         WA_Title, (ULONG)"TinyDev", WA_DragBar, TRUE, WA_DepthGadget, TRUE,
         WA_CloseGadget, TRUE, WA_SizeGadget, TRUE, WA_Activate, TRUE,
@@ -594,7 +600,8 @@ int ui_create(EditorApp *app)
     toolbar_window_opened(app);
     document_activate(app, app->active);
     ui_update_status(app);
-    minimap_set_visible(app, 0);
+    minimap_set_visible(app, app->minimap_visible);
+    if (app->minimap_visible) minimap_request(app);
     if (app->settings.bmlist) {
         bmlist_open(app);
         ui_set_menu_check(app, MID_BM_LIST, bmlist_is_open());

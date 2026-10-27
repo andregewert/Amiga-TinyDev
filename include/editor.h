@@ -92,6 +92,9 @@ typedef struct Settings {
     int tbmode;         /**< ToolbarMode, takes effect at the next start */
     int tbframes;       /**< frames around the toolbar buttons (TOOLBARFRAMES) */
     int splash;         /**< splash window while starting (NOSPLASH turns it off) */
+    int foldertree;     /**< folder tree shown at the start (NOFOLDERTREE turns it off) */
+    int linenumbers;    /**< line numbers shown at the start (NOLINENUMBERS turns them off) */
+    int minimap;        /**< minimap shown at the start (MINIMAP) */
     long winwidth;      /**< width of the main window at the start: 0 = automatic */
     long winheight;     /**< its height: 0 = automatic */
     long winleft;       /**< its left edge: -1 = centred */

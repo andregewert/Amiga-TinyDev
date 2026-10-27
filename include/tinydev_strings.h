@@ -111,95 +111,102 @@
 #define MSG_ERR_SAVESETTINGS         106
 #define MSG_PREFS_TITLE              107
 #define MSG_PREFS_NEEDCLASS          108
-#define MSG_CAT_WINDOW               109
+#define MSG_CAT_GENERAL              109
 #define MSG_CAT_COLOURS              110
 #define MSG_CAT_TOOLBAR              111
 #define MSG_PREFS_SPLASH             112
-#define MSG_PREFS_WIDTH              113
-#define MSG_PREFS_HEIGHT             114
-#define MSG_PREFS_LEFT               115
-#define MSG_PREFS_TOP                116
-#define MSG_PREFS_WINDOWNOTE         117
-#define MSG_PREFS_CURRENT            118
-#define MSG_PREFS_AUTOMATIC          119
-#define MSG_PREFS_COL_TEXT           120
-#define MSG_PREFS_COL_KEYWORD        121
-#define MSG_PREFS_COL_STRING         122
-#define MSG_PREFS_COL_COMMENT        123
-#define MSG_PREFS_COL_PREPROC        124
-#define MSG_PREFS_TTL_TEXT           125
-#define MSG_PREFS_TTL_KEYWORD        126
-#define MSG_PREFS_TTL_STRING         127
-#define MSG_PREFS_TTL_COMMENT        128
-#define MSG_PREFS_TTL_PREPROC        129
-#define MSG_PREFS_COLOURNOTE         130
-#define MSG_PREFS_DEFCOLOURS         131
-#define MSG_PREFS_DISPLAY            132
-#define MSG_PREFS_TBMODE_IMAGES      133
-#define MSG_PREFS_TBMODE_BOTH        134
-#define MSG_PREFS_TBMODE_TEXT        135
-#define MSG_PREFS_FRAMES             136
-#define MSG_PREFS_TOOLBARNOTE        137
-#define MSG_PREFS_SAVE               138
-#define MSG_PREFS_USE                139
-#define MSG_PREFS_CANCEL             140
-#define MSG_BML_TITLE                141
-#define MSG_BML_NEEDCLASSES          142
-#define MSG_BML_SHOW                 143
-#define MSG_BML_SCOPE_CURRENT        144
-#define MSG_BML_SCOPE_OPEN           145
-#define MSG_BML_SCOPE_PROJECT        146
-#define MSG_BML_GOTO                 147
-#define MSG_BML_REMOVE               148
-#define MSG_FIND_TITLE               149
-#define MSG_FIND_NEEDCLASSES         150
-#define MSG_FIND_NOWINDOW            151
-#define MSG_FIND_FIND                152
-#define MSG_FIND_WITH                153
-#define MSG_FIND_SCOPE               154
-#define MSG_FIND_PATTERN             155
-#define MSG_FIND_SCOPE_CURRENT       156
-#define MSG_FIND_SCOPE_OPEN          157
-#define MSG_FIND_SCOPE_PROJECT       158
-#define MSG_FIND_CASE                159
-#define MSG_FIND_WORDS               160
-#define MSG_FIND_REGEX               161
-#define MSG_FIND_BACKWARDS           162
-#define MSG_FIND_WRAP                163
-#define MSG_FIND_COL_FILE            164
-#define MSG_FIND_COL_LINE            165
-#define MSG_FIND_COL_TEXT            166
-#define MSG_FIND_DOFIND              167
-#define MSG_FIND_DOREPLACE           168
-#define MSG_FIND_REPLACEALL          169
-#define MSG_FIND_STOP                170
-#define MSG_FIND_CLOSE               171
-#define MSG_FIND_WRAPPED             172
-#define MSG_FIND_NOTFOUND            173
-#define MSG_FIND_NOMEM               174
-#define MSG_FIND_READERROR           175
-#define MSG_FIND_BADREGEX            176
-#define MSG_FIND_REPLACED            177
-#define MSG_FIND_REPLACEDDOCS        178
-#define MSG_FIND_REPLACEDFILES       179
-#define MSG_FIND_HITS                180
-#define MSG_FIND_NOTFOUNDFILES       181
-#define MSG_FIND_STOPPED             182
-#define MSG_FIND_LIMIT               183
-#define MSG_FIND_SKIPPED             184
-#define MSG_FIND_NOPROJECT           185
-#define MSG_FIND_NOSIGNAL            186
-#define MSG_FIND_BADPROJECT          187
-#define MSG_FIND_SEARCHING           188
-#define MSG_FIND_REPLACING           189
-#define MSG_FIND_PROGRESS            190
-#define MSG_FIND_RPROGRESS           191
-#define MSG_FIND_NOHITS              192
-#define MSG_FIND_NOMORE              193
-#define MSG_TREE_LOADING             194
-#define MSG_TREE_EMPTY               195
-#define MSG_TREE_UNAVAILABLE         196
-#define MSG_COUNT                    197
+#define MSG_PREFS_GRP_WINDOW         113
+#define MSG_PREFS_GRP_VIEW           114
+#define MSG_PREFS_ATSTART            115
+#define MSG_PREFS_FOLDERTREE         116
+#define MSG_PREFS_LINENUMBERS        117
+#define MSG_PREFS_MINIMAP            118
+#define MSG_PREFS_VIEWNOTE           119
+#define MSG_PREFS_WIDTH              120
+#define MSG_PREFS_HEIGHT             121
+#define MSG_PREFS_LEFT               122
+#define MSG_PREFS_TOP                123
+#define MSG_PREFS_WINDOWNOTE         124
+#define MSG_PREFS_CURRENT            125
+#define MSG_PREFS_AUTOMATIC          126
+#define MSG_PREFS_COL_TEXT           127
+#define MSG_PREFS_COL_KEYWORD        128
+#define MSG_PREFS_COL_STRING         129
+#define MSG_PREFS_COL_COMMENT        130
+#define MSG_PREFS_COL_PREPROC        131
+#define MSG_PREFS_TTL_TEXT           132
+#define MSG_PREFS_TTL_KEYWORD        133
+#define MSG_PREFS_TTL_STRING         134
+#define MSG_PREFS_TTL_COMMENT        135
+#define MSG_PREFS_TTL_PREPROC        136
+#define MSG_PREFS_COLOURNOTE         137
+#define MSG_PREFS_DEFCOLOURS         138
+#define MSG_PREFS_DISPLAY            139
+#define MSG_PREFS_TBMODE_IMAGES      140
+#define MSG_PREFS_TBMODE_BOTH        141
+#define MSG_PREFS_TBMODE_TEXT        142
+#define MSG_PREFS_FRAMES             143
+#define MSG_PREFS_TOOLBARNOTE        144
+#define MSG_PREFS_SAVE               145
+#define MSG_PREFS_USE                146
+#define MSG_PREFS_CANCEL             147
+#define MSG_BML_TITLE                148
+#define MSG_BML_NEEDCLASSES          149
+#define MSG_BML_SHOW                 150
+#define MSG_BML_SCOPE_CURRENT        151
+#define MSG_BML_SCOPE_OPEN           152
+#define MSG_BML_SCOPE_PROJECT        153
+#define MSG_BML_GOTO                 154
+#define MSG_BML_REMOVE               155
+#define MSG_FIND_TITLE               156
+#define MSG_FIND_NEEDCLASSES         157
+#define MSG_FIND_NOWINDOW            158
+#define MSG_FIND_FIND                159
+#define MSG_FIND_WITH                160
+#define MSG_FIND_SCOPE               161
+#define MSG_FIND_PATTERN             162
+#define MSG_FIND_SCOPE_CURRENT       163
+#define MSG_FIND_SCOPE_OPEN          164
+#define MSG_FIND_SCOPE_PROJECT       165
+#define MSG_FIND_CASE                166
+#define MSG_FIND_WORDS               167
+#define MSG_FIND_REGEX               168
+#define MSG_FIND_BACKWARDS           169
+#define MSG_FIND_WRAP                170
+#define MSG_FIND_COL_FILE            171
+#define MSG_FIND_COL_LINE            172
+#define MSG_FIND_COL_TEXT            173
+#define MSG_FIND_DOFIND              174
+#define MSG_FIND_DOREPLACE           175
+#define MSG_FIND_REPLACEALL          176
+#define MSG_FIND_STOP                177
+#define MSG_FIND_CLOSE               178
+#define MSG_FIND_WRAPPED             179
+#define MSG_FIND_NOTFOUND            180
+#define MSG_FIND_NOMEM               181
+#define MSG_FIND_READERROR           182
+#define MSG_FIND_BADREGEX            183
+#define MSG_FIND_REPLACED            184
+#define MSG_FIND_REPLACEDDOCS        185
+#define MSG_FIND_REPLACEDFILES       186
+#define MSG_FIND_HITS                187
+#define MSG_FIND_NOTFOUNDFILES       188
+#define MSG_FIND_STOPPED             189
+#define MSG_FIND_LIMIT               190
+#define MSG_FIND_SKIPPED             191
+#define MSG_FIND_NOPROJECT           192
+#define MSG_FIND_NOSIGNAL            193
+#define MSG_FIND_BADPROJECT          194
+#define MSG_FIND_SEARCHING           195
+#define MSG_FIND_REPLACING           196
+#define MSG_FIND_PROGRESS            197
+#define MSG_FIND_RPROGRESS           198
+#define MSG_FIND_NOHITS              199
+#define MSG_FIND_NOMORE              200
+#define MSG_TREE_LOADING             201
+#define MSG_TREE_EMPTY               202
+#define MSG_TREE_UNAVAILABLE         203
+#define MSG_COUNT                    204
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -313,12 +320,19 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "The settings could not be saved in the program icon.",
     "TinyDev settings",
     "The settings need %s.",
-    "Window",
+    "General",
     "Colours",
     "Toolbar",
-    "Show s_plash window at the start",
+    "S_plash window",
+    "Window",
+    "View",
+    "Show at the start:",
+    "Folder tr_ee",
+    "Line num_bers",
+    "_Minimap",
+    "These take effect at the next start. The View menu\nchanges the view of this session only.",
     "_Width (0 = auto) ",
-    "H_eight (0 = auto) ",
+    "_Height (0 = auto) ",
     "_Left (-1 = centred) ",
     "_Top (-1 = centred) ",
     "Size and position of the main window at the next start.",
@@ -326,8 +340,8 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "_Automatic",
     "Te_xt ",
     "_Keywords ",
-    "Stri_ngs ",
-    "Co_mments ",
+    "Strin_gs ",
+    "Comme_nts ",
     "Prepr_ocessor ",
     "Colour of the text",
     "Colour of keywords",

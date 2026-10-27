@@ -1,11 +1,14 @@
 /**
  * @file prefswin.c
- * @brief The settings window (categories Window, Colours, Toolbar), built like Kickdown's.
+ * @brief The settings window (categories General, Colours, Toolbar), built like Kickdown's.
  *
  * Built after the ReAction style guide of amiga-devkit (section 4.2): a
  * list of categories on the left, the options of the selected one on the
  * right (page.gadget), Save/Use/Cancel below. The window is modal: the
- * main window shows the busy pointer and its input is dropped.
+ * main window shows the busy pointer and its input is dropped. The page
+ * General is divided into two framed groups, Window (size and position)
+ * and View (what is shown at the start); the other pages are one framed
+ * group each.
  *
  * The groups are built with complete tag lists (CHILD_Label applies to the
  * child of the same tag list). The gadgets of a page keep their height; an
@@ -64,6 +67,7 @@ struct Library *GetColorBase = NULL;
 enum {
     PG_LIST = 100,
     PG_WIDTH, PG_HEIGHT, PG_LEFT, PG_TOP, PG_CURSIZE, PG_AUTOSIZE, PG_SPLASH,
+    PG_FOLDERTREE, PG_LINENUMBERS, PG_MINIMAP,
     PG_COLOUR, PG_DEFCOLOURS = PG_COLOUR + SCOL_COUNT,
     PG_TBMODE, PG_TBFRAMES,
     PG_SAVE, PG_USE, PG_CANCEL
@@ -72,7 +76,7 @@ enum {
 /**
  * Names of the categories (MSG_), in the order of the pages.
  */
-static const LONG categories[] = { MSG_CAT_WINDOW, MSG_CAT_COLOURS, MSG_CAT_TOOLBAR };
+static const LONG categories[] = { MSG_CAT_GENERAL, MSG_CAT_COLOURS, MSG_CAT_TOOLBAR };
 /**
  * Number of categories (pages).
  */
@@ -109,7 +113,7 @@ static const LONG colour_titles[SCOL_COUNT] = {
 #define AREA_SPACING 6              /**< window border, list, frame, buttons */
 /** @} */
 
-/** tags of a page: vertical group with a frame and the category as title */
+/** tags of a page or a group of one: vertical group with a frame and a title */
 #define PAGE_GROUP(title) \
     LAYOUT_Orientation, LAYOUT_ORIENT_VERT, LAYOUT_BevelStyle, BVS_GROUP, \
     LAYOUT_Label, (ULONG)(title), LAYOUT_SpaceOuter, TRUE, \
@@ -123,7 +127,7 @@ static const LONG colour_titles[SCOL_COUNT] = {
 /** Objects of the open settings window. */
 static struct {
     Object *winobj, *root, *list, *page;
-    Object *width, *height, *left, *top, *splash;
+    Object *width, *height, *left, *top, *splash, *foldertree, *linenumbers, *minimap;
     Object *colours[SCOL_COUNT];
     Object *tbmode, *tbframes;
     struct Window *win;
@@ -250,7 +254,7 @@ static LONG list_width(EditorApp *app)
  */
 static Object *build(EditorApp *app, const Settings *s)
 {
-    Object *window, *colours, *toolbar;
+    Object *general, *colours, *toolbar;
     ULONG i;
 
     NewList(&pw.catlist);
@@ -268,34 +272,50 @@ static Object *build(EditorApp *app, const Settings *s)
         LISTBROWSER_VerticalProp, FALSE,
         TAG_END);
 
-    /* Window */
+    /* General: the groups Window and View, without a frame of their own */
     pw.width = integer(PG_WIDTH, s->winwidth, 0);
     pw.height = integer(PG_HEIGHT, s->winheight, 0);
     pw.left = integer(PG_LEFT, s->winleft, -1);
     pw.top = integer(PG_TOP, s->wintop, -1);
     pw.splash = checkbox(PG_SPLASH, S(MSG_PREFS_SPLASH), s->splash);
-    window = NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(categories[0])),
-        LAYOUT_AddChild, (ULONG)pw.width, FIXED,
-        CHILD_Label, (ULONG)label(S(MSG_PREFS_WIDTH)),
-        LAYOUT_AddChild, (ULONG)pw.height, FIXED,
-        CHILD_Label, (ULONG)label(S(MSG_PREFS_HEIGHT)),
-        LAYOUT_AddChild, (ULONG)pw.left, FIXED,
-        CHILD_Label, (ULONG)label(S(MSG_PREFS_LEFT)),
-        LAYOUT_AddChild, (ULONG)pw.top, FIXED,
-        CHILD_Label, (ULONG)label(S(MSG_PREFS_TOP)),
-        LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_WINDOWNOTE)),
-        FIXED,
-        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
-            LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
-            LAYOUT_EvenSize, TRUE,
-            LAYOUT_AddChild, (ULONG)filler(),
-            LAYOUT_AddChild, (ULONG)button(PG_CURSIZE, S(MSG_PREFS_CURRENT)),
-            CHILD_WeightedWidth, 0,
-            LAYOUT_AddChild, (ULONG)button(PG_AUTOSIZE, S(MSG_PREFS_AUTOMATIC)),
-            CHILD_WeightedWidth, 0,
+    pw.foldertree = checkbox(PG_FOLDERTREE, S(MSG_PREFS_FOLDERTREE), s->foldertree);
+    pw.linenumbers = checkbox(PG_LINENUMBERS, S(MSG_PREFS_LINENUMBERS), s->linenumbers);
+    pw.minimap = checkbox(PG_MINIMAP, S(MSG_PREFS_MINIMAP), s->minimap);
+    general = NewObject(LAYOUT_GetClass(), NULL,
+        LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
+        LAYOUT_InnerSpacing, AREA_SPACING,
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(MSG_PREFS_GRP_WINDOW)),
+            LAYOUT_AddChild, (ULONG)pw.width, FIXED,
+            CHILD_Label, (ULONG)label(S(MSG_PREFS_WIDTH)),
+            LAYOUT_AddChild, (ULONG)pw.height, FIXED,
+            CHILD_Label, (ULONG)label(S(MSG_PREFS_HEIGHT)),
+            LAYOUT_AddChild, (ULONG)pw.left, FIXED,
+            CHILD_Label, (ULONG)label(S(MSG_PREFS_LEFT)),
+            LAYOUT_AddChild, (ULONG)pw.top, FIXED,
+            CHILD_Label, (ULONG)label(S(MSG_PREFS_TOP)),
+            LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_WINDOWNOTE)),
+            FIXED,
+            LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+                LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+                LAYOUT_EvenSize, TRUE,
+                LAYOUT_AddChild, (ULONG)filler(),
+                LAYOUT_AddChild, (ULONG)button(PG_CURSIZE, S(MSG_PREFS_CURRENT)),
+                CHILD_WeightedWidth, 0,
+                LAYOUT_AddChild, (ULONG)button(PG_AUTOSIZE, S(MSG_PREFS_AUTOMATIC)),
+                CHILD_WeightedWidth, 0,
+                TAG_END),
+            FIXED,
             TAG_END),
         FIXED,
-        LAYOUT_AddChild, (ULONG)pw.splash, FIXED,
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(MSG_PREFS_GRP_VIEW)),
+            LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_ATSTART)), FIXED,
+            LAYOUT_AddChild, (ULONG)pw.splash, FIXED,
+            LAYOUT_AddChild, (ULONG)pw.foldertree, FIXED,
+            LAYOUT_AddChild, (ULONG)pw.linenumbers, FIXED,
+            LAYOUT_AddChild, (ULONG)pw.minimap, FIXED,
+            LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_VIEWNOTE)), FIXED,
+            TAG_END),
+        FIXED,
         LAYOUT_AddChild, (ULONG)filler(),
         TAG_END);
 
@@ -342,7 +362,7 @@ static Object *build(EditorApp *app, const Settings *s)
         TAG_END);
 
     pw.page = NewObject(PAGE_GetClass(), NULL,
-        PAGE_Add, (ULONG)window,
+        PAGE_Add, (ULONG)general,
         PAGE_Add, (ULONG)colours,
         PAGE_Add, (ULONG)toolbar,
         PAGE_Current, 0,
@@ -408,6 +428,9 @@ static void read_gadgets(Settings *s)
     s->winleft = (long)(LONG)get(pw.left, INTEGER_Number);
     s->wintop = (long)(LONG)get(pw.top, INTEGER_Number);
     s->splash = get(pw.splash, CHECKBOX_Checked) != 0;
+    s->foldertree = get(pw.foldertree, CHECKBOX_Checked) != 0;
+    s->linenumbers = get(pw.linenumbers, CHECKBOX_Checked) != 0;
+    s->minimap = get(pw.minimap, CHECKBOX_Checked) != 0;
     for (i = 0; i < SCOL_COUNT; ++i)
         s->colours[i] = get(pw.colours[i], GETCOLOR_Color) & 0xFFFFFFUL;
     s->tbmode = (int)get(pw.tbmode, CHOOSER_Selected);

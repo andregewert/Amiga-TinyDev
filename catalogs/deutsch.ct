@@ -446,9 +446,9 @@ MSG_PREFS_NEEDCLASS
 Die Einstellungen benötigen %s.
 ; The settings need %s.
 ;
-MSG_CAT_WINDOW
-Fenster
-; Window
+MSG_CAT_GENERAL
+Allgemein
+; General
 ;
 MSG_CAT_COLOURS
 Farben
@@ -459,8 +459,36 @@ Werkzeugleiste
 ; Toolbar
 ;
 MSG_PREFS_SPLASH
-Startfenster an_zeigen
-; Show s_plash window at the start
+S_tartfenster
+; S_plash window
+;
+MSG_PREFS_GRP_WINDOW
+Fenster
+; Window
+;
+MSG_PREFS_GRP_VIEW
+Ansicht
+; View
+;
+MSG_PREFS_ATSTART
+Beim Start anzeigen:
+; Show at the start:
+;
+MSG_PREFS_FOLDERTREE
+_Verzeichnisbaum
+; Folder tr_ee
+;
+MSG_PREFS_LINENUMBERS
+_Zeilennummern
+; Line num_bers
+;
+MSG_PREFS_MINIMAP
+M_inimap
+; _Minimap
+;
+MSG_PREFS_VIEWNOTE
+Sie wirken beim nächsten Start. Das Menü Ansicht\nändert nur die Ansicht dieser Sitzung.
+; These take effect at the next start. The View menu\nchanges the view of this session only.
 ;
 MSG_PREFS_WIDTH
 B_reite (0 = automatisch) 
@@ -468,7 +496,7 @@ B_reite (0 = automatisch)
 ;
 MSG_PREFS_HEIGHT
 _Höhe (0 = automatisch) 
-; H_eight (0 = auto) 
+; _Height (0 = auto) 
 ;
 MSG_PREFS_LEFT
 _Links (-1 = zentriert) 
@@ -487,7 +515,7 @@ Aktu_ell
 ; Cu_rrent
 ;
 MSG_PREFS_AUTOMATIC
-Au_tomatisch
+Automatis_ch
 ; _Automatic
 ;
 MSG_PREFS_COL_TEXT
@@ -500,11 +528,11 @@ Schlüssel_wörter
 ;
 MSG_PREFS_COL_STRING
 Zeichen_ketten 
-; Stri_ngs 
+; Strin_gs 
 ;
 MSG_PREFS_COL_COMMENT
 Ko_mmentare 
-; Co_mments 
+; Comme_nts 
 ;
 MSG_PREFS_COL_PREPROC
 _Präprozessor 

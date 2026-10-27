@@ -241,11 +241,14 @@ int main(int argc, char **argv)
     memset(&app, 0, sizeof(app));
     app.scroll_signal = -1;
     NewList(&app.documents); NewList(&app.tab_nodes);
-    app.line_numbers = 1; app.tree_visible = 1;
     settings_default(&app.settings);
     if (!app_open_core(argc == 0)) goto done;
     locale_open();
     settings_load(&app.settings, argc, argv);
+    /* the view at the start; the View menu changes it for the session */
+    app.tree_visible = app.settings.foldertree;
+    app.line_numbers = app.settings.linenumbers;
+    app.minimap_visible = app.settings.minimap;
     /* steps of the progress bar: the classes, the toolbar buttons, the window */
     if (app.settings.splash)
         splash_open(app.settings.icon_name, 1 + toolbar_tool_count() + 1);

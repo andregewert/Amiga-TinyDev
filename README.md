@@ -96,6 +96,7 @@ the icon, "Use" keeps them for this session.
 | `TOOLBAR=IMAGES\|BOTH\|TEXT` | Toolbar buttons show images (default), images with text below, or text only |
 | `TOOLBARFRAMES` | Frames around the toolbar buttons |
 | `NOSPLASH` | No splash window while TinyDev starts |
+| `NOFOLDERTREE`, `NOLINENUMBERS`, `MINIMAP` | View at the start: without the folder tree, without line numbers, with the minimap (the View menu changes the view of the session only) |
 | `WIDTH=n`, `HEIGHT=n` | Size of the main window (default: 90 % x 80 % of the screen) |
 | `LEFT=n`, `TOP=n` | Position of the main window (default: centred) |
 | `BOOKMARKLIST` | Open the bookmark list at the start |

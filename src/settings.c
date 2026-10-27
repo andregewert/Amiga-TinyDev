@@ -5,11 +5,18 @@
  * Settings are tool types of the program icon (PROGDIR:\<program\>), also
  * when TinyDev is started from the Shell; on a Workbench start the tool
  * types of project icons follow and take precedence. The settings window
- * writes them back into the program icon (settings_save()).
+ * writes them back into the program icon (settings_save()). The view at
+ * the start (folder tree, line numbers, minimap) is only set there: the
+ * View menu changes the view of the session, not the settings. The tool
+ * windows are written by View/Snapshot Tool Windows only
+ * (settings_save_toolwindows()).
  *
  *   TOOLBAR=IMAGES|BOTH|TEXT   what the toolbar buttons show
  *   TOOLBARFRAMES              frames around the toolbar buttons
  *   NOSPLASH                   no splash window while starting
+ *   NOFOLDERTREE               no folder tree at the start
+ *   NOLINENUMBERS              no line numbers at the start
+ *   MINIMAP                    the minimap at the start
  *   WIDTH=n, HEIGHT=n          size of the main window at the start
  *   LEFT=n, TOP=n              its position (otherwise centred)
  *   BOOKMARKLIST               open the bookmark list at the start
@@ -57,6 +64,9 @@ void settings_default(Settings *s)
     s->tbmode = TBMODE_IMAGES;
     s->tbframes = 0;
     s->splash = 1;
+    s->foldertree = 1;
+    s->linenumbers = 1;
+    s->minimap = 0;
     s->winwidth = s->winheight = 0;
     s->winleft = s->wintop = -1;
     s->bmwin[0] = s->bmwin[1] = -1;
@@ -153,6 +163,9 @@ static void from_tooltypes(Settings *s, STRPTR *tt)
             if (Stricmp(value, (STRPTR)tbmode_names[i]) == 0) s->tbmode = i;
     if (FindToolType(t, (CONST_STRPTR)"TOOLBARFRAMES") != NULL) s->tbframes = 1;
     if (FindToolType(t, (CONST_STRPTR)"NOSPLASH") != NULL) s->splash = 0;
+    if (FindToolType(t, (CONST_STRPTR)"NOFOLDERTREE") != NULL) s->foldertree = 0;
+    if (FindToolType(t, (CONST_STRPTR)"NOLINENUMBERS") != NULL) s->linenumbers = 0;
+    if (FindToolType(t, (CONST_STRPTR)"MINIMAP") != NULL) s->minimap = 1;
     if ((value = FindToolType(t, (CONST_STRPTR)"WIDTH")) != NULL) parse_number(value, 0, &s->winwidth);
     if ((value = FindToolType(t, (CONST_STRPTR)"HEIGHT")) != NULL) parse_number(value, 0, &s->winheight);
     if ((value = FindToolType(t, (CONST_STRPTR)"LEFT")) != NULL) parse_number(value, -1, &s->winleft);
@@ -227,7 +240,7 @@ int settings_save_toolwindows(const Settings *cur)
     return settings_save(&s);
 }
 
-#define NUMKEYS (9 + SCOL_COUNT)    /**< number of TinyDev's tool types */
+#define NUMKEYS (12 + SCOL_COUNT)    /**< number of TinyDev's tool types */
 #define ENTRYLEN 40                 /**< longest tool type TinyDev writes */
 
 /** One of our tool types while writing. */
@@ -292,6 +305,9 @@ int settings_save(const Settings *s)
           tbmode_names[s->tbmode >= 0 && s->tbmode < TBMODE_COUNT ? s->tbmode : 0]);
     entry(&e[k++], "TOOLBARFRAMES", s->tbframes, NULL);
     entry(&e[k++], "NOSPLASH", !s->splash, NULL);
+    entry(&e[k++], "NOFOLDERTREE", !s->foldertree, NULL);
+    entry(&e[k++], "NOLINENUMBERS", !s->linenumbers, NULL);
+    entry(&e[k++], "MINIMAP", s->minimap, NULL);
     snprintf(wnum, sizeof(wnum), "%ld", s->winwidth);
     snprintf(hnum, sizeof(hnum), "%ld", s->winheight);
     snprintf(lnum, sizeof(lnum), "%ld", s->winleft);

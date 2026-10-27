@@ -30,7 +30,8 @@ below the tree's root.
   `bin/Catalogs/<language>/TinyDev.catalog`.
 - `src/settings.c`: settings from the tool types of the program icon (and of
   project icons on a Workbench start); writes them back into the program icon.
-- `src/prefswin.c`: the settings window (categories Window, Colours, Toolbar),
+- `src/prefswin.c`: the settings window (categories General with the groups
+  Window and View, Colours, Toolbar),
   built like Kickdown's.
 - `src/find.c`: the find and replace window (non-modal, built like
   Kickdown's; scope: current document or all open documents); it searches
