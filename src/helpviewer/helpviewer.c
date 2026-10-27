@@ -24,7 +24,9 @@
  * its own. Back and Forward go
  * through the pages seen (with their scroll positions). Project/Print
  * prints the page shown, also as PostScript or PDF (printwin.c); its
- * options are tool types as well.
+ * options are tool types as well. Project/Iconify (or the window's
+ * iconify gadget) puts the viewer on the Workbench as the program icon,
+ * titled with the help's home page.
  *
  * Built on HTMLDemo of html.gadget; no stdio (started from the Workbench,
  * libnix would add its console handling for it).
@@ -108,7 +110,7 @@ struct LocaleBase *LocaleBase = NULL;   /**< locale.library, NULL without it */
 enum { GID_HTML = 1, GID_VSCROLL, GID_HSCROLL, GID_TREE, GID_TOOLBAR, GID_STATUS };
 /** Menu and toolbar commands (the menu items' user data, the buttons' IDs). */
 enum { MID_OPEN = 1, MID_BACK, MID_FORWARD, MID_ABOUT, MID_QUIT, MID_COPY, MID_SELALL, MID_HOME,
-       MID_SNAPSHOT, MID_PRINT };
+       MID_SNAPSHOT, MID_PRINT, MID_ICONIFY };
 
 #define MAXHIST 64              /**< pages kept for Back and Forward */
 #define TITLE_READ 4096         /**< bytes of a page searched for its title */
@@ -133,6 +135,7 @@ static struct NewMenu menus[] = {
     { NM_ITEM,  NULL, 0,             0, 0, (APTR)MID_SNAPSHOT },
     { NM_ITEM,  NM_BARLABEL, 0,      0, 0, 0 },
     { NM_ITEM,  NULL, (STRPTR)"?",   0, 0, (APTR)MID_ABOUT },
+    { NM_ITEM,  NULL, (STRPTR)"I",   0, 0, (APTR)MID_ICONIFY },
     { NM_ITEM,  NULL, (STRPTR)"Q",   0, 0, (APTR)MID_QUIT },
     { NM_TITLE, NULL, 0,             0, 0, 0 },
     { NM_ITEM,  NULL, (STRPTR)"C",   0, 0, (APTR)MID_COPY },
@@ -143,7 +146,7 @@ static struct NewMenu menus[] = {
 /** Texts of menus[] (MSG_), -1 for bars and the end. */
 static const LONG menu_texts[] = {
     MSG_MENU_PROJECT, MSG_MENU_OPEN, -1, MSG_MENU_HOME, MSG_MENU_BACK, MSG_MENU_FORWARD, -1,
-    MSG_MENU_PRINT, -1, MSG_MENU_SNAPSHOT, -1, MSG_MENU_ABOUT, MSG_MENU_QUIT, MSG_MENU_EDIT, MSG_MENU_COPY, MSG_MENU_SELECTALL, -1
+    MSG_MENU_PRINT, -1, MSG_MENU_SNAPSHOT, -1, MSG_MENU_ABOUT, MSG_MENU_ICONIFY, MSG_MENU_QUIT, MSG_MENU_EDIT, MSG_MENU_COPY, MSG_MENU_SELECTALL, -1
 };
 
 /** One toolbar button. */
@@ -222,6 +225,9 @@ static struct {
     struct Hook name_hook;      /**< DIRTREE_NameHook: titles of the pages */
     struct Catalog *catalog;    /**< HelpViewer.catalog, NULL for English */
     struct MsgPort *port;       /**< public port (PORTNAME option), NULL if none */
+    struct MsgPort *app_port;   /**< AppPort of the window (iconifying), NULL if none */
+    char icon_title[128];       /**< title of the AppIcon: the home page's title or "HelpViewer" */
+    WORD box[4];                /**< the window's box while it is iconified */
     char portname[64];          /**< its name: PORTPREFIX and the name in capitals */
 } hv = { .cur = -1, .ghost_pen = -1 };
 
@@ -654,6 +660,20 @@ static int locate(const char *path, char *dir, char *page)
 }
 
 /**
+ * @brief Set the title of the AppIcon: the help's home page, or
+ *        "HelpViewer" without one.
+ * @param title The home page's title, NULL or "" for none.
+ */
+static void set_icon_title(const char *title)
+{
+    strncpy(hv.icon_title, title != NULL && *title != '\0' ? title : "HelpViewer",
+            sizeof(hv.icon_title) - 1);
+    hv.icon_title[sizeof(hv.icon_title) - 1] = '\0';
+    /* the window keeps the pointer; set it again so a change is taken */
+    if (hv.winobj != NULL) SetAttrs(hv.winobj, WINDOW_IconTitle, (ULONG)hv.icon_title, TAG_DONE);
+}
+
+/**
  * @brief Open a directory: it becomes the tree's root and its index page
  *        is shown. A page is shown with its directory as root.
  * @param path The directory or page.
@@ -673,6 +693,7 @@ static int open_location(const char *path)
      * title is the tree's title, Home shows it */
     if (!find_index(hv.root, hv.home, sizeof(hv.home))) hv.home[0] = '\0';
     if (hv.home[0] == '\0' || !read_title(hv.home, hv.title, sizeof(hv.title))) hv.title[0] = '\0';
+    set_icon_title(hv.title);
     SetGadgetAttrs((struct Gadget *)hv.tree, hv.win, NULL, DIRTREE_Root, (ULONG)hv.root,
                    DIRTREE_Title, (ULONG)hv.title, TAG_DONE);
     update_toolbar();
@@ -880,6 +901,44 @@ static void snapshot_window(void)
     set_status(S(write_tooltypes(&e, 1) ? MSG_SNAPSHOT_DONE : MSG_SNAPSHOT_FAILED));
 }
 
+/** @brief Iconify the window: the program icon on the Workbench stands for it. */
+static void iconify(void)
+{
+    struct Window *still = NULL;
+    if (hv.win == NULL || hv.app_port == NULL) return;
+    hv.box[0] = hv.win->LeftEdge;
+    hv.box[1] = hv.win->TopEdge;
+    hv.box[2] = hv.win->Width;
+    hv.box[3] = hv.win->Height;
+    SetAttrs(hv.bar, SPEEDBAR_Window, 0, TAG_DONE);
+    DoMethod(hv.winobj, WM_ICONIFY, NULL);
+    GetAttr(WINDOW_Window, hv.winobj, (ULONG *)&still);
+    if (still != NULL) {                    /* not iconified */
+        SetGadgetAttrs((struct Gadget *)hv.bar, hv.win, NULL, SPEEDBAR_Window, (ULONG)hv.win, TAG_DONE);
+        return;
+    }
+    hv.win = NULL;
+}
+
+/**
+ * @brief Open the window again after iconify(), where it was.
+ * @return Non-zero if it is open.
+ */
+static int uniconify(void)
+{
+    struct Window *w;
+    if (hv.win != NULL) return 1;
+    if ((w = (struct Window *)DoMethod(hv.winobj, WM_OPEN, NULL)) == NULL) return 0;
+    hv.win = w;
+    if (w->LeftEdge != hv.box[0] || w->TopEdge != hv.box[1] || w->Width != hv.box[2] ||
+        w->Height != hv.box[3])
+        ChangeWindowBox(w, hv.box[0], hv.box[1], hv.box[2], hv.box[3]);
+    SetGadgetAttrs((struct Gadget *)hv.bar, w, NULL, SPEEDBAR_Window, (ULONG)w, TAG_DONE);
+    set_status(hv.status_text);
+    sync_hscroll();
+    return 1;
+}
+
 /**
  * @brief Carry out a command of the menu or the toolbar.
  * @param id The MID_.
@@ -899,6 +958,7 @@ static int command(ULONG id)
             if (hv.cur >= 0) print_page(hv.screen, hv.winobj, hv.html, hv.hist[hv.cur].path);
             break;
         case MID_SNAPSHOT: snapshot_window(); break;
+        case MID_ICONIFY: iconify(); break;
         case MID_ABOUT: about(); break;
         case MID_QUIT: return 1;
         case MID_COPY: copy_selection(); break;
@@ -1028,8 +1088,15 @@ static int open_window(void)
     Class *htmlclass = HTML_GetClass();
     WORD w = (WORD)(hv.screen->Width * 3 / 4), h = (WORD)(hv.screen->Height * 3 / 4);
     WORD l = 0, t = 0;
+    struct DiskObject *icon = NULL;
     int i;
 
+    /* AppPort: the window can be iconified, with the program icon as AppIcon */
+    set_icon_title(NULL);
+    hv.app_port = CreateMsgPort();
+    if (hv.app_port != NULL && IconBase != NULL && opt.icon[0] != '\0' &&
+        (icon = GetDiskObject((STRPTR)opt.icon)) != NULL)
+        icon->do_CurrentX = icon->do_CurrentY = (LONG)NO_ICON_POSITION;
     if (opt.box[2] > 0) {               /* snapshot: pushed into the screen */
         w = (WORD)(opt.box[2] < hv.screen->Width ? opt.box[2] : hv.screen->Width);
         h = (WORD)(opt.box[3] < hv.screen->Height ? opt.box[3] : hv.screen->Height);
@@ -1105,6 +1172,10 @@ static int open_window(void)
         WINDOW_NewMenu, (ULONG)menus,
         WINDOW_HintInfo, (ULONG)hv.hints,
         WINDOW_GadgetHelp, TRUE,
+        hv.app_port != NULL ? WINDOW_AppPort : TAG_IGNORE, (ULONG)hv.app_port,
+        hv.app_port != NULL ? WINDOW_IconifyGadget : TAG_IGNORE, TRUE,
+        WINDOW_IconTitle, (ULONG)hv.icon_title,
+        icon != NULL ? WINDOW_Icon : TAG_IGNORE, (ULONG)icon,  /* disposed with the window */
         WA_NewLookMenus, TRUE,
         WINDOW_ParentGroup, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
             LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
@@ -1136,8 +1207,11 @@ static int open_window(void)
             CHILD_WeightedHeight, 0,
             TAG_DONE),
         TAG_DONE);
-    if (hv.winobj == NULL || (hv.win = (struct Window *)DoMethod(hv.winobj, WM_OPEN, NULL)) == NULL)
+    if (hv.winobj == NULL) {
+        if (icon != NULL) FreeDiskObject(icon);
         return 0;
+    }
+    if ((hv.win = (struct Window *)DoMethod(hv.winobj, WM_OPEN, NULL)) == NULL) return 0;
     SetGadgetAttrs((struct Gadget *)hv.bar, hv.win, NULL, SPEEDBAR_Window, (ULONG)hv.win, TAG_DONE);
     update_toolbar();
     update_title();
@@ -1157,6 +1231,12 @@ static int handle_input(void)
         switch (result & WMHI_CLASSMASK) {
         case WMHI_CLOSEWINDOW:
             return 1;
+        case WMHI_ICONIFY:
+            iconify();
+            break;
+        case WMHI_UNICONIFY:
+            if (!uniconify()) return 1;
+            break;
         case WMHI_GADGETUP:
             switch (result & WMHI_GADGETMASK) {
             case GID_HTML: follow_link(); break;
@@ -1274,6 +1354,7 @@ static void handle_port(void)
              !is_directory(m->path)))
             open_location(m->path);
         ReplyMsg(&m->msg);
+        if (hv.win == NULL) uniconify();        /* iconified: open again */
         if (hv.win != NULL) {
             WindowToFront(hv.win);
             ActivateWindow(hv.win);
@@ -1361,11 +1442,14 @@ int main(void)
     /* without a directory it shows the welcome text (no default) */
     if (opt.dir[0] != '\0') open_location(opt.dir);
 
-    GetAttr(WINDOW_SigMask, hv.winobj, &winsig);
     GetAttr(DIRTREE_SignalMask, hv.tree, &treesig);
     if (hv.port != NULL) portsig = 1UL << hv.port->mp_SigBit;
     while (!done) {
-        ULONG sig = Wait(winsig | treesig | portsig | SIGBREAKF_CTRL_C);
+        ULONG sig;
+        /* iconifying changes the window's port: read the mask every time */
+        winsig = 0;
+        GetAttr(WINDOW_SigMask, hv.winobj, &winsig);
+        sig = Wait(winsig | treesig | portsig | SIGBREAKF_CTRL_C);
         if (sig & portsig) handle_port();
         if (sig & SIGBREAKF_CTRL_C) done = 1;
         if (sig & treesig)
@@ -1377,7 +1461,7 @@ int main(void)
 
 out:
     close_port();
-    if (hv.winobj != NULL) DisposeObject(hv.winobj);    /* disposes all gadgets */
+    if (hv.winobj != NULL) DisposeObject(hv.winobj);    /* disposes all gadgets, the AppIcon */
     else {
         if (hv.html != NULL) DisposeObject(hv.html);
         if (hv.vscroll != NULL) DisposeObject(hv.vscroll);
@@ -1395,6 +1479,11 @@ out:
             if (hv.labels[i] != NULL) DisposeObject(hv.labels[i]);
             if (hv.ghosts[i] != NULL) DisposeObject(hv.ghosts[i]);
         }
+    }
+    if (hv.app_port != NULL) {              /* after the window that used it */
+        struct Message *m;
+        while ((m = GetMsg(hv.app_port)) != NULL) ReplyMsg(m);
+        DeleteMsgPort(hv.app_port);
     }
     while (hv.nhist > 0) FreeVec(hv.hist[--hv.nhist].path);
     if (hv.screen != NULL) {

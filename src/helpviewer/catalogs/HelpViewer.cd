@@ -26,6 +26,9 @@ Snapshot Window
 MSG_MENU_ABOUT (//)
 About...
 ;
+MSG_MENU_ICONIFY (//)
+Iconify
+;
 MSG_MENU_QUIT (//)
 Quit
 ;

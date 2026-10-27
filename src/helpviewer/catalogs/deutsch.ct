@@ -33,6 +33,10 @@ MSG_MENU_ABOUT
 Über...
 ; About...
 ;
+MSG_MENU_ICONIFY
+Ikonifizieren
+; Iconify
+;
 MSG_MENU_QUIT
 Beenden
 ; Quit

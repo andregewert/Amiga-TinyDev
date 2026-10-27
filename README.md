@@ -143,6 +143,9 @@ uses it for its own help, but it works with any directory of HTML pages.
   language.
 - Links between the pages are followed; links to the web are only shown in
   the status line.
+- Project/Iconify (Amiga+I) or the iconify gadget puts the viewer on the
+  Workbench as its icon, titled with the help's home page; a later start
+  with the same `PORTNAME` opens it again.
 - Printing needs html.gadget 1.2. It prints to the default printer as
   graphics, or writes PostScript (to a file, `PRT:`, TurboPrint's `PS:` or
   a device) or PDF; with TurboPrint only through PostScript.
