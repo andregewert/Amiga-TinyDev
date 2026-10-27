@@ -8,7 +8,7 @@
  * it.
  */
 #include "projconf.h"
-#include "scout_json.h"
+#include "json.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -73,39 +73,39 @@ static char *copy(const char *text)
  * @param[out] cmd The command (zeroed if the entry is skipped).
  * @return 1 if it is a command, 0 if it is skipped, -1 if out of memory.
  */
-static int read_command(const ScoutJsonValue *e, ProjCommand *cmd)
+static int read_command(const JsonValue *e, ProjCommand *cmd)
 {
-    const ScoutJsonValue *command;
+    const JsonValue *command;
     const char *name, *dir;
     long n = 1, i;
 
     memset(cmd, 0, sizeof(*cmd));
-    if (e == NULL || e->type != SCOUT_JSON_OBJECT) return 0;
-    command = scout_json_obj_get(e, "command");
+    if (e == NULL || e->type != JSON_OBJECT) return 0;
+    command = json_obj_get(e, "command");
     if (command == NULL) return 0;
-    if (command->type == SCOUT_JSON_ARRAY) {
-        n = (long)scout_json_array_length(command);
+    if (command->type == JSON_ARRAY) {
+        n = (long)json_array_length(command);
         for (i = 0; i < n; ++i) {
-            const ScoutJsonValue *line = scout_json_array_get(command, (size_t)i);
-            if (line == NULL || line->type != SCOUT_JSON_STRING) return 0;
+            const JsonValue *line = json_array_get(command, (size_t)i);
+            if (line == NULL || line->type != JSON_STRING) return 0;
         }
-    } else if (command->type != SCOUT_JSON_STRING) return 0;
-    if (n == 0 || (command->type == SCOUT_JSON_STRING && command->u.str_val[0] == '\0'))
+    } else if (command->type != JSON_STRING) return 0;
+    if (n == 0 || (command->type == JSON_STRING && command->u.str_val[0] == '\0'))
         return 0;
 
     cmd->lines = calloc((size_t)n, sizeof(*cmd->lines));
     if (cmd->lines == NULL) return -1;
     for (i = 0; i < n; ++i) {
-        const ScoutJsonValue *line = command->type == SCOUT_JSON_ARRAY ?
-            scout_json_array_get(command, (size_t)i) : command;
+        const JsonValue *line = command->type == JSON_ARRAY ?
+            json_array_get(command, (size_t)i) : command;
         if ((cmd->lines[i] = copy(line->u.str_val)) == NULL) break;
         cmd->line_count = i + 1;
     }
-    name = scout_json_obj_get_string(e, "name", "");
-    dir = scout_json_obj_get_string(e, "dir", "");
+    name = json_obj_get_string(e, "name", "");
+    dir = json_obj_get_string(e, "dir", "");
     cmd->name = copy(name[0] != '\0' ? name : cmd->lines[0] != NULL ? cmd->lines[0] : "");
     if (dir[0] != '\0') cmd->dir = copy(dir);
-    cmd->is_default = scout_json_obj_get_bool(e, "default", 0);
+    cmd->is_default = json_obj_get_bool(e, "default", 0);
     if (cmd->line_count < n || cmd->name == NULL || (dir[0] != '\0' && cmd->dir == NULL)) {
         free_command(cmd);
         memset(cmd, 0, sizeof(*cmd));
@@ -116,31 +116,31 @@ static int read_command(const ScoutJsonValue *e, ProjCommand *cmd)
 
 int projconf_parse(ProjConf *c, const char *json)
 {
-    ScoutJsonValue *root = scout_json_parse(json, NULL);
+    JsonValue *root = json_parse(json, NULL);
     int a;
 
-    if (root == NULL || root->type != SCOUT_JSON_OBJECT) {
-        scout_json_value_free(root);
+    if (root == NULL || root->type != JSON_OBJECT) {
+        json_value_free(root);
         return 0;
     }
     projconf_clear(c);
     for (a = 0; a < PROJ_ACTIONS; ++a) {
-        const ScoutJsonValue *list = scout_json_obj_get_array(root, action_keys[a]);
-        size_t i, n = scout_json_array_length(list);
+        const JsonValue *list = json_obj_get_array(root, action_keys[a]);
+        size_t i, n = json_array_length(list);
         if (n == 0) continue;
         c->commands[a] = malloc(n * sizeof(*c->commands[a]));
         if (c->commands[a] == NULL) goto nomem;
         for (i = 0; i < n; ++i) {
-            int r = read_command(scout_json_array_get(list, i), &c->commands[a][c->count[a]]);
+            int r = read_command(json_array_get(list, i), &c->commands[a][c->count[a]]);
             if (r < 0) goto nomem;
             if (r > 0) ++c->count[a];
         }
     }
-    scout_json_value_free(root);
+    json_value_free(root);
     return 1;
 
 nomem:
-    scout_json_value_free(root);
+    json_value_free(root);
     projconf_clear(c);
     return -1;
 }

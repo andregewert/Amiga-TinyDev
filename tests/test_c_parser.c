@@ -3,7 +3,7 @@
  * @brief Host-native tests of the C parser.
  */
 #include "c_parser.h"
-#include "scout_json.h"
+#include "scout_rpc.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -161,8 +161,8 @@ static void test_definition_and_completion(void)
  */
 static void test_jsonrpc_protocol(void)
 {
-    ScoutJsonWriter resp;
-    scout_json_writer_init_alloc(&resp, 512);
+    JsonWriter resp;
+    json_writer_init_alloc(&resp, 512);
 
     /* Test documentSymbol request with inline text */
     const char *req_sym =
@@ -172,22 +172,22 @@ static void test_jsonrpc_protocol(void)
     int ok = c_parser_process_jsonrpc(req_sym, &resp);
     TEST_ASSERT(ok);
 
-    const char *out_json = scout_json_writer_get(&resp);
+    const char *out_json = json_writer_get(&resp);
     TEST_ASSERT(out_json != NULL);
 
-    ScoutJsonRpcMessage msg;
-    ok = scout_json_rpc_parse(out_json, &msg);
+    ScoutRpcMessage msg;
+    ok = scout_rpc_parse(out_json, &msg);
     TEST_ASSERT(ok);
     TEST_ASSERT(msg.id == 10);
     TEST_ASSERT(msg.result != NULL);
-    TEST_ASSERT(scout_json_array_length(msg.result) >= 1);
+    TEST_ASSERT(json_array_length(msg.result) >= 1);
 
-    const ScoutJsonValue *sym0 = scout_json_array_get(msg.result, 0);
+    const JsonValue *sym0 = json_array_get(msg.result, 0);
     TEST_ASSERT(sym0 != NULL);
-    TEST_ASSERT(strcmp(scout_json_obj_get_string(sym0, "name", ""), "sample_func") == 0);
-    TEST_ASSERT(scout_json_obj_get_int(sym0, "kind", 0) == SCOUT_SYMBOL_KIND_FUNCTION);
+    TEST_ASSERT(strcmp(json_obj_get_string(sym0, "name", ""), "sample_func") == 0);
+    TEST_ASSERT(json_obj_get_int(sym0, "kind", 0) == SCOUT_SYMBOL_KIND_FUNCTION);
 
-    scout_json_rpc_free(&msg);
+    scout_rpc_free(&msg);
 
     /* Test publishDiagnostics request */
     resp.length = 0;
@@ -199,18 +199,18 @@ static void test_jsonrpc_protocol(void)
     ok = c_parser_process_jsonrpc(req_diag, &resp);
     TEST_ASSERT(ok);
 
-    out_json = scout_json_writer_get(&resp);
-    ok = scout_json_rpc_parse(out_json, &msg);
+    out_json = json_writer_get(&resp);
+    ok = scout_rpc_parse(out_json, &msg);
     TEST_ASSERT(ok);
     TEST_ASSERT(msg.id == 11);
     TEST_ASSERT(msg.result != NULL);
-    TEST_ASSERT(scout_json_array_length(msg.result) == 1);
+    TEST_ASSERT(json_array_length(msg.result) == 1);
 
-    const ScoutJsonValue *diag0 = scout_json_array_get(msg.result, 0);
+    const JsonValue *diag0 = json_array_get(msg.result, 0);
     TEST_ASSERT(diag0 != NULL);
-    TEST_ASSERT(strstr(scout_json_obj_get_string(diag0, "message", ""), "comment") != NULL);
+    TEST_ASSERT(strstr(json_obj_get_string(diag0, "message", ""), "comment") != NULL);
 
-    scout_json_rpc_free(&msg);
+    scout_rpc_free(&msg);
 
     /* Test completion request */
     resp.length = 0;
@@ -223,19 +223,19 @@ static void test_jsonrpc_protocol(void)
     ok = c_parser_process_jsonrpc(req_comp, &resp);
     TEST_ASSERT(ok);
 
-    out_json = scout_json_writer_get(&resp);
-    ok = scout_json_rpc_parse(out_json, &msg);
+    out_json = json_writer_get(&resp);
+    ok = scout_rpc_parse(out_json, &msg);
     TEST_ASSERT(ok);
     TEST_ASSERT(msg.id == 12);
     TEST_ASSERT(msg.result != NULL);
-    TEST_ASSERT(scout_json_array_length(msg.result) >= 1);
+    TEST_ASSERT(json_array_length(msg.result) >= 1);
 
-    const ScoutJsonValue *comp0 = scout_json_array_get(msg.result, 0);
+    const JsonValue *comp0 = json_array_get(msg.result, 0);
     TEST_ASSERT(comp0 != NULL);
-    TEST_ASSERT(strcmp(scout_json_obj_get_string(comp0, "label", ""), "my_handler") == 0);
+    TEST_ASSERT(strcmp(json_obj_get_string(comp0, "label", ""), "my_handler") == 0);
 
-    scout_json_rpc_free(&msg);
-    scout_json_writer_free(&resp);
+    scout_rpc_free(&msg);
+    json_writer_free(&resp);
 }
 
 /**

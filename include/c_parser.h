@@ -6,7 +6,7 @@
 #define TINYDEV_C_PARSER_H
 
 #include <stddef.h>
-#include "scout_json.h"
+#include "json.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -170,7 +170,7 @@ void c_completions_free(CCompletion *list);
  * @param response_writer Writer to receive formatted single-line JSON-RPC response.
  * @return 1 on success (even if a Scout error response produced), 0 on fatal writer error.
  */
-int c_parser_process_jsonrpc(const char *request_json, ScoutJsonWriter *response_writer);
+int c_parser_process_jsonrpc(const char *request_json, JsonWriter *response_writer);
 
 #ifdef __cplusplus
 }

@@ -6,7 +6,7 @@ HOST_CC ?= cc
 BUILD_DIR := build
 BIN_DIR := bin
 TARGET := $(BIN_DIR)/TinyDev
-SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/splash.c src/prefswin.c src/closeimage.c src/search.c src/find.c src/filescan.c src/locale.c src/bookmarks.c src/bmstore.c src/projconf.c src/scout/scout_json.c src/toolwin.c src/bmlist.c src/help.c
+SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/splash.c src/prefswin.c src/closeimage.c src/search.c src/find.c src/filescan.c src/locale.c src/bookmarks.c src/bmstore.c src/projconf.c src/json.c src/toolwin.c src/bmlist.c src/help.c
 OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
 DEPS := $(OBJECTS:.o=.d)
 CPPFLAGS := -Iinclude
@@ -14,7 +14,7 @@ CFLAGS := -std=gnu99 -m68000 -msoft-float -noixemul -Os -Wall -Wextra -Wshadow -
 LDFLAGS := -m68000 -msoft-float -noixemul
 
 SCOUT_TARGET := $(BIN_DIR)/TinyDev-Scout
-SCOUT_SOURCES := src/scout/scout_main.c src/scout/scout_broker.c src/scout/scout_rexx.c src/scout/scout_parser_runner.c src/scout/scout_json.c
+SCOUT_SOURCES := src/scout/scout_main.c src/scout/scout_broker.c src/scout/scout_rexx.c src/scout/scout_parser_runner.c src/scout/scout_rpc.c src/json.c
 SCOUT_OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SCOUT_SOURCES))
 SCOUT_DEPS := $(SCOUT_OBJECTS:.o=.d)
 
@@ -182,22 +182,23 @@ $(SCOUT_TARGET): $(SCOUT_OBJECTS)
 
 # Compiled and linked in one step, so without -MMD (the .d file would land
 # in bin/); the prerequisites name the headers.
-$(PARSER_C_TARGET): src/parsers/c_parser.c src/scout/scout_json.c include/c_parser.h include/scout_json.h
+$(PARSER_C_TARGET): src/parsers/c_parser.c src/scout/scout_rpc.c src/json.c include/c_parser.h include/scout_rpc.h include/json.h
 	@mkdir -p $(BIN_DIR)/parsers
-	$(TARGET_CC) $(CPPFLAGS) $(filter-out -MMD -MP,$(CFLAGS)) $(LDFLAGS) -o $@ src/parsers/c_parser.c src/scout/scout_json.c
+	$(TARGET_CC) $(CPPFLAGS) $(filter-out -MMD -MP,$(CFLAGS)) $(LDFLAGS) -o $@ src/parsers/c_parser.c src/scout/scout_rpc.c src/json.c
 
 $(BUILD_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)
 	$(TARGET_CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_projconf $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_scout_json $(BUILD_DIR)/test_c_parser
+test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_projconf $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_json $(BUILD_DIR)/test_scout_rpc $(BUILD_DIR)/test_c_parser
 	./$(BUILD_DIR)/test_syntax
 	./$(BUILD_DIR)/test_search
 	./$(BUILD_DIR)/test_bmstore
 	./$(BUILD_DIR)/test_projconf
 	./$(BUILD_DIR)/test_dirtree_sort
 	./$(BUILD_DIR)/test_htmltitle
-	./$(BUILD_DIR)/test_scout_json
+	./$(BUILD_DIR)/test_json
+	./$(BUILD_DIR)/test_scout_rpc
 	./$(BUILD_DIR)/test_c_parser
 
 $(BUILD_DIR)/test_syntax: src/syntax.c tests/test_syntax.c include/syntax.h
@@ -208,29 +209,33 @@ $(BUILD_DIR)/test_search: src/search.c tests/test_search.c include/search.h $(RE
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Iinclude -I$(REGEX_GEN) -std=gnu99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/search.c tests/test_search.c $(REGEX_HOST_OBJECTS)
 
-$(BUILD_DIR)/test_bmstore: src/bmstore.c src/scout/scout_json.c tests/test_bmstore.c include/bmstore.h include/scout_json.h
+$(BUILD_DIR)/test_bmstore: src/bmstore.c src/json.c tests/test_bmstore.c include/bmstore.h include/json.h
 	@mkdir -p $(BUILD_DIR)
-	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/bmstore.c src/scout/scout_json.c tests/test_bmstore.c
+	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/bmstore.c src/json.c tests/test_bmstore.c
 
 $(BUILD_DIR)/test_htmltitle: src/helpviewer/htmltitle.c tests/test_htmltitle.c src/helpviewer/htmltitle.h
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Isrc/helpviewer -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/helpviewer/htmltitle.c tests/test_htmltitle.c
 
-$(BUILD_DIR)/test_projconf: src/projconf.c src/scout/scout_json.c tests/test_projconf.c include/projconf.h include/scout_json.h
+$(BUILD_DIR)/test_projconf: src/projconf.c src/json.c tests/test_projconf.c include/projconf.h include/json.h
 	@mkdir -p $(BUILD_DIR)
-	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/projconf.c src/scout/scout_json.c tests/test_projconf.c
+	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/projconf.c src/json.c tests/test_projconf.c
 
 $(BUILD_DIR)/test_dirtree_sort: src/classes/dirtree/dirtree_sort.c tests/test_dirtree_sort.c src/classes/dirtree/dirtree_sort.h
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Isrc/classes/dirtree -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/classes/dirtree/dirtree_sort.c tests/test_dirtree_sort.c
 
-$(BUILD_DIR)/test_scout_json: src/scout/scout_json.c tests/test_scout_json.c include/scout_json.h
+$(BUILD_DIR)/test_json: src/json.c tests/test_json.c include/json.h
 	@mkdir -p $(BUILD_DIR)
-	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/scout/scout_json.c tests/test_scout_json.c
+	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/json.c tests/test_json.c
 
-$(BUILD_DIR)/test_c_parser: src/parsers/c_parser.c src/scout/scout_json.c tests/test_c_parser.c include/c_parser.h include/scout_json.h
+$(BUILD_DIR)/test_scout_rpc: src/scout/scout_rpc.c src/json.c tests/test_scout_rpc.c include/scout_rpc.h include/json.h
 	@mkdir -p $(BUILD_DIR)
-	$(HOST_CC) -Iinclude -DC_PARSER_NO_MAIN -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/parsers/c_parser.c src/scout/scout_json.c tests/test_c_parser.c
+	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/scout/scout_rpc.c src/json.c tests/test_scout_rpc.c
+
+$(BUILD_DIR)/test_c_parser: src/parsers/c_parser.c src/scout/scout_rpc.c src/json.c tests/test_c_parser.c include/c_parser.h include/scout_rpc.h include/json.h
+	@mkdir -p $(BUILD_DIR)
+	$(HOST_CC) -Iinclude -DC_PARSER_NO_MAIN -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/parsers/c_parser.c src/scout/scout_rpc.c src/json.c tests/test_c_parser.c
 
 # Sample icons of every style (icons/<Style>/*.info) and icons/preview.png,
 # drawn by tools/mkicons.py with amiga-devkit/tools/amigaicons.py.

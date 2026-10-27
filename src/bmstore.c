@@ -7,7 +7,7 @@
  * bookmarks.c; no Amiga headers, so the host tests can use it.
  */
 #include "bmstore.h"
-#include "scout_json.h"
+#include "json.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -141,30 +141,30 @@ int bmstore_remove(BmStore *s, const char *file, long line)
 int bmstore_parse(BmStore *s, const char *json)
 {
     BmStore add;
-    ScoutJsonValue *root = scout_json_parse(json, NULL);
-    const ScoutJsonValue *list;
+    JsonValue *root = json_parse(json, NULL);
+    const JsonValue *list;
     size_t i, n;
     int ok = 1;
 
-    if (root == NULL || root->type != SCOUT_JSON_OBJECT ||
-        (list = scout_json_obj_get_array(root, "bookmarks")) == NULL) {
-        scout_json_value_free(root);
+    if (root == NULL || root->type != JSON_OBJECT ||
+        (list = json_obj_get_array(root, "bookmarks")) == NULL) {
+        json_value_free(root);
         return 0;
     }
     bmstore_init(&add);
-    n = scout_json_array_length(list);
+    n = json_array_length(list);
     for (i = 0; i < n && ok; ++i) {
-        const ScoutJsonValue *e = scout_json_array_get(list, i);
+        const JsonValue *e = json_array_get(list, i);
         const char *file, *text;
         long line;
-        if (e == NULL || e->type != SCOUT_JSON_OBJECT) continue;
-        file = scout_json_obj_get_string(e, "file", NULL);
-        line = scout_json_obj_get_int(e, "line", 0);
-        text = scout_json_obj_get_string(e, "text", "");
+        if (e == NULL || e->type != JSON_OBJECT) continue;
+        file = json_obj_get_string(e, "file", NULL);
+        line = json_obj_get_int(e, "line", 0);
+        text = json_obj_get_string(e, "text", "");
         if (file == NULL || file[0] == '\0' || line < 1) continue;
         ok = bmstore_add(&add, file, line - 1, text, (long)strlen(text));
     }
-    scout_json_value_free(root);
+    json_value_free(root);
     for (i = 0; ok && i < (size_t)add.count; ++i) {
         BmEntry *e = &add.entries[i];
         ok = bmstore_add(s, e->file, e->line, e->text, (long)strlen(e->text));
@@ -189,35 +189,35 @@ static int order(const void *a, const void *b)
 
 char *bmstore_format(BmStore *s)
 {
-    ScoutJsonWriter w;
+    JsonWriter w;
     char *result;
     long i;
 
     if (s->count > 1) qsort(s->entries, (size_t)s->count, sizeof(*s->entries), order);
-    scout_json_writer_init_alloc(&w, 256);
-    scout_json_write_raw(&w, "{\n  \"version\": 1,\n  \"bookmarks\": [");
+    json_writer_init_alloc(&w, 256);
+    json_write_raw(&w, "{\n  \"version\": 1,\n  \"bookmarks\": [");
     for (i = 0; i < s->count; ++i) {
-        scout_json_write_raw(&w, i > 0 ? ",\n    { " : "\n    { ");
-        scout_json_write_obj_key(&w, "file");
-        scout_json_write_raw(&w, " ");
-        scout_json_write_string(&w, s->entries[i].file);
-        scout_json_write_raw(&w, ", ");
-        scout_json_write_obj_key(&w, "line");
-        scout_json_write_raw(&w, " ");
-        scout_json_write_int(&w, s->entries[i].line + 1);
-        scout_json_write_raw(&w, ", ");
-        scout_json_write_obj_key(&w, "text");
-        scout_json_write_raw(&w, " ");
-        scout_json_write_string(&w, s->entries[i].text);
-        scout_json_write_raw(&w, " }");
+        json_write_raw(&w, i > 0 ? ",\n    { " : "\n    { ");
+        json_write_obj_key(&w, "file");
+        json_write_raw(&w, " ");
+        json_write_string(&w, s->entries[i].file);
+        json_write_raw(&w, ", ");
+        json_write_obj_key(&w, "line");
+        json_write_raw(&w, " ");
+        json_write_int(&w, s->entries[i].line + 1);
+        json_write_raw(&w, ", ");
+        json_write_obj_key(&w, "text");
+        json_write_raw(&w, " ");
+        json_write_string(&w, s->entries[i].text);
+        json_write_raw(&w, " }");
     }
-    scout_json_write_raw(&w, s->count > 0 ? "\n  ]\n}\n" : "]\n}\n");
+    json_write_raw(&w, s->count > 0 ? "\n  ]\n}\n" : "]\n}\n");
     if (w.error) {
-        scout_json_writer_free(&w);
+        json_writer_free(&w);
         return NULL;
     }
-    result = copy(scout_json_writer_get(&w), (long)scout_json_writer_length(&w));
-    scout_json_writer_free(&w);
+    result = copy(json_writer_get(&w), (long)json_writer_length(&w));
+    json_writer_free(&w);
     return result;
 }
 

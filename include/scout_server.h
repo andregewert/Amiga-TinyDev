@@ -11,7 +11,7 @@
 #include <rexx/storage.h>
 #include <rexx/rxslib.h>
 
-#include "scout_json.h"
+#include "json.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -180,7 +180,7 @@ int app_get_program_directory(int argc, char **argv, char *out_dir, size_t out_s
  */
 int scout_parser_run_request(ScoutServer *srv, const char *filepath,
                            const char *method, const char *params_json,
-                           ScoutJsonWriter *out_result, char **out_error_msg);
+                           JsonWriter *out_result, char **out_error_msg);
 
 /**
  * @brief Free all cached results.

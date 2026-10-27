@@ -3,7 +3,7 @@
  * @brief Runs the language parsers of Scout and talks to them with the Scout protocol over STDIN/STDOUT.
  */
 #include "scout_server.h"
-#include "scout_json.h"
+#include "scout_rpc.h"
 
 #include <proto/exec.h>
 #include <proto/dos.h>
@@ -210,7 +210,7 @@ void scout_parser_registry_cleanup(ScoutServer *srv)
 
 int scout_parser_run_request(ScoutServer *srv, const char *filepath,
                            const char *method, const char *params_json,
-                           ScoutJsonWriter *out_result, char **out_error_msg)
+                           JsonWriter *out_result, char **out_error_msg)
 {
     if (!srv || !filepath || !method || !out_result) return 0;
     if (out_error_msg) *out_error_msg = NULL;
@@ -224,12 +224,12 @@ int scout_parser_run_request(ScoutServer *srv, const char *filepath,
     }
 
     /* Build JSON-RPC request line */
-    ScoutJsonWriter req_writer;
-    scout_json_writer_init_alloc(&req_writer, 512);
+    JsonWriter req_writer;
+    json_writer_init_alloc(&req_writer, 512);
 
     long req_id = ++srv->request_count;
-    if (!scout_json_format_request(&req_writer, req_id, method, params_json)) {
-        scout_json_writer_free(&req_writer);
+    if (!scout_rpc_format_request(&req_writer, req_id, method, params_json)) {
+        json_writer_free(&req_writer);
         if (out_error_msg) *out_error_msg = scout_strdup("Failed to construct JSON-RPC request");
         return 0;
     }
@@ -242,17 +242,17 @@ int scout_parser_run_request(ScoutServer *srv, const char *filepath,
 
     BPTR in_write_fh = Open(in_temp, MODE_NEWFILE);
     if (!in_write_fh) {
-        scout_json_writer_free(&req_writer);
+        json_writer_free(&req_writer);
         if (out_error_msg) *out_error_msg = scout_strdup("Failed to open temp input file");
         return 0;
     }
 
-    const char *req_str = scout_json_writer_get(&req_writer);
-    size_t req_len = scout_json_writer_length(&req_writer);
+    const char *req_str = json_writer_get(&req_writer);
+    size_t req_len = json_writer_length(&req_writer);
     Write(in_write_fh, (CONST APTR)req_str, (LONG)req_len);
     Write(in_write_fh, (CONST APTR)"\n", 1);
     Close(in_write_fh);
-    scout_json_writer_free(&req_writer);
+    json_writer_free(&req_writer);
 
     /* Open I/O handles for child process redirection */
     BPTR in_read_fh = Open(in_temp, MODE_OLDFILE);
@@ -324,8 +324,8 @@ int scout_parser_run_request(ScoutServer *srv, const char *filepath,
     }
 
     /* Parse JSON-RPC response */
-    ScoutJsonRpcMessage resp_msg;
-    int parse_ok = scout_json_rpc_parse(resp_buf, &resp_msg);
+    ScoutRpcMessage resp_msg;
+    int parse_ok = scout_rpc_parse(resp_buf, &resp_msg);
     free(resp_buf);
 
     if (!parse_ok) {
@@ -337,88 +337,88 @@ int scout_parser_run_request(ScoutServer *srv, const char *filepath,
         if (out_error_msg) {
             *out_error_msg = scout_strdup(resp_msg.error_msg ? resp_msg.error_msg : "Scout error");
         }
-        scout_json_rpc_free(&resp_msg);
+        scout_rpc_free(&resp_msg);
         return 0;
     }
 
     /* Format raw result to JSON writer */
     if (resp_msg.result) {
         /* Re-serialize root result or copy DOM */
-        const ScoutJsonValue *res_val = resp_msg.result;
-        if (res_val->type == SCOUT_JSON_ARRAY) {
-            scout_json_write_arr_start(out_result);
-            size_t count = scout_json_array_length(res_val);
+        const JsonValue *res_val = resp_msg.result;
+        if (res_val->type == JSON_ARRAY) {
+            json_write_arr_start(out_result);
+            size_t count = json_array_length(res_val);
             for (size_t i = 0; i < count; i++) {
-                if (i > 0) scout_json_write_raw(out_result, ",");
-                const ScoutJsonValue *item = scout_json_array_get(res_val, i);
-                if (item && item->type == SCOUT_JSON_OBJECT) {
-                    scout_json_write_obj_start(out_result);
-                    const ScoutJsonMember *m = item->u.obj_val.first;
+                if (i > 0) json_write_raw(out_result, ",");
+                const JsonValue *item = json_array_get(res_val, i);
+                if (item && item->type == JSON_OBJECT) {
+                    json_write_obj_start(out_result);
+                    const JsonMember *m = item->u.obj_val.first;
                     int f = 1;
                     while (m) {
-                        if (!f) scout_json_write_raw(out_result, ",");
+                        if (!f) json_write_raw(out_result, ",");
                         f = 0;
-                        scout_json_write_obj_key(out_result, m->key);
-                        if (m->value->type == SCOUT_JSON_STRING) {
-                            scout_json_write_string(out_result, m->value->u.str_val);
-                        } else if (m->value->type == SCOUT_JSON_NUMBER) {
-                            scout_json_write_int(out_result, m->value->u.num_val.int_val);
-                        } else if (m->value->type == SCOUT_JSON_BOOL) {
-                            scout_json_write_bool(out_result, m->value->u.bool_val);
-                        } else if (m->value->type == SCOUT_JSON_OBJECT) {
+                        json_write_obj_key(out_result, m->key);
+                        if (m->value->type == JSON_STRING) {
+                            json_write_string(out_result, m->value->u.str_val);
+                        } else if (m->value->type == JSON_NUMBER) {
+                            json_write_int(out_result, m->value->u.num_val.int_val);
+                        } else if (m->value->type == JSON_BOOL) {
+                            json_write_bool(out_result, m->value->u.bool_val);
+                        } else if (m->value->type == JSON_OBJECT) {
                             /* nested range object */
-                            scout_json_write_obj_start(out_result);
-                            const ScoutJsonMember *sub_m = m->value->u.obj_val.first;
+                            json_write_obj_start(out_result);
+                            const JsonMember *sub_m = m->value->u.obj_val.first;
                             int sub_f = 1;
                             while (sub_m) {
-                                if (!sub_f) scout_json_write_raw(out_result, ",");
+                                if (!sub_f) json_write_raw(out_result, ",");
                                 sub_f = 0;
-                                scout_json_write_obj_key(out_result, sub_m->key);
-                                if (sub_m->value->type == SCOUT_JSON_OBJECT) {
-                                    scout_json_write_obj_start(out_result);
-                                    const ScoutJsonMember *pos_m = sub_m->value->u.obj_val.first;
+                                json_write_obj_key(out_result, sub_m->key);
+                                if (sub_m->value->type == JSON_OBJECT) {
+                                    json_write_obj_start(out_result);
+                                    const JsonMember *pos_m = sub_m->value->u.obj_val.first;
                                     int pos_f = 1;
                                     while (pos_m) {
-                                        if (!pos_f) scout_json_write_raw(out_result, ",");
+                                        if (!pos_f) json_write_raw(out_result, ",");
                                         pos_f = 0;
-                                        scout_json_write_obj_key(out_result, pos_m->key);
-                                        scout_json_write_int(out_result, pos_m->value->u.num_val.int_val);
+                                        json_write_obj_key(out_result, pos_m->key);
+                                        json_write_int(out_result, pos_m->value->u.num_val.int_val);
                                         pos_m = pos_m->next;
                                     }
-                                    scout_json_write_obj_end(out_result);
+                                    json_write_obj_end(out_result);
                                 } else {
-                                    scout_json_write_int(out_result, sub_m->value->u.num_val.int_val);
+                                    json_write_int(out_result, sub_m->value->u.num_val.int_val);
                                 }
                                 sub_m = sub_m->next;
                             }
-                            scout_json_write_obj_end(out_result);
+                            json_write_obj_end(out_result);
                         }
                         m = m->next;
                     }
-                    scout_json_write_obj_end(out_result);
+                    json_write_obj_end(out_result);
                 }
             }
-            scout_json_write_arr_end(out_result);
-        } else if (res_val->type == SCOUT_JSON_OBJECT) {
-            scout_json_write_obj_start(out_result);
-            const ScoutJsonMember *m = res_val->u.obj_val.first;
+            json_write_arr_end(out_result);
+        } else if (res_val->type == JSON_OBJECT) {
+            json_write_obj_start(out_result);
+            const JsonMember *m = res_val->u.obj_val.first;
             int f = 1;
             while (m) {
-                if (!f) scout_json_write_raw(out_result, ",");
+                if (!f) json_write_raw(out_result, ",");
                 f = 0;
-                scout_json_write_obj_key(out_result, m->key);
-                if (m->value->type == SCOUT_JSON_STRING) {
-                    scout_json_write_string(out_result, m->value->u.str_val);
-                } else if (m->value->type == SCOUT_JSON_NUMBER) {
-                    scout_json_write_int(out_result, m->value->u.num_val.int_val);
+                json_write_obj_key(out_result, m->key);
+                if (m->value->type == JSON_STRING) {
+                    json_write_string(out_result, m->value->u.str_val);
+                } else if (m->value->type == JSON_NUMBER) {
+                    json_write_int(out_result, m->value->u.num_val.int_val);
                 }
                 m = m->next;
             }
-            scout_json_write_obj_end(out_result);
+            json_write_obj_end(out_result);
         }
     }
 
-    scout_json_rpc_free(&resp_msg);
+    scout_rpc_free(&resp_msg);
     return 1;
 }
 

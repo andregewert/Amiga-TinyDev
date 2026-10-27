@@ -1,8 +1,8 @@
 /**
- * @file scout_json.c
- * @brief Small JSON reader and writer and the JSON-RPC 2.0 helpers of the Scout protocol.
+ * @file json.c
+ * @brief Small JSON reader and writer (values, parser, accessors, writer).
  */
-#include "scout_json.h"
+#include "json.h"
 
 #include <stdlib.h>
 #include <string.h>
@@ -20,22 +20,6 @@ static void skip_ws(const char **p)
     while (**p && ((unsigned char)**p <= ' ' || **p == '\t' || **p == '\r' || **p == '\n')) {
         (*p)++;
     }
-}
-
-/**
- * @brief Copy a string with malloc().
- * @param s The string (may be NULL).
- * @return The copy, or NULL.
- */
-static char *my_strdup(const char *s)
-{
-    if (!s) return NULL;
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
 }
 
 /**
@@ -139,9 +123,9 @@ static char *parse_string_literal(const char **p, const char **error_pos)
  * @brief Read any value.
  * @param p The position, moved behind the value.
  * @param[out] error_pos Set to the error position on failure (may be NULL).
- * @return The value (scout_json_value_free()), or NULL on error.
+ * @return The value (json_value_free()), or NULL on error.
  */
-static ScoutJsonValue *parse_val(const char **p, const char **error_pos);
+static JsonValue *parse_val(const char **p, const char **error_pos);
 
 /**
  * @brief Read an object.
@@ -149,7 +133,7 @@ static ScoutJsonValue *parse_val(const char **p, const char **error_pos);
  * @param[out] error_pos Set to the error position on failure (may be NULL).
  * @return The object, or NULL on error.
  */
-static ScoutJsonValue *parse_obj(const char **p, const char **error_pos)
+static JsonValue *parse_obj(const char **p, const char **error_pos)
 {
     if (**p != '{') {
         if (error_pos) *error_pos = *p;
@@ -157,12 +141,12 @@ static ScoutJsonValue *parse_obj(const char **p, const char **error_pos)
     }
     (*p)++; /* skip '{' */
 
-    ScoutJsonValue *obj = (ScoutJsonValue *)calloc(1, sizeof(ScoutJsonValue));
+    JsonValue *obj = (JsonValue *)calloc(1, sizeof(JsonValue));
     if (!obj) {
         if (error_pos) *error_pos = *p;
         return NULL;
     }
-    obj->type = SCOUT_JSON_OBJECT;
+    obj->type = JSON_OBJECT;
 
     skip_ws(p);
     if (**p == '}') {
@@ -174,13 +158,13 @@ static ScoutJsonValue *parse_obj(const char **p, const char **error_pos)
         skip_ws(p);
         if (**p != '"') {
             if (error_pos) *error_pos = *p;
-            scout_json_value_free(obj);
+            json_value_free(obj);
             return NULL;
         }
 
         char *key = parse_string_literal(p, error_pos);
         if (!key) {
-            scout_json_value_free(obj);
+            json_value_free(obj);
             return NULL;
         }
 
@@ -188,24 +172,24 @@ static ScoutJsonValue *parse_obj(const char **p, const char **error_pos)
         if (**p != ':') {
             if (error_pos) *error_pos = *p;
             free(key);
-            scout_json_value_free(obj);
+            json_value_free(obj);
             return NULL;
         }
         (*p)++; /* skip ':' */
 
         skip_ws(p);
-        ScoutJsonValue *child = parse_val(p, error_pos);
+        JsonValue *child = parse_val(p, error_pos);
         if (!child) {
             free(key);
-            scout_json_value_free(obj);
+            json_value_free(obj);
             return NULL;
         }
 
-        ScoutJsonMember *member = (ScoutJsonMember *)malloc(sizeof(ScoutJsonMember));
+        JsonMember *member = (JsonMember *)malloc(sizeof(JsonMember));
         if (!member) {
             free(key);
-            scout_json_value_free(child);
-            scout_json_value_free(obj);
+            json_value_free(child);
+            json_value_free(obj);
             return NULL;
         }
         member->key = key;
@@ -229,13 +213,13 @@ static ScoutJsonValue *parse_obj(const char **p, const char **error_pos)
             (*p)++;
         } else {
             if (error_pos) *error_pos = *p;
-            scout_json_value_free(obj);
+            json_value_free(obj);
             return NULL;
         }
     }
 
     if (error_pos) *error_pos = *p;
-    scout_json_value_free(obj);
+    json_value_free(obj);
     return NULL;
 }
 
@@ -245,7 +229,7 @@ static ScoutJsonValue *parse_obj(const char **p, const char **error_pos)
  * @param[out] error_pos Set to the error position on failure (may be NULL).
  * @return The array, or NULL on error.
  */
-static ScoutJsonValue *parse_arr(const char **p, const char **error_pos)
+static JsonValue *parse_arr(const char **p, const char **error_pos)
 {
     if (**p != '[') {
         if (error_pos) *error_pos = *p;
@@ -253,12 +237,12 @@ static ScoutJsonValue *parse_arr(const char **p, const char **error_pos)
     }
     (*p)++; /* skip '[' */
 
-    ScoutJsonValue *arr = (ScoutJsonValue *)calloc(1, sizeof(ScoutJsonValue));
+    JsonValue *arr = (JsonValue *)calloc(1, sizeof(JsonValue));
     if (!arr) {
         if (error_pos) *error_pos = *p;
         return NULL;
     }
-    arr->type = SCOUT_JSON_ARRAY;
+    arr->type = JSON_ARRAY;
 
     skip_ws(p);
     if (**p == ']') {
@@ -268,16 +252,16 @@ static ScoutJsonValue *parse_arr(const char **p, const char **error_pos)
 
     while (**p) {
         skip_ws(p);
-        ScoutJsonValue *child = parse_val(p, error_pos);
+        JsonValue *child = parse_val(p, error_pos);
         if (!child) {
-            scout_json_value_free(arr);
+            json_value_free(arr);
             return NULL;
         }
 
-        ScoutJsonElement *elem = (ScoutJsonElement *)malloc(sizeof(ScoutJsonElement));
+        JsonElement *elem = (JsonElement *)malloc(sizeof(JsonElement));
         if (!elem) {
-            scout_json_value_free(child);
-            scout_json_value_free(arr);
+            json_value_free(child);
+            json_value_free(arr);
             return NULL;
         }
         elem->value = child;
@@ -300,13 +284,13 @@ static ScoutJsonValue *parse_arr(const char **p, const char **error_pos)
             (*p)++;
         } else {
             if (error_pos) *error_pos = *p;
-            scout_json_value_free(arr);
+            json_value_free(arr);
             return NULL;
         }
     }
 
     if (error_pos) *error_pos = *p;
-    scout_json_value_free(arr);
+    json_value_free(arr);
     return NULL;
 }
 
@@ -363,7 +347,7 @@ static double simple_strtod(const char *s)
 }
 #endif
 
-static ScoutJsonValue *parse_val(const char **p, const char **error_pos)
+static JsonValue *parse_val(const char **p, const char **error_pos)
 {
     skip_ws(p);
     if (!**p) {
@@ -380,33 +364,33 @@ static ScoutJsonValue *parse_val(const char **p, const char **error_pos)
     if (**p == '"') {
         char *s = parse_string_literal(p, error_pos);
         if (!s) return NULL;
-        ScoutJsonValue *v = (ScoutJsonValue *)calloc(1, sizeof(ScoutJsonValue));
+        JsonValue *v = (JsonValue *)calloc(1, sizeof(JsonValue));
         if (!v) { free(s); return NULL; }
-        v->type = SCOUT_JSON_STRING;
+        v->type = JSON_STRING;
         v->u.str_val = s;
         return v;
     }
     if (strncmp(*p, "true", 4) == 0) {
         *p += 4;
-        ScoutJsonValue *v = (ScoutJsonValue *)calloc(1, sizeof(ScoutJsonValue));
+        JsonValue *v = (JsonValue *)calloc(1, sizeof(JsonValue));
         if (!v) return NULL;
-        v->type = SCOUT_JSON_BOOL;
+        v->type = JSON_BOOL;
         v->u.bool_val = 1;
         return v;
     }
     if (strncmp(*p, "false", 5) == 0) {
         *p += 5;
-        ScoutJsonValue *v = (ScoutJsonValue *)calloc(1, sizeof(ScoutJsonValue));
+        JsonValue *v = (JsonValue *)calloc(1, sizeof(JsonValue));
         if (!v) return NULL;
-        v->type = SCOUT_JSON_BOOL;
+        v->type = JSON_BOOL;
         v->u.bool_val = 0;
         return v;
     }
     if (strncmp(*p, "null", 4) == 0) {
         *p += 4;
-        ScoutJsonValue *v = (ScoutJsonValue *)calloc(1, sizeof(ScoutJsonValue));
+        JsonValue *v = (JsonValue *)calloc(1, sizeof(JsonValue));
         if (!v) return NULL;
-        v->type = SCOUT_JSON_NULL;
+        v->type = JSON_NULL;
         return v;
     }
 
@@ -428,9 +412,9 @@ static ScoutJsonValue *parse_val(const char **p, const char **error_pos)
             while (**p >= '0' && **p <= '9') (*p)++;
         }
 
-        ScoutJsonValue *v = (ScoutJsonValue *)calloc(1, sizeof(ScoutJsonValue));
+        JsonValue *v = (JsonValue *)calloc(1, sizeof(JsonValue));
         if (!v) return NULL;
-        v->type = SCOUT_JSON_NUMBER;
+        v->type = JSON_NUMBER;
         v->u.num_val.is_float = is_float;
         v->u.num_val.int_val = strtol(num_start, NULL, 10);
 #ifndef __amigaos__
@@ -448,7 +432,7 @@ static ScoutJsonValue *parse_val(const char **p, const char **error_pos)
     return NULL;
 }
 
-ScoutJsonValue *scout_json_parse(const char *json_str, const char **error_pos)
+JsonValue *json_parse(const char *json_str, const char **error_pos)
 {
     if (!json_str) {
         if (error_pos) *error_pos = NULL;
@@ -460,41 +444,41 @@ ScoutJsonValue *scout_json_parse(const char *json_str, const char **error_pos)
         if (error_pos) *error_pos = p;
         return NULL;
     }
-    ScoutJsonValue *val = parse_val(&p, error_pos);
+    JsonValue *val = parse_val(&p, error_pos);
     if (!val) return NULL;
     skip_ws(&p);
     if (*p != '\0') {
         /* Extra trailing content */
         if (error_pos) *error_pos = p;
-        scout_json_value_free(val);
+        json_value_free(val);
         return NULL;
     }
     return val;
 }
 
-void scout_json_value_free(ScoutJsonValue *val)
+void json_value_free(JsonValue *val)
 {
     if (!val) return;
     switch (val->type) {
-        case SCOUT_JSON_STRING:
+        case JSON_STRING:
             if (val->u.str_val) free(val->u.str_val);
             break;
-        case SCOUT_JSON_ARRAY: {
-            ScoutJsonElement *elem = val->u.array_val.first;
+        case JSON_ARRAY: {
+            JsonElement *elem = val->u.array_val.first;
             while (elem) {
-                ScoutJsonElement *next = elem->next;
-                scout_json_value_free(elem->value);
+                JsonElement *next = elem->next;
+                json_value_free(elem->value);
                 free(elem);
                 elem = next;
             }
             break;
         }
-        case SCOUT_JSON_OBJECT: {
-            ScoutJsonMember *m = val->u.obj_val.first;
+        case JSON_OBJECT: {
+            JsonMember *m = val->u.obj_val.first;
             while (m) {
-                ScoutJsonMember *next = m->next;
+                JsonMember *next = m->next;
                 if (m->key) free(m->key);
-                scout_json_value_free(m->value);
+                json_value_free(m->value);
                 free(m);
                 m = next;
             }
@@ -506,10 +490,10 @@ void scout_json_value_free(ScoutJsonValue *val)
     free(val);
 }
 
-const ScoutJsonValue *scout_json_obj_get(const ScoutJsonValue *obj, const char *key)
+const JsonValue *json_obj_get(const JsonValue *obj, const char *key)
 {
-    if (!obj || obj->type != SCOUT_JSON_OBJECT || !key) return NULL;
-    ScoutJsonMember *m = obj->u.obj_val.first;
+    if (!obj || obj->type != JSON_OBJECT || !key) return NULL;
+    JsonMember *m = obj->u.obj_val.first;
     while (m) {
         if (m->key && strcmp(m->key, key) == 0) {
             return m->value;
@@ -519,61 +503,61 @@ const ScoutJsonValue *scout_json_obj_get(const ScoutJsonValue *obj, const char *
     return NULL;
 }
 
-const char *scout_json_obj_get_string(const ScoutJsonValue *obj, const char *key, const char *default_val)
+const char *json_obj_get_string(const JsonValue *obj, const char *key, const char *default_val)
 {
-    const ScoutJsonValue *v = scout_json_obj_get(obj, key);
-    if (v && v->type == SCOUT_JSON_STRING && v->u.str_val) {
+    const JsonValue *v = json_obj_get(obj, key);
+    if (v && v->type == JSON_STRING && v->u.str_val) {
         return v->u.str_val;
     }
     return default_val;
 }
 
-long scout_json_obj_get_int(const ScoutJsonValue *obj, const char *key, long default_val)
+long json_obj_get_int(const JsonValue *obj, const char *key, long default_val)
 {
-    const ScoutJsonValue *v = scout_json_obj_get(obj, key);
-    if (v && v->type == SCOUT_JSON_NUMBER) {
+    const JsonValue *v = json_obj_get(obj, key);
+    if (v && v->type == JSON_NUMBER) {
         return v->u.num_val.int_val;
     }
     return default_val;
 }
 
-int scout_json_obj_get_bool(const ScoutJsonValue *obj, const char *key, int default_val)
+int json_obj_get_bool(const JsonValue *obj, const char *key, int default_val)
 {
-    const ScoutJsonValue *v = scout_json_obj_get(obj, key);
-    if (v && v->type == SCOUT_JSON_BOOL) {
+    const JsonValue *v = json_obj_get(obj, key);
+    if (v && v->type == JSON_BOOL) {
         return v->u.bool_val;
     }
     return default_val;
 }
 
-const ScoutJsonValue *scout_json_obj_get_obj(const ScoutJsonValue *obj, const char *key)
+const JsonValue *json_obj_get_obj(const JsonValue *obj, const char *key)
 {
-    const ScoutJsonValue *v = scout_json_obj_get(obj, key);
-    if (v && v->type == SCOUT_JSON_OBJECT) {
+    const JsonValue *v = json_obj_get(obj, key);
+    if (v && v->type == JSON_OBJECT) {
         return v;
     }
     return NULL;
 }
 
-const ScoutJsonValue *scout_json_obj_get_array(const ScoutJsonValue *obj, const char *key)
+const JsonValue *json_obj_get_array(const JsonValue *obj, const char *key)
 {
-    const ScoutJsonValue *v = scout_json_obj_get(obj, key);
-    if (v && v->type == SCOUT_JSON_ARRAY) {
+    const JsonValue *v = json_obj_get(obj, key);
+    if (v && v->type == JSON_ARRAY) {
         return v;
     }
     return NULL;
 }
 
-size_t scout_json_array_length(const ScoutJsonValue *arr)
+size_t json_array_length(const JsonValue *arr)
 {
-    if (!arr || arr->type != SCOUT_JSON_ARRAY) return 0;
+    if (!arr || arr->type != JSON_ARRAY) return 0;
     return arr->u.array_val.count;
 }
 
-const ScoutJsonValue *scout_json_array_get(const ScoutJsonValue *arr, size_t index)
+const JsonValue *json_array_get(const JsonValue *arr, size_t index)
 {
-    if (!arr || arr->type != SCOUT_JSON_ARRAY) return NULL;
-    ScoutJsonElement *elem = arr->u.array_val.first;
+    if (!arr || arr->type != JSON_ARRAY) return NULL;
+    JsonElement *elem = arr->u.array_val.first;
     size_t i = 0;
     while (elem) {
         if (i == index) return elem->value;
@@ -591,7 +575,7 @@ const ScoutJsonValue *scout_json_array_get(const ScoutJsonValue *arr, size_t ind
  * @param w The writer.
  * @param needed Number of characters to add.
  */
-static void ensure_writer_cap(ScoutJsonWriter *w, size_t needed)
+static void ensure_writer_cap(JsonWriter *w, size_t needed)
 {
     if (w->error) return;
     if (w->length + needed + 1 > w->capacity) {
@@ -611,7 +595,7 @@ static void ensure_writer_cap(ScoutJsonWriter *w, size_t needed)
     }
 }
 
-void scout_json_writer_init(ScoutJsonWriter *w, char *buf, size_t cap)
+void json_writer_init(JsonWriter *w, char *buf, size_t cap)
 {
     if (!w) return;
     w->buffer = buf;
@@ -625,7 +609,7 @@ void scout_json_writer_init(ScoutJsonWriter *w, char *buf, size_t cap)
     }
 }
 
-void scout_json_writer_init_alloc(ScoutJsonWriter *w, size_t initial_cap)
+void json_writer_init_alloc(JsonWriter *w, size_t initial_cap)
 {
     if (!w) return;
     if (initial_cap < 64) initial_cap = 64;
@@ -640,7 +624,7 @@ void scout_json_writer_init_alloc(ScoutJsonWriter *w, size_t initial_cap)
     }
 }
 
-void scout_json_writer_free(ScoutJsonWriter *w)
+void json_writer_free(JsonWriter *w)
 {
     if (!w) return;
     if (w->is_dynamic && w->buffer) {
@@ -652,13 +636,13 @@ void scout_json_writer_free(ScoutJsonWriter *w)
     w->error = 0;
 }
 
-const char *scout_json_writer_get(const ScoutJsonWriter *w)
+const char *json_writer_get(const JsonWriter *w)
 {
     if (!w || !w->buffer) return "";
     return w->buffer;
 }
 
-size_t scout_json_writer_length(const ScoutJsonWriter *w)
+size_t json_writer_length(const JsonWriter *w)
 {
     return w ? w->length : 0;
 }
@@ -669,7 +653,7 @@ size_t scout_json_writer_length(const ScoutJsonWriter *w)
  * @param s The text.
  * @param len Its length.
  */
-static void append_str(ScoutJsonWriter *w, const char *s, size_t len)
+static void append_str(JsonWriter *w, const char *s, size_t len)
 {
     if (!s || len == 0 || w->error) return;
     ensure_writer_cap(w, len);
@@ -679,18 +663,18 @@ static void append_str(ScoutJsonWriter *w, const char *s, size_t len)
     w->buffer[w->length] = '\0';
 }
 
-void scout_json_write_raw(ScoutJsonWriter *w, const char *raw)
+void json_write_raw(JsonWriter *w, const char *raw)
 {
     if (!raw) return;
     append_str(w, raw, strlen(raw));
 }
 
-void scout_json_write_null(ScoutJsonWriter *w)
+void json_write_null(JsonWriter *w)
 {
     append_str(w, "null", 4);
 }
 
-void scout_json_write_bool(ScoutJsonWriter *w, int val)
+void json_write_bool(JsonWriter *w, int val)
 {
     if (val) {
         append_str(w, "true", 4);
@@ -699,17 +683,17 @@ void scout_json_write_bool(ScoutJsonWriter *w, int val)
     }
 }
 
-void scout_json_write_int(ScoutJsonWriter *w, long val)
+void json_write_int(JsonWriter *w, long val)
 {
     char tmp[32];
     snprintf(tmp, sizeof(tmp), "%ld", val);
     append_str(w, tmp, strlen(tmp));
 }
 
-void scout_json_write_string(ScoutJsonWriter *w, const char *str)
+void json_write_string(JsonWriter *w, const char *str)
 {
     if (!str) {
-        scout_json_write_null(w);
+        json_write_null(w);
         return;
     }
     append_str(w, "\"", 1);
@@ -736,134 +720,28 @@ void scout_json_write_string(ScoutJsonWriter *w, const char *str)
     append_str(w, "\"", 1);
 }
 
-void scout_json_write_obj_start(ScoutJsonWriter *w)
+void json_write_obj_start(JsonWriter *w)
 {
     append_str(w, "{", 1);
 }
 
-void scout_json_write_obj_key(ScoutJsonWriter *w, const char *key)
+void json_write_obj_key(JsonWriter *w, const char *key)
 {
-    scout_json_write_string(w, key);
+    json_write_string(w, key);
     append_str(w, ":", 1);
 }
 
-void scout_json_write_obj_end(ScoutJsonWriter *w)
+void json_write_obj_end(JsonWriter *w)
 {
     append_str(w, "}", 1);
 }
 
-void scout_json_write_arr_start(ScoutJsonWriter *w)
+void json_write_arr_start(JsonWriter *w)
 {
     append_str(w, "[", 1);
 }
 
-void scout_json_write_arr_end(ScoutJsonWriter *w)
+void json_write_arr_end(JsonWriter *w)
 {
     append_str(w, "]", 1);
-}
-
-/* JSON-RPC 2.0 Helpers */
-
-int scout_json_rpc_parse(const char *json_str, ScoutJsonRpcMessage *msg)
-{
-    if (!json_str || !msg) return 0;
-    memset(msg, 0, sizeof(ScoutJsonRpcMessage));
-
-    const char *err = NULL;
-    ScoutJsonValue *root = scout_json_parse(json_str, &err);
-    if (!root || root->type != SCOUT_JSON_OBJECT) {
-        scout_json_value_free(root);
-        return 0;
-    }
-    msg->root = root;
-
-    const char *ver = scout_json_obj_get_string(root, "jsonrpc", NULL);
-    if (!ver || strcmp(ver, "2.0") != 0) {
-        scout_json_rpc_free(msg);
-        return 0;
-    }
-
-    const ScoutJsonValue *id_val = scout_json_obj_get(root, "id");
-    if (id_val) {
-        if (id_val->type == SCOUT_JSON_NUMBER) {
-            msg->id = id_val->u.num_val.int_val;
-        } else {
-            msg->id = 0;
-        }
-        msg->is_notification = 0;
-    } else {
-        msg->id = 0;
-        msg->is_notification = 1;
-    }
-
-    const char *method = scout_json_obj_get_string(root, "method", NULL);
-    if (method) {
-        msg->is_request = 1;
-        msg->method = my_strdup(method);
-        msg->params = scout_json_obj_get(root, "params");
-    } else {
-        msg->is_request = 0;
-        msg->result = scout_json_obj_get(root, "result");
-        const ScoutJsonValue *err_obj = scout_json_obj_get(root, "error");
-        if (err_obj && err_obj->type == SCOUT_JSON_OBJECT) {
-            msg->has_error = 1;
-            msg->error_code = (int)scout_json_obj_get_int(err_obj, "code", 0);
-            const char *em = scout_json_obj_get_string(err_obj, "message", "");
-            msg->error_msg = my_strdup(em);
-        }
-    }
-
-    return 1;
-}
-
-void scout_json_rpc_free(ScoutJsonRpcMessage *msg)
-{
-    if (!msg) return;
-    if (msg->method) free(msg->method);
-    if (msg->error_msg) free(msg->error_msg);
-    if (msg->root) scout_json_value_free(msg->root);
-    memset(msg, 0, sizeof(ScoutJsonRpcMessage));
-}
-
-int scout_json_format_request(ScoutJsonWriter *w, long id, const char *method, const char *params_json)
-{
-    if (!w || !method) return 0;
-    scout_json_write_raw(w, "{\"jsonrpc\":\"2.0\",\"id\":");
-    scout_json_write_int(w, id);
-    scout_json_write_raw(w, ",\"method\":");
-    scout_json_write_string(w, method);
-    if (params_json && *params_json) {
-        scout_json_write_raw(w, ",\"params\":");
-        scout_json_write_raw(w, params_json);
-    }
-    scout_json_write_raw(w, "}");
-    return !w->error;
-}
-
-int scout_json_format_response(ScoutJsonWriter *w, long id, const char *result_json)
-{
-    if (!w) return 0;
-    scout_json_write_raw(w, "{\"jsonrpc\":\"2.0\",\"id\":");
-    scout_json_write_int(w, id);
-    scout_json_write_raw(w, ",\"result\":");
-    if (result_json && *result_json) {
-        scout_json_write_raw(w, result_json);
-    } else {
-        scout_json_write_null(w);
-    }
-    scout_json_write_raw(w, "}");
-    return !w->error;
-}
-
-int scout_json_format_error(ScoutJsonWriter *w, long id, int error_code, const char *error_msg)
-{
-    if (!w) return 0;
-    scout_json_write_raw(w, "{\"jsonrpc\":\"2.0\",\"id\":");
-    scout_json_write_int(w, id);
-    scout_json_write_raw(w, ",\"error\":{\"code\":");
-    scout_json_write_int(w, error_code);
-    scout_json_write_raw(w, ",\"message\":");
-    scout_json_write_string(w, error_msg ? error_msg : "");
-    scout_json_write_raw(w, "}}");
-    return !w->error;
 }

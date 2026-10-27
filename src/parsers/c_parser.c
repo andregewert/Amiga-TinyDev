@@ -3,7 +3,7 @@
  * @brief The C parser of Scout: symbols and diagnostics of C sources, speaking the Scout protocol over STDIN/STDOUT.
  */
 #include "c_parser.h"
-#include "scout_json.h"
+#include "scout_rpc.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -653,14 +653,14 @@ void c_completions_free(CCompletion *list)
 
 /* JSON-RPC Request Handler */
 
-int c_parser_process_jsonrpc(const char *request_json, ScoutJsonWriter *response_writer)
+int c_parser_process_jsonrpc(const char *request_json, JsonWriter *response_writer)
 {
     if (!request_json || !response_writer) return 0;
 
-    ScoutJsonRpcMessage req;
-    if (!scout_json_rpc_parse(request_json, &req) || !req.is_request) {
-        scout_json_format_error(response_writer, 0, SCOUT_JSONRPC_ERR_PARSE_ERROR, "Parse error");
-        scout_json_rpc_free(&req);
+    ScoutRpcMessage req;
+    if (!scout_rpc_parse(request_json, &req) || !req.is_request) {
+        scout_rpc_format_error(response_writer, 0, SCOUT_RPC_ERR_PARSE_ERROR, "Parse error");
+        scout_rpc_free(&req);
         return 1;
     }
 
@@ -668,15 +668,15 @@ int c_parser_process_jsonrpc(const char *request_json, ScoutJsonWriter *response
     const char *method = req.method;
 
     if (!method) {
-        scout_json_format_error(response_writer, id, SCOUT_JSONRPC_ERR_INVALID_REQUEST, "Missing method");
-        scout_json_rpc_free(&req);
+        scout_rpc_format_error(response_writer, id, SCOUT_RPC_ERR_INVALID_REQUEST, "Missing method");
+        scout_rpc_free(&req);
         return 1;
     }
 
-    const ScoutJsonValue *params = req.params;
-    const ScoutJsonValue *text_doc = scout_json_obj_get_obj(params, "textDocument");
-    const char *uri = text_doc ? scout_json_obj_get_string(text_doc, "uri", NULL) : NULL;
-    const char *text = text_doc ? scout_json_obj_get_string(text_doc, "text", NULL) : NULL;
+    const JsonValue *params = req.params;
+    const JsonValue *text_doc = json_obj_get_obj(params, "textDocument");
+    const char *uri = text_doc ? json_obj_get_string(text_doc, "uri", NULL) : NULL;
+    const char *text = text_doc ? json_obj_get_string(text_doc, "text", NULL) : NULL;
 
     CParseResult *res = NULL;
     if (text) {
@@ -688,115 +688,115 @@ int c_parser_process_jsonrpc(const char *request_json, ScoutJsonWriter *response
     }
 
     if (strcmp(method, "textDocument/documentSymbol") == 0) {
-        ScoutJsonWriter sym_writer;
-        scout_json_writer_init_alloc(&sym_writer, 256);
-        scout_json_write_arr_start(&sym_writer);
+        JsonWriter sym_writer;
+        json_writer_init_alloc(&sym_writer, 256);
+        json_write_arr_start(&sym_writer);
 
         if (res && res->symbols) {
             int first = 1;
             for (const CSymbol *s = res->symbols; s; s = s->next) {
-                if (!first) scout_json_write_raw(&sym_writer, ",");
+                if (!first) json_write_raw(&sym_writer, ",");
                 first = 0;
 
-                scout_json_write_obj_start(&sym_writer);
-                scout_json_write_obj_key(&sym_writer, "name");
-                scout_json_write_string(&sym_writer, s->name);
-                scout_json_write_raw(&sym_writer, ",");
-                scout_json_write_obj_key(&sym_writer, "kind");
-                scout_json_write_int(&sym_writer, s->kind);
-                scout_json_write_raw(&sym_writer, ",");
+                json_write_obj_start(&sym_writer);
+                json_write_obj_key(&sym_writer, "name");
+                json_write_string(&sym_writer, s->name);
+                json_write_raw(&sym_writer, ",");
+                json_write_obj_key(&sym_writer, "kind");
+                json_write_int(&sym_writer, s->kind);
+                json_write_raw(&sym_writer, ",");
 
                 if (s->detail) {
-                    scout_json_write_obj_key(&sym_writer, "detail");
-                    scout_json_write_string(&sym_writer, s->detail);
-                    scout_json_write_raw(&sym_writer, ",");
+                    json_write_obj_key(&sym_writer, "detail");
+                    json_write_string(&sym_writer, s->detail);
+                    json_write_raw(&sym_writer, ",");
                 }
 
-                scout_json_write_obj_key(&sym_writer, "range");
-                scout_json_write_obj_start(&sym_writer);
-                scout_json_write_obj_key(&sym_writer, "start");
-                scout_json_write_obj_start(&sym_writer);
-                scout_json_write_obj_key(&sym_writer, "line");
-                scout_json_write_int(&sym_writer, s->start_line - 1);
-                scout_json_write_raw(&sym_writer, ",");
-                scout_json_write_obj_key(&sym_writer, "character");
-                scout_json_write_int(&sym_writer, s->start_col - 1);
-                scout_json_write_obj_end(&sym_writer);
-                scout_json_write_raw(&sym_writer, ",");
+                json_write_obj_key(&sym_writer, "range");
+                json_write_obj_start(&sym_writer);
+                json_write_obj_key(&sym_writer, "start");
+                json_write_obj_start(&sym_writer);
+                json_write_obj_key(&sym_writer, "line");
+                json_write_int(&sym_writer, s->start_line - 1);
+                json_write_raw(&sym_writer, ",");
+                json_write_obj_key(&sym_writer, "character");
+                json_write_int(&sym_writer, s->start_col - 1);
+                json_write_obj_end(&sym_writer);
+                json_write_raw(&sym_writer, ",");
 
-                scout_json_write_obj_key(&sym_writer, "end");
-                scout_json_write_obj_start(&sym_writer);
-                scout_json_write_obj_key(&sym_writer, "line");
-                scout_json_write_int(&sym_writer, s->end_line - 1);
-                scout_json_write_raw(&sym_writer, ",");
-                scout_json_write_obj_key(&sym_writer, "character");
-                scout_json_write_int(&sym_writer, s->end_col - 1);
-                scout_json_write_obj_end(&sym_writer);
-                scout_json_write_obj_end(&sym_writer);
+                json_write_obj_key(&sym_writer, "end");
+                json_write_obj_start(&sym_writer);
+                json_write_obj_key(&sym_writer, "line");
+                json_write_int(&sym_writer, s->end_line - 1);
+                json_write_raw(&sym_writer, ",");
+                json_write_obj_key(&sym_writer, "character");
+                json_write_int(&sym_writer, s->end_col - 1);
+                json_write_obj_end(&sym_writer);
+                json_write_obj_end(&sym_writer);
 
-                scout_json_write_obj_end(&sym_writer);
+                json_write_obj_end(&sym_writer);
             }
         }
-        scout_json_write_arr_end(&sym_writer);
+        json_write_arr_end(&sym_writer);
 
-        scout_json_format_response(response_writer, id, scout_json_writer_get(&sym_writer));
-        scout_json_writer_free(&sym_writer);
+        scout_rpc_format_response(response_writer, id, json_writer_get(&sym_writer));
+        json_writer_free(&sym_writer);
     }
     else if (strcmp(method, "textDocument/publishDiagnostics") == 0 ||
              strcmp(method, "textDocument/diagnostics") == 0) {
-        ScoutJsonWriter diag_writer;
-        scout_json_writer_init_alloc(&diag_writer, 256);
-        scout_json_write_arr_start(&diag_writer);
+        JsonWriter diag_writer;
+        json_writer_init_alloc(&diag_writer, 256);
+        json_write_arr_start(&diag_writer);
 
         if (res && res->diagnostics) {
             int first = 1;
             for (const CDiagnostic *d = res->diagnostics; d; d = d->next) {
-                if (!first) scout_json_write_raw(&diag_writer, ",");
+                if (!first) json_write_raw(&diag_writer, ",");
                 first = 0;
 
-                scout_json_write_obj_start(&diag_writer);
-                scout_json_write_obj_key(&diag_writer, "message");
-                scout_json_write_string(&diag_writer, d->message);
-                scout_json_write_raw(&diag_writer, ",");
-                scout_json_write_obj_key(&diag_writer, "severity");
-                scout_json_write_int(&diag_writer, d->severity);
-                scout_json_write_raw(&diag_writer, ",");
+                json_write_obj_start(&diag_writer);
+                json_write_obj_key(&diag_writer, "message");
+                json_write_string(&diag_writer, d->message);
+                json_write_raw(&diag_writer, ",");
+                json_write_obj_key(&diag_writer, "severity");
+                json_write_int(&diag_writer, d->severity);
+                json_write_raw(&diag_writer, ",");
 
-                scout_json_write_obj_key(&diag_writer, "range");
-                scout_json_write_obj_start(&diag_writer);
-                scout_json_write_obj_key(&diag_writer, "start");
-                scout_json_write_obj_start(&diag_writer);
-                scout_json_write_obj_key(&diag_writer, "line");
-                scout_json_write_int(&diag_writer, d->line - 1);
-                scout_json_write_raw(&diag_writer, ",");
-                scout_json_write_obj_key(&diag_writer, "character");
-                scout_json_write_int(&diag_writer, d->col - 1);
-                scout_json_write_obj_end(&diag_writer);
-                scout_json_write_raw(&diag_writer, ",");
+                json_write_obj_key(&diag_writer, "range");
+                json_write_obj_start(&diag_writer);
+                json_write_obj_key(&diag_writer, "start");
+                json_write_obj_start(&diag_writer);
+                json_write_obj_key(&diag_writer, "line");
+                json_write_int(&diag_writer, d->line - 1);
+                json_write_raw(&diag_writer, ",");
+                json_write_obj_key(&diag_writer, "character");
+                json_write_int(&diag_writer, d->col - 1);
+                json_write_obj_end(&diag_writer);
+                json_write_raw(&diag_writer, ",");
 
-                scout_json_write_obj_key(&diag_writer, "end");
-                scout_json_write_obj_start(&diag_writer);
-                scout_json_write_obj_key(&diag_writer, "line");
-                scout_json_write_int(&diag_writer, d->end_line - 1);
-                scout_json_write_raw(&diag_writer, ",");
-                scout_json_write_obj_key(&diag_writer, "character");
-                scout_json_write_int(&diag_writer, d->end_col - 1);
-                scout_json_write_obj_end(&diag_writer);
-                scout_json_write_obj_end(&diag_writer);
+                json_write_obj_key(&diag_writer, "end");
+                json_write_obj_start(&diag_writer);
+                json_write_obj_key(&diag_writer, "line");
+                json_write_int(&diag_writer, d->end_line - 1);
+                json_write_raw(&diag_writer, ",");
+                json_write_obj_key(&diag_writer, "character");
+                json_write_int(&diag_writer, d->end_col - 1);
+                json_write_obj_end(&diag_writer);
+                json_write_obj_end(&diag_writer);
 
-                scout_json_write_obj_end(&diag_writer);
+                json_write_obj_end(&diag_writer);
             }
         }
-        scout_json_write_arr_end(&diag_writer);
+        json_write_arr_end(&diag_writer);
 
-        scout_json_format_response(response_writer, id, scout_json_writer_get(&diag_writer));
-        scout_json_writer_free(&diag_writer);
+        scout_rpc_format_response(response_writer, id, json_writer_get(&diag_writer));
+        json_writer_free(&diag_writer);
     }
     else if (strcmp(method, "textDocument/definition") == 0) {
-        const ScoutJsonValue *pos = scout_json_obj_get_obj(params, "position");
-        long line = pos ? scout_json_obj_get_int(pos, "line", 0) + 1 : 1;
-        long col = pos ? scout_json_obj_get_int(pos, "character", 0) + 1 : 1;
-        const char *sym_name = scout_json_obj_get_string(params, "symbol", NULL);
+        const JsonValue *pos = json_obj_get_obj(params, "position");
+        long line = pos ? json_obj_get_int(pos, "line", 0) + 1 : 1;
+        long col = pos ? json_obj_get_int(pos, "character", 0) + 1 : 1;
+        const char *sym_name = json_obj_get_string(params, "symbol", NULL);
 
         const CSymbol *target = NULL;
         if (res) {
@@ -804,83 +804,83 @@ int c_parser_process_jsonrpc(const char *request_json, ScoutJsonWriter *response
         }
 
         if (target) {
-            ScoutJsonWriter loc_writer;
-            scout_json_writer_init_alloc(&loc_writer, 128);
-            scout_json_write_obj_start(&loc_writer);
-            scout_json_write_obj_key(&loc_writer, "uri");
-            scout_json_write_string(&loc_writer, uri ? uri : "");
-            scout_json_write_raw(&loc_writer, ",");
+            JsonWriter loc_writer;
+            json_writer_init_alloc(&loc_writer, 128);
+            json_write_obj_start(&loc_writer);
+            json_write_obj_key(&loc_writer, "uri");
+            json_write_string(&loc_writer, uri ? uri : "");
+            json_write_raw(&loc_writer, ",");
 
-            scout_json_write_obj_key(&loc_writer, "range");
-            scout_json_write_obj_start(&loc_writer);
-            scout_json_write_obj_key(&loc_writer, "start");
-            scout_json_write_obj_start(&loc_writer);
-            scout_json_write_obj_key(&loc_writer, "line");
-            scout_json_write_int(&loc_writer, target->start_line - 1);
-            scout_json_write_raw(&loc_writer, ",");
-            scout_json_write_obj_key(&loc_writer, "character");
-            scout_json_write_int(&loc_writer, target->start_col - 1);
-            scout_json_write_obj_end(&loc_writer);
-            scout_json_write_raw(&loc_writer, ",");
+            json_write_obj_key(&loc_writer, "range");
+            json_write_obj_start(&loc_writer);
+            json_write_obj_key(&loc_writer, "start");
+            json_write_obj_start(&loc_writer);
+            json_write_obj_key(&loc_writer, "line");
+            json_write_int(&loc_writer, target->start_line - 1);
+            json_write_raw(&loc_writer, ",");
+            json_write_obj_key(&loc_writer, "character");
+            json_write_int(&loc_writer, target->start_col - 1);
+            json_write_obj_end(&loc_writer);
+            json_write_raw(&loc_writer, ",");
 
-            scout_json_write_obj_key(&loc_writer, "end");
-            scout_json_write_obj_start(&loc_writer);
-            scout_json_write_obj_key(&loc_writer, "line");
-            scout_json_write_int(&loc_writer, target->end_line - 1);
-            scout_json_write_raw(&loc_writer, ",");
-            scout_json_write_obj_key(&loc_writer, "character");
-            scout_json_write_int(&loc_writer, target->end_col - 1);
-            scout_json_write_obj_end(&loc_writer);
-            scout_json_write_obj_end(&loc_writer);
+            json_write_obj_key(&loc_writer, "end");
+            json_write_obj_start(&loc_writer);
+            json_write_obj_key(&loc_writer, "line");
+            json_write_int(&loc_writer, target->end_line - 1);
+            json_write_raw(&loc_writer, ",");
+            json_write_obj_key(&loc_writer, "character");
+            json_write_int(&loc_writer, target->end_col - 1);
+            json_write_obj_end(&loc_writer);
+            json_write_obj_end(&loc_writer);
 
-            scout_json_write_obj_end(&loc_writer);
-            scout_json_format_response(response_writer, id, scout_json_writer_get(&loc_writer));
-            scout_json_writer_free(&loc_writer);
+            json_write_obj_end(&loc_writer);
+            scout_rpc_format_response(response_writer, id, json_writer_get(&loc_writer));
+            json_writer_free(&loc_writer);
         } else {
-            scout_json_format_response(response_writer, id, "null");
+            scout_rpc_format_response(response_writer, id, "null");
         }
     }
     else if (strcmp(method, "textDocument/completion") == 0) {
-        const ScoutJsonValue *ctx = scout_json_obj_get_obj(params, "context");
-        const char *pfx = ctx ? scout_json_obj_get_string(ctx, "prefix", "") : "";
+        const JsonValue *ctx = json_obj_get_obj(params, "context");
+        const char *pfx = ctx ? json_obj_get_string(ctx, "prefix", "") : "";
 
         CCompletion *comp_list = NULL;
         c_parser_get_completions(res, pfx, &comp_list);
 
-        ScoutJsonWriter comp_writer;
-        scout_json_writer_init_alloc(&comp_writer, 256);
-        scout_json_write_arr_start(&comp_writer);
+        JsonWriter comp_writer;
+        json_writer_init_alloc(&comp_writer, 256);
+        json_write_arr_start(&comp_writer);
 
         int first = 1;
         for (CCompletion *c = comp_list; c; c = c->next) {
-            if (!first) scout_json_write_raw(&comp_writer, ",");
+            if (!first) json_write_raw(&comp_writer, ",");
             first = 0;
 
-            scout_json_write_obj_start(&comp_writer);
-            scout_json_write_obj_key(&comp_writer, "label");
-            scout_json_write_string(&comp_writer, c->label);
-            scout_json_write_raw(&comp_writer, ",");
-            scout_json_write_obj_key(&comp_writer, "kind");
-            scout_json_write_int(&comp_writer, c->kind);
+            json_write_obj_start(&comp_writer);
+            json_write_obj_key(&comp_writer, "label");
+            json_write_string(&comp_writer, c->label);
+            json_write_raw(&comp_writer, ",");
+            json_write_obj_key(&comp_writer, "kind");
+            json_write_int(&comp_writer, c->kind);
             if (c->detail) {
-                scout_json_write_raw(&comp_writer, ",");
-                scout_json_write_obj_key(&comp_writer, "detail");
-                scout_json_write_string(&comp_writer, c->detail);
+                json_write_raw(&comp_writer, ",");
+                json_write_obj_key(&comp_writer, "detail");
+                json_write_string(&comp_writer, c->detail);
             }
-            scout_json_write_obj_end(&comp_writer);
+            json_write_obj_end(&comp_writer);
         }
-        scout_json_write_arr_end(&comp_writer);
+        json_write_arr_end(&comp_writer);
 
-        scout_json_format_response(response_writer, id, scout_json_writer_get(&comp_writer));
-        scout_json_writer_free(&comp_writer);
+        scout_rpc_format_response(response_writer, id, json_writer_get(&comp_writer));
+        json_writer_free(&comp_writer);
         c_completions_free(comp_list);
     }
     else {
-        scout_json_format_error(response_writer, id, SCOUT_JSONRPC_ERR_METHOD_NOT_FOUND, "Method not supported");
+        scout_rpc_format_error(response_writer, id, SCOUT_RPC_ERR_METHOD_NOT_FOUND, "Method not supported");
     }
 
     if (res) c_parse_result_free(res);
-    scout_json_rpc_free(&req);
+    scout_rpc_free(&req);
     return 1;
 }
 
@@ -893,8 +893,8 @@ int c_parser_process_jsonrpc(const char *request_json, ScoutJsonWriter *response
 int main(void)
 {
     char line_buf[4096];
-    ScoutJsonWriter resp_writer;
-    scout_json_writer_init_alloc(&resp_writer, 512);
+    JsonWriter resp_writer;
+    json_writer_init_alloc(&resp_writer, 512);
 
     while (fgets(line_buf, sizeof(line_buf), stdin)) {
         /* Strip trailing newlines */
@@ -910,11 +910,11 @@ int main(void)
 
         c_parser_process_jsonrpc(line_buf, &resp_writer);
 
-        printf("%s\n", scout_json_writer_get(&resp_writer));
+        printf("%s\n", json_writer_get(&resp_writer));
         fflush(stdout);
     }
 
-    scout_json_writer_free(&resp_writer);
+    json_writer_free(&resp_writer);
     return 0;
 }
 #endif

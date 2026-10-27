@@ -52,7 +52,7 @@ below the tree's root.
   input focus back; it takes the gadget object, not its ID.
 - `src/bmstore.c`, `include/bmstore.h`: the portable store of a project's
   bookmarks: reads and writes `<project>/.tinydev/bookmarks.json` (with
-  `src/scout/scout_json.c`) and finds a bookmark's line again in a changed
+  `src/json.c`) and finds a bookmark's line again in a changed
   text by its stored line text; no Amiga headers.
 - `src/projconf.c`, `include/projconf.h`: the portable reader of a
   project's settings (`<project>/.tinydev/project.json`): the Shell
@@ -105,8 +105,12 @@ below the tree's root.
   clicks and drags).
 - `src/syntax.c`: language detection, scanners, and TextEditor highlighting hook.
 - `src/scout/`: Scout, the source analysis commodity (`TinyDev-Scout`, ARexx
-  port `TINYDEV_SCOUT`), and its JSON/JSON-RPC code. Scout talks to the parsers
-  with the Scout protocol, which is modeled on LSP but is not LSP.
+  port `TINYDEV_SCOUT`), and its JSON-RPC helpers (`scout_rpc.c`,
+  `include/scout_rpc.h`). Scout talks to the parsers with the Scout
+  protocol, which is modeled on LSP but is not LSP.
+- `src/json.c`, `include/json.h`: the portable JSON code (values, reader,
+  accessors, writer) of TinyDev, Scout and the parsers; strings stay 8-bit
+  as read (ISO-8859-1); no Amiga headers.
 - `src/helpviewer/`: HelpViewer (`bin/HelpViewer`), a small viewer for a
   directory of HTML help pages: dirtree.gadget on the left (HTML files
   only, shown by their titles, natural order, index pages only via their
@@ -134,8 +138,9 @@ below the tree's root.
 - `tests/test_projconf.c`: host-native tests of the project settings.
 - `tests/test_dirtree_sort.c`: host-native tests of dirtree.gadget's natural order.
 - `tests/test_htmltitle.c`: host-native tests of the HelpViewer's title and link helpers.
-- `tests/test_scout_json.c`, `tests/test_c_parser.c`: host-native tests for the
-  Scout JSON code and the C parser.
+- `tests/test_json.c`, `tests/test_scout_rpc.c`, `tests/test_c_parser.c`:
+  host-native tests for the JSON code, Scout's JSON-RPC helpers and the C
+  parser.
 - `amiga-devkit/`: git submodule (pinned tag) with shared Amiga tools and AI
   guidelines; see `CLAUDE.md`. Do not edit files inside the submodule.
 - `external/html_gadget/`: git submodule (tag `v1.2`), html.gadget, for

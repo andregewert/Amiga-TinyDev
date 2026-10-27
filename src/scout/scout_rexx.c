@@ -3,7 +3,7 @@
  * @brief Scout's ARexx port TINYDEV_SCOUT and its commands.
  */
 #include "scout_server.h"
-#include "scout_json.h"
+#include "json.h"
 
 #include <proto/exec.h>
 #include <proto/dos.h>
@@ -120,25 +120,25 @@ static int parse_next_arg(const char **p, char *out, size_t out_max)
  * @param sym_array The array of symbols.
  * @param w The writer.
  */
-static void format_symbols_to_rexx(const ScoutJsonValue *sym_array, ScoutJsonWriter *w)
+static void format_symbols_to_rexx(const JsonValue *sym_array, JsonWriter *w)
 {
-    if (!sym_array || sym_array->type != SCOUT_JSON_ARRAY || !w) return;
+    if (!sym_array || sym_array->type != JSON_ARRAY || !w) return;
 
-    size_t count = scout_json_array_length(sym_array);
+    size_t count = json_array_length(sym_array);
     for (size_t i = 0; i < count; i++) {
-        const ScoutJsonValue *item = scout_json_array_get(sym_array, i);
-        if (!item || item->type != SCOUT_JSON_OBJECT) continue;
+        const JsonValue *item = json_array_get(sym_array, i);
+        if (!item || item->type != JSON_OBJECT) continue;
 
-        const char *name = scout_json_obj_get_string(item, "name", "");
-        long kind = scout_json_obj_get_int(item, "kind", 0);
-        const ScoutJsonValue *range = scout_json_obj_get_obj(item, "range");
-        const ScoutJsonValue *start = range ? scout_json_obj_get_obj(range, "start") : NULL;
-        long line = start ? scout_json_obj_get_int(start, "line", 0) + 1 : 1;
-        long col = start ? scout_json_obj_get_int(start, "character", 0) + 1 : 1;
+        const char *name = json_obj_get_string(item, "name", "");
+        long kind = json_obj_get_int(item, "kind", 0);
+        const JsonValue *range = json_obj_get_obj(item, "range");
+        const JsonValue *start = range ? json_obj_get_obj(range, "start") : NULL;
+        long line = start ? json_obj_get_int(start, "line", 0) + 1 : 1;
+        long col = start ? json_obj_get_int(start, "character", 0) + 1 : 1;
 
         char buf[256];
         snprintf(buf, sizeof(buf), "%ld %ld %ld %s\n", kind, line, col, name);
-        scout_json_write_raw(w, buf);
+        json_write_raw(w, buf);
     }
 }
 
@@ -148,25 +148,25 @@ static void format_symbols_to_rexx(const ScoutJsonValue *sym_array, ScoutJsonWri
  * @param diag_array The array of diagnostics.
  * @param w The writer.
  */
-static void format_diags_to_rexx(const ScoutJsonValue *diag_array, ScoutJsonWriter *w)
+static void format_diags_to_rexx(const JsonValue *diag_array, JsonWriter *w)
 {
-    if (!diag_array || diag_array->type != SCOUT_JSON_ARRAY || !w) return;
+    if (!diag_array || diag_array->type != JSON_ARRAY || !w) return;
 
-    size_t count = scout_json_array_length(diag_array);
+    size_t count = json_array_length(diag_array);
     for (size_t i = 0; i < count; i++) {
-        const ScoutJsonValue *item = scout_json_array_get(diag_array, i);
-        if (!item || item->type != SCOUT_JSON_OBJECT) continue;
+        const JsonValue *item = json_array_get(diag_array, i);
+        if (!item || item->type != JSON_OBJECT) continue;
 
-        const char *msg = scout_json_obj_get_string(item, "message", "");
-        long sev = scout_json_obj_get_int(item, "severity", 1);
-        const ScoutJsonValue *range = scout_json_obj_get_obj(item, "range");
-        const ScoutJsonValue *start = range ? scout_json_obj_get_obj(range, "start") : NULL;
-        long line = start ? scout_json_obj_get_int(start, "line", 0) + 1 : 1;
-        long col = start ? scout_json_obj_get_int(start, "character", 0) + 1 : 1;
+        const char *msg = json_obj_get_string(item, "message", "");
+        long sev = json_obj_get_int(item, "severity", 1);
+        const JsonValue *range = json_obj_get_obj(item, "range");
+        const JsonValue *start = range ? json_obj_get_obj(range, "start") : NULL;
+        long line = start ? json_obj_get_int(start, "line", 0) + 1 : 1;
+        long col = start ? json_obj_get_int(start, "character", 0) + 1 : 1;
 
         char buf[256];
         snprintf(buf, sizeof(buf), "%ld %ld %ld %s\n", sev, line, col, msg);
-        scout_json_write_raw(w, buf);
+        json_write_raw(w, buf);
     }
 }
 
@@ -200,17 +200,17 @@ void scout_rexx_handle_msg(ScoutServer *srv)
             char params[1024];
             snprintf(params, sizeof(params), "{\"textDocument\":{\"uri\":\"file://%s\"}}", filepath);
 
-            ScoutJsonWriter sym_out, diag_out;
-            scout_json_writer_init_alloc(&sym_out, 512);
-            scout_json_writer_init_alloc(&diag_out, 512);
+            JsonWriter sym_out, diag_out;
+            json_writer_init_alloc(&sym_out, 512);
+            json_writer_init_alloc(&diag_out, 512);
 
             char *err_msg = NULL;
             int ok1 = scout_parser_run_request(srv, filepath, "textDocument/documentSymbol", params, &sym_out, &err_msg);
             if (!ok1) {
                 reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, err_msg ? err_msg : "Parser error");
                 if (err_msg) free(err_msg);
-                scout_json_writer_free(&sym_out);
-                scout_json_writer_free(&diag_out);
+                json_writer_free(&sym_out);
+                json_writer_free(&diag_out);
                 continue;
             }
 
@@ -218,30 +218,30 @@ void scout_rexx_handle_msg(ScoutServer *srv)
             if (!ok2) {
                 reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, err_msg ? err_msg : "Parser error");
                 if (err_msg) free(err_msg);
-                scout_json_writer_free(&sym_out);
-                scout_json_writer_free(&diag_out);
+                json_writer_free(&sym_out);
+                json_writer_free(&diag_out);
                 continue;
             }
 
             /* Convert JSON arrays to ARexx formatted lines */
-            ScoutJsonValue *sym_root = scout_json_parse(scout_json_writer_get(&sym_out), NULL);
-            ScoutJsonValue *diag_root = scout_json_parse(scout_json_writer_get(&diag_out), NULL);
+            JsonValue *sym_root = json_parse(json_writer_get(&sym_out), NULL);
+            JsonValue *diag_root = json_parse(json_writer_get(&diag_out), NULL);
 
-            ScoutJsonWriter sym_rexx_w, diag_rexx_w;
-            scout_json_writer_init_alloc(&sym_rexx_w, 256);
-            scout_json_writer_init_alloc(&diag_rexx_w, 256);
+            JsonWriter sym_rexx_w, diag_rexx_w;
+            json_writer_init_alloc(&sym_rexx_w, 256);
+            json_writer_init_alloc(&diag_rexx_w, 256);
 
             format_symbols_to_rexx(sym_root, &sym_rexx_w);
             format_diags_to_rexx(diag_root, &diag_rexx_w);
 
-            scout_cache_put(srv, filepath, scout_json_writer_get(&sym_rexx_w), scout_json_writer_get(&diag_rexx_w));
+            scout_cache_put(srv, filepath, json_writer_get(&sym_rexx_w), json_writer_get(&diag_rexx_w));
 
-            scout_json_writer_free(&sym_rexx_w);
-            scout_json_writer_free(&diag_rexx_w);
-            if (sym_root) scout_json_value_free(sym_root);
-            if (diag_root) scout_json_value_free(diag_root);
-            scout_json_writer_free(&sym_out);
-            scout_json_writer_free(&diag_out);
+            json_writer_free(&sym_rexx_w);
+            json_writer_free(&diag_rexx_w);
+            if (sym_root) json_value_free(sym_root);
+            if (diag_root) json_value_free(diag_root);
+            json_writer_free(&sym_out);
+            json_writer_free(&diag_out);
 
             reply_rexx(srv, rx_msg, SCOUT_RC_OK, "OK");
         }
@@ -259,24 +259,24 @@ void scout_rexx_handle_msg(ScoutServer *srv)
                 /* Run on-demand */
                 char params[1024];
                 snprintf(params, sizeof(params), "{\"textDocument\":{\"uri\":\"file://%s\"}}", filepath);
-                ScoutJsonWriter sym_out;
-                scout_json_writer_init_alloc(&sym_out, 512);
+                JsonWriter sym_out;
+                json_writer_init_alloc(&sym_out, 512);
                 char *err_msg = NULL;
                 if (scout_parser_run_request(srv, filepath, "textDocument/documentSymbol", params, &sym_out, &err_msg)) {
-                    ScoutJsonValue *sym_root = scout_json_parse(scout_json_writer_get(&sym_out), NULL);
-                    ScoutJsonWriter sym_rexx_w;
-                    scout_json_writer_init_alloc(&sym_rexx_w, 256);
+                    JsonValue *sym_root = json_parse(json_writer_get(&sym_out), NULL);
+                    JsonWriter sym_rexx_w;
+                    json_writer_init_alloc(&sym_rexx_w, 256);
                     format_symbols_to_rexx(sym_root, &sym_rexx_w);
 
-                    reply_rexx(srv, rx_msg, SCOUT_RC_OK, scout_json_writer_get(&sym_rexx_w));
+                    reply_rexx(srv, rx_msg, SCOUT_RC_OK, json_writer_get(&sym_rexx_w));
 
-                    scout_json_writer_free(&sym_rexx_w);
-                    if (sym_root) scout_json_value_free(sym_root);
+                    json_writer_free(&sym_rexx_w);
+                    if (sym_root) json_value_free(sym_root);
                 } else {
                     reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, err_msg ? err_msg : "Symbol query failed");
                     if (err_msg) free(err_msg);
                 }
-                scout_json_writer_free(&sym_out);
+                json_writer_free(&sym_out);
             }
         }
         else if (strcasecmp(command, "DIAGNOSTICS") == 0) {
@@ -292,24 +292,24 @@ void scout_rexx_handle_msg(ScoutServer *srv)
             } else {
                 char params[1024];
                 snprintf(params, sizeof(params), "{\"textDocument\":{\"uri\":\"file://%s\"}}", filepath);
-                ScoutJsonWriter diag_out;
-                scout_json_writer_init_alloc(&diag_out, 512);
+                JsonWriter diag_out;
+                json_writer_init_alloc(&diag_out, 512);
                 char *err_msg = NULL;
                 if (scout_parser_run_request(srv, filepath, "textDocument/publishDiagnostics", params, &diag_out, &err_msg)) {
-                    ScoutJsonValue *diag_root = scout_json_parse(scout_json_writer_get(&diag_out), NULL);
-                    ScoutJsonWriter diag_rexx_w;
-                    scout_json_writer_init_alloc(&diag_rexx_w, 256);
+                    JsonValue *diag_root = json_parse(json_writer_get(&diag_out), NULL);
+                    JsonWriter diag_rexx_w;
+                    json_writer_init_alloc(&diag_rexx_w, 256);
                     format_diags_to_rexx(diag_root, &diag_rexx_w);
 
-                    reply_rexx(srv, rx_msg, SCOUT_RC_OK, scout_json_writer_get(&diag_rexx_w));
+                    reply_rexx(srv, rx_msg, SCOUT_RC_OK, json_writer_get(&diag_rexx_w));
 
-                    scout_json_writer_free(&diag_rexx_w);
-                    if (diag_root) scout_json_value_free(diag_root);
+                    json_writer_free(&diag_rexx_w);
+                    if (diag_root) json_value_free(diag_root);
                 } else {
                     reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, err_msg ? err_msg : "Diagnostic query failed");
                     if (err_msg) free(err_msg);
                 }
-                scout_json_writer_free(&diag_out);
+                json_writer_free(&diag_out);
             }
         }
         else if (strcasecmp(command, "DEFINITION") == 0) {
@@ -340,18 +340,18 @@ void scout_rexx_handle_msg(ScoutServer *srv)
                          filepath, l > 0 ? l - 1 : 0, c > 0 ? c - 1 : 0);
             }
 
-            ScoutJsonWriter loc_out;
-            scout_json_writer_init_alloc(&loc_out, 256);
+            JsonWriter loc_out;
+            json_writer_init_alloc(&loc_out, 256);
             char *err_msg = NULL;
             if (scout_parser_run_request(srv, filepath, "textDocument/definition", params, &loc_out, &err_msg)) {
-                ScoutJsonValue *loc_val = scout_json_parse(scout_json_writer_get(&loc_out), NULL);
-                if (loc_val && loc_val->type == SCOUT_JSON_OBJECT) {
-                    const char *target_uri = scout_json_obj_get_string(loc_val, "uri", filepath);
+                JsonValue *loc_val = json_parse(json_writer_get(&loc_out), NULL);
+                if (loc_val && loc_val->type == JSON_OBJECT) {
+                    const char *target_uri = json_obj_get_string(loc_val, "uri", filepath);
                     if (strncmp(target_uri, "file://", 7) == 0) target_uri += 7;
-                    const ScoutJsonValue *range = scout_json_obj_get_obj(loc_val, "range");
-                    const ScoutJsonValue *start = range ? scout_json_obj_get_obj(range, "start") : NULL;
-                    long t_line = start ? scout_json_obj_get_int(start, "line", 0) + 1 : 1;
-                    long t_col = start ? scout_json_obj_get_int(start, "character", 0) + 1 : 1;
+                    const JsonValue *range = json_obj_get_obj(loc_val, "range");
+                    const JsonValue *start = range ? json_obj_get_obj(range, "start") : NULL;
+                    long t_line = start ? json_obj_get_int(start, "line", 0) + 1 : 1;
+                    long t_col = start ? json_obj_get_int(start, "character", 0) + 1 : 1;
 
                     char res_buf[512];
                     snprintf(res_buf, sizeof(res_buf), "%s %ld %ld", target_uri, t_line, t_col);
@@ -359,12 +359,12 @@ void scout_rexx_handle_msg(ScoutServer *srv)
                 } else {
                     reply_rexx(srv, rx_msg, SCOUT_RC_WARN, "Symbol definition not found");
                 }
-                if (loc_val) scout_json_value_free(loc_val);
+                if (loc_val) json_value_free(loc_val);
             } else {
                 reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, err_msg ? err_msg : "Definition query failed");
                 if (err_msg) free(err_msg);
             }
-            scout_json_writer_free(&loc_out);
+            json_writer_free(&loc_out);
         }
         else if (strcasecmp(command, "COMPLETE") == 0) {
             char filepath[512];
@@ -389,34 +389,34 @@ void scout_rexx_handle_msg(ScoutServer *srv)
                      "{\"textDocument\":{\"uri\":\"file://%s\"},\"position\":{\"line\":%ld,\"character\":%ld},\"context\":{\"prefix\":\"%s\"}}",
                      filepath, l > 0 ? l - 1 : 0, c > 0 ? c - 1 : 0, pfx);
 
-            ScoutJsonWriter comp_out;
-            scout_json_writer_init_alloc(&comp_out, 512);
+            JsonWriter comp_out;
+            json_writer_init_alloc(&comp_out, 512);
             char *err_msg = NULL;
             if (scout_parser_run_request(srv, filepath, "textDocument/completion", params, &comp_out, &err_msg)) {
-                ScoutJsonValue *comp_val = scout_json_parse(scout_json_writer_get(&comp_out), NULL);
-                if (comp_val && comp_val->type == SCOUT_JSON_ARRAY) {
-                    ScoutJsonWriter list_w;
-                    scout_json_writer_init_alloc(&list_w, 256);
-                    size_t count = scout_json_array_length(comp_val);
+                JsonValue *comp_val = json_parse(json_writer_get(&comp_out), NULL);
+                if (comp_val && comp_val->type == JSON_ARRAY) {
+                    JsonWriter list_w;
+                    json_writer_init_alloc(&list_w, 256);
+                    size_t count = json_array_length(comp_val);
                     for (size_t i = 0; i < count; i++) {
-                        const ScoutJsonValue *item = scout_json_array_get(comp_val, i);
-                        const char *label = item ? scout_json_obj_get_string(item, "label", "") : "";
+                        const JsonValue *item = json_array_get(comp_val, i);
+                        const char *label = item ? json_obj_get_string(item, "label", "") : "";
                         if (*label) {
-                            if (i > 0) scout_json_write_raw(&list_w, " ");
-                            scout_json_write_raw(&list_w, label);
+                            if (i > 0) json_write_raw(&list_w, " ");
+                            json_write_raw(&list_w, label);
                         }
                     }
-                    reply_rexx(srv, rx_msg, SCOUT_RC_OK, scout_json_writer_get(&list_w));
-                    scout_json_writer_free(&list_w);
+                    reply_rexx(srv, rx_msg, SCOUT_RC_OK, json_writer_get(&list_w));
+                    json_writer_free(&list_w);
                 } else {
                     reply_rexx(srv, rx_msg, SCOUT_RC_OK, "");
                 }
-                if (comp_val) scout_json_value_free(comp_val);
+                if (comp_val) json_value_free(comp_val);
             } else {
                 reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, err_msg ? err_msg : "Completion query failed");
                 if (err_msg) free(err_msg);
             }
-            scout_json_writer_free(&comp_out);
+            json_writer_free(&comp_out);
         }
         else if (strcasecmp(command, "REGISTER_PARSER") == 0) {
             char ext[32];
