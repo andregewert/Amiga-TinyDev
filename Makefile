@@ -88,7 +88,7 @@ REGEX_HEADERS := $(REGEX_GEN)/regex.h $(REGEX_GEN)/regcomp.ih $(REGEX_GEN)/engin
 REGEX_CFLAGS := -DPOSIX_MISTAKE -I$(REGEX_GEN) -I$(REGEX_DIR) -w
 REGEX_OBJECTS := $(foreach n,$(REGEX_NAMES),$(REGEX_GEN)/$(n).o)
 REGEX_HOST_OBJECTS := $(foreach n,$(REGEX_NAMES),$(REGEX_GEN)/host/$(n).o)
-LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h src/helpviewer/*.h src/helpviewer/catalogs/* sfd/*.sfd tests/*.c scripts/* tests-host/* catalogs/* package/*.readme $(HELP_SOURCES) examples/*/*.c examples/*/Makefile examples/*/*.txt examples/*/.tinydev/*.json LICENSE Makefile)
+LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h src/helpviewer/*.h src/helpviewer/catalogs/* sfd/*.sfd tests/*.c scripts/* tests-host/* catalogs/* package/*.readme $(HELP_SOURCES) examples/*/*.c examples/*/Makefile examples/*/*.txt examples/*/.tinydev/*.json tests/data/*/* LICENSE Makefile)
 
 # Translations: catalogs/TinyDev.cd holds the built-in English strings,
 # catalogs/<language>.ct the translations. include/tinydev_strings.h is in
@@ -182,9 +182,9 @@ $(SCOUT_TARGET): $(SCOUT_OBJECTS)
 
 # Compiled and linked in one step, so without -MMD (the .d file would land
 # in bin/); the prerequisites name the headers.
-$(PARSER_C_TARGET): src/parsers/c_parser.c src/scout/scout_rpc.c src/json.c include/c_parser.h include/scout_rpc.h include/json.h
+$(PARSER_C_TARGET): src/parsers/c_parser.c src/parsers/c_parser_rpc.c src/scout/scout_rpc.c src/json.c include/c_parser.h include/scout_protocol.h include/scout_rpc.h include/json.h
 	@mkdir -p $(BIN_DIR)/parsers
-	$(TARGET_CC) $(CPPFLAGS) $(filter-out -MMD -MP,$(CFLAGS)) $(LDFLAGS) -o $@ src/parsers/c_parser.c src/scout/scout_rpc.c src/json.c
+	$(TARGET_CC) $(CPPFLAGS) $(filter-out -MMD -MP,$(CFLAGS)) $(LDFLAGS) -Wl,-u,___stkinit -o $@ src/parsers/c_parser.c src/parsers/c_parser_rpc.c src/scout/scout_rpc.c src/json.c
 
 $(BUILD_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)
@@ -233,9 +233,9 @@ $(BUILD_DIR)/test_scout_rpc: src/scout/scout_rpc.c src/json.c tests/test_scout_r
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/scout/scout_rpc.c src/json.c tests/test_scout_rpc.c
 
-$(BUILD_DIR)/test_c_parser: src/parsers/c_parser.c src/scout/scout_rpc.c src/json.c tests/test_c_parser.c include/c_parser.h include/scout_rpc.h include/json.h
+$(BUILD_DIR)/test_c_parser: src/parsers/c_parser.c src/parsers/c_parser_rpc.c src/scout/scout_rpc.c src/json.c tests/test_c_parser.c include/c_parser.h include/scout_protocol.h include/scout_rpc.h include/json.h $(wildcard tests/data/c_parser/*)
 	@mkdir -p $(BUILD_DIR)
-	$(HOST_CC) -Iinclude -DC_PARSER_NO_MAIN -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/parsers/c_parser.c src/scout/scout_rpc.c src/json.c tests/test_c_parser.c
+	$(HOST_CC) -Iinclude -DC_PARSER_NO_MAIN -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/parsers/c_parser.c src/parsers/c_parser_rpc.c src/scout/scout_rpc.c src/json.c tests/test_c_parser.c
 
 # Sample icons of every style (icons/<Style>/*.info) and icons/preview.png,
 # drawn by tools/mkicons.py with amiga-devkit/tools/amigaicons.py.

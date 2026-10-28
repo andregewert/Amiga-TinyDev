@@ -5,8 +5,8 @@ anyone who writes a parser: it describes everything a parser has to know,
 and a parser needs nothing else from Scout or from an editor. What Scout
 does with the results is described in [Scout.md](Scout.md).
 
-> **Status: draft.** The C parser in `src/parsers/` still speaks an
-> earlier form (`textDocument/*` methods, one method per run).
+> **Status: draft.** The C parser (`src/parsers/c_parser.c`) speaks
+> version 1; Scout itself does not yet (see [Scout.md](Scout.md)).
 
 ## Contents
 

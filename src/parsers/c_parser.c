@@ -1,556 +1,238 @@
 /**
  * @file c_parser.c
- * @brief The C parser of Scout: symbols and diagnostics of C sources, speaking the Scout protocol over STDIN/STDOUT.
+ * @brief The analysis of the C parser of Scout: lexer, preprocessor
+ *        lines, declarations and highlighting tokens of one C source.
+ *
+ * The analysis runs in passes over the whole text:
+ * 1. the lexer splits it into tokens (comments dropped) and marks the
+ *    tokens of preprocessor lines;
+ * 2. the directives give macros, includes and the \#if nesting; tokens in
+ *    \#elif and \#else branches are left out of the code, so a function
+ *    written twice for two compilers is read once;
+ * 3. the brackets of the code are matched (unbalanced ones are
+ *    diagnostics);
+ * 4. a heuristic declaration parser walks the code: file scope, struct
+ *    and enum bodies, parameters, and the statements of function bodies
+ *    (local declarations, labels);
+ * 5. every identifier is classified for highlighting: by its declaration,
+ *    by what precedes it ("." or "->", "struct", "goto"), by the locals of
+ *    the function it is in, by the symbols of the file, or as a call.
+ *
+ * Without the included headers the parser cannot know library types, so
+ * it takes "name name" and "name *name" at the start of a statement for a
+ * declaration with a type name.
  */
 #include "c_parser.h"
-#include "scout_rpc.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
 
-/**
- * @brief Copy a string with malloc().
- * @param s The string (may be NULL).
- * @return The copy, or NULL.
- */
-static char *c_strdup(const char *s)
-{
-    if (!s) return NULL;
-    size_t len = strlen(s);
-    char *copy = (char *)malloc(len + 1);
-    if (copy) {
-        memcpy(copy, s, len + 1);
-    }
-    return copy;
-}
+int (*c_parser_should_stop)(void) = NULL;
 
-/**
- * @brief Turn a "file://" URI into a path (other strings are copied).
- * @param uri The URI or path.
- * @return The path (free() it), or NULL.
- */
-static char *clean_uri_to_path(const char *uri)
-{
-    if (!uri) return NULL;
-    if (strncmp(uri, "file://", 7) == 0) {
-        return c_strdup(uri + 7);
-    }
-    return c_strdup(uri);
-}
+const char *const c_parser_keywords[] = {
+    "auto", "break", "case", "const", "continue", "default", "do", "else",
+    "enum", "extern", "for", "goto", "if", "inline", "register", "restrict",
+    "return", "sizeof", "static", "struct", "switch", "typedef", "union",
+    "volatile", "while", "_Alignas", "_Alignof", "_Atomic", "_Generic",
+    "_Noreturn", "_Static_assert", "_Thread_local",
+    NULL
+};
 
-/**
- * @brief Append a symbol to a parse result.
- * @param res The result.
- * @param name Its name (copied).
- * @param detail Further information (copied, may be NULL).
- * @param kind SCOUT_SYMBOL_KIND_ value.
- * @param s_line First line, 1-based.
- * @param s_col First column, 1-based.
- * @param e_line Last line, 1-based.
- * @param e_col Column after the end, 1-based.
- */
-static void add_symbol(CParseResult *res, const char *name, const char *detail,
-                       int kind, long s_line, long s_col, long e_line, long e_col)
-{
-    if (!res || !name || !*name) return;
+const char *const c_parser_types[] = {
+    "void", "char", "short", "int", "long", "float", "double", "signed",
+    "unsigned", "_Bool", "_Complex", "_Imaginary",
+    NULL
+};
 
-    CSymbol *sym = (CSymbol *)malloc(sizeof(CSymbol));
-    if (!sym) return;
-
-    sym->name = c_strdup(name);
-    sym->detail = detail ? c_strdup(detail) : NULL;
-    sym->kind = kind;
-    sym->start_line = s_line;
-    sym->start_col = s_col;
-    sym->end_line = e_line >= s_line ? e_line : s_line;
-    sym->end_col = e_col;
-    sym->next = NULL;
-
-    if (!res->symbols) {
-        res->symbols = sym;
-    } else {
-        CSymbol *cur = res->symbols;
-        while (cur->next) cur = cur->next;
-        cur->next = sym;
-    }
-    res->symbol_count++;
-}
-
-/**
- * @brief Append a diagnostic to a parse result.
- * @param res The result.
- * @param msg The message (copied).
- * @param severity SCOUT_DIAGNOSTIC_ value.
- * @param s_line First line, 1-based.
- * @param s_col First column, 1-based.
- * @param e_line Last line, 1-based.
- * @param e_col Column after the end, 1-based.
- */
-static void add_diagnostic(CParseResult *res, const char *msg, int severity,
-                           long s_line, long s_col, long e_line, long e_col)
-{
-    if (!res || !msg) return;
-
-    CDiagnostic *diag = (CDiagnostic *)malloc(sizeof(CDiagnostic));
-    if (!diag) return;
-
-    diag->message = c_strdup(msg);
-    diag->severity = severity;
-    diag->line = s_line;
-    diag->col = s_col;
-    diag->end_line = e_line >= s_line ? e_line : s_line;
-    diag->end_col = e_col >= s_col ? e_col : s_col + 1;
-    diag->next = NULL;
-
-    if (!res->diagnostics) {
-        res->diagnostics = diag;
-    } else {
-        CDiagnostic *cur = res->diagnostics;
-        while (cur->next) cur = cur->next;
-        cur->next = diag;
-    }
-    res->diagnostic_count++;
-}
-
-/**
- * The C keywords (and NULL, TRUE, FALSE) offered as completions; ends with NULL.
- */
-static const char *C_KEYWORDS[] = {
-    "auto", "break", "case", "char", "const", "continue", "default", "do",
-    "double", "else", "enum", "extern", "float", "for", "goto", "if",
-    "inline", "int", "long", "register", "restrict", "return", "short",
-    "signed", "sizeof", "static", "struct", "switch", "typedef", "union",
-    "unsigned", "void", "volatile", "while", "_Bool", "_Complex", "_Imaginary",
+const char *const c_parser_constants[] = {
     "NULL", "TRUE", "FALSE", "true", "false",
     NULL
 };
 
 /**
- * @brief Tell whether a name is a C keyword (C_KEYWORDS).
- * @param name The name.
- * @return Non-zero for a keyword.
+ * Words that may stand among the specifiers and declarators without being
+ * names: qualifiers, storage classes and compiler extensions (SAS/C, vbcc,
+ * gcc). Ends with NULL.
  */
-static int is_c_keyword(const char *name)
+static const char *const QUALIFIERS[] = {
+    "const", "volatile", "restrict", "register", "auto", "inline",
+    "__inline", "__inline__", "__const", "__volatile__", "__restrict",
+    "__chip", "__far", "__near", "__saveds", "__stdargs", "__regargs",
+    "__interrupt", "__aligned", "__extension__", "_Noreturn",
+    "_Thread_local", "_Atomic",
+    NULL
+};
+
+/** Extension words followed by a parenthesised argument. Ends with NULL. */
+static const char *const ATTRIBUTES[] = {
+    "__attribute__", "__attribute", "__declspec", "__reg", "__asm",
+    "__asm__", "_Alignas",
+    NULL
+};
+
+/** @name Token types */
+/** @{ */
+#define TK_IDENT    1   /**< identifier or keyword */
+#define TK_NUMBER   2   /**< number */
+#define TK_STRING   3   /**< string literal */
+#define TK_CHAR     4   /**< character literal */
+#define TK_PUNCT    5   /**< operator or punctuation */
+/** @} */
+
+/** @name Token flags */
+/** @{ */
+#define TF_PP       1   /**< part of a preprocessor line */
+#define TF_SKIP     2   /**< in an \#elif or \#else branch */
+#define TF_HASH     4   /**< the '#' that starts a directive */
+/** @} */
+
+/** @name Contexts of declarations */
+/** @{ */
+#define CTX_FILE    0   /**< file scope */
+#define CTX_STRUCT  1   /**< members of a struct or union */
+#define CTX_BLOCK   2   /**< statements of a function body */
+/** @} */
+
+/** Longest text of CSymbol::detail (longer ones end with "..."). */
+#define DETAIL_MAX  160
+
+/** Deepest \#if nesting followed. */
+#define COND_MAX    64
+
+/** A token: a piece of the source. */
+typedef struct CTok {
+    const char *s;          /**< its first character in the source */
+    long len;               /**< its length */
+    long line;              /**< its line */
+    long col;               /**< its column */
+    unsigned char type;     /**< TK_ value */
+    unsigned char flags;    /**< TF_ flags */
+} CTok;
+
+/** The tokens of a function definition, for the lookup of its locals. */
+typedef struct FuncRange {
+    long sym;               /**< the function's symbol */
+    long first_local;       /**< first symbol after its parameters */
+    long last;              /**< symbol after its last local */
+    long tok_first;         /**< first token (the parameter list's '(') */
+    long tok_last;          /**< last token (the body's '}') */
+} FuncRange;
+
+/** The state of one analysis. */
+typedef struct Parser {
+    const char *src;        /**< the source */
+    const char *end;        /**< its end */
+    int is_header;          /**< it is a header */
+    CParseResult *res;      /**< the result being built */
+    CTok *tok;              /**< all tokens */
+    long ntok;              /**< number of tokens */
+    long tokcap;            /**< size of tok */
+    long *code;             /**< indices in tok of the code's tokens (no preprocessor lines, no skipped branches) */
+    long ncode;             /**< number of them */
+    long *match;            /**< per code token: code index of the matching bracket, -1 */
+    unsigned char *mark;    /**< per token: SCOUT_TOKEN_ kind given by its declaration, 0 */
+    FuncRange *funcs;       /**< the function definitions, in source order */
+    long nfuncs;            /**< number of them */
+    long funccap;           /**< size of funcs */
+    long symcap;            /**< size of CParseResult::symbols */
+    long diagcap;           /**< size of CParseResult::diagnostics */
+    long refcap;            /**< size of CParseResult::references */
+    long tokvalcap;         /**< size of CParseResult::tokens (values) */
+    unsigned long steps;    /**< counter for c_parser_should_stop() */
+} Parser;
+
+/** Text being joined from tokens, at most DETAIL_MAX characters. */
+typedef struct TextBuf {
+    char buf[DETAIL_MAX + 4];   /**< the text */
+    size_t len;                 /**< its length */
+    int full;                   /**< it was cut */
+} TextBuf;
+
+/**
+ * @brief Tell whether a character may start an identifier.
+ * @param c The character.
+ * @return Non-zero if it may.
+ */
+static int is_ident_start(unsigned char c)
 {
-    if (!name) return 0;
-    for (size_t i = 0; C_KEYWORDS[i]; i++) {
-        if (strcmp(C_KEYWORDS[i], name) == 0) return 1;
-    }
-    return 0;
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
 }
 
 /**
- * An open bracket on the stack used to find unbalanced brackets.
+ * @brief Tell whether a character is a decimal digit.
+ * @param c The character.
+ * @return Non-zero if it is.
  */
-typedef struct BracketFrame {
-    char ch;        /**< the bracket: '(', '[' or '{' */
-    long line;      /**< its line, 1-based */
-    long col;       /**< its column, 1-based */
-} BracketFrame;
-
-CParseResult *c_parser_analyze(const char *source, const char *uri)
+static int is_digit(unsigned char c)
 {
-    if (!source) return NULL;
-
-    CParseResult *res = (CParseResult *)calloc(1, sizeof(CParseResult));
-    if (!res) return NULL;
-
-    res->uri = c_strdup(uri ? uri : "file://unknown.c");
-    res->filepath = clean_uri_to_path(res->uri);
-
-    BracketFrame bracket_stack[512];
-    size_t bracket_sp = 0;
-
-    const char *p = source;
-    long line = 1;
-    long col = 1;
-
-    char token[256];
-    size_t tok_len = 0;
-
-    char prev_token[256];
-    prev_token[0] = '\0';
-
-    char prev_prev_token[256];
-    prev_prev_token[0] = '\0';
-
-    int in_typedef = 0;
-    int paren_depth = 0;
-    int brace_depth = 0;
-
-    while (*p) {
-        /* Line and column tracking */
-        if (*p == '\n') {
-            line++;
-            col = 1;
-            p++;
-            continue;
-        }
-        if (*p == '\r') {
-            p++;
-            if (*p == '\n') p++;
-            line++;
-            col = 1;
-            continue;
-        }
-
-        /* Whitespace */
-        if ((unsigned char)*p <= ' ' || *p == '\t') {
-            col++;
-            p++;
-            continue;
-        }
-
-        /* Comments */
-        if (*p == '/' && *(p + 1) == '/') {
-            /* Line comment */
-            p += 2;
-            col += 2;
-            while (*p && *p != '\n' && *p != '\r') {
-                p++;
-                col++;
-            }
-            continue;
-        }
-
-        if (*p == '/' && *(p + 1) == '*') {
-            /* Block comment */
-            long s_line = line;
-            long s_col = col;
-            p += 2;
-            col += 2;
-            int closed = 0;
-            while (*p) {
-                if (*p == '*' && *(p + 1) == '/') {
-                    p += 2;
-                    col += 2;
-                    closed = 1;
-                    break;
-                }
-                if (*p == '\n') {
-                    line++;
-                    col = 1;
-                    p++;
-                } else if (*p == '\r') {
-                    p++;
-                    if (*p == '\n') p++;
-                    line++;
-                    col = 1;
-                } else {
-                    p++;
-                    col++;
-                }
-            }
-            if (!closed) {
-                add_diagnostic(res, "Unclosed block comment", SCOUT_DIAGNOSTIC_ERROR,
-                               s_line, s_col, line, col);
-            }
-            continue;
-        }
-
-        /* Preprocessor Directives */
-        if (*p == '#' && col == 1) {
-            long s_line = line;
-            p++;
-            col++;
-            while (*p && (*p == ' ' || *p == '\t')) { p++; col++; }
-
-            char dir[64];
-            size_t dlen = 0;
-            while (*p && isalpha((unsigned char)*p) && dlen < sizeof(dir) - 1) {
-                dir[dlen++] = *p++;
-                col++;
-            }
-            dir[dlen] = '\0';
-
-            if (strcmp(dir, "define") == 0) {
-                while (*p && (*p == ' ' || *p == '\t')) { p++; col++; }
-                char macro_name[128];
-                size_t mlen = 0;
-                long m_col = col;
-                while (*p && (isalnum((unsigned char)*p) || *p == '_') && mlen < sizeof(macro_name) - 1) {
-                    macro_name[mlen++] = *p++;
-                    col++;
-                }
-                macro_name[mlen] = '\0';
-
-                if (mlen > 0) {
-                    add_symbol(res, macro_name, "macro", SCOUT_SYMBOL_KIND_CONSTANT,
-                               s_line, m_col, s_line, col);
-                }
-            }
-
-            /* Consume rest of preprocessor line */
-            while (*p && *p != '\n' && *p != '\r') {
-                if (*p == '\\') {
-                    p++; col++;
-                    if (*p == '\r') { p++; }
-                    if (*p == '\n') { p++; line++; col = 1; }
-                } else {
-                    p++; col++;
-                }
-            }
-            continue;
-        }
-
-        /* String literals */
-        if (*p == '"') {
-            long s_line = line;
-            long s_col = col;
-            p++; col++;
-            int closed = 0;
-            while (*p && *p != '\n' && *p != '\r') {
-                if (*p == '"') {
-                    p++; col++;
-                    closed = 1;
-                    break;
-                }
-                if (*p == '\\') {
-                    p++; col++;
-                    if (*p) { p++; col++; }
-                } else {
-                    p++; col++;
-                }
-            }
-            if (!closed) {
-                add_diagnostic(res, "Unterminated string literal", SCOUT_DIAGNOSTIC_ERROR,
-                               s_line, s_col, line, col);
-            }
-            continue;
-        }
-
-        /* Char literals */
-        if (*p == '\'') {
-            long s_line = line;
-            long s_col = col;
-            p++; col++;
-            int closed = 0;
-            while (*p && *p != '\n' && *p != '\r') {
-                if (*p == '\'') {
-                    p++; col++;
-                    closed = 1;
-                    break;
-                }
-                if (*p == '\\') {
-                    p++; col++;
-                    if (*p) { p++; col++; }
-                } else {
-                    p++; col++;
-                }
-            }
-            if (!closed) {
-                add_diagnostic(res, "Unterminated character literal", SCOUT_DIAGNOSTIC_ERROR,
-                               s_line, s_col, line, col);
-            }
-            continue;
-        }
-
-        /* Brackets tracking */
-        if (*p == '{' || *p == '(' || *p == '[') {
-            if (bracket_sp < sizeof(bracket_stack) / sizeof(bracket_stack[0])) {
-                bracket_stack[bracket_sp].ch = *p;
-                bracket_stack[bracket_sp].line = line;
-                bracket_stack[bracket_sp].col = col;
-                bracket_sp++;
-            }
-            if (*p == '{') brace_depth++;
-            if (*p == '(') paren_depth++;
-            p++; col++;
-            continue;
-        }
-
-        if (*p == '}' || *p == ')' || *p == ']') {
-            char expected = (*p == '}') ? '{' : (*p == ')') ? '(' : '[';
-            if (bracket_sp > 0 && bracket_stack[bracket_sp - 1].ch == expected) {
-                bracket_sp--;
-            } else {
-                char err_buf[64];
-                snprintf(err_buf, sizeof(err_buf), "Mismatched bracket '%c'", *p);
-                add_diagnostic(res, err_buf, SCOUT_DIAGNOSTIC_ERROR, line, col, line, col + 1);
-            }
-            if (*p == '}' && brace_depth > 0) brace_depth--;
-            if (*p == ')' && paren_depth > 0) paren_depth--;
-            p++; col++;
-            continue;
-        }
-
-        /* Identifiers & Keywords */
-        if (isalpha((unsigned char)*p) || *p == '_') {
-            long tok_s_line = line;
-            long tok_s_col = col;
-            tok_len = 0;
-            while (*p && (isalnum((unsigned char)*p) || *p == '_')) {
-                if (tok_len < sizeof(token) - 1) {
-                    token[tok_len++] = *p;
-                }
-                p++; col++;
-            }
-            token[tok_len] = '\0';
-
-            /* Skip whitespace after token */
-            const char *look = p;
-            while (*look && ((unsigned char)*look <= ' ' || *look == '\t' || *look == '\r' || *look == '\n')) {
-                look++;
-            }
-
-            /* Struct / Union / Enum tag */
-            if (strcmp(prev_token, "struct") == 0 || strcmp(prev_token, "union") == 0 || strcmp(prev_token, "enum") == 0) {
-                if (!is_c_keyword(token) && (!in_typedef || *look == '{')) {
-                    int kind = (strcmp(prev_token, "enum") == 0) ? SCOUT_SYMBOL_KIND_ENUM : SCOUT_SYMBOL_KIND_STRUCT;
-                    add_symbol(res, token, prev_token, kind,
-                               tok_s_line, tok_s_col, tok_s_line, tok_s_col + (long)tok_len);
-                }
-            }
-            /* Function declaration or definition */
-            else if (*look == '(' && brace_depth == 0) {
-                if (!is_c_keyword(token)) {
-                    /* Find matching closing parenthesis */
-                    const char *p_scan = look + 1;
-                    int depth = 1;
-                    long f_end_line = line;
-                    while (*p_scan && depth > 0) {
-                        if (*p_scan == '\n') f_end_line++;
-                        if (*p_scan == '(') depth++;
-                        else if (*p_scan == ')') depth--;
-                        p_scan++;
-                    }
-                    /* Check if function has a body { ... } */
-                    while (*p_scan && ((unsigned char)*p_scan <= ' ' || *p_scan == '\t' || *p_scan == '\r' || *p_scan == '\n')) {
-                        if (*p_scan == '\n') f_end_line++;
-                        p_scan++;
-                    }
-                    if (*p_scan == '{') {
-                        depth = 1;
-                        p_scan++;
-                        while (*p_scan && depth > 0) {
-                            if (*p_scan == '\n') f_end_line++;
-                            if (*p_scan == '{') depth++;
-                            else if (*p_scan == '}') depth--;
-                            p_scan++;
-                        }
-                    }
-                    add_symbol(res, token, "function", SCOUT_SYMBOL_KIND_FUNCTION,
-                               tok_s_line, tok_s_col, f_end_line, col);
-                }
-            }
-            /* Typedef alias */
-            else if (in_typedef && (*look == ';' || *look == ',')) {
-                if (!is_c_keyword(token)) {
-                    add_symbol(res, token, "typedef", SCOUT_SYMBOL_KIND_STRUCT,
-                               tok_s_line, tok_s_col, tok_s_line, tok_s_col + (long)tok_len);
-                }
-            }
-
-            if (strcmp(token, "typedef") == 0) {
-                in_typedef = 1;
-            }
-
-            memcpy(prev_prev_token, prev_token, sizeof(prev_token));
-            memcpy(prev_token, token, sizeof(token));
-            prev_prev_token[sizeof(prev_prev_token) - 1] = '\0';
-            prev_token[sizeof(prev_token) - 1] = '\0';
-            continue;
-        }
-
-        /* Statement separators */
-        if (*p == ';') {
-            in_typedef = 0;
-            prev_token[0] = '\0';
-            prev_prev_token[0] = '\0';
-        }
-
-        p++;
-        col++;
-    }
-
-    /* Check for unclosed brackets remaining on stack */
-    while (bracket_sp > 0) {
-        bracket_sp--;
-        char err_buf[64];
-        snprintf(err_buf, sizeof(err_buf), "Unclosed bracket '%c'", bracket_stack[bracket_sp].ch);
-        add_diagnostic(res, err_buf, SCOUT_DIAGNOSTIC_ERROR,
-                       bracket_stack[bracket_sp].line, bracket_stack[bracket_sp].col,
-                       line, col);
-    }
-
-    return res;
+    return c >= '0' && c <= '9';
 }
 
-CParseResult *c_parser_analyze_file(const char *filepath)
+/**
+ * @brief Tell whether a character may be part of an identifier.
+ * @param c The character.
+ * @return Non-zero if it may.
+ */
+static int is_ident_part(unsigned char c)
 {
-    if (!filepath) return NULL;
-    FILE *f = fopen(filepath, "rb");
-    if (!f) return NULL;
-
-    fseek(f, 0, SEEK_END);
-    long sz = ftell(f);
-    fseek(f, 0, SEEK_SET);
-
-    if (sz < 0) {
-        fclose(f);
-        return NULL;
-    }
-
-    char *buf = (char *)malloc((size_t)sz + 1);
-    if (!buf) {
-        fclose(f);
-        return NULL;
-    }
-
-    size_t read_bytes = fread(buf, 1, (size_t)sz, f);
-    buf[read_bytes] = '\0';
-    fclose(f);
-
-    char uri_buf[1024];
-    snprintf(uri_buf, sizeof(uri_buf), "file://%s", filepath);
-
-    CParseResult *res = c_parser_analyze(buf, uri_buf);
-    free(buf);
-    return res;
+    return is_ident_start(c) || is_digit(c);
 }
 
-void c_parse_result_free(CParseResult *res)
+/**
+ * @brief Copy a piece of text into an allocated, terminated string.
+ * @param s The text.
+ * @param len Its length.
+ * @return The copy, or NULL if out of memory.
+ */
+static char *dup_text(const char *s, size_t len)
 {
-    if (!res) return;
-
-    if (res->uri) free(res->uri);
-    if (res->filepath) free(res->filepath);
-
-    CSymbol *sym = res->symbols;
-    while (sym) {
-        CSymbol *next = sym->next;
-        if (sym->name) free(sym->name);
-        if (sym->detail) free(sym->detail);
-        free(sym);
-        sym = next;
+    char *copy = (char *)malloc(len + 1);
+    if (copy) {
+        memcpy(copy, s, len);
+        copy[len] = '\0';
     }
-
-    CDiagnostic *diag = res->diagnostics;
-    while (diag) {
-        CDiagnostic *next = diag->next;
-        if (diag->message) free(diag->message);
-        free(diag);
-        diag = next;
-    }
-
-    free(res);
+    return copy;
 }
 
-int c_parser_find_definition(const CParseResult *res, const char *symbol_name,
-                             long line, long col, const CSymbol **out_sym)
+/**
+ * @brief Ask c_parser_should_stop() now and then.
+ * @param P The parser.
+ * @return Non-zero if the analysis is to stop (or has stopped).
+ */
+static int check_stop(Parser *P)
 {
-    (void)line;
-    (void)col;
-    if (!res || !out_sym) return 0;
-    *out_sym = NULL;
+    if ((++P->steps & 1023) == 0 && c_parser_should_stop && c_parser_should_stop()) {
+        P->res->stopped = 1;
+    }
+    return P->res->stopped || P->res->out_of_memory;
+}
 
-    if (!symbol_name || !*symbol_name) return 0;
+/**
+ * @brief Tell whether a token is a given word or punctuation.
+ * @param t The token.
+ * @param type TK_IDENT or TK_PUNCT.
+ * @param text The text.
+ * @return Non-zero if it is.
+ */
+static int tok_is(const CTok *t, int type, const char *text)
+{
+    size_t n = strlen(text);
+    return t->type == type && (size_t)t->len == n && memcmp(t->s, text, n) == 0;
+}
 
-    for (const CSymbol *s = res->symbols; s; s = s->next) {
-        if (s->name && strcmp(s->name, symbol_name) == 0) {
-            *out_sym = s;
+/**
+ * @brief Tell whether a token is one of a list of words.
+ * @param t The token.
+ * @param list The words, ended by NULL.
+ * @return Non-zero if it is.
+ */
+static int tok_in(const CTok *t, const char *const *list)
+{
+    size_t i;
+    if (t->type != TK_IDENT) return 0;
+    for (i = 0; list[i]; i++) {
+        if (list[i][0] == t->s[0] && strlen(list[i]) == (size_t)t->len &&
+            memcmp(list[i], t->s, (size_t)t->len) == 0) {
             return 1;
         }
     }
@@ -558,363 +240,1424 @@ int c_parser_find_definition(const CParseResult *res, const char *symbol_name,
 }
 
 /**
- * @brief Tell whether a string starts with a prefix, ignoring case.
- * @param str The string.
- * @param pfx The prefix (NULL or empty: always).
- * @return Non-zero if it does.
+ * @brief Tell whether a token is a word of the language (keyword, type
+ *        keyword or constant), so that it cannot be a name.
+ * @param t The token.
+ * @return Non-zero if it is.
  */
-static int str_case_prefix(const char *str, const char *pfx)
+static int tok_reserved(const CTok *t)
 {
-    if (!pfx || !*pfx) return 1;
-    if (!str) return 0;
-    while (*pfx) {
-        if (tolower((unsigned char)*str) != tolower((unsigned char)*pfx)) {
-            return 0;
+    return tok_in(t, c_parser_keywords) || tok_in(t, c_parser_types) ||
+           tok_in(t, c_parser_constants) || tok_in(t, QUALIFIERS) || tok_in(t, ATTRIBUTES);
+}
+
+/* ---- Results ---- */
+
+/**
+ * @brief Grow an array of the result when it is full.
+ * @param P The parser.
+ * @param array The array (pointer to its pointer).
+ * @param cap Its size, updated.
+ * @param count The number of elements in use.
+ * @param size The size of an element.
+ * @return Non-zero if there is room for one more.
+ */
+static int grow(Parser *P, void **array, long *cap, long count, size_t size)
+{
+    void *bigger;
+    long n;
+    if (count < *cap) return 1;
+    n = *cap ? *cap * 2 : 32;
+    bigger = realloc(*array, (size_t)n * size);
+    if (!bigger) {
+        P->res->out_of_memory = 1;
+        return 0;
+    }
+    *array = bigger;
+    *cap = n;
+    return 1;
+}
+
+/**
+ * @brief Add a diagnostic.
+ * @param P The parser.
+ * @param message The text (copied).
+ * @param severity SCOUT_SEVERITY_ value.
+ * @param line First line.
+ * @param col First column.
+ * @param end_line Line of the end.
+ * @param end_col Column after the end (at least @p col + 1 on one line).
+ */
+static void add_diag(Parser *P, const char *message, int severity,
+                     long line, long col, long end_line, long end_col)
+{
+    CParseResult *res = P->res;
+    CDiagnostic *d;
+    if (!grow(P, (void **)&res->diagnostics, &P->diagcap, res->diagnostic_count, sizeof(CDiagnostic))) return;
+    d = &res->diagnostics[res->diagnostic_count];
+    d->message = dup_text(message, strlen(message));
+    if (!d->message) {
+        res->out_of_memory = 1;
+        return;
+    }
+    if (end_line < line || (end_line == line && end_col <= col)) {
+        end_line = line;
+        end_col = col + 1;
+    }
+    d->severity = severity;
+    d->range.start_line = line;
+    d->range.start_col = col;
+    d->range.end_line = end_line;
+    d->range.end_col = end_col;
+    res->diagnostic_count++;
+}
+
+/**
+ * @brief Add a diagnostic covering tokens.
+ * @param P The parser.
+ * @param message The text (copied).
+ * @param severity SCOUT_SEVERITY_ value.
+ * @param from The first token.
+ * @param to The last token.
+ */
+static void add_diag_toks(Parser *P, const char *message, int severity,
+                          const CTok *from, const CTok *to)
+{
+    add_diag(P, message, severity, from->line, from->col, to->line, to->col + to->len);
+}
+
+/**
+ * @brief Set a range from a first and a last token.
+ * @param[out] r The range.
+ * @param from The first token.
+ * @param to The last token.
+ */
+static void set_range(CRange *r, const CTok *from, const CTok *to)
+{
+    r->start_line = from->line;
+    r->start_col = from->col;
+    r->end_line = to->line;
+    r->end_col = to->col + to->len;
+}
+
+/**
+ * @brief Add a symbol.
+ * @param P The parser.
+ * @param name Its name's token.
+ * @param kind SCOUT_SYMBOL_ value.
+ * @param scope Its visibility.
+ * @param parent Index of the symbol it belongs to, -1 for none.
+ * @param from First token of its definition.
+ * @param to Last token of its definition.
+ * @param detail Its declaration as text (taken over; may be NULL).
+ * @return Its index, or -1 if out of memory.
+ */
+static long add_symbol(Parser *P, const CTok *name, int kind, CScope scope, long parent,
+                       const CTok *from, const CTok *to, char *detail)
+{
+    CParseResult *res = P->res;
+    CSymbol *s;
+    if (!grow(P, (void **)&res->symbols, &P->symcap, res->symbol_count, sizeof(CSymbol))) {
+        free(detail);
+        return -1;
+    }
+    s = &res->symbols[res->symbol_count];
+    s->name = dup_text(name->s, (size_t)name->len);
+    if (!s->name) {
+        free(detail);
+        res->out_of_memory = 1;
+        return -1;
+    }
+    s->detail = detail;
+    s->kind = kind;
+    s->scope = scope;
+    s->parent = parent;
+    s->declaration = 0;
+    set_range(&s->range, from, to);
+    set_range(&s->selection, name, name);
+    return res->symbol_count++;
+}
+
+/**
+ * @brief Add an include.
+ * @param P The parser.
+ * @param target The name as written (copied).
+ * @param len Its length.
+ * @param system Written with <...>.
+ * @param from First token (the quote or '<').
+ * @param to Last token (the same, or '>').
+ */
+static void add_reference(Parser *P, const char *target, size_t len, int system,
+                          const CTok *from, const CTok *to)
+{
+    CParseResult *res = P->res;
+    CReference *r;
+    if (!grow(P, (void **)&res->references, &P->refcap, res->reference_count, sizeof(CReference))) return;
+    r = &res->references[res->reference_count];
+    r->target = dup_text(target, len);
+    if (!r->target) {
+        res->out_of_memory = 1;
+        return;
+    }
+    r->system = system;
+    set_range(&r->range, from, to);
+    res->reference_count++;
+}
+
+/* ---- Text of declarations ---- */
+
+/**
+ * @brief Append text to a TextBuf, cutting it at DETAIL_MAX.
+ * @param b The buffer.
+ * @param space Put a space before it (if the buffer is not empty).
+ * @param s The text.
+ * @param len Its length.
+ */
+static void tb_add(TextBuf *b, int space, const char *s, size_t len)
+{
+    if (b->full) return;
+    if (space && b->len > 0) {
+        b->buf[b->len++] = ' ';
+    }
+    if (b->len + len > DETAIL_MAX) {
+        len = b->len < DETAIL_MAX ? DETAIL_MAX - b->len : 0;
+        memcpy(b->buf + b->len, s, len);
+        b->len += len;
+        memcpy(b->buf + b->len, "...", 3);
+        b->len += 3;
+        b->full = 1;
+        return;
+    }
+    memcpy(b->buf + b->len, s, len);
+    b->len += len;
+}
+
+/**
+ * @brief Return the code index of the bracket matching an opening one.
+ * @param P The parser.
+ * @param i The opening bracket.
+ * @param end The end of the area searched (exclusive).
+ * @return The closing bracket, or @p end if there is none before it.
+ */
+static long close_of(Parser *P, long i, long end)
+{
+    long m = P->match[i];
+    return (m < 0 || m >= end) ? end : m;
+}
+
+/**
+ * @brief Append the text of code tokens to a TextBuf; a brace body is
+ *        written as "{...}".
+ *
+ * Tokens that stand apart in the source are joined with one space.
+ *
+ * @param P The parser.
+ * @param b The buffer.
+ * @param from The first code token.
+ * @param to The last code token.
+ * @param space Put a space before the first token.
+ */
+static void tb_add_code(Parser *P, TextBuf *b, long from, long to, int space)
+{
+    const CTok *prev = NULL;
+    long i;
+    for (i = from; i <= to && i < P->ncode; i++) {
+        const CTok *t = &P->tok[P->code[i]];
+        int gap = prev ? prev->s + prev->len < t->s : space;
+        if (tok_is(t, TK_PUNCT, "{")) {
+            long close = close_of(P, i, P->ncode);
+            tb_add(b, gap, "{...}", 5);
+            if (close >= P->ncode) break;
+            prev = &P->tok[P->code[close]];
+            i = close;
+            continue;
         }
-        str++;
-        pfx++;
+        tb_add(b, gap, t->s, (size_t)t->len);
+        prev = t;
+    }
+}
+
+/**
+ * @brief Return the text of a TextBuf as an allocated string.
+ * @param b The buffer.
+ * @return The text, or NULL if it is empty or memory ran out.
+ */
+static char *tb_string(TextBuf *b)
+{
+    return b->len ? dup_text(b->buf, b->len) : NULL;
+}
+
+/* ---- Lexer ---- */
+
+/**
+ * @brief Append a token.
+ * @param P The parser.
+ * @param s Its first character.
+ * @param len Its length.
+ * @param line Its line.
+ * @param col Its column.
+ * @param type TK_ value.
+ * @param flags TF_ flags.
+ * @return Non-zero on success, 0 if out of memory or stopped.
+ */
+static int add_tok(Parser *P, const char *s, long len, long line, long col, int type, int flags)
+{
+    CTok *t;
+    if (check_stop(P)) return 0;
+    if (!grow(P, (void **)&P->tok, &P->tokcap, P->ntok, sizeof(CTok))) return 0;
+    t = &P->tok[P->ntok++];
+    t->s = s;
+    t->len = len;
+    t->line = line;
+    t->col = col;
+    t->type = (unsigned char)type;
+    t->flags = (unsigned char)flags;
+    return 1;
+}
+
+/**
+ * @brief Return the length of the operator or punctuation at a position.
+ * @param p The position.
+ * @param end The end of the source.
+ * @return 1 to 3.
+ */
+static long punct_length(const char *p, const char *end)
+{
+    static const char *const three[] = { "...", "<<=", ">>=", NULL };
+    static const char *const two[] = {
+        "->", "++", "--", "<<", ">>", "<=", ">=", "==", "!=", "&&", "||",
+        "+=", "-=", "*=", "/=", "%=", "&=", "|=", "^=", "##", "::", NULL
+    };
+    size_t i;
+    if (end - p >= 3) {
+        for (i = 0; three[i]; i++) {
+            if (memcmp(p, three[i], 3) == 0) return 3;
+        }
+    }
+    if (end - p >= 2) {
+        for (i = 0; two[i]; i++) {
+            if (p[0] == two[i][0] && p[1] == two[i][1]) return 2;
+        }
     }
     return 1;
 }
 
 /**
- * @brief Append a completion candidate unless its label is there already.
- * @param head The list.
- * @param count The number of candidates, counted up.
- * @param label The text to insert (copied).
- * @param detail Further information (copied, may be NULL).
- * @param kind SCOUT_COMPLETION_KIND_ value.
+ * @brief Split the source into tokens; comments are dropped, unclosed
+ *        comments and literals become diagnostics.
+ * @param P The parser.
  */
-static void add_completion(CCompletion **head, size_t *count,
-                           const char *label, const char *detail, int kind)
+static void lex(Parser *P)
 {
-    if (!head || !label) return;
+    const char *p = P->src;
+    const char *end = P->end;
+    long line = 1, col = 1;
+    int line_start = 1;     /* only blanks so far on this line */
+    int in_pp = 0;          /* in a preprocessor line */
 
-    /* Check duplicate */
-    for (CCompletion *c = *head; c; c = c->next) {
-        if (c->label && strcmp(c->label, label) == 0) {
-            return;
+    while (p < end) {
+        unsigned char c = (unsigned char)*p;
+        const char *start = p;
+        long sline = line, scol = col;
+        int flags;
+
+        if (c == '\n' || c == '\r') {
+            p++;
+            if (c == '\r' && p < end && *p == '\n') p++;
+            line++;
+            col = 1;
+            line_start = 1;
+            in_pp = 0;
+            continue;
         }
-    }
-
-    CCompletion *item = (CCompletion *)malloc(sizeof(CCompletion));
-    if (!item) return;
-
-    item->label = c_strdup(label);
-    item->detail = detail ? c_strdup(detail) : NULL;
-    item->kind = kind;
-    item->next = *head;
-    *head = item;
-    if (count) (*count)++;
-}
-
-size_t c_parser_get_completions(const CParseResult *res, const char *prefix,
-                                CCompletion **out_list)
-{
-    if (!out_list) return 0;
-    *out_list = NULL;
-    size_t count = 0;
-
-    /* Add matching C keywords */
-    for (size_t i = 0; C_KEYWORDS[i]; i++) {
-        if (str_case_prefix(C_KEYWORDS[i], prefix)) {
-            add_completion(out_list, &count, C_KEYWORDS[i], "keyword", SCOUT_COMPLETION_KIND_KEYWORD);
+        if (c == '\\' && p + 1 < end && (p[1] == '\n' || p[1] == '\r')) {
+            /* a spliced line: a preprocessor line goes on */
+            p++;
+            c = (unsigned char)*p++;
+            if (c == '\r' && p < end && *p == '\n') p++;
+            line++;
+            col = 1;
+            line_start = 0;
+            continue;
         }
-    }
-
-    /* Add symbols from parse result */
-    if (res) {
-        for (const CSymbol *s = res->symbols; s; s = s->next) {
-            if (s->name && str_case_prefix(s->name, prefix)) {
-                int c_kind = SCOUT_COMPLETION_KIND_VARIABLE;
-                if (s->kind == SCOUT_SYMBOL_KIND_FUNCTION) c_kind = SCOUT_COMPLETION_KIND_FUNCTION;
-                else if (s->kind == SCOUT_SYMBOL_KIND_STRUCT) c_kind = SCOUT_COMPLETION_KIND_STRUCT;
-                else if (s->kind == SCOUT_SYMBOL_KIND_ENUM) c_kind = SCOUT_COMPLETION_KIND_ENUM;
-                else if (s->kind == SCOUT_SYMBOL_KIND_CONSTANT) c_kind = SCOUT_COMPLETION_KIND_VALUE;
-
-                add_completion(out_list, &count, s->name, s->detail, c_kind);
+        if (c <= ' ' || c == 0x7f) {
+            p++;
+            col++;
+            continue;
+        }
+        if (c == '/' && p + 1 < end && p[1] == '/') {
+            while (p < end && *p != '\n' && *p != '\r') {
+                p++;
+                col++;
             }
+            continue;
         }
-    }
-
-    return count;
-}
-
-void c_completions_free(CCompletion *list)
-{
-    while (list) {
-        CCompletion *next = list->next;
-        if (list->label) free(list->label);
-        if (list->detail) free(list->detail);
-        free(list);
-        list = next;
-    }
-}
-
-/* JSON-RPC Request Handler */
-
-int c_parser_process_jsonrpc(const char *request_json, JsonWriter *response_writer)
-{
-    if (!request_json || !response_writer) return 0;
-
-    ScoutRpcMessage req;
-    if (!scout_rpc_parse(request_json, &req) || !req.is_request) {
-        scout_rpc_format_error(response_writer, 0, SCOUT_RPC_ERR_PARSE_ERROR, "Parse error");
-        scout_rpc_free(&req);
-        return 1;
-    }
-
-    long id = req.id;
-    const char *method = req.method;
-
-    if (!method) {
-        scout_rpc_format_error(response_writer, id, SCOUT_RPC_ERR_INVALID_REQUEST, "Missing method");
-        scout_rpc_free(&req);
-        return 1;
-    }
-
-    const JsonValue *params = req.params;
-    const JsonValue *text_doc = json_obj_get_obj(params, "textDocument");
-    const char *uri = text_doc ? json_obj_get_string(text_doc, "uri", NULL) : NULL;
-    const char *text = text_doc ? json_obj_get_string(text_doc, "text", NULL) : NULL;
-
-    CParseResult *res = NULL;
-    if (text) {
-        res = c_parser_analyze(text, uri);
-    } else if (uri) {
-        char *path = clean_uri_to_path(uri);
-        res = c_parser_analyze_file(path);
-        free(path);
-    }
-
-    if (strcmp(method, "textDocument/documentSymbol") == 0) {
-        JsonWriter sym_writer;
-        json_writer_init_alloc(&sym_writer, 256);
-        json_write_arr_start(&sym_writer);
-
-        if (res && res->symbols) {
-            int first = 1;
-            for (const CSymbol *s = res->symbols; s; s = s->next) {
-                if (!first) json_write_raw(&sym_writer, ",");
-                first = 0;
-
-                json_write_obj_start(&sym_writer);
-                json_write_obj_key(&sym_writer, "name");
-                json_write_string(&sym_writer, s->name);
-                json_write_raw(&sym_writer, ",");
-                json_write_obj_key(&sym_writer, "kind");
-                json_write_int(&sym_writer, s->kind);
-                json_write_raw(&sym_writer, ",");
-
-                if (s->detail) {
-                    json_write_obj_key(&sym_writer, "detail");
-                    json_write_string(&sym_writer, s->detail);
-                    json_write_raw(&sym_writer, ",");
+        if (c == '/' && p + 1 < end && p[1] == '*') {
+            int closed = 0;
+            p += 2;
+            col += 2;
+            while (p < end) {
+                if (*p == '*' && p + 1 < end && p[1] == '/') {
+                    p += 2;
+                    col += 2;
+                    closed = 1;
+                    break;
                 }
-
-                json_write_obj_key(&sym_writer, "range");
-                json_write_obj_start(&sym_writer);
-                json_write_obj_key(&sym_writer, "start");
-                json_write_obj_start(&sym_writer);
-                json_write_obj_key(&sym_writer, "line");
-                json_write_int(&sym_writer, s->start_line - 1);
-                json_write_raw(&sym_writer, ",");
-                json_write_obj_key(&sym_writer, "character");
-                json_write_int(&sym_writer, s->start_col - 1);
-                json_write_obj_end(&sym_writer);
-                json_write_raw(&sym_writer, ",");
-
-                json_write_obj_key(&sym_writer, "end");
-                json_write_obj_start(&sym_writer);
-                json_write_obj_key(&sym_writer, "line");
-                json_write_int(&sym_writer, s->end_line - 1);
-                json_write_raw(&sym_writer, ",");
-                json_write_obj_key(&sym_writer, "character");
-                json_write_int(&sym_writer, s->end_col - 1);
-                json_write_obj_end(&sym_writer);
-                json_write_obj_end(&sym_writer);
-
-                json_write_obj_end(&sym_writer);
+                if (*p == '\n' || *p == '\r') {
+                    char nl = *p++;
+                    if (nl == '\r' && p < end && *p == '\n') p++;
+                    line++;
+                    col = 1;
+                } else {
+                    p++;
+                    col++;
+                }
             }
-        }
-        json_write_arr_end(&sym_writer);
-
-        scout_rpc_format_response(response_writer, id, json_writer_get(&sym_writer));
-        json_writer_free(&sym_writer);
-    }
-    else if (strcmp(method, "textDocument/publishDiagnostics") == 0 ||
-             strcmp(method, "textDocument/diagnostics") == 0) {
-        JsonWriter diag_writer;
-        json_writer_init_alloc(&diag_writer, 256);
-        json_write_arr_start(&diag_writer);
-
-        if (res && res->diagnostics) {
-            int first = 1;
-            for (const CDiagnostic *d = res->diagnostics; d; d = d->next) {
-                if (!first) json_write_raw(&diag_writer, ",");
-                first = 0;
-
-                json_write_obj_start(&diag_writer);
-                json_write_obj_key(&diag_writer, "message");
-                json_write_string(&diag_writer, d->message);
-                json_write_raw(&diag_writer, ",");
-                json_write_obj_key(&diag_writer, "severity");
-                json_write_int(&diag_writer, d->severity);
-                json_write_raw(&diag_writer, ",");
-
-                json_write_obj_key(&diag_writer, "range");
-                json_write_obj_start(&diag_writer);
-                json_write_obj_key(&diag_writer, "start");
-                json_write_obj_start(&diag_writer);
-                json_write_obj_key(&diag_writer, "line");
-                json_write_int(&diag_writer, d->line - 1);
-                json_write_raw(&diag_writer, ",");
-                json_write_obj_key(&diag_writer, "character");
-                json_write_int(&diag_writer, d->col - 1);
-                json_write_obj_end(&diag_writer);
-                json_write_raw(&diag_writer, ",");
-
-                json_write_obj_key(&diag_writer, "end");
-                json_write_obj_start(&diag_writer);
-                json_write_obj_key(&diag_writer, "line");
-                json_write_int(&diag_writer, d->end_line - 1);
-                json_write_raw(&diag_writer, ",");
-                json_write_obj_key(&diag_writer, "character");
-                json_write_int(&diag_writer, d->end_col - 1);
-                json_write_obj_end(&diag_writer);
-                json_write_obj_end(&diag_writer);
-
-                json_write_obj_end(&diag_writer);
+            if (!closed) {
+                add_diag(P, "Unclosed block comment", SCOUT_SEVERITY_ERROR, sline, scol, line, col);
             }
-        }
-        json_write_arr_end(&diag_writer);
-
-        scout_rpc_format_response(response_writer, id, json_writer_get(&diag_writer));
-        json_writer_free(&diag_writer);
-    }
-    else if (strcmp(method, "textDocument/definition") == 0) {
-        const JsonValue *pos = json_obj_get_obj(params, "position");
-        long line = pos ? json_obj_get_int(pos, "line", 0) + 1 : 1;
-        long col = pos ? json_obj_get_int(pos, "character", 0) + 1 : 1;
-        const char *sym_name = json_obj_get_string(params, "symbol", NULL);
-
-        const CSymbol *target = NULL;
-        if (res) {
-            c_parser_find_definition(res, sym_name, line, col, &target);
+            continue;
         }
 
-        if (target) {
-            JsonWriter loc_writer;
-            json_writer_init_alloc(&loc_writer, 128);
-            json_write_obj_start(&loc_writer);
-            json_write_obj_key(&loc_writer, "uri");
-            json_write_string(&loc_writer, uri ? uri : "");
-            json_write_raw(&loc_writer, ",");
-
-            json_write_obj_key(&loc_writer, "range");
-            json_write_obj_start(&loc_writer);
-            json_write_obj_key(&loc_writer, "start");
-            json_write_obj_start(&loc_writer);
-            json_write_obj_key(&loc_writer, "line");
-            json_write_int(&loc_writer, target->start_line - 1);
-            json_write_raw(&loc_writer, ",");
-            json_write_obj_key(&loc_writer, "character");
-            json_write_int(&loc_writer, target->start_col - 1);
-            json_write_obj_end(&loc_writer);
-            json_write_raw(&loc_writer, ",");
-
-            json_write_obj_key(&loc_writer, "end");
-            json_write_obj_start(&loc_writer);
-            json_write_obj_key(&loc_writer, "line");
-            json_write_int(&loc_writer, target->end_line - 1);
-            json_write_raw(&loc_writer, ",");
-            json_write_obj_key(&loc_writer, "character");
-            json_write_int(&loc_writer, target->end_col - 1);
-            json_write_obj_end(&loc_writer);
-            json_write_obj_end(&loc_writer);
-
-            json_write_obj_end(&loc_writer);
-            scout_rpc_format_response(response_writer, id, json_writer_get(&loc_writer));
-            json_writer_free(&loc_writer);
-        } else {
-            scout_rpc_format_response(response_writer, id, "null");
+        flags = in_pp ? TF_PP : 0;
+        if (c == '#' && line_start) {
+            in_pp = 1;
+            line_start = 0;
+            if (!add_tok(P, p, 1, line, col, TK_PUNCT, TF_PP | TF_HASH)) return;
+            p++;
+            col++;
+            continue;
         }
-    }
-    else if (strcmp(method, "textDocument/completion") == 0) {
-        const JsonValue *ctx = json_obj_get_obj(params, "context");
-        const char *pfx = ctx ? json_obj_get_string(ctx, "prefix", "") : "";
+        line_start = 0;
 
-        CCompletion *comp_list = NULL;
-        c_parser_get_completions(res, pfx, &comp_list);
-
-        JsonWriter comp_writer;
-        json_writer_init_alloc(&comp_writer, 256);
-        json_write_arr_start(&comp_writer);
-
-        int first = 1;
-        for (CCompletion *c = comp_list; c; c = c->next) {
-            if (!first) json_write_raw(&comp_writer, ",");
-            first = 0;
-
-            json_write_obj_start(&comp_writer);
-            json_write_obj_key(&comp_writer, "label");
-            json_write_string(&comp_writer, c->label);
-            json_write_raw(&comp_writer, ",");
-            json_write_obj_key(&comp_writer, "kind");
-            json_write_int(&comp_writer, c->kind);
-            if (c->detail) {
-                json_write_raw(&comp_writer, ",");
-                json_write_obj_key(&comp_writer, "detail");
-                json_write_string(&comp_writer, c->detail);
+        if (c == '"' || c == '\'') {
+            int closed = 0;
+            p++;
+            col++;
+            while (p < end && *p != '\n' && *p != '\r') {
+                if ((unsigned char)*p == c) {
+                    p++;
+                    col++;
+                    closed = 1;
+                    break;
+                }
+                if (*p == '\\' && p + 1 < end && p[1] != '\n' && p[1] != '\r') {
+                    p += 2;
+                    col += 2;
+                } else {
+                    p++;
+                    col++;
+                }
             }
-            json_write_obj_end(&comp_writer);
+            /* an apostrophe in "#error don't" is no literal */
+            if (!closed && !in_pp) {
+                add_diag(P, c == '"' ? "Unterminated string literal" : "Unterminated character literal",
+                         SCOUT_SEVERITY_ERROR, sline, scol, line, col);
+            }
+            if (!add_tok(P, start, (long)(p - start), sline, scol,
+                         c == '"' ? TK_STRING : TK_CHAR, flags)) return;
+            continue;
         }
-        json_write_arr_end(&comp_writer);
-
-        scout_rpc_format_response(response_writer, id, json_writer_get(&comp_writer));
-        json_writer_free(&comp_writer);
-        c_completions_free(comp_list);
+        if (is_digit(c) || (c == '.' && p + 1 < end && is_digit((unsigned char)p[1]))) {
+            p++;
+            while (p < end) {
+                unsigned char d = (unsigned char)*p;
+                unsigned char before = (unsigned char)p[-1];
+                if (is_ident_part(d) || d == '.') {
+                    p++;
+                } else if ((d == '+' || d == '-') &&
+                           (before == 'e' || before == 'E' || before == 'p' || before == 'P')) {
+                    p++;
+                } else {
+                    break;
+                }
+            }
+            col += (long)(p - start);
+            if (!add_tok(P, start, (long)(p - start), sline, scol, TK_NUMBER, flags)) return;
+            continue;
+        }
+        if (is_ident_start(c)) {
+            while (p < end && is_ident_part((unsigned char)*p)) p++;
+            col += (long)(p - start);
+            if (!add_tok(P, start, (long)(p - start), sline, scol, TK_IDENT, flags)) return;
+            continue;
+        }
+        {
+            long n = punct_length(p, end);
+            p += n;
+            col += n;
+            if (!add_tok(P, start, n, sline, scol, TK_PUNCT, flags)) return;
+        }
     }
-    else {
-        scout_rpc_format_error(response_writer, id, SCOUT_RPC_ERR_METHOD_NOT_FOUND, "Method not supported");
-    }
-
-    if (res) c_parse_result_free(res);
-    scout_rpc_free(&req);
-    return 1;
 }
 
-#ifndef C_PARSER_NO_MAIN
+/* ---- Preprocessor lines ---- */
+
 /**
- * @brief The parser program: reads one JSON-RPC request per line from
- *        STDIN and writes the response as one line to STDOUT.
- * @return 0 at the end of the input.
+ * @brief Tell whether a macro of a name is known already.
+ * @param P The parser.
+ * @param name Its name's token.
+ * @return Non-zero if it is.
  */
-int main(void)
+static int macro_known(Parser *P, const CTok *name)
 {
-    char line_buf[4096];
-    JsonWriter resp_writer;
-    json_writer_init_alloc(&resp_writer, 512);
-
-    while (fgets(line_buf, sizeof(line_buf), stdin)) {
-        /* Strip trailing newlines */
-        size_t l = strlen(line_buf);
-        while (l > 0 && (line_buf[l - 1] == '\r' || line_buf[l - 1] == '\n')) {
-            line_buf[--l] = '\0';
+    long i;
+    for (i = 0; i < P->res->symbol_count; i++) {
+        const CSymbol *s = &P->res->symbols[i];
+        if (s->kind == SCOUT_SYMBOL_MACRO && strlen(s->name) == (size_t)name->len &&
+            memcmp(s->name, name->s, (size_t)name->len) == 0) {
+            return 1;
         }
-        if (l == 0) continue;
-
-        resp_writer.length = 0;
-        if (resp_writer.buffer) resp_writer.buffer[0] = '\0';
-        resp_writer.error = 0;
-
-        c_parser_process_jsonrpc(line_buf, &resp_writer);
-
-        printf("%s\n", json_writer_get(&resp_writer));
-        fflush(stdout);
     }
-
-    json_writer_free(&resp_writer);
     return 0;
 }
-#endif
+
+/**
+ * @brief Handle \#define: a macro symbol.
+ * @param P The parser.
+ * @param hash The directive's '#'.
+ * @param m The token after "define".
+ * @param k The token after the directive line.
+ * @param skipped The directive is in a skipped branch (an existing macro
+ *                of the name is kept then).
+ */
+static void do_define(Parser *P, long hash, long m, long k, int skipped)
+{
+    const CTok *name = &P->tok[m];
+    TextBuf b;
+    long i;
+    long sym;
+    if (m >= k || name->type != TK_IDENT) {
+        add_diag_toks(P, "#define without a name", SCOUT_SEVERITY_ERROR, &P->tok[hash], &P->tok[k - 1]);
+        return;
+    }
+    if (skipped && macro_known(P, name)) return;
+    memset(&b, 0, sizeof(b));
+    for (i = m; i < k; i++) {
+        const CTok *t = &P->tok[i];
+        tb_add(&b, i > m && P->tok[i - 1].s + P->tok[i - 1].len < t->s, t->s, (size_t)t->len);
+    }
+    sym = add_symbol(P, name, SCOUT_SYMBOL_MACRO, P->is_header ? C_SCOPE_GLOBAL : C_SCOPE_FILE, -1,
+                     &P->tok[hash], &P->tok[k - 1], tb_string(&b));
+    if (sym >= 0) P->mark[m] = SCOUT_TOKEN_MACRO;
+}
+
+/**
+ * @brief Handle \#include: a reference.
+ * @param P The parser.
+ * @param hash The directive's '#'.
+ * @param m The token after "include".
+ * @param k The token after the directive line.
+ */
+static void do_include(Parser *P, long hash, long m, long k)
+{
+    const CTok *t = &P->tok[m];
+    long n;
+    if (m < k && t->type == TK_STRING) {
+        long len = t->len >= 2 && t->s[t->len - 1] == '"' ? t->len - 2 : t->len - 1;
+        add_reference(P, t->s + 1, (size_t)len, 0, t, t);
+        return;
+    }
+    if (m < k && tok_is(t, TK_PUNCT, "<")) {
+        for (n = m + 1; n < k; n++) {
+            if (tok_is(&P->tok[n], TK_PUNCT, ">")) {
+                const char *from = t->s + 1;
+                add_reference(P, from, (size_t)(P->tok[n].s - from), 1, t, &P->tok[n]);
+                return;
+            }
+        }
+    }
+    if (m < k && t->type == TK_IDENT) return;   /* #include MACRO */
+    add_diag_toks(P, "#include without a file name", SCOUT_SEVERITY_ERROR, &P->tok[hash], &P->tok[k - 1]);
+}
+
+/**
+ * @brief Handle the directives: macros, includes and the \#if nesting;
+ *        tokens in \#elif and \#else branches get TF_SKIP.
+ * @param P The parser.
+ */
+static void directives(Parser *P)
+{
+    static const char *const known[] = {
+        "undef", "line", "error", "warning", "pragma", "ident", "sccs",
+        "assert", "unassert", "include_next", "import", NULL
+    };
+    long cond[COND_MAX];        /* the '#' of each open #if */
+    int in_else[COND_MAX];      /* whether it is past its #elif or #else */
+    int depth = 0;              /* open #ifs */
+    int deep = 0;               /* open #ifs beyond COND_MAX */
+    int else_count = 0;         /* open #ifs past their #elif or #else */
+    long i = 0;
+
+    while (i < P->ntok) {
+        CTok *t = &P->tok[i];
+        long j, k;
+        if (!(t->flags & TF_HASH)) {
+            if (else_count > 0) t->flags |= TF_SKIP;
+            i++;
+            continue;
+        }
+        if (check_stop(P)) return;
+        for (k = i + 1; k < P->ntok && (P->tok[k].flags & TF_PP) && !(P->tok[k].flags & TF_HASH); k++);
+        j = i + 1;
+        if (j < k && P->tok[j].type == TK_IDENT) {
+            const CTok *d = &P->tok[j];
+            if (tok_is(d, TK_IDENT, "if") || tok_is(d, TK_IDENT, "ifdef") || tok_is(d, TK_IDENT, "ifndef")) {
+                if (depth < COND_MAX) {
+                    cond[depth] = i;
+                    in_else[depth++] = 0;
+                } else {
+                    deep++;
+                }
+            } else if (tok_is(d, TK_IDENT, "elif") || tok_is(d, TK_IDENT, "else")) {
+                if (deep == 0 && depth == 0) {
+                    add_diag_toks(P, tok_is(d, TK_IDENT, "else") ? "#else without #if" : "#elif without #if",
+                                  SCOUT_SEVERITY_ERROR, t, d);
+                } else if (deep == 0 && !in_else[depth - 1]) {
+                    in_else[depth - 1] = 1;
+                    else_count++;
+                }
+            } else if (tok_is(d, TK_IDENT, "endif")) {
+                if (deep > 0) {
+                    deep--;
+                } else if (depth == 0) {
+                    add_diag_toks(P, "#endif without #if", SCOUT_SEVERITY_ERROR, t, d);
+                } else {
+                    if (in_else[--depth]) else_count--;
+                }
+            } else if (tok_is(d, TK_IDENT, "define")) {
+                do_define(P, i, j + 1, k, else_count > 0);
+            } else if (tok_is(d, TK_IDENT, "include")) {
+                do_include(P, i, j + 1, k);
+            } else if (!tok_in(d, known)) {
+                char msg[80];
+                long n = d->len < 40 ? d->len : 40;
+                memcpy(msg, "Unknown preprocessor directive #", 32);
+                memcpy(msg + 32, d->s, (size_t)n);
+                msg[32 + n] = '\0';
+                add_diag_toks(P, msg, SCOUT_SEVERITY_WARNING, t, d);
+            }
+        }
+        i = k;
+    }
+    while (depth > 0) {
+        long h = cond[--depth];
+        add_diag_toks(P, "#if without #endif", SCOUT_SEVERITY_ERROR, &P->tok[h], &P->tok[h + 1]);
+    }
+}
+
+/* ---- Brackets ---- */
+
+/**
+ * @brief Collect the code's tokens and match its brackets; unbalanced
+ *        ones become diagnostics.
+ * @param P The parser.
+ */
+static void match_brackets(Parser *P)
+{
+    long *stack;
+    long sp = 0, i;
+    P->code = (long *)malloc((size_t)(P->ntok + 1) * sizeof(long));
+    P->match = (long *)malloc((size_t)(P->ntok + 1) * sizeof(long));
+    stack = (long *)malloc((size_t)(P->ntok + 1) * sizeof(long));
+    if (!P->code || !P->match || !stack) {
+        free(stack);
+        P->res->out_of_memory = 1;
+        return;
+    }
+    for (i = 0; i < P->ntok; i++) {
+        if (!(P->tok[i].flags & (TF_PP | TF_SKIP))) P->code[P->ncode++] = i;
+    }
+    for (i = 0; i < P->ncode; i++) {
+        const CTok *t = &P->tok[P->code[i]];
+        char c = t->s[0];
+        P->match[i] = -1;
+        if (t->type != TK_PUNCT || t->len != 1) continue;
+        if (c == '(' || c == '[' || c == '{') {
+            stack[sp++] = i;
+        } else if (c == ')' || c == ']' || c == '}') {
+            char open = c == ')' ? '(' : c == ']' ? '[' : '{';
+            long k = sp;
+            while (k > 0 && P->tok[P->code[stack[k - 1]]].s[0] != open) k--;
+            if (k > 0) {
+                /* brackets opened inside and not closed are reported, the
+                   rest matches again */
+                while (sp > k) {
+                    const CTok *o = &P->tok[P->code[stack[--sp]]];
+                    char msg[] = "Unclosed bracket 'x'";
+                    msg[sizeof(msg) - 3] = o->s[0];
+                    add_diag_toks(P, msg, SCOUT_SEVERITY_ERROR, o, o);
+                }
+                sp--;
+                P->match[i] = stack[sp];
+                P->match[stack[sp]] = i;
+            } else {
+                char msg[] = "Mismatched bracket 'x'";
+                msg[sizeof(msg) - 3] = c;
+                add_diag_toks(P, msg, SCOUT_SEVERITY_ERROR, t, t);
+            }
+        }
+    }
+    while (sp > 0) {
+        const CTok *t = &P->tok[P->code[stack[--sp]]];
+        const CTok *last = &P->tok[P->ntok - 1];
+        char msg[] = "Unclosed bracket 'x'";
+        msg[sizeof(msg) - 3] = t->s[0];
+        add_diag(P, msg, SCOUT_SEVERITY_ERROR, t->line, t->col, last->line, last->col + last->len);
+    }
+    free(stack);
+}
+
+/* ---- Declarations ---- */
+
+/**
+ * @brief Return a code token.
+ * @param P The parser.
+ * @param i Its code index.
+ * @return The token.
+ */
+static const CTok *CT(Parser *P, long i)
+{
+    return &P->tok[P->code[i]];
+}
+
+/**
+ * @brief Tell whether a code token (before an end) is a punctuation.
+ * @param P The parser.
+ * @param i Its code index.
+ * @param end The end (exclusive).
+ * @param text The punctuation.
+ * @return Non-zero if it is.
+ */
+static int is_punct(Parser *P, long i, long end, const char *text)
+{
+    return i < end && tok_is(CT(P, i), TK_PUNCT, text);
+}
+
+/**
+ * @brief Tell whether a code token (before an end) is a word.
+ * @param P The parser.
+ * @param i Its code index.
+ * @param end The end (exclusive).
+ * @param text The word.
+ * @return Non-zero if it is.
+ */
+static int is_word(Parser *P, long i, long end, const char *text)
+{
+    return i < end && tok_is(CT(P, i), TK_IDENT, text);
+}
+
+/**
+ * @brief Tell whether a code token (before an end) is a name: an
+ *        identifier that is no word of the language.
+ * @param P The parser.
+ * @param i Its code index.
+ * @param end The end (exclusive).
+ * @return Non-zero if it is.
+ */
+static int is_name(Parser *P, long i, long end)
+{
+    return i < end && CT(P, i)->type == TK_IDENT && !tok_reserved(CT(P, i));
+}
+
+/**
+ * @brief Tell whether a code token is "struct", "union" or "enum".
+ * @param P The parser.
+ * @param i Its code index.
+ * @param end The end (exclusive).
+ * @return Non-zero if it is.
+ */
+static int is_tag_word(Parser *P, long i, long end)
+{
+    return is_word(P, i, end, "struct") || is_word(P, i, end, "union") || is_word(P, i, end, "enum");
+}
+
+/**
+ * @brief Give a code token a highlighting kind.
+ * @param P The parser.
+ * @param i Its code index.
+ * @param kind SCOUT_TOKEN_ value.
+ */
+static void mark(Parser *P, long i, int kind)
+{
+    P->mark[P->code[i]] = (unsigned char)kind;
+}
+
+/**
+ * @brief Step over one code token, or a bracketed group.
+ * @param P The parser.
+ * @param i The token.
+ * @param end The end (exclusive).
+ * @return The index after it.
+ */
+static long skip_one(Parser *P, long i, long end)
+{
+    if (is_punct(P, i, end, "(") || is_punct(P, i, end, "[") || is_punct(P, i, end, "{")) {
+        return close_of(P, i, end) + 1;
+    }
+    return i + 1;
+}
+
+/**
+ * @brief Return the scope of a type, macro or enumeration at file scope.
+ * @param P The parser.
+ * @return C_SCOPE_GLOBAL in a header, otherwise C_SCOPE_FILE.
+ */
+static CScope type_scope(Parser *P)
+{
+    return P->is_header ? C_SCOPE_GLOBAL : C_SCOPE_FILE;
+}
+
+/**
+ * @brief Find the name of the first declarator after a struct body
+ *        (the name of "typedef struct { ... } Name;").
+ * @param P The parser.
+ * @param i The token after the body.
+ * @param end The end (exclusive).
+ * @return Its code index, or -1.
+ */
+static long first_declarator_name(Parser *P, long i, long end)
+{
+    while (i < end) {
+        if (is_punct(P, i, end, ";") || is_punct(P, i, end, ",") || is_punct(P, i, end, "=") ||
+            is_punct(P, i, end, "[") || is_punct(P, i, end, "{")) {
+            return -1;
+        }
+        if (is_punct(P, i, end, "(")) {
+            long close = close_of(P, i, end), k;
+            for (k = i + 1; k < close; k++) {
+                if (is_name(P, k, end)) return k;
+            }
+            i = close + 1;
+            continue;
+        }
+        if (is_name(P, i, end)) return i;
+        i++;
+    }
+    return -1;
+}
+
+static long parse_declaration(Parser *P, long i, long end, int ctx, long parent);
+
+/**
+ * @brief Parse the members of a struct or union body.
+ * @param P The parser.
+ * @param i The token after the '{'.
+ * @param end The '}' (exclusive end).
+ * @param parent Index of the struct's symbol (or of the symbol the
+ *               members belong to), -1 for none.
+ */
+static void parse_members(Parser *P, long i, long end, long parent)
+{
+    while (i < end && !check_stop(P)) {
+        long n;
+        if (is_punct(P, i, end, ";")) {
+            i++;
+            continue;
+        }
+        n = parse_declaration(P, i, end, CTX_STRUCT, parent);
+        i = n > i ? n : i + 1;
+    }
+}
+
+/**
+ * @brief Parse the members of an enum body.
+ * @param P The parser.
+ * @param i The token after the '{'.
+ * @param end The '}' (exclusive end).
+ * @param parent Index of the enum's symbol, -1 for none.
+ * @param scope The scope of the members.
+ */
+static void parse_enum(Parser *P, long i, long end, long parent, CScope scope)
+{
+    while (i < end && !check_stop(P)) {
+        if (is_name(P, i, end)) {
+            long last = i, k = i;
+            while (k < end && !is_punct(P, k, end, ",")) {
+                last = k;
+                k = skip_one(P, k, end);
+            }
+            if (add_symbol(P, CT(P, i), SCOUT_SYMBOL_ENUM_MEMBER, scope, parent,
+                           CT(P, i), CT(P, last < end ? last : i), NULL) >= 0) {
+                mark(P, i, SCOUT_TOKEN_CONSTANT);
+            }
+            i = k;
+        }
+        while (i < end && !is_punct(P, i, end, ",")) i = skip_one(P, i, end);
+        i++;
+    }
+}
+
+/**
+ * @brief Parse the parameters of a function definition into local
+ *        symbols of the function.
+ * @param P The parser.
+ * @param lp The parameter list's '('.
+ * @param func Index of the function's symbol.
+ */
+static void parse_params(Parser *P, long lp, long func)
+{
+    long rp = close_of(P, lp, P->ncode);
+    long a = lp + 1;
+    while (a < rp) {
+        long b = a, name = -1, k;
+        while (b < rp && !is_punct(P, b, rp, ",")) b = skip_one(P, b, rp);
+        for (k = a; k < b; k++) {
+            /* a function pointer: void (*fn)(int) */
+            if (is_punct(P, k, b, "(") && is_punct(P, k + 1, b, "*")) {
+                long close = close_of(P, k, b), m;
+                for (m = k + 1; m < close; m++) {
+                    if (is_name(P, m, b)) {
+                        name = m;
+                        break;
+                    }
+                }
+                break;
+            }
+        }
+        if (name < 0 && b - a >= 2) {
+            /* otherwise the last name that is no struct tag */
+            for (k = a; k < b; k++) {
+                if (is_punct(P, k, b, "(") || is_punct(P, k, b, "[")) {
+                    k = close_of(P, k, b);
+                    continue;
+                }
+                if (is_name(P, k, b) && !(k > a && is_tag_word(P, k - 1, b))) name = k;
+            }
+        }
+        if (name >= 0) {
+            TextBuf t;
+            memset(&t, 0, sizeof(t));
+            tb_add_code(P, &t, a, b - 1, 0);
+            for (k = a; k < name; k++) {
+                if (is_name(P, k, b)) mark(P, k, SCOUT_TOKEN_TYPE);
+            }
+            if (add_symbol(P, CT(P, name), SCOUT_SYMBOL_VARIABLE, C_SCOPE_LOCAL, func,
+                           CT(P, a), CT(P, b - 1), tb_string(&t)) >= 0) {
+                mark(P, name, SCOUT_TOKEN_PARAMETER);
+            }
+        }
+        a = b + 1;
+    }
+}
+
+/**
+ * @brief Tell whether a statement in a function body starts a declaration.
+ *
+ * Without the headers, a type name is not known: "name name", "name
+ * *name" and "name name[" count as declarations, as does anything
+ * starting with a type keyword, a qualifier or struct/union/enum.
+ *
+ * @param P The parser.
+ * @param i The statement's first token.
+ * @param end The end of the block (exclusive).
+ * @return Non-zero if it does.
+ */
+static int looks_like_decl(Parser *P, long i, long end)
+{
+    const CTok *t;
+    long k;
+    if (i >= end) return 0;
+    t = CT(P, i);
+    if (tok_in(t, c_parser_types) || tok_in(t, QUALIFIERS) || is_tag_word(P, i, end) ||
+        is_word(P, i, end, "static") || is_word(P, i, end, "extern") || is_word(P, i, end, "typedef")) {
+        return 1;
+    }
+    if (!is_name(P, i, end)) return 0;
+    k = i + 1;
+    while (k < end && (is_punct(P, k, end, "*") || tok_in(CT(P, k), QUALIFIERS))) k++;
+    if (!is_name(P, k, end)) return 0;
+    return is_punct(P, k + 1, end, "=") || is_punct(P, k + 1, end, ";") ||
+           is_punct(P, k + 1, end, ",") || is_punct(P, k + 1, end, "[");
+}
+
+/**
+ * @brief Add a function definition to the ranges searched for locals.
+ * @param P The parser.
+ * @param sym The function's symbol.
+ * @param first_local The first symbol after its parameters.
+ * @param lp The parameter list's '('.
+ * @param close The body's '}'.
+ */
+static void add_func(Parser *P, long sym, long first_local, long lp, long close)
+{
+    FuncRange *f;
+    if (!grow(P, (void **)&P->funcs, &P->funccap, P->nfuncs, sizeof(FuncRange))) return;
+    f = &P->funcs[P->nfuncs++];
+    f->sym = sym;
+    f->first_local = first_local;
+    f->last = first_local;
+    f->tok_first = P->code[lp];
+    f->tok_last = close < P->ncode ? P->code[close] : P->ntok - 1;
+}
+
+/**
+ * @brief Parse the statements of a block: local declarations, labels and
+ *        nested blocks; other statements are skipped.
+ * @param P The parser.
+ * @param i The token after the '{'.
+ * @param end The '}' (exclusive end).
+ * @param func Index of the function's symbol.
+ */
+static void parse_block(Parser *P, long i, long end, long func)
+{
+    while (i < end && !check_stop(P)) {
+        if (is_punct(P, i, end, "{")) {
+            long close = close_of(P, i, end);
+            parse_block(P, i + 1, close, func);
+            i = close + 1;
+            continue;
+        }
+        if (is_punct(P, i, end, ";") || is_punct(P, i, end, "}")) {
+            i++;
+            continue;
+        }
+        if (is_name(P, i, end) && is_punct(P, i + 1, end, ":")) {
+            if (add_symbol(P, CT(P, i), SCOUT_SYMBOL_LABEL, C_SCOPE_LOCAL, func,
+                           CT(P, i), CT(P, i + 1), NULL) >= 0) {
+                mark(P, i, SCOUT_TOKEN_LABEL);
+            }
+            i += 2;
+            continue;
+        }
+        if (is_word(P, i, end, "for") && is_punct(P, i + 1, end, "(")) {
+            long close = close_of(P, i + 1, end);
+            if (looks_like_decl(P, i + 2, close)) parse_declaration(P, i + 2, close, CTX_BLOCK, func);
+            i = close + 1;
+            continue;
+        }
+        if (is_word(P, i, end, "if") || is_word(P, i, end, "while") || is_word(P, i, end, "switch")) {
+            i++;
+            if (is_punct(P, i, end, "(")) i = close_of(P, i, end) + 1;
+            continue;
+        }
+        if (is_word(P, i, end, "else") || is_word(P, i, end, "do")) {
+            i++;
+            continue;
+        }
+        if (looks_like_decl(P, i, end)) {
+            long n = parse_declaration(P, i, end, CTX_BLOCK, func);
+            i = n > i ? n : i + 1;
+            continue;
+        }
+        while (i < end && !is_punct(P, i, end, ";") && !is_punct(P, i, end, "{") &&
+               !is_punct(P, i, end, "}")) {
+            i = (is_punct(P, i, end, "(") || is_punct(P, i, end, "[")) ? close_of(P, i, end) + 1 : i + 1;
+        }
+        if (is_punct(P, i, end, ";")) i++;
+    }
+}
+
+/**
+ * @brief Parse one declaration: its specifiers (with a struct, union or
+ *        enum defined there) and its declarators, up to the ';' or the
+ *        end of a function body.
+ * @param P The parser.
+ * @param i Its first token.
+ * @param end The end of the area (exclusive).
+ * @param ctx CTX_FILE, CTX_STRUCT or CTX_BLOCK.
+ * @param parent The symbol members and locals belong to (-1 at file scope).
+ * @return The index after the declaration.
+ */
+static long parse_declaration(Parser *P, long i, long end, int ctx, long parent)
+{
+    long start = i, spec_end;
+    int is_typedef = 0, is_static = 0, is_extern = 0, saw_type = 0;
+    long pre_alias = -1;    /* typedef name added before its struct's members */
+
+    /* specifiers */
+    while (i < end) {
+        const CTok *t = CT(P, i);
+        if (t->type != TK_IDENT) break;
+        if (is_word(P, i, end, "typedef")) {
+            is_typedef = 1;
+            i++;
+        } else if (is_word(P, i, end, "static")) {
+            is_static = 1;
+            i++;
+        } else if (is_word(P, i, end, "extern")) {
+            is_extern = 1;
+            i++;
+        } else if (tok_in(t, ATTRIBUTES) && is_punct(P, i + 1, end, "(")) {
+            i = close_of(P, i + 1, end) + 1;
+        } else if (tok_in(t, QUALIFIERS)) {
+            i++;
+        } else if (tok_in(t, c_parser_types)) {
+            saw_type = 1;
+            i++;
+        } else if (is_tag_word(P, i, end)) {
+            long kw = i, tag = -1;
+            int is_enum = is_word(P, i, end, "enum");
+            i++;
+            if (is_name(P, i, end)) {
+                tag = i;
+                mark(P, i, SCOUT_TOKEN_TYPE);
+                i++;
+            }
+            if (is_punct(P, i, end, "{")) {
+                long close = close_of(P, i, end);
+                long sym = -1;
+                const CTok *last = CT(P, close < end ? close : end - 1);
+                CScope scope = ctx == CTX_FILE ? type_scope(P) : C_SCOPE_LOCAL;
+                long par = ctx == CTX_FILE ? -1 : parent;
+                TextBuf b;
+                memset(&b, 0, sizeof(b));
+                if (tag >= 0) {
+                    tb_add_code(P, &b, kw, tag, 0);
+                    sym = add_symbol(P, CT(P, tag), is_enum ? SCOUT_SYMBOL_ENUM : SCOUT_SYMBOL_STRUCT,
+                                     scope, par, CT(P, kw), last, tb_string(&b));
+                } else if (is_typedef) {
+                    long n = first_declarator_name(P, close + 1, end);
+                    if (n >= 0) {
+                        tb_add_code(P, &b, start, n, 0);
+                        sym = add_symbol(P, CT(P, n), SCOUT_SYMBOL_TYPE_ALIAS, scope, par,
+                                         CT(P, start), CT(P, n), tb_string(&b));
+                        if (sym >= 0) {
+                            mark(P, n, SCOUT_TOKEN_TYPE);
+                            pre_alias = n;
+                        }
+                    }
+                }
+                if (is_enum) {
+                    parse_enum(P, i + 1, close, sym >= 0 ? sym : par, scope);
+                } else {
+                    parse_members(P, i + 1, close, sym >= 0 ? sym : parent);
+                }
+                i = close + 1;
+            }
+            saw_type = 1;
+        } else if (is_name(P, i, end) && !saw_type) {
+            /* a type name, unless it is the declarator itself */
+            if (is_punct(P, i + 1, end, "(") || is_punct(P, i + 1, end, ";") ||
+                is_punct(P, i + 1, end, ",") || is_punct(P, i + 1, end, "=") ||
+                is_punct(P, i + 1, end, "[") || is_punct(P, i + 1, end, ":")) {
+                break;
+            }
+            mark(P, i, SCOUT_TOKEN_TYPE);
+            saw_type = 1;
+            i++;
+        } else {
+            break;
+        }
+    }
+    spec_end = i;
+
+    /* declarators */
+    while (i < end) {
+        long j = i, name = -1, params = -1, sym = -1;
+        int is_func = 0, fptr = 0, has_body;
+
+        if (is_punct(P, i, end, ";")) return i + 1;
+        while (j < end) {
+            const CTok *t = CT(P, j);
+            if (t->type == TK_PUNCT) {
+                if (tok_is(t, TK_PUNCT, ",") || tok_is(t, TK_PUNCT, ";") || tok_is(t, TK_PUNCT, "{") ||
+                    tok_is(t, TK_PUNCT, "=") || tok_is(t, TK_PUNCT, "}")) {
+                    break;
+                }
+                if (tok_is(t, TK_PUNCT, "(")) {
+                    long close = close_of(P, j, end);
+                    if (name < 0 && (is_punct(P, j + 1, end, "*") || is_punct(P, j + 1, end, "^"))) {
+                        long k;
+                        for (k = j + 1; k < close; k++) {
+                            if (is_name(P, k, end)) {
+                                name = k;
+                                break;
+                            }
+                        }
+                        fptr = 1;
+                    } else if (name >= 0 && !is_func && !fptr) {
+                        is_func = 1;
+                        params = j;
+                    }
+                    j = close + 1;
+                    continue;
+                }
+                if (tok_is(t, TK_PUNCT, "[")) {
+                    j = close_of(P, j, end) + 1;
+                    continue;
+                }
+                if (tok_is(t, TK_PUNCT, ":") && ctx == CTX_STRUCT) {
+                    /* a bit field */
+                    j++;
+                    while (j < end && !is_punct(P, j, end, ",") && !is_punct(P, j, end, ";")) {
+                        j = skip_one(P, j, end);
+                    }
+                    continue;
+                }
+                j++;
+                continue;
+            }
+            if (t->type == TK_IDENT && tok_in(t, ATTRIBUTES) && is_punct(P, j + 1, end, "(")) {
+                j = close_of(P, j + 1, end) + 1;
+                continue;
+            }
+            if (name < 0 && is_name(P, j, end)) name = j;
+            j++;
+        }
+        if (j > end) j = end;
+        has_body = is_punct(P, j, end, "{");
+
+        if (name >= 0 && name != pre_alias) {
+            int kind, tkind, decl = 0;
+            CScope scope;
+            long par = ctx == CTX_FILE ? -1 : parent;
+            long last = has_body ? close_of(P, j, end) : j - 1;
+            TextBuf b;
+            if (is_typedef) {
+                kind = SCOUT_SYMBOL_TYPE_ALIAS;
+                tkind = SCOUT_TOKEN_TYPE;
+                scope = ctx == CTX_FILE ? type_scope(P) : C_SCOPE_LOCAL;
+            } else if (ctx == CTX_STRUCT) {
+                kind = SCOUT_SYMBOL_FIELD;
+                tkind = SCOUT_TOKEN_FIELD;
+                scope = C_SCOPE_LOCAL;
+            } else if (is_func) {
+                kind = SCOUT_SYMBOL_FUNCTION;
+                tkind = SCOUT_TOKEN_FUNCTION;
+                decl = !has_body;
+                scope = ctx == CTX_FILE ? (is_static ? C_SCOPE_FILE : C_SCOPE_GLOBAL) : C_SCOPE_LOCAL;
+            } else {
+                kind = SCOUT_SYMBOL_VARIABLE;
+                tkind = SCOUT_TOKEN_VARIABLE;
+                if (ctx == CTX_FILE) {
+                    scope = is_static ? C_SCOPE_FILE : C_SCOPE_GLOBAL;
+                    decl = is_extern;
+                } else {
+                    scope = C_SCOPE_LOCAL;
+                }
+            }
+            if (last >= end) last = end - 1;
+            memset(&b, 0, sizeof(b));
+            if (i == spec_end) {
+                tb_add_code(P, &b, start, j - 1, 0);
+            } else {
+                tb_add_code(P, &b, start, spec_end - 1, 0);
+                tb_add_code(P, &b, i, j - 1, 1);
+            }
+            sym = add_symbol(P, CT(P, name), kind, scope, par, CT(P, start), CT(P, last), tb_string(&b));
+            if (sym >= 0) {
+                P->res->symbols[sym].declaration = decl;
+                mark(P, name, tkind);
+            }
+        }
+
+        if (is_punct(P, j, end, "=")) {
+            j++;
+            while (j < end && !is_punct(P, j, end, ",") && !is_punct(P, j, end, ";")) j = skip_one(P, j, end);
+        }
+        if (is_punct(P, j, end, "{")) {
+            long close = close_of(P, j, end);
+            if (is_func && sym >= 0 && ctx == CTX_FILE) {
+                long first_local;
+                parse_params(P, params, sym);
+                first_local = P->res->symbol_count;
+                add_func(P, sym, first_local, params, close);
+                parse_block(P, j + 1, close, sym);
+                if (P->nfuncs > 0 && P->funcs[P->nfuncs - 1].sym == sym) {
+                    P->funcs[P->nfuncs - 1].last = P->res->symbol_count;
+                }
+            }
+            return close + 1;
+        }
+        if (is_punct(P, j, end, ",")) {
+            i = j + 1;
+            continue;
+        }
+        if (is_punct(P, j, end, ";")) return j + 1;
+        return j > i ? j : i + 1;
+    }
+    return i;
+}
+
+/* ---- Highlighting tokens ---- */
+
+/**
+ * @brief Return the highlighting kind of a symbol kind.
+ * @param kind SCOUT_SYMBOL_ value.
+ * @return SCOUT_TOKEN_ value, 0 for none.
+ */
+static int token_kind_of(int kind)
+{
+    switch (kind) {
+    case SCOUT_SYMBOL_STRUCT:
+    case SCOUT_SYMBOL_ENUM:
+    case SCOUT_SYMBOL_TYPE_ALIAS:   return SCOUT_TOKEN_TYPE;
+    case SCOUT_SYMBOL_FUNCTION:     return SCOUT_TOKEN_FUNCTION;
+    case SCOUT_SYMBOL_MACRO:        return SCOUT_TOKEN_MACRO;
+    case SCOUT_SYMBOL_ENUM_MEMBER:
+    case SCOUT_SYMBOL_CONSTANT:     return SCOUT_TOKEN_CONSTANT;
+    case SCOUT_SYMBOL_VARIABLE:     return SCOUT_TOKEN_VARIABLE;
+    case SCOUT_SYMBOL_LABEL:        return SCOUT_TOKEN_LABEL;
+    default:                        return 0;
+    }
+}
+
+/**
+ * @brief Hash a name.
+ * @param s The name.
+ * @param len Its length.
+ * @return The hash.
+ */
+static unsigned long hash_name(const char *s, long len)
+{
+    unsigned long h = 5381;
+    long i;
+    for (i = 0; i < len; i++) h = (h * 33) ^ (unsigned char)s[i];
+    return h;
+}
+
+/**
+ * @brief Tell whether a symbol has a name.
+ * @param s The symbol.
+ * @param name The name.
+ * @param len Its length.
+ * @return Non-zero if it has.
+ */
+static int sym_is(const CSymbol *s, const char *name, long len)
+{
+    return strncmp(s->name, name, (size_t)len) == 0 && s->name[len] == '\0';
+}
+
+/**
+ * @brief Find the highlighting kind of a name among the locals of a
+ *        function.
+ * @param P The parser.
+ * @param f The function.
+ * @param t The name's token.
+ * @return SCOUT_TOKEN_ value, 0 if it is no local.
+ */
+static int local_kind(Parser *P, const FuncRange *f, const CTok *t)
+{
+    long k;
+    for (k = f->sym + 1; k < f->last; k++) {
+        const CSymbol *s = &P->res->symbols[k];
+        if (s->kind == SCOUT_SYMBOL_FIELD || !sym_is(s, t->s, t->len)) continue;
+        if (s->kind == SCOUT_SYMBOL_VARIABLE && k < f->first_local) return SCOUT_TOKEN_PARAMETER;
+        return token_kind_of(s->kind);
+    }
+    return 0;
+}
+
+/**
+ * @brief Classify every identifier and build CParseResult::tokens.
+ * @param P The parser.
+ */
+static void make_tokens(Parser *P)
+{
+    CParseResult *res = P->res;
+    unsigned long size = 64, h;
+    long *slots;
+    long i, fi = 0;
+
+    while (size < (unsigned long)res->symbol_count * 2 + 1) size *= 2;
+    slots = (long *)malloc(size * sizeof(long));
+    if (!slots) {
+        res->out_of_memory = 1;
+        return;
+    }
+    for (h = 0; h < size; h++) slots[h] = -1;
+    for (i = 0; i < res->symbol_count; i++) {
+        const CSymbol *s = &res->symbols[i];
+        long len = (long)strlen(s->name);
+        if (s->scope == C_SCOPE_LOCAL || !token_kind_of(s->kind)) continue;
+        for (h = hash_name(s->name, len) & (size - 1); slots[h] >= 0; h = (h + 1) & (size - 1)) {
+            if (sym_is(&res->symbols[slots[h]], s->name, len)) break;
+        }
+        if (slots[h] < 0) slots[h] = i;
+    }
+
+    for (i = 0; i < P->ntok && !check_stop(P); i++) {
+        const CTok *t = &P->tok[i];
+        const CTok *prev = i > 0 ? &P->tok[i - 1] : NULL;
+        int kind;
+        if (t->type != TK_IDENT || tok_reserved(t)) continue;
+        if (prev && (prev->flags & TF_HASH)) continue;     /* the directive's name */
+        kind = P->mark[i];
+        if (!kind && prev && (tok_is(prev, TK_PUNCT, ".") || tok_is(prev, TK_PUNCT, "->"))) {
+            kind = SCOUT_TOKEN_FIELD;
+        } else if (!kind && prev && tok_is(prev, TK_IDENT, "goto")) {
+            kind = SCOUT_TOKEN_LABEL;
+        } else if (!kind && prev && (tok_is(prev, TK_IDENT, "struct") || tok_is(prev, TK_IDENT, "union") ||
+                                     tok_is(prev, TK_IDENT, "enum"))) {
+            kind = SCOUT_TOKEN_TYPE;
+        } else if (!kind) {
+            while (fi < P->nfuncs && P->funcs[fi].tok_last < i) fi++;
+            if (fi < P->nfuncs && i >= P->funcs[fi].tok_first) kind = local_kind(P, &P->funcs[fi], t);
+            if (!kind) {
+                for (h = hash_name(t->s, t->len) & (size - 1); slots[h] >= 0; h = (h + 1) & (size - 1)) {
+                    if (sym_is(&res->symbols[slots[h]], t->s, t->len)) {
+                        kind = token_kind_of(res->symbols[slots[h]].kind);
+                        break;
+                    }
+                }
+            }
+            if (!kind && i + 1 < P->ntok && tok_is(&P->tok[i + 1], TK_PUNCT, "(") &&
+                !((t->flags & TF_PP) && tok_is(t, TK_IDENT, "defined"))) {
+                kind = SCOUT_TOKEN_FUNCTION;
+            }
+        }
+        if (!kind) continue;
+        if (!grow(P, (void **)&res->tokens, &P->tokvalcap, res->token_count * 4 + 3, sizeof(long))) break;
+        res->tokens[res->token_count * 4] = t->line;
+        res->tokens[res->token_count * 4 + 1] = t->col;
+        res->tokens[res->token_count * 4 + 2] = t->len;
+        res->tokens[res->token_count * 4 + 3] = kind;
+        res->token_count++;
+    }
+    free(slots);
+}
+
+/* ---- Entry points ---- */
+
+CParseResult *c_parser_analyze(const char *source, size_t length, int is_header)
+{
+    Parser P;
+    CParseResult *res = (CParseResult *)calloc(1, sizeof(CParseResult));
+    if (!res) return NULL;
+    memset(&P, 0, sizeof(P));
+    P.src = source;
+    P.end = source + length;
+    P.is_header = is_header;
+    P.res = res;
+
+    lex(&P);
+    if (!res->stopped && !res->out_of_memory) {
+        P.mark = (unsigned char *)calloc((size_t)P.ntok + 1, 1);
+        if (!P.mark) res->out_of_memory = 1;
+    }
+    if (!res->stopped && !res->out_of_memory) directives(&P);
+    if (!res->stopped && !res->out_of_memory) match_brackets(&P);
+    if (!res->stopped && !res->out_of_memory) {
+        long i = 0;
+        while (i < P.ncode && !check_stop(&P)) {
+            long n = parse_declaration(&P, i, P.ncode, CTX_FILE, -1);
+            i = n > i ? n : i + 1;
+        }
+    }
+    if (!res->stopped && !res->out_of_memory) make_tokens(&P);
+
+    free(P.tok);
+    free(P.code);
+    free(P.match);
+    free(P.mark);
+    free(P.funcs);
+    return res;
+}
+
+void c_parse_result_free(CParseResult *res)
+{
+    long i;
+    if (!res) return;
+    for (i = 0; i < res->symbol_count; i++) {
+        free(res->symbols[i].name);
+        free(res->symbols[i].detail);
+    }
+    for (i = 0; i < res->diagnostic_count; i++) free(res->diagnostics[i].message);
+    for (i = 0; i < res->reference_count; i++) free(res->references[i].target);
+    free(res->symbols);
+    free(res->diagnostics);
+    free(res->references);
+    free(res->tokens);
+    free(res);
+}

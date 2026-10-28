@@ -8,10 +8,10 @@ This document describes what Scout is for, how its parts work together and
 its ARexx interface. The protocol between Scout and its parsers is in
 [Scout-Protocol.md](Scout-Protocol.md).
 
-> **Status: draft.** This is the design Scout is being rebuilt to. The code
-> in `src/scout/` and `src/parsers/` still follows an earlier skeleton (one
-> parser run per method, text results, a fixed parser table) and differs
-> from it.
+> **Status: draft.** This is the design Scout is being rebuilt to. The C
+> parser speaks version 1 of the protocol. The commodity in `src/scout/`
+> still follows an earlier skeleton (one parser run per method, text
+> results, a fixed parser table) and cannot use it until it is rebuilt.
 
 ## Contents
 

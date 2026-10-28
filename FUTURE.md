@@ -14,7 +14,7 @@
 
 Design: `src/scout/docs/Scout.md`, protocol: `src/scout/docs/Scout-Protocol.md`.
 
-1. Parser protocol v1 in the C parser (`scout/describe` with lexical rules,
+1. [x] Parser protocol v1 in the C parser (`scout/describe` with lexical rules,
    `scout/analyze`, several requests per run), host tests with sample files.
 2. Scout rebuilt: parsers from `PROGDIR:Parsers/`, sessions, cache, project
    index, parser runs in a worker process, JSON results with `TO`, unique

@@ -155,7 +155,12 @@ below the tree's root.
   generated and checked in); `sample/` is a small help directory for
   testing. It is kept self-contained so it can move to its own repository.
 - `src/parsers/`: standalone language parsers speaking the Scout protocol over
-  STDIN/STDOUT (to move to `src/scout/parsers/`).
+  STDIN/STDOUT (to move to `src/scout/parsers/`). The C parser is
+  `c_parser.c` (the portable, heuristic analysis: lexer, preprocessor
+  lines, declarations, highlighting tokens) and `c_parser_rpc.c`
+  (`scout/describe`, `scout/analyze`, the program);
+  `include/scout_protocol.h` holds the protocol's numbers (kinds,
+  severities, error codes) for Scout and all parsers.
 - `include/editor.h`: shared application types and cross-module declarations.
 - `include/syntax.h`: portable syntax-scanner interface.
 - `tests/test_syntax.c`: host-native syntax scanner tests.
@@ -166,7 +171,7 @@ below the tree's root.
 - `tests/test_htmltitle.c`: host-native tests of the HelpViewer's title and link helpers.
 - `tests/test_json.c`, `tests/test_scout_rpc.c`, `tests/test_c_parser.c`:
   host-native tests for the JSON code, Scout's JSON-RPC helpers and the C
-  parser.
+  parser (with the sample sources in `tests/data/c_parser/`, ISO-8859-1).
 - `amiga-devkit/`: git submodule (pinned tag) with shared Amiga tools and AI
   guidelines; see `CLAUDE.md`. Do not edit files inside the submodule.
 - `external/html_gadget/`: git submodule (tag `v1.2`), html.gadget, for

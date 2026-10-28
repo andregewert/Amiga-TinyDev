@@ -1,176 +1,133 @@
 /**
  * @file c_parser.h
- * @brief Interface of the C parser of Scout (symbols, diagnostics, the Scout protocol).
+ * @brief Interface of the C parser of Scout: the analysis of one C source
+ *        (symbols, diagnostics, includes, highlighting tokens) and the
+ *        handling of the requests of the Scout protocol.
+ *
+ * The analysis is heuristic: it does not preprocess, does not know the
+ * included headers and takes the first branch of an \#if as the code (the
+ * other branches only get highlighting tokens). It is portable C without
+ * Amiga headers, so the host tests can use it.
  */
 #ifndef TINYDEV_C_PARSER_H
 #define TINYDEV_C_PARSER_H
 
 #include <stddef.h>
 #include "json.h"
+#include "scout_protocol.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-/**
- * @name Symbol kinds
- * The same numbers as the LSP SymbolKind.
- */
-/** @{ */
-#define SCOUT_SYMBOL_KIND_FILE        1     /**< a file */
-#define SCOUT_SYMBOL_KIND_MODULE      2     /**< a module */
-#define SCOUT_SYMBOL_KIND_NAMESPACE   3     /**< a namespace */
-#define SCOUT_SYMBOL_KIND_PACKAGE     4     /**< a package */
-#define SCOUT_SYMBOL_KIND_CLASS       5     /**< a class */
-#define SCOUT_SYMBOL_KIND_METHOD      6     /**< a method */
-#define SCOUT_SYMBOL_KIND_PROPERTY    7     /**< a property */
-#define SCOUT_SYMBOL_KIND_FIELD       8     /**< a field of a struct or union */
-#define SCOUT_SYMBOL_KIND_CONSTRUCTOR 9     /**< a constructor */
-#define SCOUT_SYMBOL_KIND_ENUM        10    /**< an enumeration */
-#define SCOUT_SYMBOL_KIND_INTERFACE   11    /**< an interface */
-#define SCOUT_SYMBOL_KIND_FUNCTION    12    /**< a function */
-#define SCOUT_SYMBOL_KIND_VARIABLE    13    /**< a variable */
-#define SCOUT_SYMBOL_KIND_CONSTANT    14    /**< a constant (macro, enumerator) */
-#define SCOUT_SYMBOL_KIND_STRUCT      23    /**< a struct or union */
-/** @} */
+/** Visibility of a symbol ("scope" in the protocol). */
+typedef enum CScope {
+    C_SCOPE_GLOBAL,     /**< visible to other files */
+    C_SCOPE_FILE,       /**< only in this file */
+    C_SCOPE_LOCAL       /**< inside another symbol (field, parameter, local) */
+} CScope;
 
-/**
- * @name Diagnostic severities
- * The same numbers as the LSP DiagnosticSeverity.
- */
-/** @{ */
-#define SCOUT_DIAGNOSTIC_ERROR        1     /**< an error */
-#define SCOUT_DIAGNOSTIC_WARNING      2     /**< a warning */
-#define SCOUT_DIAGNOSTIC_INFO         3     /**< information */
-#define SCOUT_DIAGNOSTIC_HINT         4     /**< a hint */
-/** @} */
+/** A range in the source (1-based lines and byte columns, end exclusive). */
+typedef struct CRange {
+    long start_line;    /**< first line */
+    long start_col;     /**< first column */
+    long end_line;      /**< line of the end */
+    long end_col;       /**< column after the last character */
+} CRange;
 
-/**
- * @name Completion item kinds
- * The same numbers as the LSP CompletionItemKind.
- */
-/** @{ */
-#define SCOUT_COMPLETION_KIND_TEXT        1     /**< plain text */
-#define SCOUT_COMPLETION_KIND_METHOD      2     /**< a method */
-#define SCOUT_COMPLETION_KIND_FUNCTION    3     /**< a function */
-#define SCOUT_COMPLETION_KIND_CONSTRUCTOR 4     /**< a constructor */
-#define SCOUT_COMPLETION_KIND_FIELD       5     /**< a field */
-#define SCOUT_COMPLETION_KIND_VARIABLE    6     /**< a variable */
-#define SCOUT_COMPLETION_KIND_CLASS       7     /**< a class */
-#define SCOUT_COMPLETION_KIND_INTERFACE   8     /**< an interface */
-#define SCOUT_COMPLETION_KIND_MODULE      9     /**< a module */
-#define SCOUT_COMPLETION_KIND_PROPERTY    10    /**< a property */
-#define SCOUT_COMPLETION_KIND_UNIT        11    /**< a unit */
-#define SCOUT_COMPLETION_KIND_VALUE       12    /**< a value */
-#define SCOUT_COMPLETION_KIND_ENUM        13    /**< an enumeration */
-#define SCOUT_COMPLETION_KIND_KEYWORD     14    /**< a keyword of the language */
-#define SCOUT_COMPLETION_KIND_SNIPPET     15    /**< a snippet */
-#define SCOUT_COMPLETION_KIND_STRUCT      22    /**< a struct or union */
-/** @} */
-
-/** A symbol found in a C source (a node of a singly linked list). */
+/** A symbol defined (or declared) in the source. */
 typedef struct CSymbol {
     char *name;         /**< its name (allocated) */
-    char *detail;       /**< further information, e.g. the declaration (allocated, may be NULL) */
-    int kind;           /**< SCOUT_SYMBOL_KIND_ value */
-    long start_line;    /**< first line, 1-based */
-    long start_col;     /**< first column, 1-based */
-    long end_line;      /**< last line, 1-based */
-    long end_col;       /**< column after the end, 1-based */
-    struct CSymbol *next;   /**< the next symbol, NULL at the end */
+    char *detail;       /**< its declaration as text (allocated, may be NULL) */
+    int kind;           /**< SCOUT_SYMBOL_ value */
+    CScope scope;       /**< its visibility */
+    long parent;        /**< index of the symbol it belongs to, -1 for none */
+    int declaration;    /**< only declared here (prototype, extern) */
+    CRange range;       /**< the whole definition */
+    CRange selection;   /**< its name */
 } CSymbol;
 
-/** A problem found in a C source (a node of a singly linked list). */
+/** A problem found in the source. */
 typedef struct CDiagnostic {
-    char *message;      /**< the description (allocated) */
-    int severity;       /**< SCOUT_DIAGNOSTIC_ value */
-    long line;          /**< first line, 1-based */
-    long col;           /**< first column, 1-based */
-    long end_line;      /**< last line, 1-based */
-    long end_col;       /**< column after the end, 1-based */
-    struct CDiagnostic *next;   /**< the next diagnostic, NULL at the end */
+    char *message;      /**< one line of text (allocated) */
+    int severity;       /**< SCOUT_SEVERITY_ value */
+    CRange range;       /**< where it is */
 } CDiagnostic;
 
-/** A completion candidate (a node of a singly linked list). */
-typedef struct CCompletion {
-    char *label;        /**< the text to insert (allocated) */
-    char *detail;       /**< further information (allocated, may be NULL) */
-    int kind;           /**< SCOUT_COMPLETION_KIND_ value */
-    struct CCompletion *next;   /**< the next candidate, NULL at the end */
-} CCompletion;
+/** A file the source includes. */
+typedef struct CReference {
+    char *target;       /**< the name as written, without quotes or brackets (allocated) */
+    int system;         /**< written with <...> */
+    CRange range;       /**< where the name is, quotes or brackets included */
+} CReference;
 
-/** The result of parsing a C source: its symbols and diagnostics. */
+/** The result of analysing a C source. */
 typedef struct CParseResult {
-    char *uri;          /**< URI or path the source was given (allocated) */
-    char *filepath;     /**< path of the file, if it was read from one (allocated, may be NULL) */
-    CSymbol *symbols;   /**< the symbols, in the order found */
-    size_t symbol_count;    /**< number of symbols */
-    CDiagnostic *diagnostics;   /**< the diagnostics */
-    size_t diagnostic_count;    /**< number of diagnostics */
+    CSymbol *symbols;           /**< the symbols, in the order found (a parent before its members) */
+    long symbol_count;          /**< number of symbols */
+    CDiagnostic *diagnostics;   /**< the diagnostics, in the order found */
+    long diagnostic_count;      /**< number of diagnostics */
+    CReference *references;     /**< the includes */
+    long reference_count;       /**< number of includes */
+    long *tokens;               /**< highlighting tokens, four values each: line, column, length, SCOUT_TOKEN_ kind; sorted, no overlaps */
+    long token_count;           /**< number of tokens (values / 4) */
+    int out_of_memory;          /**< memory ran out; the result is incomplete */
+    int stopped;                /**< c_parser_should_stop() asked to stop; the result is incomplete */
 } CParseResult;
 
 /**
- * @brief Parse C source text and extract symbols and diagnostics.
+ * @brief Optional function the analysis calls now and then; when it
+ *        returns non-zero, the analysis stops (CParseResult::stopped).
  *
- * @param source NUL-terminated C source code.
- * @param uri File URI or path (copied).
- * @return Allocated parse result; free with c_parse_result_free().
+ * The program sets it to a Ctrl-C check; NULL (the default) never stops.
  */
-CParseResult *c_parser_analyze(const char *source, const char *uri);
+extern int (*c_parser_should_stop)(void);
+
+/** @name Words of the lexical rules (NULL-terminated lists) */
+/** @{ */
+extern const char *const c_parser_keywords[];   /**< keywords (class "keyword") */
+extern const char *const c_parser_types[];      /**< type keywords (class "type") */
+extern const char *const c_parser_constants[];  /**< constants (class "constant") */
+/** @} */
 
 /**
- * @brief Parse a C source file from disk.
- *
- * @param filepath Path to C source file.
- * @return Allocated parse result, or NULL if file cannot be read.
+ * @brief Analyse C source text.
+ * @param source The text (any bytes; need not be terminated).
+ * @param length Its length.
+ * @param is_header Whether it is a header: its macros, types and
+ *                  enumerations are then visible to other files
+ *                  (C_SCOPE_GLOBAL), otherwise only in the file.
+ * @return The result (free it with c_parse_result_free()), or NULL if out
+ *         of memory.
  */
-CParseResult *c_parser_analyze_file(const char *filepath);
+CParseResult *c_parser_analyze(const char *source, size_t length, int is_header);
 
 /**
- * @brief Free all memory associated with a parse result.
- * @param res The result of c_parser_analyze() or c_parser_analyze_file()
- *            (may be NULL).
+ * @brief Free a result.
+ * @param res The result (may be NULL).
  */
 void c_parse_result_free(CParseResult *res);
 
 /**
- * @brief Find the definition location for a symbol name or word at coordinates.
- *
- * @param res Parsed C file result.
- * @param symbol_name Identifier to find, or NULL.
- * @param line 1-based line number (if symbol_name is NULL).
- * @param col 1-based column number (if symbol_name is NULL).
- * @param out_sym Output pointer to matched symbol (borrowed reference).
- * @return 1 if found, 0 otherwise.
+ * @brief Write the result of scout/describe.
+ * @param w The writer.
  */
-int c_parser_find_definition(const CParseResult *res, const char *symbol_name,
-                             long line, long col, const CSymbol **out_sym);
+void c_parser_describe(JsonWriter *w);
 
 /**
- * @brief Get code completions matching a prefix.
+ * @brief Answer one request of the Scout protocol.
  *
- * @param res Parsed C file result (optional, can be NULL for keywords only).
- * @param prefix Prefix string to match candidates against (case-sensitive or insensitive).
- * @param out_list Pointer to head of allocated completion list.
- * @return Number of completion candidates generated.
- */
-size_t c_parser_get_completions(const CParseResult *res, const char *prefix,
-                                CCompletion **out_list);
-
-/**
- * @brief Free a list of completion candidates.
- * @param list The list of c_parser_get_completions() (may be NULL).
- */
-void c_completions_free(CCompletion *list);
-
-/**
- * @brief Process a single JSON-RPC 2.0 request string and produce response string.
+ * Knows scout/describe and scout/analyze; other methods are answered with
+ * the "unknown method" error.
  *
- * @param request_json Single-line or multi-line JSON-RPC request.
- * @param response_writer Writer to receive formatted single-line JSON-RPC response.
- * @return 1 on success (even if a Scout error response produced), 0 on fatal writer error.
+ * @param request The request (one line of JSON).
+ * @param response The writer of the answer (one line of JSON, without the
+ *                 line end).
+ * @return 1 if an answer was written (also an error answer); 0 if the
+ *         analysis was stopped (c_parser_should_stop()) and nothing was
+ *         written.
  */
-int c_parser_process_jsonrpc(const char *request_json, JsonWriter *response_writer);
+int c_parser_handle_request(const char *request, JsonWriter *response);
 
 #ifdef __cplusplus
 }
