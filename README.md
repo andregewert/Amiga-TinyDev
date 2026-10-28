@@ -183,32 +183,19 @@ uses it for its own help, but it works with any directory of HTML pages.
 
 `src/helpviewer/sample/` is a small help directory to try it with.
 
-## TinyDev-Scout Commodity & ARexx Interface
+## TinyDev-Scout
 
-`TinyDev-Scout` runs in the background as a standard AmigaOS Commodity (`commodities.library`) managed via Exchange (Enable, Disable, Kill) and exposes an ARexx host port named `TINYDEV_SCOUT`.
+`TinyDev-Scout` is a commodity that analyses source code for editors. It
+runs language parsers, small standalone programs (one per language, in
+`Parsers/`), keeps their results and answers questions through its ARexx
+port `TINYDEV_SCOUT`, in JSON: symbols, diagnostics, "go to definition",
+completion and highlighting. Its ideas come from the Language Server
+Protocol, but it is not LSP.
 
-Language parsers are standalone executables communicating over STDIN/STDOUT using JSON-RPC 2.0 / NDJSON, making them interchangeable.
-This is the *Scout protocol*. Its ideas (and the numbering of symbol, diagnostic
-and completion kinds) are borrowed from the Language Server Protocol, but it is
-not LSP and LSP clients or servers cannot talk to it.
-
-At the moment `TinyDev-Scout` is just a skeleton and not integrated into `TinyDev`.
-
-### Supported ARexx Commands
-
-| Command | Parameters | Description |
-|---|---|---|
-| `PARSE` | `<filepath>` | Executes parser and caches symbols & diagnostics |
-| `SYMBOLS` | `<filepath>` | Returns symbol list (`<kind> <line> <col> <name>`) |
-| `DIAGNOSTICS` | `<filepath>` | Returns diagnostic list (`<severity> <line> <col> <message>`) |
-| `DEFINITION` | `<filepath> <line> <col> [symbol]` | Finds symbol definition location (`<file> <line> <col>`) |
-| `COMPLETE` | `<filepath> <line> <col> [prefix]` | Returns space-separated completion candidates |
-| `REGISTER_PARSER` | `<ext> <executable_path>` | Configures or overrides parser for a file extension |
-| `STATUS` | None | Returns broker status, port, and request count |
-| `QUIT` | None | Shuts down the Scout commodity cleanly |
-
-An example ARexx query script is provided in `scripts/tdscout_query.rexx`.
-An AmigaDOS shell script to test/demonstrate the C parser directly is provided in `scripts/test_c_parser.script`.
+Scout is being rebuilt and is not yet used by TinyDev. Its design, the
+ARexx commands and the protocol for writing parsers are described in
+[src/scout/docs/Scout.md](src/scout/docs/Scout.md) and
+[src/scout/docs/Scout-Protocol.md](src/scout/docs/Scout-Protocol.md).
 
 ## Building
 

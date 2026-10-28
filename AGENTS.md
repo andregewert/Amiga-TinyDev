@@ -126,7 +126,12 @@ below the tree's root.
 - `src/scout/`: Scout, the source analysis commodity (`TinyDev-Scout`, ARexx
   port `TINYDEV_SCOUT`), and its JSON-RPC helpers (`scout_rpc.c`,
   `include/scout_rpc.h`). Scout talks to the parsers with the Scout
-  protocol, which is modeled on LSP but is not LSP.
+  protocol, which is modeled on LSP but is not LSP. Its design (sessions,
+  cache, project index, two-layer highlighting, ARexx commands, temporary
+  files) is `src/scout/docs/Scout.md`, the parser protocol
+  `src/scout/docs/Scout-Protocol.md` (drafts: the code still follows an
+  earlier skeleton). Scout and the parsers must not depend on TinyDev, so
+  they can move to a repository of their own.
 - `src/json.c`, `include/json.h`: the portable JSON code (values, reader,
   accessors, building and changing trees, writer, indented output of a
   tree) of TinyDev, Scout and the parsers; strings stay 8-bit as read
@@ -150,7 +155,7 @@ below the tree's root.
   generated and checked in); `sample/` is a small help directory for
   testing. It is kept self-contained so it can move to its own repository.
 - `src/parsers/`: standalone language parsers speaking the Scout protocol over
-  STDIN/STDOUT.
+  STDIN/STDOUT (to move to `src/scout/parsers/`).
 - `include/editor.h`: shared application types and cross-module declarations.
 - `include/syntax.h`: portable syntax-scanner interface.
 - `tests/test_syntax.c`: host-native syntax scanner tests.
