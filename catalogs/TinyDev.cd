@@ -819,7 +819,7 @@ MSG_BUILD_NODIR (//)
 The drawer %s cannot be found.
 ;
 MSG_BUILD_SCRIPT (//)
-The command could not be prepared in T:.
+The command could not be prepared in the drawer of the temporary files.
 ;
 MSG_BUILD_BUSY (//)
 A build is already running.
@@ -848,3 +848,24 @@ Debug
 ;
 MSG_TBH_DEBUG (//)
 Debug the project (Amiga+D)
+MSG_STATUS_SCOUT (//)
+Documents: %lu  Lines: %lu  Symbols: %ld  Problems: %ld
+;
+MSG_CAT_ADVANCED (//)
+Advanced
+;
+MSG_PREFS_SCOUT (//)
+Anal_yse sources with Scout
+;
+MSG_PREFS_TEMPDIR (//)
+Temporary files 
+;
+MSG_PREFS_CHOOSE (//)
+Choose...
+;
+MSG_PREFS_ASL_TEMPDIR (//)
+Drawer for temporary files
+;
+MSG_PREFS_ADVNOTE (//)
+Both take effect at once. TinyDev-Scout finds the symbols\nand errors of the sources. Temporary files: Scout's copies of\nchanged documents and the scripts of the Build menu.\nT: (in the RAM disk) is fastest.
+;

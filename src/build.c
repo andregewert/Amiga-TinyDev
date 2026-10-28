@@ -3,7 +3,8 @@
  * @brief The project's actions Build, Run and Debug: their default
  *        commands from .tinydev/project.json, run through the Shell.
  *
- * Each action runs a script written to T: (so several lines, Stack and
+ * Each action runs a script written to the drawer of the temporary files
+ * (TEMPDIR, named with temp_name(); so several lines, Stack and
  * the like work alike); it starts with "Stack 65536", as TinyDev started
  * from the Workbench has no Shell whose stack the commands would get (a
  * Stack line of the command itself goes after it). The placeholders are
@@ -13,21 +14,21 @@
  * Build saves the modified documents that have a name, then runs in a
  * process of its own, which calls SystemTags() synchronously and reports
  * the return code with a message; so TinyDev goes on while it runs. The
- * output goes to a file in T: that TinyDev reads four times a second
+ * output goes to a temporary file that TinyDev reads four times a second
  * (timer.device) into the output window (outwin.c): it opens the file,
  * reads what came after the part already read and closes it again. The
  * file is opened with MODE_READWRITE for writing (a shared lock, so it can
  * be read meanwhile) and line-buffered: the Shell and the commands write
  * through this handle, and with its buffer the text would only arrive in
- * the file when the buffer is full or the handle closed. It stays in T:
- * after the build (for a look with Type) until the next build or quit.
+ * the file when the buffer is full or the handle closed. It stays after
+ * the build (for a look with Type) until the next build or quit.
  * Stop sends Ctrl-C to the Shell of the build, found as the CLI whose
  * output is that file. Only one build runs at a time; TinyDev waits for
  * it before quitting.
  *
  * Run and Debug start asynchronously in a console window of their own
- * and are independent of TinyDev; their scripts stay in T: until TinyDev
- * quits (a script may still be running then and is left).
+ * and are independent of TinyDev; their scripts stay until TinyDev quits
+ * (a script may still be running then and is left).
  *
  * Untested assumption: the Shell started by SystemTags() keeps SYS_Output
  * as cli_StandardOutput (Stop relies on it).
@@ -44,6 +45,7 @@
 #include <dos/dostags.h>
 #include <dos/stdio.h>
 #include <exec/execbase.h>
+#include <exec/memory.h>
 #include <proto/dos.h>
 #include <proto/exec.h>
 #include <proto/intuition.h>
@@ -54,10 +56,6 @@
 
 /** The project file in \<project\>/.tinydev/. */
 #define PROJECT_FILE "project.json"
-/** The script of the build. */
-#define BUILD_SCRIPT "T:TinyDev-Build.script"
-/** The output of the build. */
-#define BUILD_OUTPUT "T:TinyDev-Build.out"
 /** Stack the commands get (bytes). */
 #define COMMAND_STACK 65536
 /** Interval of reading the output (microseconds). */
@@ -71,7 +69,9 @@ static struct {
     int running;
     int stopping;                       /* Stop was used */
     char name[128];                     /* the command's name */
-    char command[64];                   /* what the Shell runs */
+    char script[EDITOR_PATH_MAX];       /* the build's script */
+    char output[EDITOR_PATH_MAX];       /* its output */
+    char command[EDITOR_PATH_MAX + 16]; /* what the Shell runs */
     struct MsgPort *port;               /* the build process reports here */
     struct Message msg;
     LONG rc;                            /* return code (set by the build process) */
@@ -82,8 +82,14 @@ static struct {
     int timer_open, timer_pending;
 } bj;
 
-/** Number of scripts written for Run and Debug. */
-static ULONG run_scripts;
+/** A script written for Run or Debug, deleted when TinyDev quits. */
+typedef struct RunScript {
+    struct RunScript *next;             /**< the next one */
+    char name[EDITOR_PATH_MAX];         /**< its name */
+} RunScript;
+
+/** The scripts written for Run and Debug. */
+static RunScript *run_scripts;
 
 /**
  * @brief Report a problem with an action.
@@ -318,7 +324,7 @@ static void read_output(EditorApp *app)
 {
     static char buffer[1024];
     LONG n;
-    BPTR fh = Open((STRPTR)BUILD_OUTPUT, MODE_OLDFILE);
+    BPTR fh = Open((STRPTR)bj.output, MODE_OLDFILE);
     if (fh == 0) return;
     if (Seek(fh, bj.out_read, OFFSET_BEGINNING) >= 0)
         while ((n = Read(fh, buffer, sizeof(buffer))) > 0) {
@@ -339,7 +345,7 @@ static void release(void)
     bj.out_w = bj.in = 0;
     if (bj.port != NULL) DeleteMsgPort(bj.port);
     bj.port = NULL;
-    DeleteFile((STRPTR)BUILD_SCRIPT);
+    if (bj.script[0] != '\0') DeleteFile((STRPTR)bj.script);
 }
 
 /**
@@ -396,13 +402,21 @@ static void start_build(EditorApp *app)
         return;
     }
     if (!save_documents(app)) return;
-    if ((lock = prepare(app, PROJ_BUILD, BUILD_SCRIPT, bj.name)) == 0) return;
+    /* the output of the last build goes now */
+    if (bj.output[0] != '\0') DeleteFile((STRPTR)bj.output);
+    bj.output[0] = '\0';
+    if (!temp_name(app, ".script", bj.script, sizeof(bj.script)) ||
+        !temp_name(app, ".out", bj.output, sizeof(bj.output))) {
+        bj.script[0] = bj.output[0] = '\0';
+        report(app, PROJ_BUILD, S(MSG_BUILD_SCRIPT));
+        return;
+    }
+    if ((lock = prepare(app, PROJ_BUILD, bj.script, bj.name)) == 0) return;
 
-    snprintf(bj.command, sizeof(bj.command), "Execute \"%s\"", BUILD_SCRIPT);
-    DeleteFile((STRPTR)BUILD_OUTPUT);
+    snprintf(bj.command, sizeof(bj.command), "Execute \"%s\"", bj.script);
     if ((bj.port = CreateMsgPort()) == NULL || !open_timer() ||
         (bj.in = Open((STRPTR)"NIL:", MODE_OLDFILE)) == 0 ||
-        (bj.out_w = Open((STRPTR)BUILD_OUTPUT, MODE_READWRITE)) == 0) {
+        (bj.out_w = Open((STRPTR)bj.output, MODE_READWRITE)) == 0) {
         UnLock(lock);
         release();
         report(app, PROJ_BUILD, S(MSG_BUILD_SCRIPT));
@@ -494,8 +508,6 @@ int build_may_quit(EditorApp *app)
 
 void build_cleanup(EditorApp *app)
 {
-    ULONG n;
-    char script[48];
     if (bj.running) {
         /* stop it and wait: the process runs code of TinyDev; Ctrl-C again
          * every turn of the timer, in case the first came too early */
@@ -512,10 +524,12 @@ void build_cleanup(EditorApp *app)
         bj.running = 0;
         release();
     }
-    DeleteFile((STRPTR)BUILD_OUTPUT);
-    for (n = 1; n <= run_scripts; ++n) {
-        snprintf(script, sizeof(script), "T:TinyDev-Run-%lu.script", (unsigned long)n);
-        DeleteFile((STRPTR)script);
+    if (bj.output[0] != '\0') DeleteFile((STRPTR)bj.output);
+    while (run_scripts != NULL) {
+        RunScript *next = run_scripts->next;
+        DeleteFile((STRPTR)run_scripts->name);
+        FreeVec(run_scripts);
+        run_scripts = next;
     }
 }
 
@@ -528,14 +542,23 @@ void build_cleanup(EditorApp *app)
  */
 static void start_detached(EditorApp *app, ProjAction action)
 {
-    char script[48], command[64], name[128], console[200];
+    char command[EDITOR_PATH_MAX + 16], name[128], console[200];
+    RunScript *script = AllocVec(sizeof(RunScript), MEMF_ANY);
     BPTR lock, old, con;
     LONG rc = -1;
 
-    snprintf(script, sizeof(script), "T:TinyDev-Run-%lu.script", (unsigned long)(run_scripts + 1));
-    if ((lock = prepare(app, action, script, name)) == 0) return;
-    ++run_scripts;
-    snprintf(command, sizeof(command), "Execute \"%s\"", script);
+    if (script == NULL || !temp_name(app, ".script", script->name, sizeof(script->name))) {
+        if (script != NULL) FreeVec(script);
+        report(app, action, S(MSG_BUILD_SCRIPT));
+        return;
+    }
+    if ((lock = prepare(app, action, script->name, name)) == 0) {
+        FreeVec(script);
+        return;
+    }
+    script->next = run_scripts;
+    run_scripts = script;
+    snprintf(command, sizeof(command), "Execute \"%s\"", script->name);
     snprintf(console, sizeof(console), "CON:0/%ld/640/200/%s: %s/AUTO/CLOSE/WAIT",
              app->screen != NULL ? (long)app->screen->BarHeight + 1 : 0L, APP_NAME, name);
     if ((con = Open((STRPTR)console, MODE_NEWFILE)) != 0) {

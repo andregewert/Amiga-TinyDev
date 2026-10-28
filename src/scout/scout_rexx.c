@@ -876,7 +876,11 @@ void scout_rexx_handle(ScoutServer *srv)
     struct RexxMsg *rx;
     if (!srv->rexx_port) return;
     while ((rx = (struct RexxMsg *)GetMsg(srv->rexx_port)) != NULL) {
-        if (!IsRexxMsg(rx) || ((ULONG)rx->rm_Action & RXCODEMASK) != RXCOMM || !rx->rm_Args[0]) {
+        /* not IsRexxMsg(): it refuses messages a program made with
+         * CreateRexxMsg() (seen with TinyDev's), only rx's pass */
+        if (((ULONG)rx->rm_Action & RXCODEMASK) != RXCOMM || !rx->rm_Args[0]) {
+            /* reported in STATUS, as a client gets no text for it */
+            scout_store_add_problem(&srv->store, "a message was refused: no ARexx command", NULL);
             rx->rm_Result1 = RC_ERROR;
             rx->rm_Result2 = SCOUT_E_ARGS;
             ReplyMsg((struct Message *)rx);

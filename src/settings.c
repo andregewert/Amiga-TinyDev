@@ -25,6 +25,8 @@
  *   OUTPUT                     open the output window at the start
  *   OUTPUTWINDOW=l,t,w,h       where the output window opens (otherwise
  *                              below the main window)
+ *   NOSCOUT                    no source analysis with TinyDev-Scout
+ *   TEMPDIR=drawer             drawer of the temporary files (default T:)
  *   COLOR_TEXT=RRGGBB ...      colours of the syntax highlighting:
  *                              COLOR_KEYWORD, COLOR_STRING, COLOR_COMMENT,
  *                              COLOR_PREPROCESSOR
@@ -78,6 +80,8 @@ void settings_default(Settings *s)
     s->outwin[0] = s->outwin[1] = -1;
     s->outwin[2] = s->outwin[3] = 0;
     s->outlist = 0;
+    s->scout = 1;
+    strcpy(s->tempdir, "T:");
     memcpy(s->colours, settings_default_colours, sizeof(s->colours));
 }
 
@@ -180,6 +184,11 @@ static void from_tooltypes(Settings *s, STRPTR *tt)
     if ((value = FindToolType(t, (CONST_STRPTR)"BOOKMARKWINDOW")) != NULL) parse_box(value, s->bmwin);
     if (FindToolType(t, (CONST_STRPTR)"OUTPUT") != NULL) s->outlist = 1;
     if ((value = FindToolType(t, (CONST_STRPTR)"OUTPUTWINDOW")) != NULL) parse_box(value, s->outwin);
+    if (FindToolType(t, (CONST_STRPTR)"NOSCOUT") != NULL) s->scout = 0;
+    if ((value = FindToolType(t, (CONST_STRPTR)"TEMPDIR")) != NULL && value[0] != '\0') {
+        strncpy(s->tempdir, (const char *)value, sizeof(s->tempdir) - 1);
+        s->tempdir[sizeof(s->tempdir) - 1] = '\0';
+    }
     for (i = 0; i < SCOL_COUNT; ++i)
         if ((value = FindToolType(t, (CONST_STRPTR)colour_names[i])) != NULL)
             parse_colour(value, &s->colours[i]);
@@ -250,8 +259,8 @@ int settings_save_toolwindows(const Settings *cur)
     return settings_save(&s);
 }
 
-#define NUMKEYS (14 + SCOL_COUNT)    /**< number of TinyDev's tool types */
-#define ENTRYLEN 40                 /**< longest tool type TinyDev writes */
+#define NUMKEYS (16 + SCOL_COUNT)    /**< number of TinyDev's tool types */
+#define ENTRYLEN 280                /**< longest tool type TinyDev writes (TEMPDIR=...) */
 
 /** One of our tool types while writing. */
 typedef struct Entry {
@@ -332,6 +341,8 @@ int settings_save(const Settings *s)
     entry(&e[k++], "OUTPUT", s->outlist, NULL);
     snprintf(outbox, sizeof(outbox), "%ld,%ld,%ld,%ld", s->outwin[0], s->outwin[1], s->outwin[2], s->outwin[3]);
     entry(&e[k++], "OUTPUTWINDOW", s->outwin[2] > 0, outbox);
+    entry(&e[k++], "NOSCOUT", !s->scout, NULL);
+    entry(&e[k++], "TEMPDIR", Stricmp((STRPTR)s->tempdir, (STRPTR)"T:") != 0, s->tempdir);
     for (i = 0; i < SCOL_COUNT; ++i) {
         snprintf(buf[i], sizeof(buf[i]), "%06lX", s->colours[i] & 0xFFFFFFUL);
         entry(&e[k++], colour_names[i], s->colours[i] != settings_default_colours[i], buf[i]);

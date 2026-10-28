@@ -32,7 +32,8 @@ below the tree's root.
 - `src/settings.c`: settings from the tool types of the program icon (and of
   project icons on a Workbench start); writes them back into the program icon.
 - `src/prefswin.c`: the settings window (categories General with the groups
-  Window and View, Colours, Toolbar),
+  Window and View, Colours, Toolbar, Advanced with Scout and the drawer of
+  the temporary files),
   built like Kickdown's.
 - `src/find.c`: the find and replace window (non-modal, built like
   Kickdown's; scope: current document or all open documents); it searches
@@ -74,6 +75,14 @@ below the tree's root.
   its output in a file in `T:` read every 0.25 s (timer.device) into the
   output window; Stop sends Ctrl-C to its Shell. Run and Debug start
   detached in a console window.
+- `src/scoutlink.c`: TinyDev as a client of TinyDev-Scout (ARexx
+  messages answered to a port of the event loop): starts Scout when
+  needed, a session per project (the tree's root), analyses documents
+  when loaded or saved and, as a snapshot in the temporary drawer, after a
+  pause in typing; the counts go to the status line.
+- `src/tempfile.c`: unique names of temporary files in the drawer of the
+  setting TEMPDIR (`temp_name()`), used by the Build menu and Scout's
+  snapshots.
 - `src/outwin.c`: the output window, a tool window (View/Output Window,
   first placed below the main window, as wide as it): the build's lines
   (kept also while it is closed, at most 2000), status line, Stop, Clear.

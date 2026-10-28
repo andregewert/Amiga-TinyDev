@@ -68,6 +68,7 @@ int file_load(EditorApp *app, Document *doc, const char *path)
     got = Read(file, data, fib->fib_Size);
     if (got != fib->fib_Size) { ui_error(app, S(MSG_OPEN_FAILED), S(MSG_ERR_READ)); goto done; }
     data[got] = '\0';
+    doc->final_eol = got == 0 || data[got - 1] == '\n' || data[got - 1] == '\r';
     if (memchr(data, '\0', (size_t)got) != NULL) {
         ui_error(app, S(MSG_OPEN_FAILED), S(MSG_ERR_NUL)); goto done;
     }
@@ -80,6 +81,7 @@ int file_load(EditorApp *app, Document *doc, const char *path)
              GA_TEXTEDITOR_LineEndingExport, LINEENDING_ASIMPORT, TAG_END);
     document_set_dirty(app, doc, 0); ok = 1;
     bookmarks_document_loaded(app, doc);
+    scoutlink_document_saved(doc);
     if (app->window != NULL) {
         /* The editor takes text set without the window only with a new
          * layout (otherwise a reused empty tab stays empty); collected with
@@ -144,6 +146,12 @@ int file_save(EditorApp *app, Document *doc, const char *path)
     if (collision != 0) { UnLock(collision); FreeVec(text); ui_error(app, S(MSG_SAVE_FAILED), S(MSG_ERR_BACKUPEXISTS)); return 0; }
     file = Open(temp, MODE_NEWFILE);
     wrote = file != 0 && write_complete(file, text, length);
+    /* the editor exports the text without the line end at its end */
+    if (wrote && doc->final_eol && length > 0 && text[length - 1] != '\n' && text[length - 1] != '\r') {
+        static const char *const eols[] = { "\n", "\r", "\r\n" };
+        const char *e = eols[doc->eol <= EOL_CRLF ? doc->eol : EOL_LF];
+        wrote = write_complete(file, e, (LONG)strlen(e));
+    }
     closed = file != 0 ? Close(file) : 0;
     if (!wrote || !closed) {
         DeleteFile(temp); FreeVec(text);
@@ -163,6 +171,7 @@ int file_save(EditorApp *app, Document *doc, const char *path)
     SetAttrs(doc->editor, GA_TEXTEDITOR_HasChanged, FALSE, TAG_END);
     document_set_dirty(app, doc, 0);
     bookmarks_save(app);                /* the lines of its bookmarks may have moved */
+    scoutlink_document_saved(doc);
     return 1;
 replace_failed:
     doc->saved_hash = old_hash; doc->saved_length = old_length;    /* the file did not change */

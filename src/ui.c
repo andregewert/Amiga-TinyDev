@@ -377,8 +377,12 @@ void ui_update_status(EditorApp *app)
         ++doc_count;
     if (app->active != NULL)
         GetAttr(GA_TEXTEDITOR_Prop_Entries, app->active->editor, &lines);
-    snprintf(status_text, sizeof(status_text),
-             S(MSG_STATUS), doc_count, (unsigned long)lines);
+    if (app->active != NULL && app->active->scout_symbols >= 0)
+        snprintf(status_text, sizeof(status_text), S(MSG_STATUS_SCOUT), doc_count,
+                 (unsigned long)lines, app->active->scout_symbols, app->active->scout_problems);
+    else
+        snprintf(status_text, sizeof(status_text),
+                 S(MSG_STATUS), doc_count, (unsigned long)lines);
     if (app->statusbar == NULL) return;
     /* Called on every tick: only redraw the status line when it changed. */
     if (strcmp(status_text, shown_text) == 0) return;
@@ -777,8 +781,11 @@ void ui_apply_settings(EditorApp *app, const Settings *n)
     int i, changed;
     Document *doc;
 
+    int scout = app->settings.scout;
+
     changed = memcmp(app->settings.colours, n->colours, sizeof(n->colours)) != 0;
     app->settings = *n;
+    if (scout != n->scout) scoutlink_settings_changed(app);
     if (!changed || !app->editor_colors_open || app->screen == NULL) return;
     cm = app->screen->ViewPort.ColorMap;
     for (i = 0; i < SCOL_COUNT; ++i) {
@@ -902,8 +909,15 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_NEW: document_new(app); break;
         case MID_OPEN: file_request_open(app); break;
         case MID_OPEN_DIRECTORY: tree_request_directory(app); break;
-        case MID_SAVE: save_active(app, 0); break;
-        case MID_SAVE_AS: save_active(app, 1); break;
+        case MID_SAVE:
+        case MID_SAVE_AS:
+            save_active(app, id == MID_SAVE_AS);
+            /* the menu pick (Amiga+S) or the button took the input focus:
+             * give it back, or the cursor is gone */
+            if (app->window != NULL && app->layout != NULL && app->active != NULL)
+                ActivateLayoutGadget((struct Gadget *)app->layout, app->window, NULL,
+                                     (ULONG)app->active->editor);
+            break;
         case MID_CLOSE: document_close(app, app->active, 1); break;
         case MID_ABOUT: ui_about(app); break;
         case MID_HELP: help_open(app); break;
@@ -1068,8 +1082,10 @@ int ui_run(EditorApp *app)
         /* A finished minimap render job only needs to wake the loop: the
          * minimap_poll() at its end shows the new picture. */
         signals = Wait(mask | scroll_mask | minimap_mask | tree_mask | find_sigmask() |
-                       bmlist_sigmask() | outwin_sigmask() | build_sigmask() | SIGBREAKF_CTRL_C);
+                       bmlist_sigmask() | outwin_sigmask() | build_sigmask() | scoutlink_sigmask() |
+                       SIGBREAKF_CTRL_C);
         build_handle(app, signals);
+        scoutlink_handle(app);
         /* a shown directory changed (a file was made, deleted, renamed) */
         if ((signals & tree_mask) != 0) tree_refresh(app, 0);
         if ((signals & scroll_mask) != 0) document_scroll_live(app);
@@ -1149,6 +1165,7 @@ int ui_run(EditorApp *app)
 void ui_destroy(EditorApp *app)
 {
     build_cleanup(app);
+    scoutlink_cleanup(app);
     outwin_cleanup(app);
     find_cleanup();
     bmlist_cleanup(app);

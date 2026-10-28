@@ -60,6 +60,7 @@ static int load_directory(EditorApp *app, const char *path)
     if (status == DIRTREE_ST_FAILED) return 0;
     ui_relayout(app);
     bookmarks_project_opened(app);
+    scoutlink_project_opened(app);
     return 1;
 }
 

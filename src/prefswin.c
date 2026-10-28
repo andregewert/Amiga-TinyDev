@@ -1,6 +1,6 @@
 /**
  * @file prefswin.c
- * @brief The settings window (categories General, Colours, Toolbar), built like Kickdown's.
+ * @brief The settings window (categories General, Colours, Toolbar, Advanced), built like Kickdown's.
  *
  * Built after the ReAction style guide of amiga-devkit (section 4.2): a
  * list of categories on the left, the options of the selected one on the
@@ -27,9 +27,12 @@
 #include <gadgets/integer.h>
 #include <gadgets/layout.h>
 #include <gadgets/listbrowser.h>
+#include <gadgets/string.h>
+#include <libraries/asl.h>
 #include <images/bevel.h>
 #include <images/label.h>
 #include <intuition/gadgetclass.h>
+#include <proto/asl.h>
 #include <proto/button.h>
 #include <proto/checkbox.h>
 #include <proto/chooser.h>
@@ -41,6 +44,7 @@
 #include <proto/label.h>
 #include <proto/layout.h>
 #include <proto/listbrowser.h>
+#include <proto/string.h>
 #include <proto/window.h>
 #include <clib/alib_protos.h>
 
@@ -63,6 +67,7 @@ struct Library *IntegerBase = NULL;
  * getcolor.gadget, opened with the window.
  */
 struct Library *GetColorBase = NULL;
+extern struct Library *StringBase;         /* shared with the find window */
 
 enum {
     PG_LIST = 100,
@@ -70,17 +75,18 @@ enum {
     PG_FOLDERTREE, PG_LINENUMBERS, PG_MINIMAP,
     PG_COLOUR, PG_DEFCOLOURS = PG_COLOUR + SCOL_COUNT,
     PG_TBMODE, PG_TBFRAMES,
+    PG_SCOUT, PG_TEMPDIR, PG_CHOOSETEMP,
     PG_SAVE, PG_USE, PG_CANCEL
 };
 
 /**
  * Names of the categories (MSG_), in the order of the pages.
  */
-static const LONG categories[] = { MSG_CAT_GENERAL, MSG_CAT_COLOURS, MSG_CAT_TOOLBAR };
+static const LONG categories[] = { MSG_CAT_GENERAL, MSG_CAT_COLOURS, MSG_CAT_TOOLBAR, MSG_CAT_ADVANCED };
 /**
  * Number of categories (pages).
  */
-#define NUMCATEGORIES 3
+#define NUMCATEGORIES 4
 
 /** Chooser labels, in the order of enum ToolbarMode. */
 static const LONG tbmode_texts[TBMODE_COUNT] = {
@@ -130,6 +136,7 @@ static struct {
     Object *width, *height, *left, *top, *splash, *foldertree, *linenumbers, *minimap;
     Object *colours[SCOL_COUNT];
     Object *tbmode, *tbframes;
+    Object *scout, *tempdir;
     struct Window *win;
     struct List catlist;
 } pw;
@@ -148,6 +155,7 @@ static int open_classes(EditorApp *app)
         { &IntegerBase,     "gadgets/integer.gadget" },
         { &GetColorBase,    "gadgets/getcolor.gadget" },
         { &LabelBase,       "images/label.image" },
+        { &StringBase,      "gadgets/string.gadget" },
     };
     ULONG i;
     for (i = 0; i < sizeof(cl) / sizeof(cl[0]); ++i)
@@ -254,7 +262,7 @@ static LONG list_width(EditorApp *app)
  */
 static Object *build(EditorApp *app, const Settings *s)
 {
-    Object *general, *colours, *toolbar;
+    Object *general, *colours, *toolbar, *advanced;
     ULONG i;
 
     NewList(&pw.catlist);
@@ -361,10 +369,31 @@ static Object *build(EditorApp *app, const Settings *s)
         LAYOUT_AddChild, (ULONG)filler(),
         TAG_END);
 
+    /* Advanced: Scout and the drawer of the temporary files */
+    pw.scout = checkbox(PG_SCOUT, S(MSG_PREFS_SCOUT), s->scout);
+    pw.tempdir = NewObject(STRING_GetClass(), NULL,
+        GA_ID, PG_TEMPDIR, GA_RelVerify, TRUE, GA_TabCycle, TRUE,
+        STRINGA_MaxChars, sizeof(s->tempdir), STRINGA_TextVal, (ULONG)s->tempdir, TAG_END);
+    advanced = NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(categories[3])),
+        LAYOUT_AddChild, (ULONG)pw.scout, FIXED,
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+            LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+            LAYOUT_AddChild, (ULONG)pw.tempdir,
+            LAYOUT_AddChild, (ULONG)button(PG_CHOOSETEMP, S(MSG_PREFS_CHOOSE)),
+            CHILD_WeightedWidth, 0,
+            TAG_END),
+        FIXED,
+        CHILD_Label, (ULONG)label(S(MSG_PREFS_TEMPDIR)),
+        LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_ADVNOTE)),
+        FIXED,
+        LAYOUT_AddChild, (ULONG)filler(),
+        TAG_END);
+
     pw.page = NewObject(PAGE_GetClass(), NULL,
         PAGE_Add, (ULONG)general,
         PAGE_Add, (ULONG)colours,
         PAGE_Add, (ULONG)toolbar,
+        PAGE_Add, (ULONG)advanced,
         PAGE_Current, 0,
         TAG_END);
 
@@ -435,6 +464,30 @@ static void read_gadgets(Settings *s)
         s->colours[i] = get(pw.colours[i], GETCOLOR_Color) & 0xFFFFFFUL;
     s->tbmode = (int)get(pw.tbmode, CHOOSER_Selected);
     s->tbframes = get(pw.tbframes, CHECKBOX_Checked) != 0;
+    s->scout = get(pw.scout, CHECKBOX_Checked) != 0;
+    {
+        const char *dir = (const char *)get(pw.tempdir, STRINGA_TextVal);
+        strncpy(s->tempdir, dir != NULL && dir[0] != '\0' ? dir : "T:", sizeof(s->tempdir) - 1);
+        s->tempdir[sizeof(s->tempdir) - 1] = '\0';
+    }
+}
+
+/**
+ * @brief Let the user choose the drawer of the temporary files with the
+ *        ASL requester.
+ */
+static void choose_tempdir(void)
+{
+    const char *dir = (const char *)get(pw.tempdir, STRINGA_TextVal);
+    struct FileRequester *fr = AllocAslRequestTags(ASL_FileRequest,
+        ASLFR_TitleText, (ULONG)S(MSG_PREFS_ASL_TEMPDIR), ASLFR_DrawersOnly, TRUE, TAG_END);
+    if (fr == NULL) return;
+    if (AslRequestTags(fr, ASLFR_Window, (ULONG)pw.win, ASLFR_SleepWindow, TRUE,
+                       ASLFR_InitialDrawer, (ULONG)(dir != NULL ? dir : "T:"), TAG_END) &&
+        fr->fr_Drawer != NULL && fr->fr_Drawer[0] != '\0')
+        SetPageGadgetAttrs((struct Gadget *)pw.tempdir, pw.page, pw.win, NULL,
+                           STRINGA_TextVal, (ULONG)fr->fr_Drawer, TAG_END);
+    FreeAslRequest(fr);
 }
 
 /**
@@ -509,6 +562,9 @@ int prefs_dialog(EditorApp *app, Settings *s)
                     set_page_gadget(pw.height, INTEGER_Number, 0);
                     set_page_gadget(pw.left, INTEGER_Number, (ULONG)-1);
                     set_page_gadget(pw.top, INTEGER_Number, (ULONG)-1);
+                    break;
+                case PG_CHOOSETEMP:
+                    choose_tempdir();
                     break;
                 case PG_SAVE:
                 case PG_USE:

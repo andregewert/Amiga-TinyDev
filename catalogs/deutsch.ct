@@ -1057,8 +1057,8 @@ Das Verzeichnis %s wurde nicht gefunden.
 ; The drawer %s cannot be found.
 ;
 MSG_BUILD_SCRIPT
-Das Kommando konnte in T: nicht vorbereitet werden.
-; The command could not be prepared in T:.
+Das Kommando konnte im Verzeichnis für temporäre Dateien nicht vorbereitet werden.
+; The command could not be prepared in the drawer of the temporary files.
 ;
 MSG_BUILD_BUSY
 Es läuft bereits ein Erstellen.
@@ -1095,4 +1095,32 @@ Debuggen
 MSG_TBH_DEBUG
 Projekt debuggen (Amiga+D)
 ; Debug the project (Amiga+D)
+;
+MSG_STATUS_SCOUT
+Dokumente: %lu  Zeilen: %lu  Symbole: %ld  Probleme: %ld
+; Documents: %lu  Lines: %lu  Symbols: %ld  Problems: %ld
+;
+MSG_CAT_ADVANCED
+Erweitert
+; Advanced
+;
+MSG_PREFS_SCOUT
+Quelltexte mit Scout analysie_ren
+; Anal_yse sources with Scout
+;
+MSG_PREFS_TEMPDIR
+Temporäre Dateien 
+; Temporary files 
+;
+MSG_PREFS_CHOOSE
+A_uswählen...
+; Choose...
+;
+MSG_PREFS_ASL_TEMPDIR
+Verzeichnis für temporäre Dateien
+; Drawer for temporary files
+;
+MSG_PREFS_ADVNOTE
+Beides wirkt sofort. TinyDev-Scout findet die Symbole und\nFehler der Quelltexte. Temporäre Dateien: Scouts Kopien\ngeänderter Dokumente und die Skripte des Menüs Erstellen.\nT: (in der RAM-Disk) ist am schnellsten.
+; Both take effect at once. TinyDev-Scout finds the symbols\nand errors of the sources. Temporary files: Scout's copies of\nchanged documents and the scripts of the Build menu.\nT: (in the RAM disk) is fastest.
 ;

@@ -273,7 +273,14 @@
 #define MSG_TBH_RUN                  268
 #define MSG_TB_DEBUG                 269
 #define MSG_TBH_DEBUG                270
-#define MSG_COUNT                    271
+#define MSG_STATUS_SCOUT             271
+#define MSG_CAT_ADVANCED             272
+#define MSG_PREFS_SCOUT              273
+#define MSG_PREFS_TEMPDIR            274
+#define MSG_PREFS_CHOOSE             275
+#define MSG_PREFS_ASL_TEMPDIR        276
+#define MSG_PREFS_ADVNOTE            277
+#define MSG_COUNT                    278
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -539,7 +546,7 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "There is no command for %s. Please add one in Build/Project Settings....",
     "The command needs a document with a name ({file} or {base}).",
     "The drawer %s cannot be found.",
-    "The command could not be prepared in T:.",
+    "The command could not be prepared in the drawer of the temporary files.",
     "A build is already running.",
     "A build is running. Stop it and quit?",
     "Stop and Quit|Cancel",
@@ -549,6 +556,13 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Run the project (Amiga+R)",
     "Debug",
     "Debug the project (Amiga+D)",
+    "Documents: %lu  Lines: %lu  Symbols: %ld  Problems: %ld",
+    "Advanced",
+    "Anal_yse sources with Scout",
+    "Temporary files ",
+    "Choose...",
+    "Drawer for temporary files",
+    "Both take effect at once. TinyDev-Scout finds the symbols\nand errors of the sources. Temporary files: Scout's copies of\nchanged documents and the scripts of the Build menu.\nT: (in the RAM disk) is fastest.",
 };
 #endif
 

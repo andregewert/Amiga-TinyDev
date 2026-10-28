@@ -43,7 +43,10 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
 - English and German texts (catalogs), help pages shown by the HelpViewer
   (Project/Help..., see below).
 - TinyDev-Scout: a commodity with an ARexx port for source analysis (see
-  below).
+  below); TinyDev starts it and has it analyse the project and the open
+  documents (the status line shows their symbols and problems).
+- Temporary files (Scout's copies of changed documents, the Build menu's
+  scripts) in a drawer of your choice, `T:` by default.
 
 ## Requirements
 
@@ -132,6 +135,8 @@ the icon, "Use" keeps them for this session.
 | `BOOKMARKWINDOW=l,t,w,h` | Position and size of the bookmark list |
 | `OUTPUT` | Open the output window at the start |
 | `OUTPUTWINDOW=l,t,w,h` | Position and size of the output window (otherwise below the main window) |
+| `NOSCOUT` | No source analysis with TinyDev-Scout |
+| `TEMPDIR=drawer` | Drawer for temporary files (default `T:`) |
 | `COLOR_TEXT`, `COLOR_KEYWORD`, `COLOR_STRING`, `COLOR_COMMENT`, `COLOR_PREPROCESSOR` | Colours of the syntax highlighting as `RRGGBB` |
 
 View/Snapshot Tool Windows writes `BOOKMARKLIST`, `BOOKMARKWINDOW`, `OUTPUT`
@@ -206,7 +211,9 @@ Tool types of its icon (or Shell arguments of the same names):
 the commands with the sample sources of `tests/data/c_parser/` (it starts
 `bin/TinyDev-Scout` if needed).
 
-TinyDev does not use Scout yet. Its design, the
+TinyDev starts Scout (from its own drawer) when it needs it, opens a
+session for the project and has the open documents analysed; using the
+results beyond the status line comes later. Its design, the
 ARexx commands and the protocol for writing parsers are described in
 [src/scout/docs/Scout.md](src/scout/docs/Scout.md) and
 [src/scout/docs/Scout-Protocol.md](src/scout/docs/Scout-Protocol.md).

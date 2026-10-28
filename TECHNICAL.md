@@ -67,7 +67,14 @@ The directory opened in the folder tree is the project. What refers to it:
   also those of the entries; `build.c` runs the default commands (Build in
   a process of its own with its output in the output window of
   `outwin.c`, Run and Debug detached; details in its file comment);
-- the start drawer of the file requesters (`fileio.c`).
+- the start drawer of the file requesters (`fileio.c`);
+- Scout's session (`scoutlink.c`): `tree.c` reports a new root
+  (`scoutlink_project_opened()`), which closes the old session and opens
+  one for the new project; `document.c` reports changes and closed
+  documents, `fileio.c` loaded and saved ones. The analyses are sent from
+  the event loop (IntuiTicks for the pause in typing, the answers' port in
+  the main `Wait()`); a changed document goes as a snapshot written to the
+  drawer of the temporary files (`temp_name()`, `tempfile.c`).
 
 ## Help: TinyDev, HelpViewer and the help pages
 

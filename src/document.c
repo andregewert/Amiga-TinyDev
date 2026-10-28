@@ -5,8 +5,9 @@
  * A document whose changes are all undone (or redone back to the saved
  * text) is marked unchanged again: after Undo and Redo and whenever editing
  * pauses (for texts up to 256 KB) the text is compared with a checksum of
- * the text as loaded or saved (text_hash(); the line-end style and line
- * ends at the end of the text do not count).
+ * the text as loaded or saved (text_hash(); the line-end style and one
+ * line end at the end of the text do not count, as the editor exports the
+ * text with or without one; empty lines added at the end do count).
  *
  * To keep dragging a scrollbar as smooth as the editor's own wheel
  * scrolling, syntax highlighting is suspended while a scrollbar is dragged
@@ -185,11 +186,13 @@ static Document *new_document(EditorApp *app)
     snprintf(doc->title, sizeof(doc->title), S(MSG_UNTITLED), doc->number);
     strcpy(doc->tab_title, doc->title);
     doc->eol = EOL_LF;
+    doc->final_eol = 1;
     document_mark_saved(doc, "", 0, 0);
     doc->language = SYNTAX_PLAIN;
     syntax_init_hook(&doc->highlight, doc->language);
     minimap_init_document(doc);
     bookmarks_init_document(doc);
+    doc->scout_symbols = -1;
     syntax_set_pens(&doc->highlight,
         (UWORD)app->editor_pens[EDITOR_COLOR_TEXT],
         (UWORD)app->editor_pens[EDITOR_COLOR_KEYWORD],
@@ -361,7 +364,9 @@ static unsigned long text_hash(const char *text, long length, long *counted)
     unsigned long h = 5381UL;
     long i, n = 0;
     unsigned char c;
-    while (length > 0 && (text[length - 1] == '\n' || text[length - 1] == '\r')) --length;
+    /* one line end at the end does not count (LF, CR or CR LF) */
+    if (length > 0 && text[length - 1] == '\n') --length;
+    if (length > 0 && text[length - 1] == '\r') --length;
     for (i = 0; i < length; ++i) {
         c = (unsigned char)text[i];
         if (c == '\r') {
@@ -410,6 +415,7 @@ void document_changed(EditorApp *app)
     doc->check_pending = 1;
     app->change_idle_ticks = 0;
     document_set_dirty(app, doc, 1);
+    scoutlink_document_changed(doc);
 }
 
 void document_change_tick(EditorApp *app)
@@ -450,6 +456,7 @@ int document_close(EditorApp *app, Document *doc, int ask)
     /* The minimap must let go of the editor (and its colour hook, which reads
      * this document) before the page with the editor is disposed. */
     bookmarks_document_closing(app, doc);
+    scoutlink_document_closing(app, doc);
     minimap_forget_document(app, doc);
     find_forget_document(doc);
     next = doc->node.ln_Succ->ln_Succ ? (Document *)doc->node.ln_Succ :

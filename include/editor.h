@@ -104,6 +104,8 @@ typedef struct Settings {
     int bmlist;         /**< bookmark list open at the start (BOOKMARKLIST) */
     long outwin[4];     /**< output window as snapshot (OUTPUTWINDOW); width 0 = automatic */
     int outlist;        /**< output window open at the start (OUTPUT) */
+    int scout;          /**< analyse the sources with TinyDev-Scout (NOSCOUT turns it off) */
+    char tempdir[256];  /**< drawer of the temporary files (TEMPDIR, default T:) */
     char icon_name[300];/**< program icon without .info, for splash and About */
 } Settings;
 
@@ -195,6 +197,7 @@ typedef struct Document {
     int saved_from_file;        /**< ... taken from the file, not from the editor */
     int check_pending;          /**< changed since the last document_check_unchanged() */
     LineEnding eol;             /**< line endings of the file */
+    int final_eol;              /**< the file ends with a line end (new documents: yes); kept when saving, as the editor exports the text without it */
     SyntaxLanguage language;    /**< language for the highlighting */
     SyntaxHookContext highlight;    /**< the editor's highlighter hook and its state */
     struct Hook minimap_hook;   /**< MINIMAP_ColorHook, h_Data = document */
@@ -205,6 +208,14 @@ typedef struct Document {
     int bm_apply;               /**< the project's bookmarks are still to be set */
     long bm_goto;               /**< line to go to once they are set, -1 if none ... */
     char bm_goto_text[BOOKMARK_TEXT_MAX + 1];   /**< ... and its text (to find it again) */
+    int scout_pending;          /**< to be analysed by Scout (after a pause in typing) */
+    int scout_now;              /**< ... at once (loaded or saved) */
+    int scout_busy;             /**< an analysis is on its way */
+    int scout_none;             /**< Scout has no parser for it: not asked again */
+    long scout_version;         /**< version of the last snapshot sent */
+    char *scout_snapshot;       /**< its snapshot file for Scout (AllocVec()), NULL */
+    long scout_symbols;         /**< symbols of the last analysis, -1 if none */
+    long scout_problems;        /**< diagnostics of the last analysis */
 } Document;
 
 /** The state of TinyDev: settings, documents, the main window and its gadgets. */
@@ -1447,5 +1458,64 @@ void tree_refresh(EditorApp *app, int all);
  * @param visible Non-zero to show the tree, zero to hide it.
  */
 void tree_set_visible(EditorApp *app, int visible);
+
+/**
+ * @brief Make the name of a temporary file: TEMPDIR/TinyDev-PROCESS-N plus
+ *        a suffix (PROCESS: TinyDev's process in hex, N: a counter), so
+ *        no other program or TinyDev running in parallel uses it.
+ * @param app The application state (Settings::tempdir).
+ * @param suffix The end of the name, e.g. ".script".
+ * @param[out] out The name.
+ * @param size Size of @p out.
+ * @return Non-zero on success (0 if the name does not fit).
+ */
+int temp_name(EditorApp *app, const char *suffix, char *out, size_t size);
+
+/**
+ * @brief The project (the folder tree's root) changed: close Scout's
+ *        session of the old one and open one for the new (starting Scout
+ *        if needed).
+ * @param app The application state.
+ */
+void scoutlink_project_opened(EditorApp *app);
+/**
+ * @brief The settings changed: Scout turned on or off.
+ * @param app The application state.
+ */
+void scoutlink_settings_changed(EditorApp *app);
+/**
+ * @brief A document's text changed: analyse it after a pause in typing.
+ * @param doc The document.
+ */
+void scoutlink_document_changed(Document *doc);
+/**
+ * @brief A document was loaded or saved: analyse the file at once.
+ * @param doc The document.
+ */
+void scoutlink_document_saved(Document *doc);
+/**
+ * @brief A document is closed: drop its snapshot (in Scout and on disk).
+ * @param app The application state.
+ * @param doc The document.
+ */
+void scoutlink_document_closing(EditorApp *app, Document *doc);
+/**
+ * @brief Return the signals of Scout's answers and of the client's timer.
+ * @return The mask to include in the main Wait(), 0 if none.
+ */
+ULONG scoutlink_sigmask(void);
+/**
+ * @brief Handle Scout's answers and the client's timer (waiting for a
+ *        starting Scout, the pause in typing, sending the analyses).
+ * @param app The application state.
+ */
+void scoutlink_handle(EditorApp *app);
+/**
+ * @brief Close the session, delete the snapshots and wait for the answers
+ *        still on their way. Called when TinyDev quits, before the
+ *        documents are freed.
+ * @param app The application state.
+ */
+void scoutlink_cleanup(EditorApp *app);
 
 #endif
