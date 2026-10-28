@@ -2,17 +2,18 @@
 ; Demonstration and automated test script for the standalone C parser (c_parser)
 ;
 ; Usage: Execute scripts/test_c_parser.script [PARSER=<path>] [FILE=<path>]
+; Parameters are written @NAME% because [ and ] appear in the JSON requests.
 
 .key PARSER,FILE
-.bra [
-.ket ]
+.bra @
+.ket %
 
 Echo "============================================================"
 Echo " TinyDev Standalone C Parser (c_parser) Demonstration"
 Echo "============================================================"
 
 ; Locate parser executable
-Set ParserProg "[PARSER]"
+Set ParserProg "@PARSER%"
 IF "$ParserProg" EQ ""
     IF EXISTS "bin/parsers/c_parser"
         Set ParserProg "bin/parsers/c_parser"
@@ -28,7 +29,7 @@ ENDIF
 Echo "Using Parser: $ParserProg"
 
 ; Target source file to analyze
-Set TargetFile "[FILE]"
+Set TargetFile "@FILE%"
 IF "$TargetFile" EQ ""
     Set TargetFile "T:c_parser_demo_temp.c"
     Echo "Creating sample C test file ($TargetFile)..."
@@ -60,22 +61,22 @@ Echo ""
 Echo "------------------------------------------------------------"
 Echo " 1. Description of the parser (scout/describe)"
 Echo "------------------------------------------------------------"
-Echo "{*\"jsonrpc*\":*\"2.0*\",*\"id*\":1,*\"method*\":*\"scout/describe*\"}" >T:c_parser_req.json
+Echo "{*"jsonrpc*":*"2.0*",*"id*":1,*"method*":*"scout/describe*"}" >T:c_parser_req.json
 $ParserProg <T:c_parser_req.json
 
 Echo ""
 Echo "------------------------------------------------------------"
 Echo " 2. Analysis of the file (scout/analyze)"
 Echo "------------------------------------------------------------"
-Echo "{*\"jsonrpc*\":*\"2.0*\",*\"id*\":2,*\"method*\":*\"scout/analyze*\",*\"params*\":{*\"path*\":*\"$TargetFile*\"}}" >T:c_parser_req.json
+Echo "{*"jsonrpc*":*"2.0*",*"id*":2,*"method*":*"scout/analyze*",*"params*":{*"path*":*"$TargetFile*"}}" >T:c_parser_req.json
 $ParserProg <T:c_parser_req.json
 
 Echo ""
 Echo "------------------------------------------------------------"
 Echo " 3. Two requests in one run: only symbols, then only tokens"
 Echo "------------------------------------------------------------"
-Echo "{*\"jsonrpc*\":*\"2.0*\",*\"id*\":3,*\"method*\":*\"scout/analyze*\",*\"params*\":{*\"path*\":*\"$TargetFile*\",*\"want*\":[*\"symbols*\"]}}" >T:c_parser_req.json
-Echo "{*\"jsonrpc*\":*\"2.0*\",*\"id*\":4,*\"method*\":*\"scout/analyze*\",*\"params*\":{*\"path*\":*\"$TargetFile*\",*\"want*\":[*\"tokens*\"]}}" >>T:c_parser_req.json
+Echo "{*"jsonrpc*":*"2.0*",*"id*":3,*"method*":*"scout/analyze*",*"params*":{*"path*":*"$TargetFile*",*"want*":[*"symbols*"]}}" >T:c_parser_req.json
+Echo "{*"jsonrpc*":*"2.0*",*"id*":4,*"method*":*"scout/analyze*",*"params*":{*"path*":*"$TargetFile*",*"want*":[*"tokens*"]}}" >>T:c_parser_req.json
 $ParserProg <T:c_parser_req.json
 
 Echo ""
@@ -84,7 +85,7 @@ Echo " 4. Diagnostics of a broken file (unclosed brace and string)"
 Echo "------------------------------------------------------------"
 Echo "int broken_func(void) {" >T:c_parser_err_sample.c
 Echo "    char *s = *"unterminated string;" >>T:c_parser_err_sample.c
-Echo "{*\"jsonrpc*\":*\"2.0*\",*\"id*\":5,*\"method*\":*\"scout/analyze*\",*\"params*\":{*\"path*\":*\"T:c_parser_err_sample.c*\",*\"want*\":[*\"diagnostics*\"]}}" >T:c_parser_req.json
+Echo "{*"jsonrpc*":*"2.0*",*"id*":5,*"method*":*"scout/analyze*",*"params*":{*"path*":*"T:c_parser_err_sample.c*",*"want*":[*"diagnostics*"]}}" >T:c_parser_req.json
 $ParserProg <T:c_parser_req.json
 
 ; Clean up temporary files
