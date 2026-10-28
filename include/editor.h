@@ -104,6 +104,8 @@ typedef struct Settings {
     int bmlist;         /**< bookmark list open at the start (BOOKMARKLIST) */
     long outwin[4];     /**< output window as snapshot (OUTPUTWINDOW); width 0 = automatic */
     int outlist;        /**< output window open at the start (OUTPUT) */
+    long symwin[4];     /**< symbol list as snapshot (SYMBOLWINDOW); width 0 = automatic */
+    int symlist;        /**< symbol list open at the start (SYMBOLLIST) */
     int scout;          /**< analyse the sources with TinyDev-Scout (NOSCOUT turns it off) */
     char tempdir[256];  /**< drawer of the temporary files (TEMPDIR, default T:) */
     char icon_name[300];/**< program icon without .info, for splash and About */
@@ -155,7 +157,8 @@ enum MenuId {
     MID_RUN,            /**< Build/Run: the default Run command */
     MID_DEBUG,          /**< Build/Debug: the default Debug command */
     MID_STOP,           /**< Build/Stop Build */
-    MID_OUTPUT          /**< View/Output Window (check item) */
+    MID_OUTPUT,         /**< View/Output Window (check item) */
+    MID_SYMLIST         /**< View/Symbol List (check item) */
 };
 
 /** Bookmarks of a document that TinyDev keeps track of. */
@@ -216,6 +219,9 @@ typedef struct Document {
     char *scout_snapshot;       /**< its snapshot file for Scout (AllocVec()), NULL */
     long scout_symbols;         /**< symbols of the last analysis, -1 if none */
     long scout_problems;        /**< diagnostics of the last analysis */
+    unsigned long scout_generation; /**< counts the answered analyses (the symbol list follows it) */
+    long goto_line;             /**< line to put the cursor on once the document is shown (1-based), 0 */
+    long goto_col;              /**< its column (1-based) */
 } Document;
 
 /** The state of TinyDev: settings, documents, the main window and its gadgets. */
@@ -268,6 +274,8 @@ typedef struct EditorApp {
     int bmlist_was_open;        /**< the bookmark list was open when the main window was iconified */
     long out_box[4];            /**< box of the output window in this session */
     int outwin_was_open;        /**< the output window was open when the main window was iconified */
+    long sym_box[4];            /**< box of the symbol list in this session */
+    int symlist_was_open;       /**< the symbol list was open when the main window was iconified */
     int defer_depth;            /**< ui_begin_update() nesting */
     int pending_layout;         /**< a relayout was requested meanwhile */
     int pending_refresh;        /**< a page redraw was requested meanwhile */
@@ -1517,5 +1525,109 @@ void scoutlink_handle(EditorApp *app);
  * @param app The application state.
  */
 void scoutlink_cleanup(EditorApp *app);
+
+/**
+ * @brief Ask Scout for symbols: those of a document, or those of the
+ *        project; the answer goes to symlist_symbols().
+ * @param app The application state.
+ * @param doc The document, NULL for the project.
+ * @return Non-zero if the request was sent (0: Scout not ready, no
+ *         session for the project, or the document has no file).
+ */
+int scoutlink_request_symbols(EditorApp *app, Document *doc);
+/**
+ * @brief Return a number that changes whenever the project's symbols may
+ *        have changed (a file was analysed from disk, a session opened).
+ * @return The number.
+ */
+unsigned long scoutlink_project_generation(void);
+/**
+ * @brief Tell whether Scout is indexing the project.
+ * @return -1 if not; otherwise the number of jobs waiting (0 while not
+ *         known yet).
+ */
+long scoutlink_indexing(void);
+/**
+ * @brief Tell why Scout cannot be asked now.
+ * @param app The application state.
+ * @return 0 if it can; 1 if the setting is off; 2 while it starts or is
+ *         not reachable.
+ */
+int scoutlink_unavailable(EditorApp *app);
+
+/**
+ * @brief Open the symbol list, a tool window (or bring it to the front).
+ * @param app The application state.
+ */
+void symlist_open(EditorApp *app);
+/**
+ * @brief Close the symbol list (remembering its box).
+ * @param app The application state.
+ */
+void symlist_close(EditorApp *app);
+/**
+ * @brief Tell whether the symbol list is open.
+ * @return Non-zero if it is.
+ */
+int symlist_is_open(void);
+/**
+ * @brief Remember the symbol list's box in EditorApp::sym_box.
+ * @param app The application state.
+ */
+void symlist_remember(EditorApp *app);
+/**
+ * @brief Return the symbol list's signal mask (0 when closed).
+ * @return The mask.
+ */
+ULONG symlist_sigmask(void);
+/**
+ * @brief Handle the symbol list's input.
+ * @param app The application state.
+ */
+void symlist_handle(EditorApp *app);
+/**
+ * @brief Ask for new symbols when the active document or its analysis
+ *        changed (called every turn of the event loop).
+ * @param app The application state.
+ */
+void symlist_update(EditorApp *app);
+/**
+ * @brief Take Scout's answer to SYMBOLS (JSON) into the list.
+ * @param app The application state.
+ * @param doc_number The document it is for, 0 for the project.
+ * @param json The answer's text, NULL if the request failed.
+ */
+void symlist_symbols(EditorApp *app, unsigned long doc_number, const char *json);
+/**
+ * @brief Close the symbol list and free what it holds.
+ * @param app The application state.
+ */
+void symlist_cleanup(EditorApp *app);
+
+/**
+ * @brief Close all documents, asking first about each changed one; an
+ *        empty untitled document is left.
+ * @param app The application state.
+ * @return 1 if they were closed, 0 if the user cancelled (none is closed
+ *         then).
+ */
+int document_close_all(EditorApp *app);
+
+/**
+ * @brief Go to a position in a file: activate its document or open it,
+ *        and put the cursor there once the document is shown
+ *        (document_goto_poll()).
+ * @param app The application state.
+ * @param path The file, NULL for the active document.
+ * @param line The line (1-based).
+ * @param col The column (1-based).
+ */
+void document_go_to(EditorApp *app, const char *path, long line, long col);
+/**
+ * @brief Put the cursor where document_go_to() asked, once the active
+ *        document is shown (called every turn of the event loop).
+ * @param app The application state.
+ */
+void document_goto_poll(EditorApp *app);
 
 #endif

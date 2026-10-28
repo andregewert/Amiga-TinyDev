@@ -1124,3 +1124,163 @@ MSG_PREFS_ADVNOTE
 Beides wirkt sofort. TinyDev-Scout findet die Symbole und\nFehler der Quelltexte. Temporäre Dateien: Scouts Kopien\ngeänderter Dokumente und die Skripte des Menüs Erstellen.\nT: (in der RAM-Disk) ist am schnellsten.
 ; Both take effect at once. TinyDev-Scout finds the symbols\nand errors of the sources. Temporary files: Scout's copies of\nchanged documents and the scripts of the Build menu.\nT: (in the RAM disk) is fastest.
 ;
+MSG_MENU_SYMLIST
+Symbolliste
+; Symbol List
+;
+MSG_SYM_TITLE
+Symbole
+; Symbols
+;
+MSG_SYM_NEEDCLASSES
+Die Symbolliste braucht listbrowser.gadget, chooser.gadget und string.gadget.
+; The symbol list needs listbrowser.gadget, chooser.gadget and string.gadget.
+;
+MSG_SYM_SHOW
+_Zeigen\x20
+; _Show\x20
+;
+MSG_SYM_SCOPE_FILE
+Aktuelle Datei
+; Current file
+;
+MSG_SYM_SCOPE_PROJECT
+Projekt
+; Project
+;
+MSG_SYM_FILTER
+_Filter\x20
+; _Filter\x20
+;
+MSG_SYM_GOTO
+_Gehe zu
+; _Go to
+;
+MSG_SYM_COL_NAME
+Name
+; Name
+;
+MSG_SYM_COL_KIND
+Art
+; Kind
+;
+MSG_SYM_COL_WHERE
+Position
+; Position
+;
+MSG_SYM_COUNT
+%ld Symbole
+; %ld symbols
+;
+MSG_SYM_WAIT
+Warte auf TinyDev-Scout...
+; Waiting for TinyDev-Scout...
+;
+MSG_SYM_OFF
+Die Quelltext-Analyse ist aus (Einstellungen, Erweitert).
+; Source analysis is off (Settings, Advanced).
+;
+MSG_SYM_NOFILE
+Das Dokument hat noch keinen Dateinamen.
+; The document has no file name yet.
+;
+MSG_SYM_NOPROJECT
+Kein Projekt geöffnet (Verzeichnis öffnen).
+; No project is open (Open Directory).
+;
+MSG_SYM_FAILED
+TinyDev-Scout konnte die Symbole nicht liefern.
+; TinyDev-Scout could not provide the symbols.
+;
+MSG_SYM_K_FUNCTION
+Funktion
+; Function
+;
+MSG_SYM_K_PROCEDURE
+Prozedur
+; Procedure
+;
+MSG_SYM_K_METHOD
+Methode
+; Method
+;
+MSG_SYM_K_STRUCT
+Struktur
+; Struct
+;
+MSG_SYM_K_CLASS
+Klasse
+; Class
+;
+MSG_SYM_K_ENUM
+Aufzählung
+; Enum
+;
+MSG_SYM_K_CONSTANT
+Konstante
+; Constant
+;
+MSG_SYM_K_TYPE
+Typ
+; Type
+;
+MSG_SYM_K_MACRO
+Makro
+; Macro
+;
+MSG_SYM_K_VARIABLE
+Variable
+; Variable
+;
+MSG_SYM_K_FIELD
+Feld
+; Field
+;
+MSG_SYM_K_LABEL
+Marke
+; Label
+;
+MSG_SYM_K_MODULE
+Modul
+; Module
+;
+MSG_SYM_K_OTHER
+Symbol
+; Symbol
+;
+MSG_SYM_KIND
+_Art\x20
+; _Kind\x20
+;
+MSG_SYM_KG_ALL
+Alle Arten
+; All kinds
+;
+MSG_SYM_KG_FUNCTION
+Funktionen (F)
+; Functions (F)
+;
+MSG_SYM_KG_TYPE
+Typen (T)
+; Types (T)
+;
+MSG_SYM_KG_MACRO
+Makros (M)
+; Macros (M)
+;
+MSG_SYM_KG_VARIABLE
+Variablen (V)
+; Variables (V)
+;
+MSG_SYM_KG_CONSTANT
+Konstanten (C)
+; Constants (C)
+;
+MSG_SYM_KG_OTHER
+Andere (?)
+; Other (?)
+;
+MSG_SYM_INDEXING
+TinyDev-Scout liest das Projekt (%ld wartend)...
+; TinyDev-Scout is reading the project (%ld waiting)...
+;

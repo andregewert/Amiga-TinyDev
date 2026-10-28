@@ -212,6 +212,15 @@ const ScoutLanguage *scout_store_language_for(const ScoutStore *st, const char *
 int scout_path_equal(const char *a, const char *b);
 
 /**
+ * @brief Tell whether a path lies in a drawer (or below it), without
+ *        regard to case.
+ * @param drawer The drawer (a full name, e.g. "Work:Project" or "Work:").
+ * @param path The path (a full name).
+ * @return Non-zero if it does.
+ */
+int scout_path_inside(const char *drawer, const char *path);
+
+/**
  * @brief Open a session.
  * @param st The store.
  * @param project The project drawer.

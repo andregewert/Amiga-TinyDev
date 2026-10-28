@@ -25,6 +25,7 @@
 #include <images/label.h>
 #include <graphics/rastport.h>
 #include <libraries/gadtools.h>
+#include <libraries/keymap.h>
 
 #include <proto/exec.h>
 #include <proto/graphics.h>
@@ -370,6 +371,7 @@ void bmlist_open(EditorApp *app)
         WA_Width, (ULONG)box[2], WA_Height, (ULONG)box[3],
         WA_DepthGadget, TRUE, WA_DragBar, TRUE, WA_CloseGadget, TRUE, WA_SizeGadget, TRUE,
         WA_Activate, FALSE,
+        WA_IDCMP, IDCMP_RAWKEY,
         WINDOW_ParentGroup, (ULONG)(bl.root = NewObject(LAYOUT_GetClass(), NULL,
             LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
             LAYOUT_SpaceOuter, TRUE,
@@ -454,6 +456,15 @@ void bmlist_handle(EditorApp *app)
             bmlist_close(app);
             ui_set_menu_check(app, MID_BM_LIST, 0);
             return;
+        case WMHI_RAWKEY:
+            /* the mouse wheel (listbrowser.gadget only gets it while active) */
+            if ((result & WMHI_KEYMASK) == RAWKEY_WHEEL_UP || (result & WMHI_KEYMASK) == RAWKEY_WHEEL_DOWN) {
+                LONG top = (LONG)get(bl.list, LISTBROWSER_Top);
+                top += (result & WMHI_KEYMASK) == RAWKEY_WHEEL_UP ? -3 : 3;
+                if (top < 0) top = 0;
+                SetGadgetAttrs((struct Gadget *)bl.list, bl.win, NULL, LISTBROWSER_Top, (ULONG)top, TAG_END);
+            }
+            break;
         case WMHI_GADGETUP:
             switch (result & WMHI_GADGETMASK) {
             case BG_SCOPE:

@@ -271,6 +271,7 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_MINIMAP)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_BM_LIST)},
+    {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_SYMLIST)},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_OUTPUT)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_SNAPSHOT_TOOLS)},
@@ -324,6 +325,7 @@ static const LONG menu_texts[] = {
     MSG_MENU_MINIMAP,
     -1,
     MSG_MENU_BM_LIST,
+    MSG_MENU_SYMLIST,
     MSG_MENU_OUTPUT,
     -1,
     MSG_MENU_SNAPSHOT_TOOLS,
@@ -485,6 +487,7 @@ static void set_menu_checks(EditorApp *app, int bm_open)
         else if (ud == UD(MID_LINE_NUMBERS)) on = app->line_numbers;
         else if (ud == UD(MID_MINIMAP)) on = app->minimap_visible;
         else if (ud == UD(MID_OUTPUT)) on = app->outwin_was_open;
+        else if (ud == UD(MID_SYMLIST)) on = app->symlist_was_open;
         else continue;
         if (on) menus[i].nm_Flags |= CHECKED;
         else menus[i].nm_Flags &= (UWORD)~CHECKED;
@@ -498,6 +501,7 @@ int ui_create(EditorApp *app)
     int i;
     memcpy(app->bm_box, app->settings.bmwin, sizeof(app->bm_box));
     memcpy(app->out_box, app->settings.outwin, sizeof(app->out_box));
+    memcpy(app->sym_box, app->settings.symwin, sizeof(app->sym_box));
     app->screen = LockPubScreen(NULL);
     if (app->screen == NULL) return 0;
     if (!open_editor_colors(app)) {
@@ -605,9 +609,10 @@ int ui_create(EditorApp *app)
     }
     for (i = 0; i < (int)(sizeof(menu_texts) / sizeof(menu_texts[0])); ++i)
         if (menu_texts[i] >= 0) menus[i].nm_Label = (STRPTR)S(menu_texts[i]);
-    app->outwin_was_open = app->settings.outlist;      /* for the check mark */
+    app->outwin_was_open = app->settings.outlist;      /* for the check marks */
+    app->symlist_was_open = app->settings.symlist;
     set_menu_checks(app, app->settings.bmlist);
-    app->outwin_was_open = 0;
+    app->outwin_was_open = app->symlist_was_open = 0;
     /* AppPort: the window can be iconified, with the program icon as AppIcon */
     app->app_port = CreateMsgPort();
     if (app->app_port != NULL && IconBase != NULL && app->settings.icon_name[0] != '\0' &&
@@ -670,6 +675,10 @@ int ui_create(EditorApp *app)
     if (app->settings.outlist) {
         outwin_open(app);
         ui_set_menu_check(app, MID_OUTPUT, outwin_is_open());
+    }
+    if (app->settings.symlist) {
+        symlist_open(app);
+        ui_set_menu_check(app, MID_SYMLIST, symlist_is_open());
     }
     return 1;
 }
@@ -845,6 +854,8 @@ static void ui_iconify(EditorApp *app)
     if (app->bmlist_was_open) bmlist_close(app);   /* remembers its box */
     app->outwin_was_open = outwin_is_open();
     if (app->outwin_was_open) outwin_close(app);   /* likewise */
+    app->symlist_was_open = symlist_is_open();
+    if (app->symlist_was_open) symlist_close(app);
     app->main_box[0] = app->window->LeftEdge;
     app->main_box[1] = app->window->TopEdge;
     app->main_box[2] = app->window->Width;
@@ -857,8 +868,9 @@ static void ui_iconify(EditorApp *app)
         toolbar_window_opened(app);
         if (app->bmlist_was_open) bmlist_open(app);
         if (app->outwin_was_open) outwin_open(app);
+        if (app->symlist_was_open) symlist_open(app);
         if (app->find_was_open) find_show(app);
-        app->outwin_was_open = 0;
+        app->outwin_was_open = app->symlist_was_open = 0;
         return;
     }
     app->window = NULL;
@@ -891,8 +903,12 @@ static int ui_uniconify(EditorApp *app)
         outwin_open(app);
         ui_set_menu_check(app, MID_OUTPUT, outwin_is_open());
     }
+    if (app->symlist_was_open) {
+        symlist_open(app);
+        ui_set_menu_check(app, MID_SYMLIST, symlist_is_open());
+    }
     if (app->find_was_open) find_show(app);
-    app->bmlist_was_open = app->find_was_open = app->outwin_was_open = 0;
+    app->bmlist_was_open = app->find_was_open = app->outwin_was_open = app->symlist_was_open = 0;
     ActivateWindow(w);
     if (app->active != NULL && app->layout != NULL)
         ActivateLayoutGadget((struct Gadget *)app->layout, w, NULL, (ULONG)app->active->editor);
@@ -958,6 +974,11 @@ static void menu_action(EditorApp *app, ULONG id)
             else bmlist_open(app);
             ui_set_menu_check(app, MID_BM_LIST, bmlist_is_open());
             break;
+        case MID_SYMLIST:
+            if (symlist_is_open()) symlist_close(app);
+            else symlist_open(app);
+            ui_set_menu_check(app, MID_SYMLIST, symlist_is_open());
+            break;
         case MID_SNAPSHOT_TOOLS:
             /* the tool windows' boxes and which are open, into the icon */
             bmlist_remember(app);
@@ -966,6 +987,9 @@ static void menu_action(EditorApp *app, ULONG id)
             outwin_remember(app);
             memcpy(app->settings.outwin, app->out_box, sizeof(app->out_box));
             app->settings.outlist = outwin_is_open();
+            symlist_remember(app);
+            memcpy(app->settings.symwin, app->sym_box, sizeof(app->sym_box));
+            app->settings.symlist = symlist_is_open();
             if (!settings_save_toolwindows(&app->settings))
                 ui_error(app, APP_NAME, S(MSG_ERR_SAVESETTINGS));
             break;
@@ -1083,6 +1107,7 @@ int ui_run(EditorApp *app)
          * minimap_poll() at its end shows the new picture. */
         signals = Wait(mask | scroll_mask | minimap_mask | tree_mask | find_sigmask() |
                        bmlist_sigmask() | outwin_sigmask() | build_sigmask() | scoutlink_sigmask() |
+                       symlist_sigmask() |
                        SIGBREAKF_CTRL_C);
         build_handle(app, signals);
         scoutlink_handle(app);
@@ -1131,6 +1156,7 @@ int ui_run(EditorApp *app)
         find_handle(app);
         bookmarks_poll(app);
         bmlist_handle(app);
+        symlist_handle(app);
         outwin_handle(app);
         /* The texteditor gadget does not notify listeners when the user
          * scrolls it from the keyboard or mouse, so re-read its scroll
@@ -1158,6 +1184,8 @@ int ui_run(EditorApp *app)
         toolbar_update(app);
         minimap_poll(app);
         bmlist_update(app);
+        symlist_update(app);
+        document_goto_poll(app);
     }
     return 1;
 }
@@ -1165,6 +1193,7 @@ int ui_run(EditorApp *app)
 void ui_destroy(EditorApp *app)
 {
     build_cleanup(app);
+    symlist_cleanup(app);
     scoutlink_cleanup(app);
     outwin_cleanup(app);
     find_cleanup();

@@ -14,6 +14,7 @@
 #include <libraries/asl.h>
 #include <proto/asl.h>
 #include <proto/dos.h>
+#include <proto/utility.h>
 #include <proto/exec.h>
 #include <proto/intuition.h>
 
@@ -95,6 +96,24 @@ int tree_project_root(EditorApp *app, char *out, LONG size)
     return ok;
 }
 
+/**
+ * @brief Tell whether a directory is the current project.
+ * @param app The application state.
+ * @param path The directory.
+ * @return Non-zero if it is the tree's root.
+ */
+static int same_project(EditorApp *app, const char *path)
+{
+    char root[EDITOR_PATH_MAX], full[EDITOR_PATH_MAX];
+    BPTR lock;
+    int ok;
+    if (!tree_project_root(app, root, sizeof(root))) return 0;
+    if ((lock = Lock((STRPTR)path, ACCESS_READ)) == 0) return 0;
+    ok = NameFromLock(lock, (STRPTR)full, sizeof(full)) != 0;
+    UnLock(lock);
+    return ok && Stricmp((STRPTR)root, (STRPTR)full) == 0;
+}
+
 int tree_request_directory(EditorApp *app)
 {
     struct FileRequester *fr = AllocAslRequestTags(ASL_FileRequest,
@@ -107,7 +126,10 @@ int tree_request_directory(EditorApp *app)
         strncpy(path, fr->fr_Drawer, sizeof(path) - 1); path[sizeof(path) - 1] = '\0';
         if (fr->fr_File[0] != '\0' && !AddPart(path, fr->fr_File, sizeof(path)))
             ui_error(app, S(MSG_OPENDIR_FAILED), S(MSG_ERR_PATHTOOLONG));
-        else result = load_directory(app, path);
+        else if (same_project(app, path) || document_close_all(app))
+            /* another project: the documents of the old one are closed
+             * first (each asked about if changed) */
+            result = load_directory(app, path);
     }
     FreeAslRequest(fr); return result;
 }

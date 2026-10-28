@@ -193,7 +193,7 @@ static ScoutFile *ready_file(ScoutServer *srv, struct RexxMsg *rx, ScoutSession 
     item.language = lang->id;
     item.version = -1;
     item.stamp = stamp;
-    item.in_project = 1;
+    item.in_project = s->id == 0 || scout_path_inside(s->project, path);
     item.rx = rx;
     item.requery = 1;
     if (!scout_jobs_analyze(srv, s->id, &item, 0)) {
@@ -397,7 +397,9 @@ static void cmd_analyze(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
     memset(&item, 0, sizeof(item));
     item.path = path;
     item.language = lang->id;
-    item.in_project = 1;
+    /* a file outside the project drawer is known to the session (for
+     * DEFINITION), but its symbols are no project symbols */
+    item.in_project = s->id == 0 || scout_path_inside(s->project, path);
     item.rx = rx;
     if (text) {
         BPTR lock = Lock((STRPTR)text, SHARED_LOCK);
@@ -419,7 +421,7 @@ static void cmd_analyze(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
         if (f && f->valid && f->version < 0 && strcmp(f->language, lang->id) == 0 &&
             memcmp(&f->stamp, &item.stamp, sizeof(item.stamp)) == 0) {
             JsonWriter w;
-            f->in_project = 1;
+            if (item.in_project) f->in_project = 1;
             json_writer_init_alloc(&w, 256);
             scout_write_analyze(&w, f);
             finish(srv, rx, s->id, &w, NULL);
@@ -742,6 +744,13 @@ static void cmd_status(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
     json_write_int(&w, sessions);
     json_write_raw(&w, ",\"queue\":");
     json_write_int(&w, scout_jobs_count(srv));
+    {
+        const ScoutWalk *wk;
+        long walks = 0;
+        for (wk = srv->walks; wk; wk = wk->next) walks++;
+        json_write_raw(&w, ",\"walks\":");
+        json_write_int(&w, walks);
+    }
     scout_write_parsers(&w, &srv->store);
     json_write_raw(&w, "}");
     finish(srv, rx, -1, &w, NULL);

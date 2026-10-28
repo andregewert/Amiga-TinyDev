@@ -329,7 +329,7 @@ Scout:
 
 | Command | Template | Result |
 |---|---|---|
-| `STATUS` | | `{"version":"1.0","protocol":1,"enabled":true,"scanning":false,"tempdir":"T:","sessions":2,"queue":0,"parsers":[...],"problems":[...]}` |
+| `STATUS` | | `{"version":"1.0","protocol":1,"enabled":true,"scanning":false,"tempdir":"T:","sessions":2,"queue":0,"walks":0,"parsers":[...],"problems":[...]}` |
 | `QUIT` | | `{}`; Scout ends after replying to waiting messages |
 
 Exchange enables and disables Scout and removes it. Show and Hide do

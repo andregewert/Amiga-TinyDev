@@ -399,6 +399,12 @@ int main(void)
     TEST_ASSERT(!scout_json_member("{\"jsonrpc\":\"2.0\"}", "result", &v, &n));
     TEST_ASSERT(!scout_json_member("[1]", "result", &v, &n));
     TEST_ASSERT(!scout_json_member("{\"result\":[1,2", "result", &v, &n));
+    TEST_ASSERT(scout_path_inside("Work:Hello", "work:hello/src/a.c"));
+    TEST_ASSERT(scout_path_inside("Work:", "Work:a.c"));
+    TEST_ASSERT(scout_path_inside("RAM Disk:T/", "RAM Disk:T/x"));
+    TEST_ASSERT(!scout_path_inside("Work:Hello", "Work:HelloWorld/a.c"));
+    TEST_ASSERT(!scout_path_inside("Work:Hello", "Work:Hell"));
+    TEST_ASSERT(!scout_path_inside("", "Work:a.c"));
     TEST_ASSERT(scout_store_init(&st));
     test_parsers(&st);
     test_sessions(&st);

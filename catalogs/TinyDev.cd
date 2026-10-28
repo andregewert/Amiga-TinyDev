@@ -869,3 +869,123 @@ Drawer for temporary files
 MSG_PREFS_ADVNOTE (//)
 Both take effect at once. TinyDev-Scout finds the symbols\nand errors of the sources. Temporary files: Scout's copies of\nchanged documents and the scripts of the Build menu.\nT: (in the RAM disk) is fastest.
 ;
+MSG_MENU_SYMLIST (//)
+Symbol List
+;
+MSG_SYM_TITLE (//)
+Symbols
+;
+MSG_SYM_NEEDCLASSES (//)
+The symbol list needs listbrowser.gadget, chooser.gadget and string.gadget.
+;
+MSG_SYM_SHOW (//)
+_Show\x20
+;
+MSG_SYM_SCOPE_FILE (//)
+Current file
+;
+MSG_SYM_SCOPE_PROJECT (//)
+Project
+;
+MSG_SYM_FILTER (//)
+_Filter\x20
+;
+MSG_SYM_GOTO (//)
+_Go to
+;
+MSG_SYM_COL_NAME (//)
+Name
+;
+MSG_SYM_COL_KIND (//)
+Kind
+;
+MSG_SYM_COL_WHERE (//)
+Position
+;
+MSG_SYM_COUNT (//)
+%ld symbols
+;
+MSG_SYM_WAIT (//)
+Waiting for TinyDev-Scout...
+;
+MSG_SYM_OFF (//)
+Source analysis is off (Settings, Advanced).
+;
+MSG_SYM_NOFILE (//)
+The document has no file name yet.
+;
+MSG_SYM_NOPROJECT (//)
+No project is open (Open Directory).
+;
+MSG_SYM_FAILED (//)
+TinyDev-Scout could not provide the symbols.
+;
+MSG_SYM_K_FUNCTION (//)
+Function
+;
+MSG_SYM_K_PROCEDURE (//)
+Procedure
+;
+MSG_SYM_K_METHOD (//)
+Method
+;
+MSG_SYM_K_STRUCT (//)
+Struct
+;
+MSG_SYM_K_CLASS (//)
+Class
+;
+MSG_SYM_K_ENUM (//)
+Enum
+;
+MSG_SYM_K_CONSTANT (//)
+Constant
+;
+MSG_SYM_K_TYPE (//)
+Type
+;
+MSG_SYM_K_MACRO (//)
+Macro
+;
+MSG_SYM_K_VARIABLE (//)
+Variable
+;
+MSG_SYM_K_FIELD (//)
+Field
+;
+MSG_SYM_K_LABEL (//)
+Label
+;
+MSG_SYM_K_MODULE (//)
+Module
+;
+MSG_SYM_K_OTHER (//)
+Symbol
+;
+MSG_SYM_KIND (//)
+_Kind\x20
+;
+MSG_SYM_KG_ALL (//)
+All kinds
+;
+MSG_SYM_KG_FUNCTION (//)
+Functions (F)
+;
+MSG_SYM_KG_TYPE (//)
+Types (T)
+;
+MSG_SYM_KG_MACRO (//)
+Macros (M)
+;
+MSG_SYM_KG_VARIABLE (//)
+Variables (V)
+;
+MSG_SYM_KG_CONSTANT (//)
+Constants (C)
+;
+MSG_SYM_KG_OTHER (//)
+Other (?)
+;
+MSG_SYM_INDEXING (//)
+TinyDev-Scout is reading the project (%ld waiting)...
+;

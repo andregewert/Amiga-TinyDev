@@ -57,6 +57,16 @@ int scout_path_equal(const char *a, const char *b)
     return *a == '\0' && *b == '\0';
 }
 
+int scout_path_inside(const char *drawer, const char *path)
+{
+    size_t n = strlen(drawer), i;
+    if (n == 0) return 0;
+    for (i = 0; i < n; i++) {
+        if (fold((unsigned char)drawer[i]) != fold((unsigned char)path[i])) return 0;
+    }
+    return drawer[n - 1] == ':' || drawer[n - 1] == '/' || path[n] == '/';
+}
+
 /**
  * @brief Tell whether a name starts with a prefix, without regard to case.
  * @param name The name.

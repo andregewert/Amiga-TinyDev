@@ -80,6 +80,9 @@ below the tree's root.
   needed, a session per project (the tree's root), analyses documents
   when loaded or saved and, as a snapshot in the temporary drawer, after a
   pause in typing; the counts go to the status line.
+- `src/symlist.c`: the symbol list, a tool window (View/Symbol List):
+  the symbols of the active document or of the project from Scout
+  (through `scoutlink.c`), filter, Go to (`document_go_to()`).
 - `src/tempfile.c`: unique names of temporary files in the drawer of the
   setting TEMPDIR (`temp_name()`), used by the Build menu and Scout's
   snapshots.

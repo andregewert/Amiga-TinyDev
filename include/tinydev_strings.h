@@ -280,7 +280,47 @@
 #define MSG_PREFS_CHOOSE             275
 #define MSG_PREFS_ASL_TEMPDIR        276
 #define MSG_PREFS_ADVNOTE            277
-#define MSG_COUNT                    278
+#define MSG_MENU_SYMLIST             278
+#define MSG_SYM_TITLE                279
+#define MSG_SYM_NEEDCLASSES          280
+#define MSG_SYM_SHOW                 281
+#define MSG_SYM_SCOPE_FILE           282
+#define MSG_SYM_SCOPE_PROJECT        283
+#define MSG_SYM_FILTER               284
+#define MSG_SYM_GOTO                 285
+#define MSG_SYM_COL_NAME             286
+#define MSG_SYM_COL_KIND             287
+#define MSG_SYM_COL_WHERE            288
+#define MSG_SYM_COUNT                289
+#define MSG_SYM_WAIT                 290
+#define MSG_SYM_OFF                  291
+#define MSG_SYM_NOFILE               292
+#define MSG_SYM_NOPROJECT            293
+#define MSG_SYM_FAILED               294
+#define MSG_SYM_K_FUNCTION           295
+#define MSG_SYM_K_PROCEDURE          296
+#define MSG_SYM_K_METHOD             297
+#define MSG_SYM_K_STRUCT             298
+#define MSG_SYM_K_CLASS              299
+#define MSG_SYM_K_ENUM               300
+#define MSG_SYM_K_CONSTANT           301
+#define MSG_SYM_K_TYPE               302
+#define MSG_SYM_K_MACRO              303
+#define MSG_SYM_K_VARIABLE           304
+#define MSG_SYM_K_FIELD              305
+#define MSG_SYM_K_LABEL              306
+#define MSG_SYM_K_MODULE             307
+#define MSG_SYM_K_OTHER              308
+#define MSG_SYM_KIND                 309
+#define MSG_SYM_KG_ALL               310
+#define MSG_SYM_KG_FUNCTION          311
+#define MSG_SYM_KG_TYPE              312
+#define MSG_SYM_KG_MACRO             313
+#define MSG_SYM_KG_VARIABLE          314
+#define MSG_SYM_KG_CONSTANT          315
+#define MSG_SYM_KG_OTHER             316
+#define MSG_SYM_INDEXING             317
+#define MSG_COUNT                    318
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -563,6 +603,46 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Choose...",
     "Drawer for temporary files",
     "Both take effect at once. TinyDev-Scout finds the symbols\nand errors of the sources. Temporary files: Scout's copies of\nchanged documents and the scripts of the Build menu.\nT: (in the RAM disk) is fastest.",
+    "Symbol List",
+    "Symbols",
+    "The symbol list needs listbrowser.gadget, chooser.gadget and string.gadget.",
+    "_Show ",
+    "Current file",
+    "Project",
+    "_Filter ",
+    "_Go to",
+    "Name",
+    "Kind",
+    "Position",
+    "%ld symbols",
+    "Waiting for TinyDev-Scout...",
+    "Source analysis is off (Settings, Advanced).",
+    "The document has no file name yet.",
+    "No project is open (Open Directory).",
+    "TinyDev-Scout could not provide the symbols.",
+    "Function",
+    "Procedure",
+    "Method",
+    "Struct",
+    "Class",
+    "Enum",
+    "Constant",
+    "Type",
+    "Macro",
+    "Variable",
+    "Field",
+    "Label",
+    "Module",
+    "Symbol",
+    "_Kind ",
+    "All kinds",
+    "Functions (F)",
+    "Types (T)",
+    "Macros (M)",
+    "Variables (V)",
+    "Constants (C)",
+    "Other (?)",
+    "TinyDev-Scout is reading the project (%ld waiting)...",
 };
 #endif
 

@@ -25,8 +25,12 @@
  * whose extension no parser handles (LANGUAGES) are not sent.
  *
  * The answers' counts of symbols and diagnostics are shown in the status
- * line; using the results (symbol list, diagnostics, highlighting) comes
- * later.
+ * line. The symbol list asks for the symbols of a document or of the
+ * project (SYMBOLS with TO: the answer can exceed what ARexx takes); the
+ * file is read, handed to symlist_symbols() and deleted. While Scout
+ * indexes a new project, its STATUS is asked every two seconds; the
+ * number of jobs waiting is shown by the symbol list, and when it drops to
+ * nought the project's symbols count as changed.
  */
 #include "editor.h"
 #include "json.h"
@@ -61,6 +65,8 @@ struct RxsLib *RexxSysBase = NULL;
 #define START_TICKS 40
 /** Most extensions remembered from LANGUAGES. */
 #define MAX_EXTENSIONS 48
+/** Timer ticks between two STATUS while the project is indexed (2 s). */
+#define STATUS_TICKS 8
 /** Scout's error number when no parser handles a file. */
 #define SCOUT_E_NO_PARSER 4
 
@@ -78,7 +84,9 @@ enum {
     RQ_CLOSE,           /**< CLOSE of a session */
     RQ_LANGUAGES,       /**< LANGUAGES */
     RQ_ANALYZE,         /**< ANALYZE of a document */
-    RQ_FORGET           /**< FORGET of a document's snapshot */
+    RQ_FORGET,          /**< FORGET of a document's snapshot */
+    RQ_SYMBOLS,         /**< SYMBOLS of a document or the project */
+    RQ_STATUS           /**< STATUS, while the project is indexed */
 };
 
 /** A message on its way to Scout. */
@@ -89,6 +97,7 @@ typedef struct ScoutRequest {
     unsigned long doc;          /**< the document's number (RQ_ANALYZE) */
     long version;               /**< the snapshot's version, -1 for the file */
     long session;               /**< the session it was sent for */
+    char *to;                   /**< the file of the result (TO; AllocVec()), NULL */
 } ScoutRequest;
 
 /** The state of the connection. */
@@ -110,6 +119,12 @@ static struct {
     int asked_languages;        /**< LANGUAGES is on its way */
     char *extensions[MAX_EXTENSIONS];   /**< extensions with a parser (malloc()) */
     int extension_count;        /**< number of them */
+    unsigned long project_generation;   /**< see scoutlink_project_generation() */
+    int indexing;               /**< the project is being indexed (STATUS is asked) */
+    int asked_status;           /**< STATUS is on its way */
+    int status_ticks;           /**< timer ticks since the last STATUS */
+    long queue;                 /**< Scout's jobs waiting, by the last STATUS */
+    ScoutRequest *last;         /**< the request send_command() made last */
 } sl;
 
 /* ---- Messages ---- */
@@ -160,7 +175,42 @@ static int send_command(const char *command, int kind, unsigned long doc, long v
     }
     rq->next = sl.requests;
     sl.requests = rq;
+    sl.last = rq;
     return 1;
+}
+
+/**
+ * @brief Free a request (and delete its result file).
+ * @param rq The request.
+ */
+static void free_request(ScoutRequest *rq)
+{
+    if (rq->to != NULL) {
+        DeleteFile((STRPTR)rq->to);
+        FreeVec(rq->to);
+    }
+    FreeVec(rq);
+}
+
+/**
+ * @brief Read a whole file.
+ * @param path The file.
+ * @return Its contents, terminated (FreeVec() it), or NULL.
+ */
+static char *read_file(const char *path)
+{
+    BPTR fh = Open((STRPTR)path, MODE_OLDFILE);
+    char *buf = NULL;
+    LONG size;
+    if (fh == 0) return NULL;
+    Seek(fh, 0, OFFSET_END);
+    size = Seek(fh, 0, OFFSET_BEGINNING);
+    if (size >= 0 && (buf = AllocVec((ULONG)size + 1, MEMF_ANY)) != NULL) {
+        LONG got = Read(fh, buf, size);
+        buf[got > 0 ? got : 0] = '\0';
+    }
+    Close(fh);
+    return buf;
 }
 
 /**
@@ -405,9 +455,31 @@ static void answer(EditorApp *app, ScoutRequest *rq, int ok, const char *result,
             sl.opening = 0;
             if (ok && result != NULL) {
                 sl.session = result_int(result, "session", 0);
+                ++sl.project_generation;
+                sl.indexing = 1;
+                sl.status_ticks = STATUS_TICKS;     /* ask soon */
+                sl.queue = -1;
                 all_pending(app);
             }
             break;
+        case RQ_STATUS:
+            sl.asked_status = 0;
+            if (ok && result != NULL) {
+                long queue = result_int(result, "queue", 0);
+                /* done when nothing waits and no project is walked */
+                if (queue == 0 && result_int(result, "walks", 0) == 0 && sl.indexing) {
+                    sl.indexing = 0;
+                    ++sl.project_generation;
+                }
+                sl.queue = queue;
+            }
+            break;
+        case RQ_SYMBOLS: {
+            char *text = ok && rq->to != NULL ? read_file(rq->to) : NULL;
+            symlist_symbols(app, rq->doc, text);
+            if (text != NULL) FreeVec(text);
+            break;
+        }
         case RQ_ANALYZE:
             if ((doc = find_document(app, rq->doc)) == NULL) break;
             doc->scout_busy = 0;
@@ -415,6 +487,8 @@ static void answer(EditorApp *app, ScoutRequest *rq, int ok, const char *result,
             if (ok && result != NULL) {
                 doc->scout_symbols = result_int(result, "symbols", -1);
                 doc->scout_problems = result_int(result, "diagnostics", 0);
+                ++doc->scout_generation;
+                if (rq->version < 0) ++sl.project_generation;
             } else if (code == SCOUT_E_NO_PARSER) {
                 doc->scout_none = 1;
             }
@@ -456,7 +530,7 @@ static int timer_needed(EditorApp *app)
 {
     Document *doc;
     if (!app->settings.scout || sl.state == SL_FAILED) return 0;
-    if (sl.state == SL_STARTING) return 1;
+    if (sl.state == SL_STARTING || sl.indexing) return 1;
     for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ;
          doc = (Document *)doc->node.ln_Succ)
         if (doc->scout_pending && doc->path != NULL && !doc->scout_none) return 1;
@@ -488,6 +562,10 @@ static void tick(EditorApp *app)
     }
     when_ready();
     send_due(app);
+    if (sl.indexing && sl.state == SL_READY && !sl.asked_status && ++sl.status_ticks >= STATUS_TICKS) {
+        sl.status_ticks = 0;
+        if (send_command("STATUS", RQ_STATUS, 0, -1)) sl.asked_status = 1;
+    }
 }
 
 /* ---- Interface ---- */
@@ -501,6 +579,7 @@ void scoutlink_project_opened(EditorApp *app)
     }
     sl.session = 0;
     sl.want_open = 0;
+    sl.indexing = 0;
     sl.project[0] = '\0';
     if (!app->settings.scout || !tree_project_root(app, root, sizeof(root))) return;
     strcpy(sl.project, root);
@@ -559,6 +638,46 @@ void scoutlink_document_closing(EditorApp *app, Document *doc)
     (void)app;
 }
 
+int scoutlink_request_symbols(EditorApp *app, Document *doc)
+{
+    char command[3 * EDITOR_PATH_MAX], to[EDITOR_PATH_MAX], session[24];
+    char *copy;
+    if (scoutlink_unavailable(app) || !sl.languages || sl.opening || sl.want_open) return 0;
+    if (doc != NULL && doc->path == NULL) return 0;
+    if (doc == NULL && sl.session == 0) return 0;
+    if (!temp_name(app, ".json", to, sizeof(to))) return 0;
+    session[0] = '\0';
+    if (sl.session > 0) snprintf(session, sizeof(session), "SESSION %ld ", sl.session);
+    if (doc != NULL)
+        snprintf(command, sizeof(command), "SYMBOLS %sFILE \"%s\" TO \"%s\"", session, doc->path, to);
+    else
+        snprintf(command, sizeof(command), "SYMBOLS %sTO \"%s\"", session, to);
+    if ((copy = AllocVec(strlen(to) + 1, MEMF_ANY)) == NULL) return 0;
+    strcpy(copy, to);
+    if (!send_command(command, RQ_SYMBOLS, doc != NULL ? doc->number : 0, -1)) {
+        FreeVec(copy);
+        return 0;
+    }
+    sl.last->to = copy;
+    return 1;
+}
+
+unsigned long scoutlink_project_generation(void)
+{
+    return sl.project_generation;
+}
+
+long scoutlink_indexing(void)
+{
+    return sl.indexing && sl.session > 0 ? (sl.queue > 0 ? sl.queue : 0) : -1;
+}
+
+int scoutlink_unavailable(EditorApp *app)
+{
+    if (!app->settings.scout) return 1;
+    return sl.state == SL_READY ? 0 : 2;
+}
+
 ULONG scoutlink_sigmask(void)
 {
     ULONG mask = 0;
@@ -584,7 +703,7 @@ static void take_answers(EditorApp *app)
         if (rq != NULL) {
             *p = rq->next;
             if (app != NULL) answer(app, rq, ok, result, ok ? 0 : rx->rm_Result2);
-            FreeVec(rq);
+            free_request(rq);
         }
         if (result != NULL) DeleteArgstring((UBYTE *)result);
         DeleteArgstring((UBYTE *)rx->rm_Args[0]);

@@ -477,6 +477,46 @@ int document_close(EditorApp *app, Document *doc, int ask)
     return 1;
 }
 
+int document_close_all(EditorApp *app)
+{
+    Document *doc;
+    for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ;
+         doc = (Document *)doc->node.ln_Succ)
+        if (!ui_confirm_close(app, doc)) return 0;
+    for (;;) {
+        doc = (Document *)app->documents.lh_Head;
+        if (doc->node.ln_Succ == NULL) break;
+        /* closing the last document makes an empty one: that one stays */
+        if (doc->path == NULL && !doc->dirty && doc->node.ln_Succ->ln_Succ == NULL) break;
+        document_close(app, doc, 0);
+    }
+    return 1;
+}
+
+void document_go_to(EditorApp *app, const char *path, long line, long col)
+{
+    Document *doc = path != NULL ? document_find_path(app, path) : app->active;
+    if (doc == NULL) {
+        if (path == NULL || (doc = document_open(app, path)) == NULL) return;
+    } else if (doc != app->active) {
+        document_activate(app, doc);
+    }
+    /* set once the document is shown and laid out (document_goto_poll()) */
+    doc->goto_line = line > 0 ? line : 1;
+    doc->goto_col = col > 0 ? col : 1;
+}
+
+void document_goto_poll(EditorApp *app)
+{
+    Document *doc = app->active;
+    if (doc == NULL || doc->goto_line <= 0 || app->window == NULL) return;
+    SetGadgetAttrs((struct Gadget *)doc->editor, app->window, NULL,
+                   GA_TEXTEDITOR_CursorY, (ULONG)(doc->goto_line - 1),
+                   GA_TEXTEDITOR_CursorX, (ULONG)(doc->goto_col - 1), TAG_END);
+    doc->goto_line = 0;
+    document_sync_scrollers(app, doc);
+}
+
 void document_free_all(EditorApp *app)
 {
     Document *doc;
