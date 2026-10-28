@@ -142,7 +142,14 @@ below the tree's root.
 - `src/minimap.c`: connects `minimap.gadget` to the editor (active document,
   syntax colour hook, re-render requests, scrolling the editor on minimap
   clicks and drags).
-- `src/syntax.c`: language detection, scanners, and TextEditor highlighting hook.
+- `src/syntax.c`: language detection, the built-in scanners, the
+  combined scan (`syntax_scan()`: Scout's lexical rules or the built-in
+  scanner, then Scout's tokens) and the TextEditor highlighting hook.
+- `src/rules.c`, `include/rules.h`: the lexical rules of a language from
+  Scout (SYNTAX) and the generic scanner with them; portable,
+  host-tested in `tests/test_rules.c`.
+- `src/tokenmap.c`, `include/tokenmap.h`: Scout's highlighting tokens of
+  a document, found again by the text of a line; portable, host-tested.
 - `src/scout/`: Scout, the source analysis commodity (`TinyDev-Scout`, ARexx
   port `TINYDEV_SCOUT`): `scout_main.c` (settings, main loop),
   `scout_broker.c` (Exchange), `scout_rexx.c` (the commands, ReadArgs

@@ -41,13 +41,7 @@ static void minimap_fill_pens(void *context, const SyntaxSpan *span)
     const SyntaxHookContext *hc = cf->colors;
     unsigned short pen;
     size_t i, end = span->end;
-    switch (span->style) {
-        case SYNTAX_KEYWORD:      pen = hc->keyword_pen; break;
-        case SYNTAX_STRING:       pen = hc->string_pen; break;
-        case SYNTAX_COMMENT:      pen = hc->comment_pen; break;
-        case SYNTAX_PREPROCESSOR: pen = hc->preprocessor_pen; break;
-        default:                  pen = hc->normal_pen; break;
-    }
+    pen = hc->pens[span->style < SYNTAX_STYLE_COUNT ? span->style : SYNTAX_NORMAL];
     if (end > cf->length) end = cf->length;
     for (i = span->start; i < end; ++i) cf->pens[i] = (UBYTE)pen;
 }
@@ -74,9 +68,8 @@ static ULONG minimap_color_line(struct Hook *hook, Object *obj,
     cf.pens = msg->mlm_Pens;
     cf.length = msg->mlm_Length;
     cf.colors = &doc->highlight;
-    return (ULONG)syntax_scan_line(doc->language, (const char *)msg->mlm_Text,
-                                   (SyntaxState)msg->mlm_State,
-                                   minimap_fill_pens, &cf);
+    return (ULONG)syntax_scan(doc->language, doc->highlight.rules, doc->highlight.tokens,
+                              (const char *)msg->mlm_Text, msg->mlm_State, minimap_fill_pens, &cf);
 }
 
 void minimap_init_document(Document *doc)

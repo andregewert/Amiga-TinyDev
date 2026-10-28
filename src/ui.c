@@ -865,12 +865,7 @@ void ui_apply_settings(EditorApp *app, const Settings *n)
     app->editor_draw_pens[TEXTPEN] = (UWORD)app->editor_pens[EDITOR_COLOR_TEXT];
     for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ != NULL;
          doc = (Document *)doc->node.ln_Succ) {
-        syntax_set_pens(&doc->highlight,
-            (UWORD)app->editor_pens[EDITOR_COLOR_TEXT],
-            (UWORD)app->editor_pens[EDITOR_COLOR_KEYWORD],
-            (UWORD)app->editor_pens[EDITOR_COLOR_STRING],
-            (UWORD)app->editor_pens[EDITOR_COLOR_COMMENT],
-            (UWORD)app->editor_pens[EDITOR_COLOR_PREPROCESSOR]);
+        document_set_pens(app, doc);
     }
     if (app->active != NULL && app->window != NULL) {
         /* setting the hook again makes the editor highlight anew */
@@ -1282,6 +1277,7 @@ void ui_destroy(EditorApp *app)
     bookmarks_cleanup(app);
     minimap_forget_document(app, NULL);
     document_free_all(app);
+    scoutlink_free_rules();       /* the editors that used them are gone */
     if (app->window_object != NULL) {
         if (app->window != NULL) DoMethod(app->window_object, WM_CLOSE, NULL);
         DisposeObject(app->window_object);  /* also the AppIcon and the icon */

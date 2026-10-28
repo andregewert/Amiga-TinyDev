@@ -35,7 +35,8 @@
  *   TEMPDIR=drawer             drawer of the temporary files (default T:)
  *   COLOR_TEXT=RRGGBB ...      colours of the syntax highlighting:
  *                              COLOR_KEYWORD, COLOR_STRING, COLOR_COMMENT,
- *                              COLOR_PREPROCESSOR
+ *                              COLOR_PREPROCESSOR, COLOR_TYPE,
+ *                              COLOR_FUNCTION, COLOR_MACRO, COLOR_CONSTANT
  */
 #include "editor.h"
 
@@ -62,11 +63,16 @@ const unsigned long settings_default_colours[SCOL_COUNT] = {
     0x107010,                       /* strings: green */
     0x506050,                       /* comments: grey green */
     0x802070,                       /* preprocessor: plum */
+    0x005a6a,                       /* types: petrol */
+    0x3a3a8a,                       /* functions: slate blue */
+    0xa04000,                       /* macros: rust */
+    0x8c1810,                       /* constants: dark red */
 };
 
 /** Tool type names of the colours, SettingsColour order. */
 static const char *const colour_names[SCOL_COUNT] = {
-    "COLOR_TEXT", "COLOR_KEYWORD", "COLOR_STRING", "COLOR_COMMENT", "COLOR_PREPROCESSOR"
+    "COLOR_TEXT", "COLOR_KEYWORD", "COLOR_STRING", "COLOR_COMMENT", "COLOR_PREPROCESSOR",
+    "COLOR_TYPE", "COLOR_FUNCTION", "COLOR_MACRO", "COLOR_CONSTANT"
 };
 
 void settings_default(Settings *s)

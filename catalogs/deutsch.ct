@@ -1348,3 +1348,35 @@ MSG_NAV_NOBACK
 Es gibt keine Stelle zum Zurückspringen.
 ; There is no place to go back to.
 ;
+MSG_PREFS_COL_TYPE
+Typen\x20
+; Types\x20
+;
+MSG_PREFS_COL_FUNCTION
+Funktionen\x20
+; Functions\x20
+;
+MSG_PREFS_COL_MACRO
+Makros\x20
+; Macros\x20
+;
+MSG_PREFS_COL_CONSTANT
+Konstanten\x20
+; Constants\x20
+;
+MSG_PREFS_TTL_TYPE
+Farbe der Typen
+; Colour of types
+;
+MSG_PREFS_TTL_FUNCTION
+Farbe der Funktionen
+; Colour of functions
+;
+MSG_PREFS_TTL_MACRO
+Farbe der Makros
+; Colour of macros
+;
+MSG_PREFS_TTL_CONSTANT
+Farbe der Konstanten und Zahlen
+; Colour of constants and numbers
+;

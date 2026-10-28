@@ -21,8 +21,10 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
   clipboard, undo/redo, line numbers, horizontal scrolling without line
   wrapping. LF, CR and CRLF line endings are kept; saving goes through a
   temporary file, so a failed save does not destroy the original.
-- Syntax highlighting of C (`.c`, `.h`) and AmigaDOS scripts (`.script`,
-  `.dos`); other files are plain text.
+- Syntax highlighting with the rules of TinyDev-Scout's parsers (C:
+  `.c`, `.h`), including the types, functions, macros and constants of
+  the project; without Scout, built-in highlighting of C and AmigaDOS
+  scripts (`.script`, `.dos`). Other files are plain text.
 - Folder tree of the project (the directory opened with Project/Open
   Directory): opens files with a double-click and follows changes on disk.
 - Minimap: a coloured overview of the document; click or drag in it to
@@ -150,7 +152,7 @@ the icon, "Use" keeps them for this session.
 | `OUTPUTWINDOW=l,t,w,h` | Position and size of the output window (otherwise below the main window) |
 | `NOSCOUT` | No source analysis with TinyDev-Scout |
 | `TEMPDIR=drawer` | Drawer for temporary files (default `T:`) |
-| `COLOR_TEXT`, `COLOR_KEYWORD`, `COLOR_STRING`, `COLOR_COMMENT`, `COLOR_PREPROCESSOR` | Colours of the syntax highlighting as `RRGGBB` |
+| `COLOR_TEXT`, `COLOR_KEYWORD`, `COLOR_STRING`, `COLOR_COMMENT`, `COLOR_PREPROCESSOR`, `COLOR_TYPE`, `COLOR_FUNCTION`, `COLOR_MACRO`, `COLOR_CONSTANT` | Colours of the syntax highlighting as `RRGGBB` |
 
 View/Snapshot Tool Windows writes `BOOKMARKLIST`, `BOOKMARKWINDOW`,
 `SYMBOLLIST`, `SYMBOLWINDOW`, `PROBLEMLIST`, `PROBLEMWINDOW`, `OUTPUT` and

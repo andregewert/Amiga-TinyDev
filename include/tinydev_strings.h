@@ -336,7 +336,15 @@
 #define MSG_NAV_FAILED               331
 #define MSG_NAV_FOUND                332
 #define MSG_NAV_NOBACK               333
-#define MSG_COUNT                    334
+#define MSG_PREFS_COL_TYPE           334
+#define MSG_PREFS_COL_FUNCTION       335
+#define MSG_PREFS_COL_MACRO          336
+#define MSG_PREFS_COL_CONSTANT       337
+#define MSG_PREFS_TTL_TYPE           338
+#define MSG_PREFS_TTL_FUNCTION       339
+#define MSG_PREFS_TTL_MACRO          340
+#define MSG_PREFS_TTL_CONSTANT       341
+#define MSG_COUNT                    342
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -675,6 +683,14 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "TinyDev-Scout could not look for %s.",
     "%s: definition %ld of %ld (Amiga+T: the next one)",
     "There is no place to go back to.",
+    "Types ",
+    "Functions ",
+    "Macros ",
+    "Constants ",
+    "Colour of types",
+    "Colour of functions",
+    "Colour of macros",
+    "Colour of constants and numbers",
 };
 #endif
 

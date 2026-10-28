@@ -1037,3 +1037,27 @@ MSG_NAV_FOUND (//)
 MSG_NAV_NOBACK (//)
 There is no place to go back to.
 ;
+MSG_PREFS_COL_TYPE (//)
+Types\x20
+;
+MSG_PREFS_COL_FUNCTION (//)
+Functions\x20
+;
+MSG_PREFS_COL_MACRO (//)
+Macros\x20
+;
+MSG_PREFS_COL_CONSTANT (//)
+Constants\x20
+;
+MSG_PREFS_TTL_TYPE (//)
+Colour of types
+;
+MSG_PREFS_TTL_FUNCTION (//)
+Colour of functions
+;
+MSG_PREFS_TTL_MACRO (//)
+Colour of macros
+;
+MSG_PREFS_TTL_CONSTANT (//)
+Colour of constants and numbers
+;

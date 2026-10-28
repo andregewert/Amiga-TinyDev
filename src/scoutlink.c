@@ -33,9 +33,20 @@
  * nought the project's symbols count as changed. After an analysis that
  * found problems (or none where there were some), the document's
  * diagnostics are asked for (DIAGNOSTICS ... TO) and go to diag.c.
+ *
+ * Highlighting: the lexical rules of each language (SYNTAX) are fetched
+ * after LANGUAGES and given to the highlighter of the documents with its
+ * extensions; they are kept until TinyDev quits (a hook may use them).
+ * After each analysis the document's tokens are fetched (TOKENS ... TO)
+ * and mapped onto the text that was analysed (kept for that, tokenmap.c);
+ * the highlighter's map is swapped under Forbid() and the old one freed
+ * at the next swap. The editor highlights anew only when the tokens
+ * changed.
  */
 #include "editor.h"
 #include "json.h"
+#include "rules.h"
+#include "tokenmap.h"
 
 #include <devices/timer.h>
 #include <dos/dostags.h>
@@ -67,6 +78,8 @@ struct RxsLib *RexxSysBase = NULL;
 #define START_TICKS 40
 /** Most extensions remembered from LANGUAGES. */
 #define MAX_EXTENSIONS 48
+/** Most languages remembered from LANGUAGES. */
+#define MAX_LANGUAGES 16
 /** Timer ticks between two STATUS while the project is indexed (2 s). */
 #define STATUS_TICKS 8
 /** Scout's error number when no parser handles a file. */
@@ -90,7 +103,9 @@ enum {
     RQ_SYMBOLS,         /**< SYMBOLS of a document or the project */
     RQ_STATUS,          /**< STATUS, while the project is indexed */
     RQ_DIAGNOSTICS,     /**< DIAGNOSTICS of a document or the project */
-    RQ_DEFINITION       /**< DEFINITION of a name (Go to Definition) */
+    RQ_DEFINITION,      /**< DEFINITION of a name (Go to Definition) */
+    RQ_SYNTAX,          /**< SYNTAX of a language */
+    RQ_TOKENS           /**< TOKENS of a document */
 };
 
 /** A message on its way to Scout. */
@@ -122,7 +137,11 @@ static struct {
     int languages;              /**< LANGUAGES was answered */
     int asked_languages;        /**< LANGUAGES is on its way */
     char *extensions[MAX_EXTENSIONS];   /**< extensions with a parser (malloc()) */
+    int ext_language[MAX_EXTENSIONS];   /**< the language of each (index in languages) */
     int extension_count;        /**< number of them */
+    char lang_ids[MAX_LANGUAGES][32];   /**< identifiers of the languages */
+    SyntaxRules *rules[MAX_LANGUAGES];  /**< their lexical rules (kept until quitting), NULL */
+    int language_count;         /**< number of languages */
     unsigned long project_generation;   /**< see scoutlink_project_generation() */
     int indexing;               /**< the project is being indexed (STATUS is asked) */
     int asked_status;           /**< STATUS is on its way */
@@ -307,6 +326,91 @@ static int has_parser(const char *path)
 }
 
 /**
+ * @brief Return the lexical rules of a file's language.
+ * @param path The file (may be NULL).
+ * @return The rules, or NULL.
+ */
+static const SyntaxRules *rules_for(const char *path)
+{
+    const char *dot = path != NULL ? strrchr(path, '.') : NULL;
+    int i;
+    if (dot == NULL || strchr(dot, '/') != NULL || strchr(dot, ':') != NULL) return NULL;
+    for (i = 0; i < sl.extension_count; ++i)
+        if (Stricmp((STRPTR)sl.extensions[i], (STRPTR)dot) == 0) return sl.rules[sl.ext_language[i]];
+    return NULL;
+}
+
+/**
+ * @brief Make a document's editor highlight anew (setting its hook again).
+ * @param app The application state.
+ * @param doc The document.
+ */
+static void rehighlight(EditorApp *app, Document *doc)
+{
+    if (app->window == NULL || doc != app->active) return;
+    SetGadgetAttrs((struct Gadget *)doc->editor, app->window, NULL, GA_TEXTEDITOR_HighlighterHook, 0, TAG_END);
+    SetGadgetAttrs((struct Gadget *)doc->editor, app->window, NULL,
+                   GA_TEXTEDITOR_HighlighterHook, (ULONG)&doc->highlight.hook, TAG_END);
+    minimap_request(app);
+}
+
+/**
+ * @brief Give a document the lexical rules of its language (if they
+ *        changed, it is highlighted anew).
+ * @param app The application state.
+ * @param doc The document.
+ */
+static void apply_rules(EditorApp *app, Document *doc)
+{
+    const SyntaxRules *r = app->settings.scout ? rules_for(doc->path) : NULL;
+    if (r == doc->highlight.rules) return;
+    Forbid();
+    doc->highlight.rules = r;
+    Permit();
+    rehighlight(app, doc);
+}
+
+/**
+ * @brief Give a document's highlighter new tokens; the old ones are freed
+ *        at the next change, as a hook may still read them.
+ * @param app The application state.
+ * @param doc The document.
+ * @param map The new tokens (taken over; NULL for none).
+ */
+static void set_tokens(EditorApp *app, Document *doc, TokenMap *map)
+{
+    const TokenMap *old = doc->highlight.tokens;
+    int same = (old == NULL && map == NULL) ||
+               (old != NULL && map != NULL && old->line_count == map->line_count &&
+                old->span_count == map->span_count &&
+                memcmp(old->lines, map->lines, (size_t)map->line_count * sizeof(TokenLine)) == 0 &&
+                memcmp(old->spans, map->spans, (size_t)map->span_count * sizeof(TokenSpan)) == 0);
+    if (same) {
+        tokenmap_free(map);
+        return;
+    }
+    tokenmap_free(doc->old_tokens);
+    Forbid();
+    doc->old_tokens = (TokenMap *)old;
+    doc->highlight.tokens = map;
+    Permit();
+    rehighlight(app, doc);
+}
+
+/**
+ * @brief Keep a copy of the text an analysis is of (for its tokens).
+ * @param doc The document.
+ * @param text The text (taken over, AllocVec(); NULL drops the copy).
+ * @param version Its version, -1 for the file.
+ */
+static void keep_text(Document *doc, char *text, long version)
+{
+    if (doc->scout_text != NULL) FreeVec(doc->scout_text);
+    doc->scout_text = text;
+    doc->scout_text_version = version;
+}
+
+/**
  * @brief Write a document's text as its snapshot.
  * @param app The application state.
  * @param doc The document.
@@ -331,7 +435,7 @@ static int write_snapshot(EditorApp *app, Document *doc)
     fh = Open((STRPTR)doc->scout_snapshot, MODE_NEWFILE);
     ok = fh != 0 && Write(fh, text, len) == len;
     if (fh != 0) Close(fh);
-    FreeVec(text);
+    keep_text(doc, text, doc->scout_version + 1);   /* the version analyze() gives it */
     return ok;
 }
 
@@ -355,6 +459,8 @@ static void analyze(EditorApp *app, Document *doc)
                  session, doc->path, doc->scout_snapshot, version);
     } else {
         snprintf(command, sizeof(command), "ANALYZE %sFILE \"%s\"", session, doc->path);
+        /* the editor's text is the file's: the tokens are mapped onto it */
+        keep_text(doc, (char *)DoMethod(doc->editor, GM_TEXTEDITOR_ExportText, NULL), -1);
     }
     if (send_command(command, RQ_ANALYZE, doc->number, version)) {
         doc->scout_busy = 1;
@@ -394,6 +500,29 @@ static void all_pending(EditorApp *app)
 }
 
 /**
+ * @brief Ask for the tokens of a document's analysis.
+ * @param app The application state.
+ * @param doc The document.
+ * @param version The analysis's version (-1 for the file).
+ */
+static void request_tokens(EditorApp *app, Document *doc, long version)
+{
+    char command[3 * EDITOR_PATH_MAX], to[EDITOR_PATH_MAX], session[24];
+    char *copy;
+    if (!temp_name(app, ".json", to, sizeof(to))) return;
+    session[0] = '\0';
+    if (sl.session > 0) snprintf(session, sizeof(session), "SESSION %ld ", sl.session);
+    snprintf(command, sizeof(command), "TOKENS %sFILE \"%s\" TO \"%s\"", session, doc->path, to);
+    if ((copy = AllocVec(strlen(to) + 1, MEMF_ANY)) == NULL) return;
+    strcpy(copy, to);
+    if (!send_command(command, RQ_TOKENS, doc->number, version)) {
+        FreeVec(copy);
+        return;
+    }
+    sl.last->to = copy;
+}
+
+/**
  * @brief Read an integer member of a JSON result.
  * @param result The result.
  * @param key The member.
@@ -419,14 +548,31 @@ static void read_languages(const char *result)
     size_t i, j;
     while (sl.extension_count > 0) free(sl.extensions[--sl.extension_count]);
     for (i = 0; langs != NULL && i < json_array_length(langs); ++i) {
-        const JsonValue *exts = json_obj_get_array(json_array_get(langs, i), "extensions");
+        const JsonValue *lang = json_array_get(langs, i);
+        const JsonValue *exts = json_obj_get_array(lang, "extensions");
+        const char *id = json_obj_get_string(lang, "id", "");
+        int k;
+        /* a language known before keeps its rules (a hook may use them) */
+        for (k = 0; k < sl.language_count && strcmp(sl.lang_ids[k], id) != 0; ++k) ;
+        if (k == sl.language_count) {
+            if (k == MAX_LANGUAGES || strlen(id) >= sizeof(sl.lang_ids[0])) continue;
+            strcpy(sl.lang_ids[k], id);
+            sl.rules[k] = NULL;
+            ++sl.language_count;
+        }
         for (j = 0; exts != NULL && j < json_array_length(exts); ++j) {
             const JsonValue *e = json_array_get(exts, j);
             char *copy;
             if (e == NULL || e->type != JSON_STRING || sl.extension_count >= MAX_EXTENSIONS) continue;
             if ((copy = malloc(strlen(e->u.str_val) + 1)) == NULL) continue;
             strcpy(copy, e->u.str_val);
+            sl.ext_language[sl.extension_count] = k;
             sl.extensions[sl.extension_count++] = copy;
+        }
+        if (sl.rules[k] == NULL) {
+            char command[64];
+            snprintf(command, sizeof(command), "SYNTAX LANG \"%s\"", id);
+            send_command(command, RQ_SYNTAX, (unsigned long)k, -1);
         }
     }
     json_value_free(v);
@@ -487,6 +633,25 @@ static void answer(EditorApp *app, ScoutRequest *rq, int ok, const char *result,
         case RQ_DEFINITION:
             navigate_definition_answer(app, ok ? result : NULL);
             break;
+        case RQ_SYNTAX:
+            if (ok && result != NULL && rq->doc < (unsigned long)sl.language_count && sl.rules[rq->doc] == NULL) {
+                sl.rules[rq->doc] = rules_parse(result);
+                for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ;
+                     doc = (Document *)doc->node.ln_Succ)
+                    apply_rules(app, doc);
+            }
+            break;
+        case RQ_TOKENS:
+            if ((doc = find_document(app, rq->doc)) != NULL && ok && rq->to != NULL &&
+                doc->scout_text != NULL && rq->version == doc->scout_text_version) {
+                char *text = read_file(rq->to);
+                long count = 0, *values = text != NULL ? tokenmap_read(text, &count) : NULL;
+                if (text != NULL) FreeVec(text);
+                set_tokens(app, doc, values != NULL ?
+                           tokenmap_build(doc->scout_text, strlen(doc->scout_text), values, count) : NULL);
+                free(values);
+            }
+            break;
         case RQ_DIAGNOSTICS: {
             char *text = ok && rq->to != NULL ? read_file(rq->to) : NULL;
             if (rq->doc == 0) {
@@ -508,6 +673,8 @@ static void answer(EditorApp *app, ScoutRequest *rq, int ok, const char *result,
                 if (rq->version < 0) ++sl.project_generation;
                 /* the list and the marks follow the problems */
                 if (doc->scout_problems > 0 || doc->diag_count > 0) scoutlink_request_diagnostics(app, doc);
+                /* the tokens of the text that was analysed */
+                if (doc->scout_text != NULL && rq->version == doc->scout_text_version) request_tokens(app, doc, rq->version);
             } else if (code == SCOUT_E_NO_PARSER) {
                 doc->scout_none = 1;
             }
@@ -623,6 +790,8 @@ void scoutlink_settings_changed(EditorApp *app)
         doc->scout_pending = doc->scout_now = 0;
         doc->scout_symbols = -1;
         if (doc->diag_count > 0 || doc->diag_mark_count > 0) diag_set_document(app, doc, NULL);
+        set_tokens(app, doc, NULL);
+        apply_rules(app, doc);
     }
 }
 
@@ -733,6 +902,25 @@ int scoutlink_unavailable(EditorApp *app)
     return sl.state == SL_READY ? 0 : 2;
 }
 
+void scoutlink_document_free(Document *doc)
+{
+    keep_text(doc, NULL, -1);
+    tokenmap_free((TokenMap *)doc->highlight.tokens);
+    tokenmap_free(doc->old_tokens);
+    doc->highlight.tokens = NULL;
+    doc->old_tokens = NULL;
+}
+
+void scoutlink_free_rules(void)
+{
+    int i;
+    for (i = 0; i < sl.language_count; ++i) {
+        rules_free(sl.rules[i]);
+        sl.rules[i] = NULL;
+    }
+    sl.language_count = 0;
+}
+
 ULONG scoutlink_sigmask(void)
 {
     ULONG mask = 0;
@@ -768,7 +956,12 @@ static void take_answers(EditorApp *app)
 
 void scoutlink_handle(EditorApp *app)
 {
+    Document *doc;
     take_answers(app);
+    /* a document that got a file (or another one) gets its language's rules */
+    for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ;
+         doc = (Document *)doc->node.ln_Succ)
+        apply_rules(app, doc);
     if (sl.timer_pending && CheckIO((struct IORequest *)sl.timer)) {
         WaitIO((struct IORequest *)sl.timer);
         sl.timer_pending = 0;

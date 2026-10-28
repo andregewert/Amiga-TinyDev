@@ -28,7 +28,7 @@ struct HintInfo;
 #define EDITOR_MAX_FILE (8UL * 1024UL * 1024UL) /**< largest file that is loaded (bytes) */
 #define EDITOR_PATH_MAX 1024                /**< size of path buffers */
 #define EDITOR_TITLE_MAX 128                /**< size of a document's title */
-#define EDITOR_COLOR_COUNT 6                /**< number of editor colours (enum EditorColor) */
+#define EDITOR_COLOR_COUNT 10               /**< number of editor colours (enum EditorColor) */
 /** @} */
 
 /**
@@ -51,7 +51,11 @@ enum EditorColor {
     EDITOR_COLOR_KEYWORD,           /**< keywords */
     EDITOR_COLOR_STRING,            /**< strings and character constants */
     EDITOR_COLOR_COMMENT,           /**< comments */
-    EDITOR_COLOR_PREPROCESSOR       /**< preprocessor lines */
+    EDITOR_COLOR_PREPROCESSOR,      /**< preprocessor lines */
+    EDITOR_COLOR_TYPE,              /**< types */
+    EDITOR_COLOR_FUNCTION,          /**< functions */
+    EDITOR_COLOR_MACRO,             /**< macros */
+    EDITOR_COLOR_CONSTANT           /**< constants and numbers */
 };
 
 /** Gadget IDs of the main window (an editor has 100 + its document number). */
@@ -74,13 +78,18 @@ enum ToolbarMode {
     TBMODE_COUNT        /**< number of modes */
 };
 
-/** Configurable colours of the editor (syntax highlighting), in this order. */
+/** Configurable colours of the editor (syntax highlighting), in this order:
+ *  the order of SyntaxStyle (syntax.h). */
 enum SettingsColour {
     SCOL_TEXT = 0,      /**< normal text */
     SCOL_KEYWORD,       /**< keywords */
     SCOL_STRING,        /**< strings */
     SCOL_COMMENT,       /**< comments */
     SCOL_PREPROCESSOR,  /**< preprocessor lines */
+    SCOL_TYPE,          /**< types */
+    SCOL_FUNCTION,      /**< functions */
+    SCOL_MACRO,         /**< macros */
+    SCOL_CONSTANT,      /**< constants and numbers */
     SCOL_COUNT          /**< number of colours */
 };
 
@@ -247,6 +256,9 @@ typedef struct Document {
     DiagItem *diag_items;       /**< its diagnostics, by line (malloc()), NULL */
     long diag_count;            /**< number of them */
     unsigned long diag_generation;  /**< counts the changes of the diagnostics (the problem list follows it) */
+    char *scout_text;           /**< the text of the analysis on its way or last answered (AllocVec()), NULL */
+    long scout_text_version;    /**< its version, -1 for the file */
+    struct TokenMap *old_tokens;    /**< the tokens before the highlighter's (freed at the next change: a hook may still read them) */
     long goto_line;             /**< line to put the cursor on once the document is shown (1-based), 0 */
     long goto_col;              /**< its column (1-based) */
 } Document;
@@ -1634,6 +1646,13 @@ void symlist_symbols(EditorApp *app, unsigned long doc_number, const char *json)
 void symlist_cleanup(EditorApp *app);
 
 /**
+ * @brief Give a document's highlighter the pens of the editor colours.
+ * @param app The application state.
+ * @param doc The document.
+ */
+void document_set_pens(EditorApp *app, Document *doc);
+
+/**
  * @brief Close all documents, asking first about each changed one; an
  *        empty untitled document is left.
  * @param app The application state.
@@ -1783,5 +1802,17 @@ void navigate_definition_answer(EditorApp *app, const char *json);
 void navigate_back(EditorApp *app);
 /** @brief Free the places noted for Go Back. */
 void navigate_cleanup(void);
+
+/**
+ * @brief Free what the client keeps of a document (its analysed text and
+ *        tokens); called when its editor is gone.
+ * @param doc The document.
+ */
+void scoutlink_document_free(Document *doc);
+/**
+ * @brief Free the lexical rules of the languages (when TinyDev quits,
+ *        after the documents).
+ */
+void scoutlink_free_rules(void);
 
 #endif

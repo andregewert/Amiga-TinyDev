@@ -193,12 +193,7 @@ static Document *new_document(EditorApp *app)
     minimap_init_document(doc);
     bookmarks_init_document(doc);
     doc->scout_symbols = -1;
-    syntax_set_pens(&doc->highlight,
-        (UWORD)app->editor_pens[EDITOR_COLOR_TEXT],
-        (UWORD)app->editor_pens[EDITOR_COLOR_KEYWORD],
-        (UWORD)app->editor_pens[EDITOR_COLOR_STRING],
-        (UWORD)app->editor_pens[EDITOR_COLOR_COMMENT],
-        (UWORD)app->editor_pens[EDITOR_COLOR_PREPROCESSOR]);
+    document_set_pens(app, doc);
     doc->editor = create_editor(app, doc, "");
     if (doc->editor == NULL) { FreeVec(doc); ui_error(app, APP_NAME, S(MSG_ERR_EDITOR)); return NULL; }
     doc->vscroll = NewObject(SCROLLER_GetClass(), NULL,
@@ -468,6 +463,7 @@ int document_close(EditorApp *app, Document *doc, int ask)
     renumber_tabs(app);
     FreeClickTabNode(doc->tab);
     DisposeObject(doc->page);
+    scoutlink_document_free(doc);
     if (doc->path != NULL) FreeVec(doc->path);
     FreeVec(doc);
     attach_tabs(app);
@@ -492,6 +488,15 @@ int document_close_all(EditorApp *app)
         document_close(app, doc, 0);
     }
     return 1;
+}
+
+void document_set_pens(EditorApp *app, Document *doc)
+{
+    UWORD pens[SYNTAX_STYLE_COUNT];
+    int i;
+    /* the colours of the settings are in the order of the styles */
+    for (i = 0; i < SYNTAX_STYLE_COUNT; ++i) pens[i] = (UWORD)app->editor_pens[EDITOR_COLOR_TEXT + i];
+    syntax_set_pens(&doc->highlight, pens);
 }
 
 void document_go_to(EditorApp *app, const char *path, long line, long col)
@@ -530,6 +535,7 @@ void document_free_all(EditorApp *app)
         if (app->pages != NULL && doc->page != NULL)
             SetAttrs(app->pages, PAGE_Remove, (ULONG)doc->page, TAG_END);
         if (doc->page != NULL) DisposeObject(doc->page);
+        scoutlink_document_free(doc);
         if (doc->path != NULL) FreeVec(doc->path);
         diag_free_document(doc);
         FreeVec(doc);
