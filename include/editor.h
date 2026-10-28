@@ -106,6 +106,8 @@ typedef struct Settings {
     int outlist;        /**< output window open at the start (OUTPUT) */
     long symwin[4];     /**< symbol list as snapshot (SYMBOLWINDOW); width 0 = automatic */
     int symlist;        /**< symbol list open at the start (SYMBOLLIST) */
+    long diagwin[4];    /**< problem list as snapshot (PROBLEMWINDOW); width 0 = automatic */
+    int diaglist;       /**< problem list open at the start (PROBLEMLIST) */
     int scout;          /**< analyse the sources with TinyDev-Scout (NOSCOUT turns it off) */
     char tempdir[256];  /**< drawer of the temporary files (TEMPDIR, default T:) */
     char icon_name[300];/**< program icon without .info, for splash and About */
@@ -158,7 +160,8 @@ enum MenuId {
     MID_DEBUG,          /**< Build/Debug: the default Debug command */
     MID_STOP,           /**< Build/Stop Build */
     MID_OUTPUT,         /**< View/Output Window (check item) */
-    MID_SYMLIST         /**< View/Symbol List (check item) */
+    MID_SYMLIST,        /**< View/Symbol List (check item) */
+    MID_DIAGLIST        /**< View/Problem List (check item) */
 };
 
 /** Bookmarks of a document that TinyDev keeps track of. */
@@ -173,6 +176,23 @@ enum {
     BMSCOPE_PROJECT,        /**< those of the project's files, open or not */
     BMSCOPE_COUNT           /**< number of scopes */
 };
+
+/** Most lines of a document marked in the left bar for diagnostics. */
+#define DIAG_MARKS_MAX 256
+
+/** A line marked in the left bar (read by the left bar hook). */
+typedef struct DiagMark {
+    LONG line;                  /**< the line, from 0 */
+    UWORD severity;             /**< the worst diagnostic of the line (SCOUT_SEVERITY_, 1 = error) */
+} DiagMark;
+
+/** A diagnostic of a document, as Scout reported it. */
+typedef struct DiagItem {
+    long line;                  /**< its line (1-based) */
+    long col;                   /**< its column (1-based) */
+    int severity;               /**< SCOUT_SEVERITY_ value */
+    char *message;              /**< its text (malloc()) */
+} DiagItem;
 
 /** Line endings of a document, as loaded (and saved again). */
 typedef enum LineEnding {
@@ -220,6 +240,11 @@ typedef struct Document {
     long scout_symbols;         /**< symbols of the last analysis, -1 if none */
     long scout_problems;        /**< diagnostics of the last analysis */
     unsigned long scout_generation; /**< counts the answered analyses (the symbol list follows it) */
+    DiagMark diag_marks[DIAG_MARKS_MAX];    /**< lines marked in the left bar, by line (changed under Forbid()) */
+    LONG diag_mark_count;       /**< number of them */
+    DiagItem *diag_items;       /**< its diagnostics, by line (malloc()), NULL */
+    long diag_count;            /**< number of them */
+    unsigned long diag_generation;  /**< counts the changes of the diagnostics (the problem list follows it) */
     long goto_line;             /**< line to put the cursor on once the document is shown (1-based), 0 */
     long goto_col;              /**< its column (1-based) */
 } Document;
@@ -276,6 +301,8 @@ typedef struct EditorApp {
     int outwin_was_open;        /**< the output window was open when the main window was iconified */
     long sym_box[4];            /**< box of the symbol list in this session */
     int symlist_was_open;       /**< the symbol list was open when the main window was iconified */
+    long diag_box[4];           /**< box of the problem list in this session */
+    int diaglist_was_open;      /**< the problem list was open when the main window was iconified */
     int defer_depth;            /**< ui_begin_update() nesting */
     int pending_layout;         /**< a relayout was requested meanwhile */
     int pending_refresh;        /**< a page redraw was requested meanwhile */
@@ -1629,5 +1656,89 @@ void document_go_to(EditorApp *app, const char *path, long line, long col);
  * @param app The application state.
  */
 void document_goto_poll(EditorApp *app);
+
+/**
+ * @brief Ask Scout for diagnostics: those of a document (they go to
+ *        diag_set_document()), or those of the project (diaglist_project()).
+ * @param app The application state.
+ * @param doc The document, NULL for the project.
+ * @return Non-zero if the request was sent.
+ */
+int scoutlink_request_diagnostics(EditorApp *app, Document *doc);
+
+/**
+ * @brief Obtain the pens of the left bar's marks (once the screen is known).
+ * @param app The application state.
+ */
+void diag_open(EditorApp *app);
+/**
+ * @brief Release the pens of the marks.
+ * @param app The application state.
+ */
+void diag_close(EditorApp *app);
+/**
+ * @brief Take Scout's answer to DIAGNOSTICS for a document: its list and
+ *        the marks of the left bar (redrawn if they changed).
+ * @param app The application state.
+ * @param doc The document.
+ * @param json The answer's text, NULL to drop the diagnostics.
+ */
+void diag_set_document(EditorApp *app, Document *doc, const char *json);
+/**
+ * @brief Free a document's diagnostics (when it is closed).
+ * @param doc The document.
+ */
+void diag_free_document(Document *doc);
+/**
+ * @brief Return the worst diagnostic of a line.
+ * @param doc The document.
+ * @param line The line (1-based).
+ * @return The diagnostic, or NULL.
+ */
+const DiagItem *diag_at_line(const Document *doc, long line);
+/**
+ * @brief Draw the mark of a line into the left bar, if it has one (called
+ *        by the left bar hook: graphics only, no allocation).
+ * @param doc The document.
+ * @param rp The RastPort, positioned at the top left of the line's bar.
+ * @param line The line (from 0).
+ * @param width Width of the bar.
+ * @param height Height of a line.
+ */
+void diag_draw_mark(const Document *doc, struct RastPort *rp, LONG line, WORD width, WORD height);
+/**
+ * @brief Return the pen of a severity's mark (also for the problem list).
+ * @param severity SCOUT_SEVERITY_ value.
+ * @param fallback The pen if none could be obtained.
+ * @return The pen.
+ */
+UWORD diag_pen(int severity, UWORD fallback);
+
+/** @brief Open the problem list (or bring it to the front). @param app The application state. */
+void diaglist_open(EditorApp *app);
+/** @brief Close the problem list (remembering its box). @param app The application state. */
+void diaglist_close(EditorApp *app);
+/** @brief Tell whether the problem list is open. @return Non-zero if it is. */
+int diaglist_is_open(void);
+/** @brief Remember the problem list's box in EditorApp::diag_box. @param app The application state. */
+void diaglist_remember(EditorApp *app);
+/** @brief Return the problem list's signal mask (0 when closed). @return The mask. */
+ULONG diaglist_sigmask(void);
+/** @brief Handle the problem list's input. @param app The application state. */
+void diaglist_handle(EditorApp *app);
+/**
+ * @brief Show what changed (another document, new diagnostics, a new
+ *        project state); called every turn of the event loop.
+ * @param app The application state.
+ */
+void diaglist_update(EditorApp *app);
+/**
+ * @brief Take Scout's answer to DIAGNOSTICS of the project (JSON).
+ * @param app The application state.
+ * @param json The answer's text, NULL if the request failed.
+ */
+void diaglist_project(EditorApp *app, const char *json);
+/** @brief Close the problem list and free what it holds. @param app The application state. */
+void diaglist_cleanup(EditorApp *app);
 
 #endif

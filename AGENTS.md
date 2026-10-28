@@ -83,6 +83,11 @@ below the tree's root.
 - `src/symlist.c`: the symbol list, a tool window (View/Symbol List):
   the symbols of the active document or of the project from Scout
   (through `scoutlink.c`), filter, Go to (`document_go_to()`).
+- `src/diag.c`: the diagnostics of the documents from Scout: the list per
+  document and the marks in the editor's left bar (drawn by the left bar
+  hook of `bookmarks.c`; a fixed array changed under `Forbid()`).
+- `src/diaglist.c`: the problem list, a tool window (View/Problem List):
+  the diagnostics of the active document or of the project, Go to.
 - `src/tempfile.c`: unique names of temporary files in the drawer of the
   setting TEMPDIR (`temp_name()`), used by the Build menu and Scout's
   snapshots.

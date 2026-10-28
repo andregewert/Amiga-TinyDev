@@ -30,7 +30,9 @@
  * file is read, handed to symlist_symbols() and deleted. While Scout
  * indexes a new project, its STATUS is asked every two seconds; the
  * number of jobs waiting is shown by the symbol list, and when it drops to
- * nought the project's symbols count as changed.
+ * nought the project's symbols count as changed. After an analysis that
+ * found problems (or none where there were some), the document's
+ * diagnostics are asked for (DIAGNOSTICS ... TO) and go to diag.c.
  */
 #include "editor.h"
 #include "json.h"
@@ -86,7 +88,8 @@ enum {
     RQ_ANALYZE,         /**< ANALYZE of a document */
     RQ_FORGET,          /**< FORGET of a document's snapshot */
     RQ_SYMBOLS,         /**< SYMBOLS of a document or the project */
-    RQ_STATUS           /**< STATUS, while the project is indexed */
+    RQ_STATUS,          /**< STATUS, while the project is indexed */
+    RQ_DIAGNOSTICS      /**< DIAGNOSTICS of a document or the project */
 };
 
 /** A message on its way to Scout. */
@@ -480,6 +483,16 @@ static void answer(EditorApp *app, ScoutRequest *rq, int ok, const char *result,
             if (text != NULL) FreeVec(text);
             break;
         }
+        case RQ_DIAGNOSTICS: {
+            char *text = ok && rq->to != NULL ? read_file(rq->to) : NULL;
+            if (rq->doc == 0) {
+                diaglist_project(app, text);
+            } else if ((doc = find_document(app, rq->doc)) != NULL && (ok || doc->diag_count > 0)) {
+                diag_set_document(app, doc, text);
+            }
+            if (text != NULL) FreeVec(text);
+            break;
+        }
         case RQ_ANALYZE:
             if ((doc = find_document(app, rq->doc)) == NULL) break;
             doc->scout_busy = 0;
@@ -489,6 +502,8 @@ static void answer(EditorApp *app, ScoutRequest *rq, int ok, const char *result,
                 doc->scout_problems = result_int(result, "diagnostics", 0);
                 ++doc->scout_generation;
                 if (rq->version < 0) ++sl.project_generation;
+                /* the list and the marks follow the problems */
+                if (doc->scout_problems > 0 || doc->diag_count > 0) scoutlink_request_diagnostics(app, doc);
             } else if (code == SCOUT_E_NO_PARSER) {
                 doc->scout_none = 1;
             }
@@ -603,6 +618,7 @@ void scoutlink_settings_changed(EditorApp *app)
          doc = (Document *)doc->node.ln_Succ) {
         doc->scout_pending = doc->scout_now = 0;
         doc->scout_symbols = -1;
+        if (doc->diag_count > 0 || doc->diag_mark_count > 0) diag_set_document(app, doc, NULL);
     }
 }
 
@@ -655,6 +671,30 @@ int scoutlink_request_symbols(EditorApp *app, Document *doc)
     if ((copy = AllocVec(strlen(to) + 1, MEMF_ANY)) == NULL) return 0;
     strcpy(copy, to);
     if (!send_command(command, RQ_SYMBOLS, doc != NULL ? doc->number : 0, -1)) {
+        FreeVec(copy);
+        return 0;
+    }
+    sl.last->to = copy;
+    return 1;
+}
+
+int scoutlink_request_diagnostics(EditorApp *app, Document *doc)
+{
+    char command[3 * EDITOR_PATH_MAX], to[EDITOR_PATH_MAX], session[24];
+    char *copy;
+    if (scoutlink_unavailable(app) || !sl.languages || sl.opening || sl.want_open) return 0;
+    if (doc != NULL && doc->path == NULL) return 0;
+    if (doc == NULL && sl.session == 0) return 0;
+    if (!temp_name(app, ".json", to, sizeof(to))) return 0;
+    session[0] = '\0';
+    if (sl.session > 0) snprintf(session, sizeof(session), "SESSION %ld ", sl.session);
+    if (doc != NULL)
+        snprintf(command, sizeof(command), "DIAGNOSTICS %sFILE \"%s\" TO \"%s\"", session, doc->path, to);
+    else
+        snprintf(command, sizeof(command), "DIAGNOSTICS %sTO \"%s\"", session, to);
+    if ((copy = AllocVec(strlen(to) + 1, MEMF_ANY)) == NULL) return 0;
+    strcpy(copy, to);
+    if (!send_command(command, RQ_DIAGNOSTICS, doc != NULL ? doc->number : 0, -1)) {
         FreeVec(copy);
         return 0;
     }

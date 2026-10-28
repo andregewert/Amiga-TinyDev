@@ -989,3 +989,27 @@ Other (?)
 MSG_SYM_INDEXING (//)
 TinyDev-Scout is reading the project (%ld waiting)...
 ;
+MSG_MENU_DIAGLIST (//)
+Problem List
+;
+MSG_DIAG_TITLE (//)
+Problems
+;
+MSG_DIAG_SCOPE_FILE (//)
+Current file
+;
+MSG_DIAG_SCOPE_PROJECT (//)
+Project
+;
+MSG_DIAG_COL_MESSAGE (//)
+Problem
+;
+MSG_DIAG_COUNT (//)
+%ld problems
+;
+MSG_DIAG_NONE (//)
+No problems found.
+;
+MSG_DIAG_FAILED (//)
+TinyDev-Scout could not provide the problems.
+;

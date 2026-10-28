@@ -28,6 +28,9 @@
  *   SYMBOLLIST                 open the symbol list at the start
  *   SYMBOLWINDOW=l,t,w,h       where the symbol list opens (otherwise next
  *                              to the main window)
+ *   PROBLEMLIST                open the problem list at the start
+ *   PROBLEMWINDOW=l,t,w,h      where the problem list opens (otherwise
+ *                              below the main window)
  *   NOSCOUT                    no source analysis with TinyDev-Scout
  *   TEMPDIR=drawer             drawer of the temporary files (default T:)
  *   COLOR_TEXT=RRGGBB ...      colours of the syntax highlighting:
@@ -86,6 +89,9 @@ void settings_default(Settings *s)
     s->symwin[0] = s->symwin[1] = -1;
     s->symwin[2] = s->symwin[3] = 0;
     s->symlist = 0;
+    s->diagwin[0] = s->diagwin[1] = -1;
+    s->diagwin[2] = s->diagwin[3] = 0;
+    s->diaglist = 0;
     s->scout = 1;
     strcpy(s->tempdir, "T:");
     memcpy(s->colours, settings_default_colours, sizeof(s->colours));
@@ -192,6 +198,8 @@ static void from_tooltypes(Settings *s, STRPTR *tt)
     if ((value = FindToolType(t, (CONST_STRPTR)"OUTPUTWINDOW")) != NULL) parse_box(value, s->outwin);
     if (FindToolType(t, (CONST_STRPTR)"SYMBOLLIST") != NULL) s->symlist = 1;
     if ((value = FindToolType(t, (CONST_STRPTR)"SYMBOLWINDOW")) != NULL) parse_box(value, s->symwin);
+    if (FindToolType(t, (CONST_STRPTR)"PROBLEMLIST") != NULL) s->diaglist = 1;
+    if ((value = FindToolType(t, (CONST_STRPTR)"PROBLEMWINDOW")) != NULL) parse_box(value, s->diagwin);
     if (FindToolType(t, (CONST_STRPTR)"NOSCOUT") != NULL) s->scout = 0;
     if ((value = FindToolType(t, (CONST_STRPTR)"TEMPDIR")) != NULL && value[0] != '\0') {
         strncpy(s->tempdir, (const char *)value, sizeof(s->tempdir) - 1);
@@ -266,10 +274,12 @@ int settings_save_toolwindows(const Settings *cur)
     s.outlist = cur->outlist;
     memcpy(s.symwin, cur->symwin, sizeof(s.symwin));
     s.symlist = cur->symlist;
+    memcpy(s.diagwin, cur->diagwin, sizeof(s.diagwin));
+    s.diaglist = cur->diaglist;
     return settings_save(&s);
 }
 
-#define NUMKEYS (18 + SCOL_COUNT)    /**< number of TinyDev's tool types */
+#define NUMKEYS (20 + SCOL_COUNT)    /**< number of TinyDev's tool types */
 #define ENTRYLEN 280                /**< longest tool type TinyDev writes (TEMPDIR=...) */
 
 /** One of our tool types while writing. */
@@ -317,7 +327,7 @@ int settings_save(const Settings *s)
     STRPTR *old, *tt = NULL;
     ULONG nold = 0, n = 0, i, k, nicons;
     char wnum[12], hnum[12], lnum[12], tnum[12], buf[SCOL_COUNT][8], *disabled = NULL;
-    char bmbox[48], outbox[48], symbox[48];
+    char bmbox[48], outbox[48], symbox[48], diagbox[48];
     int ok = 0;
 
     if (IconBase == NULL || s->icon_name[0] == '\0') return 0;
@@ -354,6 +364,9 @@ int settings_save(const Settings *s)
     entry(&e[k++], "SYMBOLLIST", s->symlist, NULL);
     snprintf(symbox, sizeof(symbox), "%ld,%ld,%ld,%ld", s->symwin[0], s->symwin[1], s->symwin[2], s->symwin[3]);
     entry(&e[k++], "SYMBOLWINDOW", s->symwin[2] > 0, symbox);
+    entry(&e[k++], "PROBLEMLIST", s->diaglist, NULL);
+    snprintf(diagbox, sizeof(diagbox), "%ld,%ld,%ld,%ld", s->diagwin[0], s->diagwin[1], s->diagwin[2], s->diagwin[3]);
+    entry(&e[k++], "PROBLEMWINDOW", s->diagwin[2] > 0, diagbox);
     entry(&e[k++], "NOSCOUT", !s->scout, NULL);
     entry(&e[k++], "TEMPDIR", Stricmp((STRPTR)s->tempdir, (STRPTR)"T:") != 0, s->tempdir);
     for (i = 0; i < SCOL_COUNT; ++i) {

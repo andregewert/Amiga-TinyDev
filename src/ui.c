@@ -272,6 +272,7 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_BM_LIST)},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_SYMLIST)},
+    {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_DIAGLIST)},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_OUTPUT)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_SNAPSHOT_TOOLS)},
@@ -326,6 +327,7 @@ static const LONG menu_texts[] = {
     -1,
     MSG_MENU_BM_LIST,
     MSG_MENU_SYMLIST,
+    MSG_MENU_DIAGLIST,
     MSG_MENU_OUTPUT,
     -1,
     MSG_MENU_SNAPSHOT_TOOLS,
@@ -370,7 +372,7 @@ void ui_refresh(EditorApp *app)
 
 void ui_update_status(EditorApp *app)
 {
-    static char status_text[96], shown_text[96];
+    static char status_text[200], shown_text[200];
     unsigned long doc_count = 0;
     ULONG lines = 0;
     Document *doc;
@@ -379,9 +381,18 @@ void ui_update_status(EditorApp *app)
         ++doc_count;
     if (app->active != NULL)
         GetAttr(GA_TEXTEDITOR_Prop_Entries, app->active->editor, &lines);
-    if (app->active != NULL && app->active->scout_symbols >= 0)
+    if (app->active != NULL && app->active->scout_symbols >= 0) {
+        const DiagItem *d;
+        ULONG y = 0;
+        GetAttr(GA_TEXTEDITOR_CursorY, app->active->editor, &y);
         snprintf(status_text, sizeof(status_text), S(MSG_STATUS_SCOUT), doc_count,
                  (unsigned long)lines, app->active->scout_symbols, app->active->scout_problems);
+        /* the problem of the cursor's line */
+        if ((d = diag_at_line(app->active, (long)y + 1)) != NULL) {
+            size_t n = strlen(status_text);
+            snprintf(status_text + n, sizeof(status_text) - n, " - %s", d->message);
+        }
+    }
     else
         snprintf(status_text, sizeof(status_text),
                  S(MSG_STATUS), doc_count, (unsigned long)lines);
@@ -488,6 +499,7 @@ static void set_menu_checks(EditorApp *app, int bm_open)
         else if (ud == UD(MID_MINIMAP)) on = app->minimap_visible;
         else if (ud == UD(MID_OUTPUT)) on = app->outwin_was_open;
         else if (ud == UD(MID_SYMLIST)) on = app->symlist_was_open;
+        else if (ud == UD(MID_DIAGLIST)) on = app->diaglist_was_open;
         else continue;
         if (on) menus[i].nm_Flags |= CHECKED;
         else menus[i].nm_Flags &= (UWORD)~CHECKED;
@@ -502,8 +514,10 @@ int ui_create(EditorApp *app)
     memcpy(app->bm_box, app->settings.bmwin, sizeof(app->bm_box));
     memcpy(app->out_box, app->settings.outwin, sizeof(app->out_box));
     memcpy(app->sym_box, app->settings.symwin, sizeof(app->sym_box));
+    memcpy(app->diag_box, app->settings.diagwin, sizeof(app->diag_box));
     app->screen = LockPubScreen(NULL);
     if (app->screen == NULL) return 0;
+    diag_open(app);
     if (!open_editor_colors(app)) {
         ui_error(app, APP_NAME, S(MSG_ERR_COLORS));
         return 0;
@@ -611,8 +625,9 @@ int ui_create(EditorApp *app)
         if (menu_texts[i] >= 0) menus[i].nm_Label = (STRPTR)S(menu_texts[i]);
     app->outwin_was_open = app->settings.outlist;      /* for the check marks */
     app->symlist_was_open = app->settings.symlist;
+    app->diaglist_was_open = app->settings.diaglist;
     set_menu_checks(app, app->settings.bmlist);
-    app->outwin_was_open = app->symlist_was_open = 0;
+    app->outwin_was_open = app->symlist_was_open = app->diaglist_was_open = 0;
     /* AppPort: the window can be iconified, with the program icon as AppIcon */
     app->app_port = CreateMsgPort();
     if (app->app_port != NULL && IconBase != NULL && app->settings.icon_name[0] != '\0' &&
@@ -679,6 +694,10 @@ int ui_create(EditorApp *app)
     if (app->settings.symlist) {
         symlist_open(app);
         ui_set_menu_check(app, MID_SYMLIST, symlist_is_open());
+    }
+    if (app->settings.diaglist) {
+        diaglist_open(app);
+        ui_set_menu_check(app, MID_DIAGLIST, diaglist_is_open());
     }
     return 1;
 }
@@ -856,6 +875,8 @@ static void ui_iconify(EditorApp *app)
     if (app->outwin_was_open) outwin_close(app);   /* likewise */
     app->symlist_was_open = symlist_is_open();
     if (app->symlist_was_open) symlist_close(app);
+    app->diaglist_was_open = diaglist_is_open();
+    if (app->diaglist_was_open) diaglist_close(app);
     app->main_box[0] = app->window->LeftEdge;
     app->main_box[1] = app->window->TopEdge;
     app->main_box[2] = app->window->Width;
@@ -869,8 +890,9 @@ static void ui_iconify(EditorApp *app)
         if (app->bmlist_was_open) bmlist_open(app);
         if (app->outwin_was_open) outwin_open(app);
         if (app->symlist_was_open) symlist_open(app);
+        if (app->diaglist_was_open) diaglist_open(app);
         if (app->find_was_open) find_show(app);
-        app->outwin_was_open = app->symlist_was_open = 0;
+        app->outwin_was_open = app->symlist_was_open = app->diaglist_was_open = 0;
         return;
     }
     app->window = NULL;
@@ -907,8 +929,13 @@ static int ui_uniconify(EditorApp *app)
         symlist_open(app);
         ui_set_menu_check(app, MID_SYMLIST, symlist_is_open());
     }
+    if (app->diaglist_was_open) {
+        diaglist_open(app);
+        ui_set_menu_check(app, MID_DIAGLIST, diaglist_is_open());
+    }
     if (app->find_was_open) find_show(app);
-    app->bmlist_was_open = app->find_was_open = app->outwin_was_open = app->symlist_was_open = 0;
+    app->bmlist_was_open = app->find_was_open = app->outwin_was_open = 0;
+    app->symlist_was_open = app->diaglist_was_open = 0;
     ActivateWindow(w);
     if (app->active != NULL && app->layout != NULL)
         ActivateLayoutGadget((struct Gadget *)app->layout, w, NULL, (ULONG)app->active->editor);
@@ -979,6 +1006,11 @@ static void menu_action(EditorApp *app, ULONG id)
             else symlist_open(app);
             ui_set_menu_check(app, MID_SYMLIST, symlist_is_open());
             break;
+        case MID_DIAGLIST:
+            if (diaglist_is_open()) diaglist_close(app);
+            else diaglist_open(app);
+            ui_set_menu_check(app, MID_DIAGLIST, diaglist_is_open());
+            break;
         case MID_SNAPSHOT_TOOLS:
             /* the tool windows' boxes and which are open, into the icon */
             bmlist_remember(app);
@@ -990,6 +1022,9 @@ static void menu_action(EditorApp *app, ULONG id)
             symlist_remember(app);
             memcpy(app->settings.symwin, app->sym_box, sizeof(app->sym_box));
             app->settings.symlist = symlist_is_open();
+            diaglist_remember(app);
+            memcpy(app->settings.diagwin, app->diag_box, sizeof(app->diag_box));
+            app->settings.diaglist = diaglist_is_open();
             if (!settings_save_toolwindows(&app->settings))
                 ui_error(app, APP_NAME, S(MSG_ERR_SAVESETTINGS));
             break;
@@ -1107,7 +1142,7 @@ int ui_run(EditorApp *app)
          * minimap_poll() at its end shows the new picture. */
         signals = Wait(mask | scroll_mask | minimap_mask | tree_mask | find_sigmask() |
                        bmlist_sigmask() | outwin_sigmask() | build_sigmask() | scoutlink_sigmask() |
-                       symlist_sigmask() |
+                       symlist_sigmask() | diaglist_sigmask() |
                        SIGBREAKF_CTRL_C);
         build_handle(app, signals);
         scoutlink_handle(app);
@@ -1157,6 +1192,7 @@ int ui_run(EditorApp *app)
         bookmarks_poll(app);
         bmlist_handle(app);
         symlist_handle(app);
+        diaglist_handle(app);
         outwin_handle(app);
         /* The texteditor gadget does not notify listeners when the user
          * scrolls it from the keyboard or mouse, so re-read its scroll
@@ -1185,6 +1221,7 @@ int ui_run(EditorApp *app)
         minimap_poll(app);
         bmlist_update(app);
         symlist_update(app);
+        diaglist_update(app);
         document_goto_poll(app);
     }
     return 1;
@@ -1194,6 +1231,7 @@ void ui_destroy(EditorApp *app)
 {
     build_cleanup(app);
     symlist_cleanup(app);
+    diaglist_cleanup(app);
     scoutlink_cleanup(app);
     outwin_cleanup(app);
     find_cleanup();
@@ -1228,6 +1266,7 @@ void ui_destroy(EditorApp *app)
     if (app->tab_close_image != NULL) { DisposeObject(app->tab_close_image); app->tab_close_image = NULL; }
     close_image_free_class();
     close_editor_colors(app);
+    diag_close(app);
     if (app->screen != NULL) UnlockPubScreen(NULL, app->screen);
     if (app->app_port != NULL) {        /* after the window that used it */
         struct Message *m;

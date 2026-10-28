@@ -457,6 +457,7 @@ int document_close(EditorApp *app, Document *doc, int ask)
      * this document) before the page with the editor is disposed. */
     bookmarks_document_closing(app, doc);
     scoutlink_document_closing(app, doc);
+    diag_free_document(doc);
     minimap_forget_document(app, doc);
     find_forget_document(doc);
     next = doc->node.ln_Succ->ln_Succ ? (Document *)doc->node.ln_Succ :
@@ -526,6 +527,7 @@ void document_free_all(EditorApp *app)
             SetAttrs(app->pages, PAGE_Remove, (ULONG)doc->page, TAG_END);
         if (doc->page != NULL) DisposeObject(doc->page);
         if (doc->path != NULL) FreeVec(doc->path);
+        diag_free_document(doc);
         FreeVec(doc);
     }
 }

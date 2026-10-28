@@ -12,9 +12,10 @@
  * The editor's left bar (GA_TEXTEDITOR_LeftBarHook, 20 pixels, a render
  * and a mouse message per line) is the place to click: a click toggles the
  * bookmark of that line (the editor itself does nothing on a click). It
- * stays empty: a symbol of our own would be drawn from the cache, which
- * lags behind when lines move (the editor redraws them before TinyDev can
- * read the new positions), while the editor's own marks are always right.
+ * shows no bookmark symbol of our own: that would be drawn from the cache,
+ * which lags behind when lines move (the editor redraws them before
+ * TinyDev can read the new positions), while the editor's own marks are
+ * always right. It shows the marks of Scout's diagnostics (diag.c).
  *
  * The commands are sent with the window (DoGadgetMethod), so the editor
  * draws the change itself. A menu pick takes the input focus from the
@@ -84,6 +85,8 @@ static ULONG leftbar_entry(struct Hook *hook, Object *obj, APTR msg)
         WORD h = rp->Font != NULL ? (WORD)rp->Font->tf_YSize : 8;
         SetAPen(rp, (UBYTE)leftbar_background);
         RectFill(rp, rp->cp_x, rp->cp_y, (WORD)(rp->cp_x + LEFTBAR_WIDTH - 1), (WORD)(rp->cp_y + h - 1));
+        /* a wrapped line's mark only on its first row */
+        if (r->LineSubNum == 0) diag_draw_mark(doc, rp, (LONG)r->BlockNum, LEFTBAR_WIDTH, h);
     } else if (command == LEFTBAR_MOUSECOMMAND) {
         struct LeftBarMouseMessage *m = (struct LeftBarMouseMessage *)msg;
         if (m->Code == IECODE_LBUTTON) doc->bm_click_line = (LONG)m->BlockNum;

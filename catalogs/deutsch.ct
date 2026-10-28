@@ -1284,3 +1284,35 @@ MSG_SYM_INDEXING
 TinyDev-Scout liest das Projekt (%ld wartend)...
 ; TinyDev-Scout is reading the project (%ld waiting)...
 ;
+MSG_MENU_DIAGLIST
+Problemliste
+; Problem List
+;
+MSG_DIAG_TITLE
+Probleme
+; Problems
+;
+MSG_DIAG_SCOPE_FILE
+Aktuelle Datei
+; Current file
+;
+MSG_DIAG_SCOPE_PROJECT
+Projekt
+; Project
+;
+MSG_DIAG_COL_MESSAGE
+Problem
+; Problem
+;
+MSG_DIAG_COUNT
+%ld Probleme
+; %ld problems
+;
+MSG_DIAG_NONE
+Keine Probleme gefunden.
+; No problems found.
+;
+MSG_DIAG_FAILED
+TinyDev-Scout konnte die Probleme nicht liefern.
+; TinyDev-Scout could not provide the problems.
+;

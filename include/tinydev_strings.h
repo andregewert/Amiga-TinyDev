@@ -320,7 +320,15 @@
 #define MSG_SYM_KG_CONSTANT          315
 #define MSG_SYM_KG_OTHER             316
 #define MSG_SYM_INDEXING             317
-#define MSG_COUNT                    318
+#define MSG_MENU_DIAGLIST            318
+#define MSG_DIAG_TITLE               319
+#define MSG_DIAG_SCOPE_FILE          320
+#define MSG_DIAG_SCOPE_PROJECT       321
+#define MSG_DIAG_COL_MESSAGE         322
+#define MSG_DIAG_COUNT               323
+#define MSG_DIAG_NONE                324
+#define MSG_DIAG_FAILED              325
+#define MSG_COUNT                    326
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -643,6 +651,14 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Constants (C)",
     "Other (?)",
     "TinyDev-Scout is reading the project (%ld waiting)...",
+    "Problem List",
+    "Problems",
+    "Current file",
+    "Project",
+    "Problem",
+    "%ld problems",
+    "No problems found.",
+    "TinyDev-Scout could not provide the problems.",
 };
 #endif
 

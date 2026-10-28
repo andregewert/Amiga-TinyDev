@@ -34,6 +34,9 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
 - Symbol list (View/Symbol List): the functions, types, macros and
   variables of the current file or of the project, found by TinyDev-Scout,
   with a filter; a double-click goes to the symbol.
+- Problems found by TinyDev-Scout (syntax errors and the like) marked in
+  the bar left of the text, shown in the status line on their line, and
+  listed in a problem list (View/Problem List).
 - Project settings (Build/Project Settings...): Shell commands for
   building, running and debugging the project, several per action with
   one default. Build (Amiga+E) saves the modified documents and runs in
@@ -138,6 +141,8 @@ the icon, "Use" keeps them for this session.
 | `BOOKMARKWINDOW=l,t,w,h` | Position and size of the bookmark list |
 | `SYMBOLLIST` | Open the symbol list at the start |
 | `SYMBOLWINDOW=l,t,w,h` | Position and size of the symbol list |
+| `PROBLEMLIST` | Open the problem list at the start |
+| `PROBLEMWINDOW=l,t,w,h` | Position and size of the problem list (otherwise below the main window) |
 | `OUTPUT` | Open the output window at the start |
 | `OUTPUTWINDOW=l,t,w,h` | Position and size of the output window (otherwise below the main window) |
 | `NOSCOUT` | No source analysis with TinyDev-Scout |
@@ -145,7 +150,8 @@ the icon, "Use" keeps them for this session.
 | `COLOR_TEXT`, `COLOR_KEYWORD`, `COLOR_STRING`, `COLOR_COMMENT`, `COLOR_PREPROCESSOR` | Colours of the syntax highlighting as `RRGGBB` |
 
 View/Snapshot Tool Windows writes `BOOKMARKLIST`, `BOOKMARKWINDOW`,
-`SYMBOLLIST`, `SYMBOLWINDOW`, `OUTPUT` and `OUTPUTWINDOW`.
+`SYMBOLLIST`, `SYMBOLWINDOW`, `PROBLEMLIST`, `PROBLEMWINDOW`, `OUTPUT` and
+`OUTPUTWINDOW`.
 
 ### Limits
 
@@ -218,7 +224,7 @@ the commands with the sample sources of `tests/data/c_parser/` (it starts
 
 TinyDev starts Scout (from its own drawer) when it needs it, opens a
 session for the project and has the open documents analysed (status
-line, symbol list). Its design, the
+line, symbol list, problems). Its design, the
 ARexx commands and the protocol for writing parsers are described in
 [src/scout/docs/Scout.md](src/scout/docs/Scout.md) and
 [src/scout/docs/Scout-Protocol.md](src/scout/docs/Scout-Protocol.md).
