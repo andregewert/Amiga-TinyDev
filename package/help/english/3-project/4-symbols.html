@@ -21,6 +21,11 @@ be dragged. While Scout reads a newly opened project, the line below the
 list says how much is still waiting. The line below the list shows the selected
 symbol's kind and declaration. A double-click or Go to puts the cursor on
 a symbol and opens its file if needed.</p>
+<p>Edit/Go to Definition (Amiga+T) goes to where the name at the cursor
+is defined, also in another file of the project; if there are several
+(a declaration in a header and the definition, or a struct and a type of
+the same name), the status line says so and Amiga+T again goes to the
+next. Edit/Go Back (Amiga+U) returns to where you came from.</p>
 <p>Problems Scout finds (syntax errors and the like) are marked in the
 bar left of the text: red for errors, orange for warnings, blue for notes.
 When the cursor is on such a line, the status line shows the problem.

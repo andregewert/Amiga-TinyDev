@@ -252,6 +252,9 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, "F", 0, 0, UD(MID_FIND)},
     {NM_ITEM, NULL, "G", 0, 0, UD(MID_FIND_NEXT)},
+    {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
+    {NM_ITEM, NULL, "T", 0, 0, UD(MID_DEFINITION)},
+    {NM_ITEM, NULL, "U", 0, 0, UD(MID_GOBACK)},
     {NM_TITLE, NULL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, "B", 0, 0, UD(MID_BM_TOGGLE)},
     {NM_ITEM, NULL, "J", 0, 0, UD(MID_BM_NEXT)},
@@ -307,6 +310,9 @@ static const LONG menu_texts[] = {
     -1,
     MSG_MENU_FIND,
     MSG_MENU_FINDNEXT,
+    -1,
+    MSG_MENU_DEFINITION,
+    MSG_MENU_GOBACK,
     MSG_MENU_BOOKMARKS,
     MSG_MENU_BM_TOGGLE,
     MSG_MENU_BM_NEXT,
@@ -370,6 +376,26 @@ void ui_refresh(EditorApp *app)
     if (app->window_object != NULL) SetAttrs(app->window_object, WA_Title, (ULONG)window_title, TAG_END);
 }
 
+/** The message of ui_status_message(). */
+static char status_message[200];
+/** When the message goes (CurrentTime() seconds), 0 if there is none. */
+static ULONG status_message_until;
+
+void ui_status_message(EditorApp *app, const char *text)
+{
+    ULONG secs = 0, micros = 0;
+    if (text == NULL) {                 /* the message goes at once */
+        status_message_until = 0;
+        ui_update_status(app);
+        return;
+    }
+    CurrentTime(&secs, &micros);
+    strncpy(status_message, text, sizeof(status_message) - 1);
+    status_message[sizeof(status_message) - 1] = '\0';
+    status_message_until = secs + 4;
+    ui_update_status(app);
+}
+
 void ui_update_status(EditorApp *app)
 {
     static char status_text[200], shown_text[200];
@@ -396,6 +422,12 @@ void ui_update_status(EditorApp *app)
     else
         snprintf(status_text, sizeof(status_text),
                  S(MSG_STATUS), doc_count, (unsigned long)lines);
+    if (status_message_until != 0) {
+        ULONG secs = 0, micros = 0;
+        CurrentTime(&secs, &micros);
+        if (secs < status_message_until) strcpy(status_text, status_message);
+        else status_message_until = 0;
+    }
     if (app->statusbar == NULL) return;
     /* Called on every tick: only redraw the status line when it changed. */
     if (strcmp(status_text, shown_text) == 0) return;
@@ -1001,6 +1033,16 @@ static void menu_action(EditorApp *app, ULONG id)
             else bmlist_open(app);
             ui_set_menu_check(app, MID_BM_LIST, bmlist_is_open());
             break;
+        case MID_DEFINITION:
+        case MID_GOBACK:
+            if (id == MID_DEFINITION) navigate_definition(app);
+            else navigate_back(app);
+            /* the menu pick took the input focus; a jump gives it back
+             * later, without one (nothing found) it is given back here */
+            if (app->window != NULL && app->layout != NULL && app->active != NULL)
+                ActivateLayoutGadget((struct Gadget *)app->layout, app->window, NULL,
+                                     (ULONG)app->active->editor);
+            break;
         case MID_SYMLIST:
             if (symlist_is_open()) symlist_close(app);
             else symlist_open(app);
@@ -1232,6 +1274,7 @@ void ui_destroy(EditorApp *app)
     build_cleanup(app);
     symlist_cleanup(app);
     diaglist_cleanup(app);
+    navigate_cleanup();
     scoutlink_cleanup(app);
     outwin_cleanup(app);
     find_cleanup();

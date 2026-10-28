@@ -328,7 +328,15 @@
 #define MSG_DIAG_COUNT               323
 #define MSG_DIAG_NONE                324
 #define MSG_DIAG_FAILED              325
-#define MSG_COUNT                    326
+#define MSG_MENU_DEFINITION          326
+#define MSG_MENU_GOBACK              327
+#define MSG_NAV_NONAME               328
+#define MSG_NAV_LOOKING              329
+#define MSG_NAV_NOTFOUND             330
+#define MSG_NAV_FAILED               331
+#define MSG_NAV_FOUND                332
+#define MSG_NAV_NOBACK               333
+#define MSG_COUNT                    334
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -659,6 +667,14 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "%ld problems",
     "No problems found.",
     "TinyDev-Scout could not provide the problems.",
+    "Go to Definition",
+    "Go Back",
+    "There is no name at the cursor.",
+    "Looking for the definition of %s...",
+    "No definition of %s found.",
+    "TinyDev-Scout could not look for %s.",
+    "%s: definition %ld of %ld (Amiga+T: the next one)",
+    "There is no place to go back to.",
 };
 #endif
 

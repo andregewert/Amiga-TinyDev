@@ -37,6 +37,8 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
 - Problems found by TinyDev-Scout (syntax errors and the like) marked in
   the bar left of the text, shown in the status line on their line, and
   listed in a problem list (View/Problem List).
+- Go to Definition (Amiga+T) jumps to where the name at the cursor is
+  defined, also in another file; Go Back (Amiga+U) returns.
 - Project settings (Build/Project Settings...): Shell commands for
   building, running and debugging the project, several per action with
   one default. Build (Amiga+E) saves the modified documents and runs in
@@ -75,6 +77,7 @@ From the Workbench, TinyDev opens the files given as project icons.
 | Amiga+N, O, S, W, Q | New, Open, Save, Close, Quit |
 | Amiga+Z, Y, X, C, V, A | Undo, Redo, Cut, Copy, Paste, Select All |
 | Amiga+F, G | Find and replace, Find Next |
+| Amiga+T, U | Go to the definition of the name at the cursor (again: the next one), go back |
 | Amiga+B, J, K | Set/remove bookmark, next and previous bookmark |
 | Amiga+E, R, D | Build project, Run, Debug (the default commands of the project settings) |
 | Amiga+, | Settings |

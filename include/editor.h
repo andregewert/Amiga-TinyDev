@@ -161,7 +161,9 @@ enum MenuId {
     MID_STOP,           /**< Build/Stop Build */
     MID_OUTPUT,         /**< View/Output Window (check item) */
     MID_SYMLIST,        /**< View/Symbol List (check item) */
-    MID_DIAGLIST        /**< View/Problem List (check item) */
+    MID_DIAGLIST,       /**< View/Problem List (check item) */
+    MID_DEFINITION,     /**< Edit/Go to Definition */
+    MID_GOBACK          /**< Edit/Go Back */
 };
 
 /** Bookmarks of a document that TinyDev keeps track of. */
@@ -1740,5 +1742,46 @@ void diaglist_update(EditorApp *app);
 void diaglist_project(EditorApp *app, const char *json);
 /** @brief Close the problem list and free what it holds. @param app The application state. */
 void diaglist_cleanup(EditorApp *app);
+
+/**
+ * @brief Show a message in the status line for a few seconds (instead of
+ *        the counts).
+ * @param app The application state.
+ * @param text The message (copied), NULL to remove the message at once.
+ */
+void ui_status_message(EditorApp *app, const char *text);
+
+/**
+ * @brief Ask Scout where a name used at a position is defined; the answer
+ *        goes to navigate_definition_answer().
+ * @param app The application state.
+ * @param doc The document (with a file).
+ * @param line The position's line (1-based).
+ * @param col Its column (1-based).
+ * @param name The name.
+ * @return Non-zero if the request was sent.
+ */
+int scoutlink_request_definition(EditorApp *app, Document *doc, long line, long col, const char *name);
+
+/**
+ * @brief Edit/Go to Definition: ask Scout where the name at the cursor is
+ *        defined; again at the place it went to: the next definition.
+ * @param app The application state.
+ */
+void navigate_definition(EditorApp *app);
+/**
+ * @brief Take Scout's answer to DEFINITION: go to the first definition
+ *        (noting the place for Go Back), or say that there is none.
+ * @param app The application state.
+ * @param json The answer, NULL if the request failed.
+ */
+void navigate_definition_answer(EditorApp *app, const char *json);
+/**
+ * @brief Edit/Go Back: return to where the last jump came from.
+ * @param app The application state.
+ */
+void navigate_back(EditorApp *app);
+/** @brief Free the places noted for Go Back. */
+void navigate_cleanup(void);
 
 #endif

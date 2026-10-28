@@ -516,6 +516,10 @@ void document_goto_poll(EditorApp *app)
                    GA_TEXTEDITOR_CursorX, (ULONG)(doc->goto_col - 1), TAG_END);
     doc->goto_line = 0;
     document_sync_scrollers(app, doc);
+    /* a menu pick or another window took the input focus: give it back,
+     * or the cursor is not shown */
+    if (app->layout != NULL && (app->window->Flags & WFLG_WINDOWACTIVE))
+        ActivateLayoutGadget((struct Gadget *)app->layout, app->window, NULL, (ULONG)doc->editor);
 }
 
 void document_free_all(EditorApp *app)

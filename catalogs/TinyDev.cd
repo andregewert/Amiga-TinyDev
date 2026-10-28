@@ -1013,3 +1013,27 @@ No problems found.
 MSG_DIAG_FAILED (//)
 TinyDev-Scout could not provide the problems.
 ;
+MSG_MENU_DEFINITION (//)
+Go to Definition
+;
+MSG_MENU_GOBACK (//)
+Go Back
+;
+MSG_NAV_NONAME (//)
+There is no name at the cursor.
+;
+MSG_NAV_LOOKING (//)
+Looking for the definition of %s...
+;
+MSG_NAV_NOTFOUND (//)
+No definition of %s found.
+;
+MSG_NAV_FAILED (//)
+TinyDev-Scout could not look for %s.
+;
+MSG_NAV_FOUND (//)
+%s: definition %ld of %ld (Amiga+T: the next one)
+;
+MSG_NAV_NOBACK (//)
+There is no place to go back to.
+;

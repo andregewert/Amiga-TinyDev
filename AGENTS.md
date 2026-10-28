@@ -88,6 +88,9 @@ below the tree's root.
   hook of `bookmarks.c`; a fixed array changed under `Forbid()`).
 - `src/diaglist.c`: the problem list, a tool window (View/Problem List):
   the diagnostics of the active document or of the project, Go to.
+- `src/navigate.c`: Edit/Go to Definition (DEFINITION with the name at
+  the cursor, cycling through several) and Edit/Go Back (a history of
+  places).
 - `src/tempfile.c`: unique names of temporary files in the drawer of the
   setting TEMPDIR (`temp_name()`), used by the Build menu and Scout's
   snapshots.

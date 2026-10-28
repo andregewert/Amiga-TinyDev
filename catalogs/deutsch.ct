@@ -1316,3 +1316,35 @@ MSG_DIAG_FAILED
 TinyDev-Scout konnte die Probleme nicht liefern.
 ; TinyDev-Scout could not provide the problems.
 ;
+MSG_MENU_DEFINITION
+Gehe zu Definition
+; Go to Definition
+;
+MSG_MENU_GOBACK
+Zurückspringen
+; Go Back
+;
+MSG_NAV_NONAME
+Am Cursor steht kein Name.
+; There is no name at the cursor.
+;
+MSG_NAV_LOOKING
+Suche die Definition von %s...
+; Looking for the definition of %s...
+;
+MSG_NAV_NOTFOUND
+Keine Definition von %s gefunden.
+; No definition of %s found.
+;
+MSG_NAV_FAILED
+TinyDev-Scout konnte %s nicht suchen.
+; TinyDev-Scout could not look for %s.
+;
+MSG_NAV_FOUND
+%s: Definition %ld von %ld (Amiga+T: die nächste)
+; %s: definition %ld of %ld (Amiga+T: the next one)
+;
+MSG_NAV_NOBACK
+Es gibt keine Stelle zum Zurückspringen.
+; There is no place to go back to.
+;
