@@ -192,7 +192,21 @@ port `TINYDEV_SCOUT`, in JSON: symbols, diagnostics, "go to definition",
 completion and highlighting. Its ideas come from the Language Server
 Protocol, but it is not LSP.
 
-Scout is being rebuilt and is not yet used by TinyDev. Its design, the
+Tool types of its icon (or Shell arguments of the same names):
+
+| Tool type | Default | Meaning |
+|---|---|---|
+| `TEMPDIR` | `T:` | drawer for temporary files |
+| `PARSERS` | `PROGDIR:Parsers` | drawer of the parsers |
+| `TIMEOUT` | `10` | seconds a parser may take per file |
+| `CX_PRIORITY` | `0` | commodity priority |
+
+`scripts/tdscout_query.rexx` sends a command and shows the result, e.g.
+`rx scripts/tdscout_query.rexx STATUS`; `rx scripts/test_scout.rexx` tests
+the commands with the sample sources of `tests/data/c_parser/` (it starts
+`bin/TinyDev-Scout` if needed).
+
+TinyDev does not use Scout yet. Its design, the
 ARexx commands and the protocol for writing parsers are described in
 [src/scout/docs/Scout.md](src/scout/docs/Scout.md) and
 [src/scout/docs/Scout-Protocol.md](src/scout/docs/Scout-Protocol.md).

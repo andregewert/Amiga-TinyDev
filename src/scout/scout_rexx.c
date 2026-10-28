@@ -1,485 +1,903 @@
 /**
  * @file scout_rexx.c
  * @brief Scout's ARexx port TINYDEV_SCOUT and its commands.
+ *
+ * A command's arguments are read with ReadArgs() from the command string,
+ * so they follow the AmigaDOS templates of src/scout/docs/Scout.md. A
+ * result is JSON (RC 0); a failure is RC 10 with the error number as RC2,
+ * its text kept for ERROR. A command that needs a parser run keeps its
+ * message until the job is done; a query on a file without a current
+ * result first queues its analysis and is carried out again afterwards.
+ * Commands that need the parsers wait while the parser drawer is read.
  */
 #include "scout_server.h"
-#include "json.h"
+#include "scout_protocol.h"
 
 #include <proto/exec.h>
 #include <proto/dos.h>
 #include <proto/rexxsyslib.h>
-#include <clib/alib_protos.h>
+#include <rexx/errors.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <ctype.h>
+
+/** Longest result ARexx can take (RexxArg::ra_Length is a UWORD). */
+#define REXX_MAX 65535
+
+/** Most values a template has. */
+#define MAX_ARGS 8
+
+/** Items COMPLETE lists without MAX. */
+#define COMPLETE_MAX 50
+
+/** The values ReadArgs() read for a command. */
+typedef struct Args {
+    struct RDArgs *rda;     /**< ReadArgs()'s state */
+    char *buf;              /**< the arguments, ended by a line feed */
+    LONG v[MAX_ARGS];       /**< the values */
+} Args;
+
+/** A command of the port. */
+typedef struct Command {
+    const char *name;       /**< its name */
+    const char *tmpl;       /**< its template ("" for none) */
+    void (*run)(ScoutServer *srv, struct RexxMsg *rx, LONG *v);  /**< carries it out */
+    int parsers;            /**< it needs the parsers (waits while they are read) */
+} Command;
 
 int scout_rexx_init(ScoutServer *srv)
 {
-    if (!srv) return 0;
-
-    srv->RexxSysBase = (struct RxsLib *)OpenLibrary("rexxsyslib.library", 0);
-    if (!srv->RexxSysBase) {
-        fprintf(stderr, "Failed to open rexxsyslib.library\n");
-        return 0;
-    }
-
-    /* Check if default port already exists */
     Forbid();
-    struct MsgPort *existing = FindPort(SCOUT_AREXX_PORT_NAME);
-    if (existing) {
+    if (FindPort((STRPTR)SCOUT_AREXX_PORT_NAME)) {
         Permit();
-        fprintf(stderr, "ARexx port %s already exists\n", SCOUT_AREXX_PORT_NAME);
-        CloseLibrary((struct Library *)srv->RexxSysBase);
-        srv->RexxSysBase = NULL;
         return 0;
     }
-
     srv->rexx_port = CreateMsgPort();
     if (!srv->rexx_port) {
         Permit();
-        fprintf(stderr, "Failed to create ARexx MsgPort\n");
-        CloseLibrary((struct Library *)srv->RexxSysBase);
-        srv->RexxSysBase = NULL;
         return 0;
     }
-
     srv->rexx_port->mp_Node.ln_Name = (char *)SCOUT_AREXX_PORT_NAME;
     srv->rexx_port->mp_Node.ln_Pri = 0;
-    srv->rexx_port->mp_Node.ln_Type = NT_MSGPORT;
     AddPort(srv->rexx_port);
     Permit();
+    return 1;
+}
 
-    srv->rexx_sigbit = 1UL << srv->rexx_port->mp_SigBit;
+void scout_reply(struct RexxMsg *rx, const char *result)
+{
+    rx->rm_Result1 = RC_OK;
+    rx->rm_Result2 = 0;
+    if (result && (rx->rm_Action & RXFF_RESULT)) {
+        rx->rm_Result2 = (LONG)CreateArgstring((STRPTR)result, (ULONG)strlen(result));
+    }
+    ReplyMsg((struct Message *)rx);
+}
+
+void scout_fail(ScoutServer *srv, struct RexxMsg *rx, long session, long code, const char *text)
+{
+    ScoutSession *s = session > 0 ? scout_session_find(&srv->store, session) : NULL;
+    ScoutSession *none = scout_session_find(&srv->store, 0);
+    /* session 0 keeps the last error of all, so ERROR without a session finds it */
+    if (s) scout_session_set_error(s, code, text);
+    if (none) scout_session_set_error(none, code, text);
+    rx->rm_Result1 = RC_ERROR;
+    rx->rm_Result2 = code;
+    ReplyMsg((struct Message *)rx);
+}
+
+/**
+ * @brief Answer with a written result: into a file (TO), or as the result
+ *        if it fits.
+ * @param srv The server.
+ * @param rx The message.
+ * @param session The session (for the error).
+ * @param w The result.
+ * @param to The file to write it to, NULL.
+ */
+static void finish(ScoutServer *srv, struct RexxMsg *rx, long session, JsonWriter *w, const char *to)
+{
+    size_t len = json_writer_length(w);
+    if (w->error) {
+        scout_fail(srv, rx, session, SCOUT_E_MEMORY, "out of memory");
+    } else if (to) {
+        BPTR fh = Open((STRPTR)to, MODE_NEWFILE);
+        LONG done = fh ? Write(fh, (APTR)json_writer_get(w), (LONG)len) : -1;
+        if (fh) Close(fh);
+        if (done != (LONG)len) {
+            scout_fail(srv, rx, session, SCOUT_E_FILE, "cannot write the result file");
+        } else {
+            JsonWriter r;
+            json_writer_init_alloc(&r, 128);
+            json_write_raw(&r, "{\"file\":");
+            json_write_string(&r, to);
+            json_write_raw(&r, ",\"size\":");
+            json_write_int(&r, (long)len);
+            json_write_raw(&r, "}");
+            scout_reply(rx, json_writer_get(&r));
+            json_writer_free(&r);
+        }
+    } else if (len > REXX_MAX) {
+        scout_fail(srv, rx, session, SCOUT_E_TOO_LARGE, "result too large for ARexx (use TO)");
+    } else {
+        scout_reply(rx, json_writer_get(w));
+    }
+    json_writer_free(w);
+}
+
+/**
+ * @brief Return the full name of a file or drawer (unchanged if it does
+ *        not exist).
+ * @param path The path.
+ * @param[out] out The full name.
+ * @param size Size of @p out.
+ */
+static void full_name(const char *path, char *out, size_t size)
+{
+    BPTR lock = Lock((STRPTR)path, SHARED_LOCK);
+    if (!lock || !NameFromLock(lock, (STRPTR)out, (LONG)size)) {
+        strncpy(out, path, size - 1);
+        out[size - 1] = '\0';
+    }
+    if (lock) UnLock(lock);
+}
+
+/**
+ * @brief Find the session a command names (SESSION/K/N); session 0
+ *        without one. Fails the command if it does not exist.
+ * @param srv The server.
+ * @param rx The message.
+ * @param id The value of SESSION (may be NULL).
+ * @return The session, or NULL (the message is answered then).
+ */
+static ScoutSession *get_session(ScoutServer *srv, struct RexxMsg *rx, LONG *id)
+{
+    ScoutSession *s = scout_session_find(&srv->store, id ? *id : 0);
+    if (!s) scout_fail(srv, rx, -1, SCOUT_E_SESSION, "unknown session");
+    return s;
+}
+
+/**
+ * @brief Return a file of a session with a current result, or queue its
+ *        analysis (the command is carried out again when it is done).
+ * @param srv The server.
+ * @param rx The message.
+ * @param s The session.
+ * @param path The file (full name).
+ * @return The file, or NULL if the command waits or failed (the message
+ *         is taken or answered then).
+ */
+static ScoutFile *ready_file(ScoutServer *srv, struct RexxMsg *rx, ScoutSession *s, const char *path)
+{
+    ScoutFile *f = scout_file_find(s, path);
+    const ScoutLanguage *lang;
+    ScoutStamp stamp;
+    ScoutItem item;
+    int exists = scout_file_stamp(path, &stamp);
+
+    if (f && f->valid && (f->version >= 0 || !exists || memcmp(&f->stamp, &stamp, sizeof(stamp)) == 0)) {
+        return f;
+    }
+    if (!exists) {
+        scout_fail(srv, rx, s->id, SCOUT_E_FILE, "file not found");
+        return NULL;
+    }
+    lang = f && f->language ? scout_store_language(&srv->store, f->language) : NULL;
+    if (!lang) lang = scout_store_language_for(&srv->store, path);
+    if (!lang) {
+        scout_fail(srv, rx, s->id, SCOUT_E_NO_PARSER, "no parser for this file");
+        return NULL;
+    }
+    memset(&item, 0, sizeof(item));
+    item.path = (char *)path;
+    item.language = lang->id;
+    item.version = -1;
+    item.stamp = stamp;
+    item.in_project = 1;
+    item.rx = rx;
+    item.requery = 1;
+    if (!scout_jobs_analyze(srv, s->id, &item, 0)) {
+        scout_fail(srv, rx, s->id, SCOUT_E_MEMORY, "out of memory");
+        return NULL;
+    }
+    scout_jobs_next(srv);
+    return NULL;
+}
+
+/**
+ * @brief Read a line of a file.
+ * @param path The file.
+ * @param line The line (1-based).
+ * @param[out] buf The line, without its line end (cut if too long).
+ * @param size Size of @p buf.
+ * @return 1 if the file has the line.
+ */
+static int read_line(const char *path, long line, char *buf, size_t size)
+{
+    char chunk[256];
+    BPTR fh = Open((STRPTR)path, MODE_OLDFILE);
+    long n = 1;
+    size_t len = 0;
+    int found = 0;
+    if (!fh) return 0;
+    buf[0] = '\0';
+    while (FGets(fh, (STRPTR)chunk, sizeof(chunk))) {
+        size_t c = strlen(chunk);
+        int end = c > 0 && chunk[c - 1] == '\n';
+        if (n == line) {
+            size_t take = c - (size_t)end;
+            if (len + take >= size) take = size - 1 - len;
+            memcpy(buf + len, chunk, take);
+            len += take;
+            buf[len] = '\0';
+            found = 1;
+            if (end) break;
+        }
+        if (end) n++;
+    }
+    Close(fh);
+    if (len > 0 && buf[len - 1] == '\r') buf[--len] = '\0';
+    return found;
+}
+
+/**
+ * @brief Find the word at a position of a file (or the part before it).
+ * @param srv The server.
+ * @param f The file (its snapshot is read if it has one).
+ * @param line The line.
+ * @param col The column.
+ * @param before Only the part before the column.
+ * @param[out] word The word.
+ * @param size Size of @p word.
+ */
+static void word_at(ScoutServer *srv, const ScoutFile *f, long line, long col, int before,
+                    char *word, size_t size)
+{
+    char text[1024];
+    const char *path = f->snapshot ? f->snapshot : f->path;
+    word[0] = '\0';
+    if (read_line(path, line, text, sizeof(text)) ||
+        (f->snapshot && read_line(f->path, line, text, sizeof(text)))) {
+        scout_word_at(f->language ? scout_store_language(&srv->store, f->language) : NULL,
+                      text, col, before, word, size);
+    }
+}
+
+/* ---- Commands ---- */
+
+/**
+ * @brief OPEN PROJECT/A,INCLUDE/M: start a session and walk its project.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments.
+ */
+static void cmd_open(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    char path[SCOUT_PATH_MAX];
+    char **inc = (char **)v[1];
+    ScoutSession *s;
+    BPTR lock = Lock((STRPTR)v[0], SHARED_LOCK);
+    if (!lock) {
+        scout_fail(srv, rx, -1, SCOUT_E_FILE, "project drawer not found");
+        return;
+    }
+    if (!NameFromLock(lock, (STRPTR)path, sizeof(path))) {
+        strncpy(path, (const char *)v[0], sizeof(path) - 1);
+        path[sizeof(path) - 1] = '\0';
+    }
+    UnLock(lock);
+    s = scout_session_open(&srv->store, path);
+    if (!s) {
+        scout_fail(srv, rx, -1, SCOUT_E_MEMORY, "out of memory");
+        return;
+    }
+    for (; inc && *inc; inc++) {
+        full_name(*inc, path, sizeof(path));
+        scout_session_add_include(s, path);
+    }
+    scout_walk_start(srv, s);
+    {
+        char result[32];
+        snprintf(result, sizeof(result), "{\"session\":%ld}", s->id);
+        scout_reply(rx, result);
+    }
+}
+
+/**
+ * @brief CLOSE SESSION/N/A: end a session.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments.
+ */
+static void cmd_close(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    long id = *(LONG *)v[0];
+    if (!scout_session_find(&srv->store, id)) {
+        scout_fail(srv, rx, -1, SCOUT_E_SESSION, "unknown session");
+        return;
+    }
+    scout_walk_stop(srv, id);
+    scout_jobs_drop_session(srv, id);
+    scout_session_close(&srv->store, id);
+    scout_reply(rx, "{}");
+}
+
+/**
+ * @brief INCLUDE SESSION/N/A,PATHS/M,CLEAR/S: the include paths of a
+ *        session.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments.
+ */
+static void cmd_include(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    ScoutSession *s = get_session(srv, rx, (LONG *)v[0]);
+    char **paths = (char **)v[1];
+    char path[SCOUT_PATH_MAX];
+    JsonWriter w;
+    long i;
+    if (!s) return;
+    if (v[2]) scout_session_clear_include(s);
+    for (; paths && *paths; paths++) {
+        full_name(*paths, path, sizeof(path));
+        scout_session_add_include(s, path);
+    }
+    json_writer_init_alloc(&w, 256);
+    json_write_raw(&w, "{\"include\":[");
+    for (i = 0; i < s->include_count; i++) {
+        if (i > 0) json_write_raw(&w, ",");
+        json_write_string(&w, s->include[i]);
+    }
+    json_write_raw(&w, "]}");
+    finish(srv, rx, s->id, &w, NULL);
+}
+
+/**
+ * @brief ERROR SESSION/K/N: the last error of a session.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments.
+ */
+static void cmd_error(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    ScoutSession *s = get_session(srv, rx, (LONG *)v[0]);
+    JsonWriter w;
+    if (!s) return;
+    json_writer_init_alloc(&w, 128);
+    json_write_raw(&w, "{\"code\":");
+    json_write_int(&w, s->error_code);
+    json_write_raw(&w, ",\"message\":");
+    json_write_string(&w, s->error_text ? s->error_text : "");
+    json_write_raw(&w, "}");
+    finish(srv, rx, s->id, &w, NULL);
+}
+
+/**
+ * @brief ANALYZE SESSION/K/N,FILE/A,TEXT/K,VERSION/K/N,LANG/K: analyse a
+ *        file (or a client's snapshot of it); answered when done.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments.
+ */
+static void cmd_analyze(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    ScoutSession *s = get_session(srv, rx, (LONG *)v[0]);
+    const char *text = (const char *)v[2];
+    const ScoutLanguage *lang;
+    char path[SCOUT_PATH_MAX];
+    ScoutItem item;
+    ScoutFile *f;
+    if (!s) return;
+    full_name((const char *)v[1], path, sizeof(path));
+    lang = v[4] ? scout_store_language(&srv->store, (const char *)v[4]) : scout_store_language_for(&srv->store, path);
+    if (!lang) {
+        scout_fail(srv, rx, s->id, SCOUT_E_NO_PARSER, "no parser for this file or language");
+        return;
+    }
+    memset(&item, 0, sizeof(item));
+    item.path = path;
+    item.language = lang->id;
+    item.in_project = 1;
+    item.rx = rx;
+    if (text) {
+        BPTR lock = Lock((STRPTR)text, SHARED_LOCK);
+        if (!lock) {
+            scout_fail(srv, rx, s->id, SCOUT_E_FILE, "snapshot not found");
+            return;
+        }
+        UnLock(lock);
+        item.text = (char *)text;
+        item.version = v[3] ? *(LONG *)v[3] : 0;
+        scout_file_stamp(path, &item.stamp);
+    } else {
+        item.version = -1;
+        if (!scout_file_stamp(path, &item.stamp)) {
+            scout_fail(srv, rx, s->id, SCOUT_E_FILE, "file not found");
+            return;
+        }
+        f = scout_file_find(s, path);
+        if (f && f->valid && f->version < 0 && strcmp(f->language, lang->id) == 0 &&
+            memcmp(&f->stamp, &item.stamp, sizeof(item.stamp)) == 0) {
+            JsonWriter w;
+            f->in_project = 1;
+            json_writer_init_alloc(&w, 256);
+            scout_write_analyze(&w, f);
+            finish(srv, rx, s->id, &w, NULL);
+            return;
+        }
+    }
+    if (!scout_jobs_analyze(srv, s->id, &item, 0)) {
+        scout_fail(srv, rx, s->id, SCOUT_E_MEMORY, "out of memory");
+        return;
+    }
+    scout_jobs_next(srv);
+}
+
+/**
+ * @brief FORGET SESSION/K/N,FILE/A: drop a snapshot's result.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments.
+ */
+static void cmd_forget(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    ScoutSession *s = get_session(srv, rx, (LONG *)v[0]);
+    char path[SCOUT_PATH_MAX];
+    ScoutFile *f;
+    if (!s) return;
+    full_name((const char *)v[1], path, sizeof(path));
+    f = scout_file_find(s, path);
+    if (f) scout_file_forget(f);
+    scout_reply(rx, "{}");
+}
+
+/**
+ * @brief Match callback of SYMBOLS: an AmigaDOS pattern, without regard
+ *        to case.
+ * @param context The parsed pattern.
+ * @param name A symbol's name.
+ * @return Non-zero if it matches.
+ */
+static int match_pattern(void *context, const char *name)
+{
+    return MatchPatternNoCase((STRPTR)context, (STRPTR)name) != 0;
+}
+
+/**
+ * @brief SYMBOLS SESSION/K/N,FILE/K,NAME/K,TO/K: the symbols of a file or
+ *        of the project.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments.
+ */
+static void cmd_symbols(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    ScoutSession *s = get_session(srv, rx, (LONG *)v[0]);
+    const char *name = (const char *)v[2];
+    char *pattern = NULL;
+    ScoutFile *f = NULL;
+    JsonWriter w;
+    if (!s) return;
+    if (v[1]) {
+        char path[SCOUT_PATH_MAX];
+        full_name((const char *)v[1], path, sizeof(path));
+        if ((f = ready_file(srv, rx, s, path)) == NULL) return;
+    }
+    if (name) {
+        size_t n = strlen(name) * 2 + 2;
+        pattern = (char *)malloc(n);
+        if (!pattern || ParsePatternNoCase((STRPTR)name, (STRPTR)pattern, (LONG)n) < 0) {
+            free(pattern);
+            scout_fail(srv, rx, s->id, SCOUT_E_ARGS, "bad pattern");
+            return;
+        }
+    }
+    json_writer_init_alloc(&w, 4096);
+    scout_write_symbols(&w, s, f, pattern ? match_pattern : NULL, pattern);
+    free(pattern);
+    finish(srv, rx, s->id, &w, (const char *)v[3]);
+}
+
+/**
+ * @brief DIAGNOSTICS SESSION/K/N,FILE/K,TO/K: the diagnostics of a file or
+ *        of the project.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments.
+ */
+static void cmd_diagnostics(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    ScoutSession *s = get_session(srv, rx, (LONG *)v[0]);
+    ScoutFile *f = NULL;
+    JsonWriter w;
+    if (!s) return;
+    if (v[1]) {
+        char path[SCOUT_PATH_MAX];
+        full_name((const char *)v[1], path, sizeof(path));
+        if ((f = ready_file(srv, rx, s, path)) == NULL) return;
+    }
+    json_writer_init_alloc(&w, 1024);
+    scout_write_diagnostics(&w, s, f);
+    finish(srv, rx, s->id, &w, (const char *)v[2]);
+}
+
+/**
+ * @brief TOKENS SESSION/K/N,FILE/A,TO/K: the highlighting tokens of a file.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments.
+ */
+static void cmd_tokens(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    ScoutSession *s = get_session(srv, rx, (LONG *)v[0]);
+    char path[SCOUT_PATH_MAX];
+    ScoutFile *f;
+    JsonWriter w;
+    if (!s) return;
+    full_name((const char *)v[1], path, sizeof(path));
+    if ((f = ready_file(srv, rx, s, path)) == NULL) return;
+    json_writer_init_alloc(&w, 4096);
+    scout_write_tokens(&w, f);
+    finish(srv, rx, s->id, &w, (const char *)v[2]);
+}
+
+/**
+ * @brief DEFINITION SESSION/K/N,FILE/A,LINE/N/A,COLUMN/N/A,NAME/K: where
+ *        the name at a position is defined.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments.
+ */
+static void cmd_definition(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    ScoutSession *s = get_session(srv, rx, (LONG *)v[0]);
+    char path[SCOUT_PATH_MAX], word[128];
+    long line = *(LONG *)v[2], col = *(LONG *)v[3];
+    ScoutFile *f;
+    JsonWriter w;
+    if (!s) return;
+    full_name((const char *)v[1], path, sizeof(path));
+    if ((f = ready_file(srv, rx, s, path)) == NULL) return;
+    if (v[4]) {
+        strncpy(word, (const char *)v[4], sizeof(word) - 1);
+        word[sizeof(word) - 1] = '\0';
+    } else {
+        word_at(srv, f, line, col, 0, word, sizeof(word));
+    }
+    json_writer_init_alloc(&w, 512);
+    scout_write_definition(&w, s, f, line, col, word);
+    finish(srv, rx, s->id, &w, NULL);
+}
+
+/**
+ * @brief COMPLETE SESSION/K/N,FILE/A,LINE/N/A,COLUMN/N/A,PREFIX/K,MAX/K/N:
+ *        names that could be completed at a position.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments.
+ */
+static void cmd_complete(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    ScoutSession *s = get_session(srv, rx, (LONG *)v[0]);
+    char path[SCOUT_PATH_MAX], prefix[128];
+    long line = *(LONG *)v[2], col = *(LONG *)v[3];
+    long max = v[5] ? *(LONG *)v[5] : COMPLETE_MAX;
+    ScoutFile *f;
+    JsonWriter w;
+    if (!s) return;
+    full_name((const char *)v[1], path, sizeof(path));
+    if ((f = ready_file(srv, rx, s, path)) == NULL) return;
+    if (v[4]) {
+        strncpy(prefix, (const char *)v[4], sizeof(prefix) - 1);
+        prefix[sizeof(prefix) - 1] = '\0';
+    } else {
+        word_at(srv, f, line, col, 1, prefix, sizeof(prefix));
+    }
+    json_writer_init_alloc(&w, 1024);
+    scout_write_complete(&w, &srv->store, s, f, line, col, prefix, max);
+    finish(srv, rx, s->id, &w, NULL);
+}
+
+/**
+ * @brief LANGUAGES: the languages and their parsers.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments (none).
+ */
+static void cmd_languages(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    JsonWriter w;
+    (void)v;
+    json_writer_init_alloc(&w, 512);
+    scout_write_languages(&w, &srv->store);
+    finish(srv, rx, -1, &w, NULL);
+}
+
+/**
+ * @brief LANGUAGE FILE/A: the language of a file.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments.
+ */
+static void cmd_language(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    const ScoutLanguage *lang = scout_store_language_for(&srv->store, (const char *)v[0]);
+    JsonWriter w;
+    json_writer_init_alloc(&w, 64);
+    json_write_raw(&w, "{\"language\":");
+    if (lang) {
+        json_write_string(&w, lang->id);
+    } else {
+        json_write_null(&w);
+    }
+    json_write_raw(&w, "}");
+    finish(srv, rx, -1, &w, NULL);
+}
+
+/**
+ * @brief SYNTAX LANG/A,TO/K: the lexical rules of a language.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments.
+ */
+static void cmd_syntax(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    const ScoutLanguage *lang = scout_store_language(&srv->store, (const char *)v[0]);
+    JsonWriter w;
+    if (!lang) {
+        scout_fail(srv, rx, -1, SCOUT_E_NO_PARSER, "unknown language");
+        return;
+    }
+    if (!lang->syntax) {
+        scout_fail(srv, rx, -1, SCOUT_E_CAPABILITY, "the parser has no lexical rules");
+        return;
+    }
+    json_writer_init_alloc(&w, 1024);
+    json_write_raw(&w, lang->syntax);
+    finish(srv, rx, -1, &w, (const char *)v[1]);
+}
+
+/**
+ * @brief REGISTER EXTENSION/A,PARSER/A: let a parser handle an extension;
+ *        answered when its description is read.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments.
+ */
+static void cmd_register(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    const char *ext = (const char *)v[0];
+    char path[SCOUT_PATH_MAX];
+    if (ext[0] != '.' || strlen(ext) > 30) {
+        scout_fail(srv, rx, -1, SCOUT_E_ARGS, "the extension must start with a dot");
+        return;
+    }
+    full_name((const char *)v[1], path, sizeof(path));
+    if (!scout_jobs_register(srv, path, ext, rx)) {
+        scout_fail(srv, rx, -1, SCOUT_E_MEMORY, "out of memory");
+        return;
+    }
+    scout_jobs_next(srv);
+}
+
+/**
+ * @brief Let a message wait until the parsers are read.
+ * @param srv The server.
+ * @param rx The message.
+ * @param languages Answer it with LANGUAGES' result then.
+ */
+static void defer(ScoutServer *srv, struct RexxMsg *rx, int languages)
+{
+    ScoutDeferred *d = (ScoutDeferred *)calloc(1, sizeof(ScoutDeferred)), **p;
+    if (!d) {
+        scout_fail(srv, rx, -1, SCOUT_E_MEMORY, "out of memory");
+        return;
+    }
+    d->rx = rx;
+    d->languages = languages;
+    for (p = &srv->deferred; *p; p = &(*p)->next);
+    *p = d;
+}
+
+/**
+ * @brief RESCAN: read the parser drawer again; answered with LANGUAGES'
+ *        result when done.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments (none).
+ */
+static void cmd_rescan(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    (void)v;
+    scout_store_clear_parsers(&srv->store);
+    defer(srv, rx, 1);
+    scout_jobs_scan(srv);
+}
+
+/**
+ * @brief STATUS: Scout's state.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments (none).
+ */
+static void cmd_status(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    const ScoutSession *s;
+    long sessions = 0;
+    JsonWriter w;
+    (void)v;
+    for (s = srv->store.sessions; s; s = s->next) {
+        if (s->id != 0) sessions++;
+    }
+    json_writer_init_alloc(&w, 512);
+    json_write_raw(&w, "{\"version\":\"" SCOUT_VERSION "\",\"protocol\":");
+    json_write_int(&w, SCOUT_PROTOCOL_VERSION);
+    json_write_raw(&w, ",\"enabled\":");
+    json_write_bool(&w, srv->enabled);
+    json_write_raw(&w, ",\"scanning\":");
+    json_write_bool(&w, srv->scanning > 0);
+    json_write_raw(&w, ",\"tempdir\":");
+    json_write_string(&w, srv->tempdir);
+    json_write_raw(&w, ",\"sessions\":");
+    json_write_int(&w, sessions);
+    json_write_raw(&w, ",\"queue\":");
+    json_write_int(&w, scout_jobs_count(srv));
+    scout_write_parsers(&w, &srv->store);
+    json_write_raw(&w, "}");
+    finish(srv, rx, -1, &w, NULL);
+}
+
+/**
+ * @brief QUIT: end Scout (after answering the waiting messages).
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments (none).
+ */
+static void cmd_quit(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    (void)v;
+    srv->running = 0;
+    scout_reply(rx, "{}");
+}
+
+/** The commands. */
+static const Command commands[] = {
+    { "OPEN",        "PROJECT/A,INCLUDE/M",                              cmd_open,        1 },
+    { "CLOSE",       "SESSION/N/A",                                      cmd_close,       0 },
+    { "INCLUDE",     "SESSION/N/A,PATHS/M,CLEAR/S",                      cmd_include,     0 },
+    { "ERROR",       "SESSION/K/N",                                      cmd_error,       0 },
+    { "ANALYZE",     "SESSION/K/N,FILE/A,TEXT/K,VERSION/K/N,LANG/K",     cmd_analyze,     1 },
+    { "FORGET",      "SESSION/K/N,FILE/A",                               cmd_forget,      0 },
+    { "SYMBOLS",     "SESSION/K/N,FILE/K,NAME/K,TO/K",                   cmd_symbols,     1 },
+    { "DIAGNOSTICS", "SESSION/K/N,FILE/K,TO/K",                          cmd_diagnostics, 1 },
+    { "TOKENS",      "SESSION/K/N,FILE/A,TO/K",                          cmd_tokens,      1 },
+    { "DEFINITION",  "SESSION/K/N,FILE/A,LINE/N/A,COLUMN/N/A,NAME/K",    cmd_definition,  1 },
+    { "COMPLETE",    "SESSION/K/N,FILE/A,LINE/N/A,COLUMN/N/A,PREFIX/K,MAX/K/N", cmd_complete, 1 },
+    { "LANGUAGES",   "",                                                 cmd_languages,   1 },
+    { "LANGUAGE",    "FILE/A",                                           cmd_language,    1 },
+    { "SYNTAX",      "LANG/A,TO/K",                                      cmd_syntax,      1 },
+    { "REGISTER",    "EXTENSION/A,PARSER/A",                             cmd_register,    1 },
+    { "RESCAN",      "",                                                 cmd_rescan,      1 },
+    { "STATUS",      "",                                                 cmd_status,      0 },
+    { "QUIT",        "",                                                 cmd_quit,        0 },
+    { NULL, NULL, NULL, 0 }
+};
+
+/**
+ * @brief Read the arguments of a command with ReadArgs().
+ * @param tmpl The template.
+ * @param line The arguments.
+ * @param[out] a The values (FreeArgs() them with free_args()).
+ * @return 1 on success, 0 if they do not fit the template.
+ */
+static int read_args(const char *tmpl, const char *line, Args *a)
+{
+    size_t n = strlen(line);
+    memset(a, 0, sizeof(*a));
+    a->buf = (char *)malloc(n + 2);
+    a->rda = (struct RDArgs *)AllocDosObject(DOS_RDARGS, NULL);
+    if (!a->buf || !a->rda) return 0;
+    memcpy(a->buf, line, n);
+    a->buf[n] = '\n';
+    a->buf[n + 1] = '\0';
+    a->rda->RDA_Source.CS_Buffer = (STRPTR)a->buf;
+    a->rda->RDA_Source.CS_Length = (LONG)n + 1;
+    a->rda->RDA_Source.CS_CurChr = 0;
+    a->rda->RDA_Flags |= RDAF_NOPROMPT;
+    if (!ReadArgs((STRPTR)tmpl, a->v, a->rda)) {
+        FreeDosObject(DOS_RDARGS, a->rda);
+        a->rda = NULL;
+        return 0;
+    }
     return 1;
 }
 
 /**
- * @brief Answer an ARexx message.
- * @param srv The server.
- * @param rx_msg The message.
- * @param rc The return code (SCOUT_RC_).
- * @param result_str The result string (only with RESULT; may be NULL).
+ * @brief Free what read_args() read.
+ * @param a The values.
  */
-static void reply_rexx(ScoutServer *srv, struct RexxMsg *rx_msg, LONG rc, const char *result_str)
+static void free_args(Args *a)
 {
-    if (!rx_msg) return;
-
-    rx_msg->rm_Result1 = rc;
-    rx_msg->rm_Result2 = 0;
-
-    if (result_str && srv->RexxSysBase) {
-        rx_msg->rm_Result2 = (LONG)CreateArgstring((char *)result_str, (ULONG)strlen(result_str));
+    if (a->rda) {
+        FreeArgs(a->rda);
+        FreeDosObject(DOS_RDARGS, a->rda);
     }
-
-    ReplyMsg((struct Message *)rx_msg);
+    free(a->buf);
+    a->rda = NULL;
+    a->buf = NULL;
 }
 
-/**
- * @brief Skip white space.
- * @param p The position, moved on.
- */
-static void skip_spaces(const char **p)
+void scout_rexx_command(ScoutServer *srv, struct RexxMsg *rx, int languages)
 {
-    while (**p && ((unsigned char)**p <= ' ' || **p == '\t')) {
-        (*p)++;
+    const char *line = (const char *)rx->rm_Args[0];
+    const Command *c;
+    char name[16];
+    size_t n = 0;
+    Args a;
+
+    if (languages) {
+        cmd_languages(srv, rx, NULL);
+        return;
     }
+    while (*line == ' ' || *line == '\t') line++;
+    while (*line && *line != ' ' && *line != '\t' && n + 1 < sizeof(name)) name[n++] = *line++;
+    name[n] = '\0';
+    while (*line == ' ' || *line == '\t') line++;
+    for (c = commands; c->name; c++) {
+        if (scout_path_equal(c->name, name)) break;
+    }
+    if (!c->name) {
+        scout_fail(srv, rx, -1, SCOUT_E_ARGS, "unknown command");
+        return;
+    }
+    if (!srv->enabled && c->run != cmd_status && c->run != cmd_quit) {
+        scout_fail(srv, rx, -1, SCOUT_E_PARSER, "Scout is disabled");
+        return;
+    }
+    if (srv->scanning > 0 && c->parsers) {
+        defer(srv, rx, 0);
+        return;
+    }
+    if (!c->tmpl[0]) {
+        c->run(srv, rx, NULL);
+        return;
+    }
+    if (!read_args(c->tmpl, line, &a)) {
+        free_args(&a);
+        scout_fail(srv, rx, -1, SCOUT_E_ARGS, c->tmpl);
+        return;
+    }
+    c->run(srv, rx, a.v);
+    free_args(&a);
 }
 
-/**
- * @brief Read the next argument of a command (in quotes if it has spaces).
- * @param p The position, moved behind the argument.
- * @param out The buffer for it.
- * @param out_max Its size.
- * @return Non-zero if there was an argument.
- */
-static int parse_next_arg(const char **p, char *out, size_t out_max)
+void scout_rexx_handle(ScoutServer *srv)
 {
-    skip_spaces(p);
-    if (!**p) return 0;
-
-    size_t len = 0;
-    if (**p == '"') {
-        (*p)++;
-        while (**p && **p != '"' && len + 1 < out_max) {
-            out[len++] = *(*p)++;
-        }
-        if (**p == '"') (*p)++;
-    } else {
-        while (**p && (unsigned char)**p > ' ' && len + 1 < out_max) {
-            out[len++] = *(*p)++;
-        }
-    }
-    out[len] = '\0';
-    return len > 0;
-}
-
-/**
- * @brief Write symbols of a parser response as ARexx result, one
- *        "kind line col name" per line (1-based).
- * @param sym_array The array of symbols.
- * @param w The writer.
- */
-static void format_symbols_to_rexx(const JsonValue *sym_array, JsonWriter *w)
-{
-    if (!sym_array || sym_array->type != JSON_ARRAY || !w) return;
-
-    size_t count = json_array_length(sym_array);
-    for (size_t i = 0; i < count; i++) {
-        const JsonValue *item = json_array_get(sym_array, i);
-        if (!item || item->type != JSON_OBJECT) continue;
-
-        const char *name = json_obj_get_string(item, "name", "");
-        long kind = json_obj_get_int(item, "kind", 0);
-        const JsonValue *range = json_obj_get_obj(item, "range");
-        const JsonValue *start = range ? json_obj_get_obj(range, "start") : NULL;
-        long line = start ? json_obj_get_int(start, "line", 0) + 1 : 1;
-        long col = start ? json_obj_get_int(start, "character", 0) + 1 : 1;
-
-        char buf[256];
-        snprintf(buf, sizeof(buf), "%ld %ld %ld %s\n", kind, line, col, name);
-        json_write_raw(w, buf);
-    }
-}
-
-/**
- * @brief Write diagnostics of a parser response as ARexx result, one
- *        "severity line col message" per line (1-based).
- * @param diag_array The array of diagnostics.
- * @param w The writer.
- */
-static void format_diags_to_rexx(const JsonValue *diag_array, JsonWriter *w)
-{
-    if (!diag_array || diag_array->type != JSON_ARRAY || !w) return;
-
-    size_t count = json_array_length(diag_array);
-    for (size_t i = 0; i < count; i++) {
-        const JsonValue *item = json_array_get(diag_array, i);
-        if (!item || item->type != JSON_OBJECT) continue;
-
-        const char *msg = json_obj_get_string(item, "message", "");
-        long sev = json_obj_get_int(item, "severity", 1);
-        const JsonValue *range = json_obj_get_obj(item, "range");
-        const JsonValue *start = range ? json_obj_get_obj(range, "start") : NULL;
-        long line = start ? json_obj_get_int(start, "line", 0) + 1 : 1;
-        long col = start ? json_obj_get_int(start, "character", 0) + 1 : 1;
-
-        char buf[256];
-        snprintf(buf, sizeof(buf), "%ld %ld %ld %s\n", sev, line, col, msg);
-        json_write_raw(w, buf);
-    }
-}
-
-void scout_rexx_handle_msg(ScoutServer *srv)
-{
-    if (!srv || !srv->rexx_port) return;
-
-    struct RexxMsg *rx_msg;
-    while ((rx_msg = (struct RexxMsg *)GetMsg(srv->rexx_port)) != NULL) {
-        if (!rx_msg->rm_Args[0]) {
-            reply_rexx(srv, rx_msg, SCOUT_RC_WARN, "Empty command");
+    struct RexxMsg *rx;
+    if (!srv->rexx_port) return;
+    while ((rx = (struct RexxMsg *)GetMsg(srv->rexx_port)) != NULL) {
+        if (!IsRexxMsg(rx) || ((ULONG)rx->rm_Action & RXCODEMASK) != RXCOMM || !rx->rm_Args[0]) {
+            rx->rm_Result1 = RC_ERROR;
+            rx->rm_Result2 = SCOUT_E_ARGS;
+            ReplyMsg((struct Message *)rx);
             continue;
         }
-
-        const char *cmd_line = (const char *)rx_msg->rm_Args[0];
-        const char *p = cmd_line;
-
-        char command[64];
-        if (!parse_next_arg(&p, command, sizeof(command))) {
-            reply_rexx(srv, rx_msg, SCOUT_RC_WARN, "Empty command");
-            continue;
-        }
-
-        if (strcasecmp(command, "PARSE") == 0) {
-            char filepath[512];
-            if (!parse_next_arg(&p, filepath, sizeof(filepath))) {
-                reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, "Usage: PARSE <filepath>");
-                continue;
-            }
-
-            char params[1024];
-            snprintf(params, sizeof(params), "{\"textDocument\":{\"uri\":\"file://%s\"}}", filepath);
-
-            JsonWriter sym_out, diag_out;
-            json_writer_init_alloc(&sym_out, 512);
-            json_writer_init_alloc(&diag_out, 512);
-
-            char *err_msg = NULL;
-            int ok1 = scout_parser_run_request(srv, filepath, "textDocument/documentSymbol", params, &sym_out, &err_msg);
-            if (!ok1) {
-                reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, err_msg ? err_msg : "Parser error");
-                if (err_msg) free(err_msg);
-                json_writer_free(&sym_out);
-                json_writer_free(&diag_out);
-                continue;
-            }
-
-            int ok2 = scout_parser_run_request(srv, filepath, "textDocument/publishDiagnostics", params, &diag_out, &err_msg);
-            if (!ok2) {
-                reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, err_msg ? err_msg : "Parser error");
-                if (err_msg) free(err_msg);
-                json_writer_free(&sym_out);
-                json_writer_free(&diag_out);
-                continue;
-            }
-
-            /* Convert JSON arrays to ARexx formatted lines */
-            JsonValue *sym_root = json_parse(json_writer_get(&sym_out), NULL);
-            JsonValue *diag_root = json_parse(json_writer_get(&diag_out), NULL);
-
-            JsonWriter sym_rexx_w, diag_rexx_w;
-            json_writer_init_alloc(&sym_rexx_w, 256);
-            json_writer_init_alloc(&diag_rexx_w, 256);
-
-            format_symbols_to_rexx(sym_root, &sym_rexx_w);
-            format_diags_to_rexx(diag_root, &diag_rexx_w);
-
-            scout_cache_put(srv, filepath, json_writer_get(&sym_rexx_w), json_writer_get(&diag_rexx_w));
-
-            json_writer_free(&sym_rexx_w);
-            json_writer_free(&diag_rexx_w);
-            if (sym_root) json_value_free(sym_root);
-            if (diag_root) json_value_free(diag_root);
-            json_writer_free(&sym_out);
-            json_writer_free(&diag_out);
-
-            reply_rexx(srv, rx_msg, SCOUT_RC_OK, "OK");
-        }
-        else if (strcasecmp(command, "SYMBOLS") == 0) {
-            char filepath[512];
-            if (!parse_next_arg(&p, filepath, sizeof(filepath))) {
-                reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, "Usage: SYMBOLS <filepath>");
-                continue;
-            }
-
-            const CachedFileResult *c = scout_cache_get(srv, filepath);
-            if (c && c->symbols_rexx) {
-                reply_rexx(srv, rx_msg, SCOUT_RC_OK, c->symbols_rexx);
-            } else {
-                /* Run on-demand */
-                char params[1024];
-                snprintf(params, sizeof(params), "{\"textDocument\":{\"uri\":\"file://%s\"}}", filepath);
-                JsonWriter sym_out;
-                json_writer_init_alloc(&sym_out, 512);
-                char *err_msg = NULL;
-                if (scout_parser_run_request(srv, filepath, "textDocument/documentSymbol", params, &sym_out, &err_msg)) {
-                    JsonValue *sym_root = json_parse(json_writer_get(&sym_out), NULL);
-                    JsonWriter sym_rexx_w;
-                    json_writer_init_alloc(&sym_rexx_w, 256);
-                    format_symbols_to_rexx(sym_root, &sym_rexx_w);
-
-                    reply_rexx(srv, rx_msg, SCOUT_RC_OK, json_writer_get(&sym_rexx_w));
-
-                    json_writer_free(&sym_rexx_w);
-                    if (sym_root) json_value_free(sym_root);
-                } else {
-                    reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, err_msg ? err_msg : "Symbol query failed");
-                    if (err_msg) free(err_msg);
-                }
-                json_writer_free(&sym_out);
-            }
-        }
-        else if (strcasecmp(command, "DIAGNOSTICS") == 0) {
-            char filepath[512];
-            if (!parse_next_arg(&p, filepath, sizeof(filepath))) {
-                reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, "Usage: DIAGNOSTICS <filepath>");
-                continue;
-            }
-
-            const CachedFileResult *c = scout_cache_get(srv, filepath);
-            if (c && c->diagnostics_rexx) {
-                reply_rexx(srv, rx_msg, SCOUT_RC_OK, c->diagnostics_rexx);
-            } else {
-                char params[1024];
-                snprintf(params, sizeof(params), "{\"textDocument\":{\"uri\":\"file://%s\"}}", filepath);
-                JsonWriter diag_out;
-                json_writer_init_alloc(&diag_out, 512);
-                char *err_msg = NULL;
-                if (scout_parser_run_request(srv, filepath, "textDocument/publishDiagnostics", params, &diag_out, &err_msg)) {
-                    JsonValue *diag_root = json_parse(json_writer_get(&diag_out), NULL);
-                    JsonWriter diag_rexx_w;
-                    json_writer_init_alloc(&diag_rexx_w, 256);
-                    format_diags_to_rexx(diag_root, &diag_rexx_w);
-
-                    reply_rexx(srv, rx_msg, SCOUT_RC_OK, json_writer_get(&diag_rexx_w));
-
-                    json_writer_free(&diag_rexx_w);
-                    if (diag_root) json_value_free(diag_root);
-                } else {
-                    reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, err_msg ? err_msg : "Diagnostic query failed");
-                    if (err_msg) free(err_msg);
-                }
-                json_writer_free(&diag_out);
-            }
-        }
-        else if (strcasecmp(command, "DEFINITION") == 0) {
-            char filepath[512];
-            char s_line[32];
-            char s_col[32];
-            if (!parse_next_arg(&p, filepath, sizeof(filepath)) ||
-                !parse_next_arg(&p, s_line, sizeof(s_line)) ||
-                !parse_next_arg(&p, s_col, sizeof(s_col))) {
-                reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, "Usage: DEFINITION <filepath> <line> <column>");
-                continue;
-            }
-
-            long l = strtol(s_line, NULL, 10);
-            long c = strtol(s_col, NULL, 10);
-            char sym_name[128];
-            sym_name[0] = '\0';
-            parse_next_arg(&p, sym_name, sizeof(sym_name));
-
-            char params[1024];
-            if (sym_name[0]) {
-                snprintf(params, sizeof(params),
-                         "{\"textDocument\":{\"uri\":\"file://%s\"},\"position\":{\"line\":%ld,\"character\":%ld},\"symbol\":\"%s\"}",
-                         filepath, l > 0 ? l - 1 : 0, c > 0 ? c - 1 : 0, sym_name);
-            } else {
-                snprintf(params, sizeof(params),
-                         "{\"textDocument\":{\"uri\":\"file://%s\"},\"position\":{\"line\":%ld,\"character\":%ld}}",
-                         filepath, l > 0 ? l - 1 : 0, c > 0 ? c - 1 : 0);
-            }
-
-            JsonWriter loc_out;
-            json_writer_init_alloc(&loc_out, 256);
-            char *err_msg = NULL;
-            if (scout_parser_run_request(srv, filepath, "textDocument/definition", params, &loc_out, &err_msg)) {
-                JsonValue *loc_val = json_parse(json_writer_get(&loc_out), NULL);
-                if (loc_val && loc_val->type == JSON_OBJECT) {
-                    const char *target_uri = json_obj_get_string(loc_val, "uri", filepath);
-                    if (strncmp(target_uri, "file://", 7) == 0) target_uri += 7;
-                    const JsonValue *range = json_obj_get_obj(loc_val, "range");
-                    const JsonValue *start = range ? json_obj_get_obj(range, "start") : NULL;
-                    long t_line = start ? json_obj_get_int(start, "line", 0) + 1 : 1;
-                    long t_col = start ? json_obj_get_int(start, "character", 0) + 1 : 1;
-
-                    char res_buf[512];
-                    snprintf(res_buf, sizeof(res_buf), "%s %ld %ld", target_uri, t_line, t_col);
-                    reply_rexx(srv, rx_msg, SCOUT_RC_OK, res_buf);
-                } else {
-                    reply_rexx(srv, rx_msg, SCOUT_RC_WARN, "Symbol definition not found");
-                }
-                if (loc_val) json_value_free(loc_val);
-            } else {
-                reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, err_msg ? err_msg : "Definition query failed");
-                if (err_msg) free(err_msg);
-            }
-            json_writer_free(&loc_out);
-        }
-        else if (strcasecmp(command, "COMPLETE") == 0) {
-            char filepath[512];
-            char s_line[32];
-            char s_col[32];
-            char pfx[128];
-            pfx[0] = '\0';
-
-            if (!parse_next_arg(&p, filepath, sizeof(filepath)) ||
-                !parse_next_arg(&p, s_line, sizeof(s_line)) ||
-                !parse_next_arg(&p, s_col, sizeof(s_col))) {
-                reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, "Usage: COMPLETE <filepath> <line> <col> [prefix]");
-                continue;
-            }
-            parse_next_arg(&p, pfx, sizeof(pfx));
-
-            long l = strtol(s_line, NULL, 10);
-            long c = strtol(s_col, NULL, 10);
-
-            char params[1024];
-            snprintf(params, sizeof(params),
-                     "{\"textDocument\":{\"uri\":\"file://%s\"},\"position\":{\"line\":%ld,\"character\":%ld},\"context\":{\"prefix\":\"%s\"}}",
-                     filepath, l > 0 ? l - 1 : 0, c > 0 ? c - 1 : 0, pfx);
-
-            JsonWriter comp_out;
-            json_writer_init_alloc(&comp_out, 512);
-            char *err_msg = NULL;
-            if (scout_parser_run_request(srv, filepath, "textDocument/completion", params, &comp_out, &err_msg)) {
-                JsonValue *comp_val = json_parse(json_writer_get(&comp_out), NULL);
-                if (comp_val && comp_val->type == JSON_ARRAY) {
-                    JsonWriter list_w;
-                    json_writer_init_alloc(&list_w, 256);
-                    size_t count = json_array_length(comp_val);
-                    for (size_t i = 0; i < count; i++) {
-                        const JsonValue *item = json_array_get(comp_val, i);
-                        const char *label = item ? json_obj_get_string(item, "label", "") : "";
-                        if (*label) {
-                            if (i > 0) json_write_raw(&list_w, " ");
-                            json_write_raw(&list_w, label);
-                        }
-                    }
-                    reply_rexx(srv, rx_msg, SCOUT_RC_OK, json_writer_get(&list_w));
-                    json_writer_free(&list_w);
-                } else {
-                    reply_rexx(srv, rx_msg, SCOUT_RC_OK, "");
-                }
-                if (comp_val) json_value_free(comp_val);
-            } else {
-                reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, err_msg ? err_msg : "Completion query failed");
-                if (err_msg) free(err_msg);
-            }
-            json_writer_free(&comp_out);
-        }
-        else if (strcasecmp(command, "REGISTER_PARSER") == 0) {
-            char ext[32];
-            char path[512];
-            if (!parse_next_arg(&p, ext, sizeof(ext)) || !parse_next_arg(&p, path, sizeof(path))) {
-                reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, "Usage: REGISTER_PARSER <extension> <executable_path>");
-                continue;
-            }
-
-            if (scout_parser_register(srv, ext, path)) {
-                reply_rexx(srv, rx_msg, SCOUT_RC_OK, "OK");
-            } else {
-                reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, "Failed to register parser");
-            }
-        }
-        else if (strcasecmp(command, "ADD_SEARCH_PATH") == 0) {
-            char path[512];
-            if (!parse_next_arg(&p, path, sizeof(path))) {
-                reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, "Usage: ADD_SEARCH_PATH <path>");
-                continue;
-            }
-
-            if (scout_server_add_search_path(srv, path)) {
-                reply_rexx(srv, rx_msg, SCOUT_RC_OK, "OK");
-            } else {
-                reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, "Failed to add search path (maximum reached or invalid)");
-            }
-        }
-        else if (strcasecmp(command, "STATUS") == 0) {
-            char status_buf[512];
-            snprintf(status_buf, sizeof(status_buf),
-                     "Broker: %s | Port: %s | Enabled: %d | Requests: %d",
-                     SCOUT_BROKER_NAME, SCOUT_AREXX_PORT_NAME, srv->enabled, srv->request_count);
-            reply_rexx(srv, rx_msg, SCOUT_RC_OK, status_buf);
-        }
-        else if (strcasecmp(command, "QUIT") == 0) {
-            srv->running = 0;
-            reply_rexx(srv, rx_msg, SCOUT_RC_OK, "OK");
-        }
-        else {
-            reply_rexx(srv, rx_msg, SCOUT_RC_ERROR, "Unknown command");
-        }
+        scout_rexx_command(srv, rx, 0);
     }
 }
 
 void scout_rexx_cleanup(ScoutServer *srv)
 {
-    if (!srv) return;
-
-    if (srv->rexx_port) {
-        Forbid();
-        struct Message *msg;
-        while ((msg = GetMsg(srv->rexx_port)) != NULL) {
-            reply_rexx(srv, (struct RexxMsg *)msg, SCOUT_RC_WARN, "Server shutting down");
-        }
-        RemPort(srv->rexx_port);
-        DeleteMsgPort(srv->rexx_port);
-        srv->rexx_port = NULL;
-        Permit();
+    struct RexxMsg *rx;
+    if (!srv->rexx_port) return;
+    Forbid();
+    RemPort(srv->rexx_port);
+    Permit();
+    while ((rx = (struct RexxMsg *)GetMsg(srv->rexx_port)) != NULL) {
+        rx->rm_Result1 = RC_ERROR;
+        rx->rm_Result2 = SCOUT_E_PARSER;
+        ReplyMsg((struct Message *)rx);
     }
-
-    if (srv->RexxSysBase) {
-        CloseLibrary((struct Library *)srv->RexxSysBase);
-        srv->RexxSysBase = NULL;
-    }
+    DeleteMsgPort(srv->rexx_port);
+    srv->rexx_port = NULL;
 }

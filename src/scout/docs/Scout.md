@@ -8,10 +8,10 @@ This document describes what Scout is for, how its parts work together and
 its ARexx interface. The protocol between Scout and its parsers is in
 [Scout-Protocol.md](Scout-Protocol.md).
 
-> **Status: draft.** This is the design Scout is being rebuilt to. The C
-> parser speaks version 1 of the protocol. The commodity in `src/scout/`
-> still follows an earlier skeleton (one parser run per method, text
-> results, a fixed parser table) and cannot use it until it is rebuilt.
+> **Status:** Scout and the C parser follow this design, version 1 of the
+> protocol. Not done yet: watching the project with `StartNotify()`,
+> dropping sessions when memory runs low, a window. TinyDev does not use
+> Scout yet.
 
 ## Contents
 
@@ -113,8 +113,8 @@ A session is one client working on one project.
 - The session holds the project drawer, the paths searched for included
   files (`INCLUDE`), the results of its files and the project index.
 - `CLOSE` ends it and frees everything. Sessions of a client that quits
-  without `CLOSE` stay until `QUIT` or until Scout runs low on memory
-  (then the least recently used session goes first).
+  without `CLOSE` stay until `QUIT` (later also until Scout runs low on
+  memory, the least recently used first).
 - Commands without a session work on single files without a project:
   results are kept, but there is no project index. ARexx scripts use this.
 
@@ -148,9 +148,10 @@ the snapshot, so it can tell which state an answer belongs to.
   result references (includes found through `INCLUDE`) are added the same
   way. The index maps names to symbols with scope `global`, plus the
   `file` scope symbols of each file.
-- **Changes on disk:** Scout watches the project drawer with
-  `StartNotify()` where possible; otherwise a result is checked against
-  the file's date when it is used.
+- **Changes on disk:** A file's result is checked against the file's
+  date and size when a query uses it, and analysed again if they changed.
+  Files of the index are checked when the project is opened again (later:
+  watching the drawer with `StartNotify()`).
 - **Queries:** `SYMBOLS`, `DIAGNOSTICS`, `TOKENS` read the results of a
   file (or the index); `DEFINITION` and `COMPLETE` combine the symbol at
   the position, the scopes in the file and the index. Context-sensitive
@@ -271,8 +272,8 @@ and lower case do not matter.
   counted in bytes; ranges are `{"start":[line,col],"end":[line,col]}` with
   the end exclusive, as in the protocol.
 - **Failure:** `RC` 10 and `RC2` an error number (`RESULT` cannot carry
-  text when `RC` is not 0). `ERROR` returns the text of the last error of
-  the session.
+  text when `RC` is not 0). `ERROR` returns the number and text of the
+  last error of the session, and without `SESSION` the last error of all.
 - **Large results:** An ARexx string holds at most 65535 bytes. Commands
   that can return more take `TO/K`: Scout writes the JSON to that file and
   returns `{"file":"<path>","size":<bytes>}`. Without `TO`, a result that
@@ -297,22 +298,22 @@ Sessions:
 
 | Command | Template | Result |
 |---|---|---|
-| `OPEN` | `PROJECT/A,INCLUDE/K/M` | `{"session":3}` |
+| `OPEN` | `PROJECT/A,INCLUDE/M` | `{"session":3}` |
 | `CLOSE` | `SESSION/N/A` | `{}` |
 | `INCLUDE` | `SESSION/N/A,PATHS/M,CLEAR/S` | `{"include":["Work:SDK/Include", ...]}` |
-| `ERROR` | `SESSION/N` | `{"code":5,"message":"..."}` |
+| `ERROR` | `SESSION/K/N` | `{"code":5,"message":"..."}` |
 
-Documents (`SESSION` may be left out, see [Sessions](#4-sessions)):
+Documents (`SESSION` is a keyword, `ANALYZE SESSION 3 FILE x.c`; without it, session 0, see [Sessions](#4-sessions)):
 
 | Command | Template | Result |
 |---|---|---|
-| `ANALYZE` | `SESSION/N,FILE/A,TEXT/K,VERSION/N,LANG/K` | `{"file":...,"version":7,"language":"c","symbols":42,"diagnostics":1}`, after the run |
-| `FORGET` | `SESSION/N,FILE/A` | `{}`; drops a snapshot's results, so the file on disk counts again |
-| `SYMBOLS` | `SESSION/N,FILE/K,NAME/K,TO/K` | the symbols of a file, or of the project index (without `FILE`), optionally only those matching an AmigaDOS pattern `NAME` |
-| `DIAGNOSTICS` | `SESSION/N,FILE/K,TO/K` | the diagnostics of a file, or of all files of the session |
-| `TOKENS` | `SESSION/N,FILE/A,TO/K` | `{"file":...,"version":7,"tokens":[...]}` as in the protocol |
-| `DEFINITION` | `SESSION/N,FILE/A,LINE/N/A,COLUMN/N/A,NAME/K` | `{"locations":[{"file":...,"range":...,"name":...,"kind":12}]}`, empty if unknown |
-| `COMPLETE` | `SESSION/N,FILE/A,LINE/N/A,COLUMN/N/A,PREFIX/K,MAX/N` | `{"items":[{"label":...,"kind":12,"detail":...}]}` |
+| `ANALYZE` | `SESSION/K/N,FILE/A,TEXT/K,VERSION/K/N,LANG/K` | `{"file":...,"version":7,"language":"c","symbols":42,"diagnostics":1}`, after the run |
+| `FORGET` | `SESSION/K/N,FILE/A` | `{}`; drops a snapshot's results, so the file on disk counts again |
+| `SYMBOLS` | `SESSION/K/N,FILE/K,NAME/K,TO/K` | `{"file":...,"version":...,"symbols":[...]}` of a file; without `FILE`, `{"symbols":[...]}` of the project files, without locals and with `"file"` in each; optionally only those matching the AmigaDOS pattern `NAME` |
+| `DIAGNOSTICS` | `SESSION/K/N,FILE/K,TO/K` | `{"file":...,"version":...,"diagnostics":[...]}` of a file; without `FILE`, `{"files":[...]}` with the project files that have any |
+| `TOKENS` | `SESSION/K/N,FILE/A,TO/K` | `{"file":...,"version":7,"tokens":[...]}` as in the protocol |
+| `DEFINITION` | `SESSION/K/N,FILE/A,LINE/N/A,COLUMN/N/A,NAME/K` | `{"name":...,"locations":[{"file":...,"name":...,"kind":12,"range":...,"selection":...,"detail":...}]}`, definitions before declarations, empty if unknown; without `NAME`, the word at the position |
+| `COMPLETE` | `SESSION/K/N,FILE/A,LINE/N/A,COLUMN/N/A,PREFIX/K,MAX/K/N` | `{"prefix":...,"items":[{"label":...,"kind":12,"detail":...}]}`, locals first, then the file's, the project's and keywords (`{"label":...,"keyword":true}`); without `PREFIX`, the part of the word before the position; `MAX` default 50 |
 
 Languages and parsers:
 
@@ -328,7 +329,7 @@ Scout:
 
 | Command | Template | Result |
 |---|---|---|
-| `STATUS` | | `{"version":"1.0","protocol":1,"tempdir":"T:","sessions":2,"queue":0,"parsers":[...],"problems":[...]}` |
+| `STATUS` | | `{"version":"1.0","protocol":1,"enabled":true,"scanning":false,"tempdir":"T:","sessions":2,"queue":0,"parsers":[...],"problems":[...]}` |
 | `QUIT` | | `{}`; Scout ends after replying to waiting messages |
 
 Exchange enables and disables Scout and removes it. Show and Hide do

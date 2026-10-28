@@ -14,7 +14,7 @@ CFLAGS := -std=gnu99 -m68000 -msoft-float -noixemul -Os -Wall -Wextra -Wshadow -
 LDFLAGS := -m68000 -msoft-float -noixemul
 
 SCOUT_TARGET := $(BIN_DIR)/TinyDev-Scout
-SCOUT_SOURCES := src/scout/scout_main.c src/scout/scout_broker.c src/scout/scout_rexx.c src/scout/scout_parser_runner.c src/scout/scout_rpc.c src/json.c
+SCOUT_SOURCES := src/scout/scout_main.c src/scout/scout_broker.c src/scout/scout_rexx.c src/scout/scout_jobs.c src/scout/scout_walk.c src/scout/scout_store.c src/scout/scout_rpc.c src/json.c
 SCOUT_OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SCOUT_SOURCES))
 SCOUT_DEPS := $(SCOUT_OBJECTS:.o=.d)
 
@@ -178,7 +178,7 @@ $(BUILD_DIR)/search.o: | $(REGEX_GEN)/regex.h
 
 $(SCOUT_TARGET): $(SCOUT_OBJECTS)
 	@mkdir -p $(BIN_DIR)
-	$(TARGET_CC) $(LDFLAGS) -o $@ $(SCOUT_OBJECTS)
+	$(TARGET_CC) $(LDFLAGS) -Wl,-u,___stkinit -o $@ $(SCOUT_OBJECTS) -lamiga
 
 # Compiled and linked in one step, so without -MMD (the .d file would land
 # in bin/); the prerequisites name the headers.
@@ -190,7 +190,7 @@ $(BUILD_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)
 	$(TARGET_CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_projconf $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_json $(BUILD_DIR)/test_scout_rpc $(BUILD_DIR)/test_c_parser
+test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_projconf $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_json $(BUILD_DIR)/test_scout_rpc $(BUILD_DIR)/test_c_parser $(BUILD_DIR)/test_scout_store
 	./$(BUILD_DIR)/test_syntax
 	./$(BUILD_DIR)/test_search
 	./$(BUILD_DIR)/test_bmstore
@@ -200,6 +200,7 @@ test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstor
 	./$(BUILD_DIR)/test_json
 	./$(BUILD_DIR)/test_scout_rpc
 	./$(BUILD_DIR)/test_c_parser
+	./$(BUILD_DIR)/test_scout_store
 
 $(BUILD_DIR)/test_syntax: src/syntax.c tests/test_syntax.c include/syntax.h
 	@mkdir -p $(BUILD_DIR)
@@ -236,6 +237,10 @@ $(BUILD_DIR)/test_scout_rpc: src/scout/scout_rpc.c src/json.c tests/test_scout_r
 $(BUILD_DIR)/test_c_parser: src/parsers/c_parser.c src/parsers/c_parser_rpc.c src/scout/scout_rpc.c src/json.c tests/test_c_parser.c include/c_parser.h include/scout_protocol.h include/scout_rpc.h include/json.h $(wildcard tests/data/c_parser/*)
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Iinclude -DC_PARSER_NO_MAIN -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/parsers/c_parser.c src/parsers/c_parser_rpc.c src/scout/scout_rpc.c src/json.c tests/test_c_parser.c
+
+$(BUILD_DIR)/test_scout_store: src/scout/scout_store.c src/parsers/c_parser.c src/parsers/c_parser_rpc.c src/scout/scout_rpc.c src/json.c tests/test_scout_store.c include/scout_store.h include/c_parser.h include/scout_protocol.h include/scout_rpc.h include/json.h $(wildcard tests/data/c_parser/*)
+	@mkdir -p $(BUILD_DIR)
+	$(HOST_CC) -Iinclude -DC_PARSER_NO_MAIN -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/scout/scout_store.c src/parsers/c_parser.c src/parsers/c_parser_rpc.c src/scout/scout_rpc.c src/json.c tests/test_scout_store.c
 
 # Sample icons of every style (icons/<Style>/*.info) and icons/preview.png,
 # drawn by tools/mkicons.py with amiga-devkit/tools/amigaicons.py.
