@@ -364,12 +364,12 @@
 #ifdef TINYDEV_STRINGS
 static const char *const msg_builtin[MSG_COUNT] = {
     "Project",
-    "New",
-    "Open...",
+    "New File",
+    "Open File...",
     "Open Directory...",
-    "Save",
-    "Save As...",
-    "Close",
+    "Save File",
+    "Save File As...",
+    "Close File",
     "Settings...",
     "About...",
     "Iconify",

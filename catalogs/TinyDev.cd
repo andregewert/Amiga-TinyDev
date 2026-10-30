@@ -11,22 +11,22 @@ MSG_MENU_PROJECT (//)
 Project
 ;
 MSG_MENU_NEW (//)
-New
+New File
 ;
 MSG_MENU_OPEN (//)
-Open...
+Open File...
 ;
 MSG_MENU_OPENDIR (//)
 Open Directory...
 ;
 MSG_MENU_SAVE (//)
-Save
+Save File
 ;
 MSG_MENU_SAVEAS (//)
-Save As...
+Save File As...
 ;
 MSG_MENU_CLOSE (//)
-Close
+Close File
 ;
 MSG_MENU_SETTINGS (//)
 Settings...

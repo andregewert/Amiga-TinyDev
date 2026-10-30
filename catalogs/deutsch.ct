@@ -10,28 +10,28 @@ Projekt
 ; Project
 ;
 MSG_MENU_NEW
-Neu
-; New
+Neue Datei
+; New File
 ;
 MSG_MENU_OPEN
-Öffnen...
-; Open...
+Datei öffnen...
+; Open File...
 ;
 MSG_MENU_OPENDIR
 Verzeichnis öffnen...
 ; Open Directory...
 ;
 MSG_MENU_SAVE
-Speichern
-; Save
+Datei speichern
+; Save File
 ;
 MSG_MENU_SAVEAS
-Speichern als...
-; Save As...
+Datei speichern als...
+; Save File As...
 ;
 MSG_MENU_CLOSE
-Schließen
-; Close
+Datei schließen
+; Close File
 ;
 MSG_MENU_SETTINGS
 Einstellungen...
