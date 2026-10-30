@@ -56,17 +56,19 @@
 /** Values of TOOLBAR=, in the order of enum ToolbarMode. */
 static const char *const tbmode_names[TBMODE_COUNT] = { "IMAGES", "BOTH", "TEXT" };
 
-/** Default colours of the highlighting, SettingsColour order. */
+/** Default colours of the highlighting, SettingsColour order: clearly
+ *  different hues, each with a contrast of at least 4.5:1 to the editor's
+ *  white background. */
 const unsigned long settings_default_colours[SCOL_COUNT] = {
     0x000000,                       /* text: black */
-    0x1030a0,                       /* keywords: blue */
-    0x107010,                       /* strings: green */
-    0x506050,                       /* comments: grey green */
-    0x802070,                       /* preprocessor: plum */
-    0x005a6a,                       /* types: petrol */
-    0x3a3a8a,                       /* functions: slate blue */
-    0xa04000,                       /* macros: rust */
-    0x8c1810,                       /* constants: dark red */
+    0x0030d0,                       /* keywords: blue (and bold) */
+    0x008a00,                       /* strings: green */
+    0x707070,                       /* comments: grey (and italic) */
+    0xb0006e,                       /* preprocessor: magenta (and bold) */
+    0x00838f,                       /* types: teal */
+    0x7030c0,                       /* functions: violet */
+    0xc05000,                       /* macros: orange */
+    0xd01010,                       /* constants and numbers: red */
 };
 
 /** Tool type names of the colours, SettingsColour order. */
