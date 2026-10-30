@@ -118,8 +118,10 @@ directory, a file you may edit by hand and keep with the project (JSON,
 ISO-8859-1). Each action has a list of commands; `command` is a Shell
 command line or a list of lines run as a script, `name` and `dir` (relative
 to the project) are optional, `default` marks the command the action runs.
-`{file}`, `{base}` (without extension) and `{project}` are replaced with
-the active document and the project directory:
+`include` lists drawers with headers (relative to the project or absolute,
+e.g. the NDK's) that TinyDev-Scout indexes for Go to Definition and
+completion. `{file}`, `{base}` (without extension) and `{project}` are
+replaced with the active document and the project directory:
 
     {
       "version": 1,

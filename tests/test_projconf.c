@@ -133,6 +133,50 @@ static void test_edit_and_format(void)
 }
 
 /**
+ * @brief The include drawers: read, add, change, move, remove, full paths,
+ *        written only when there are some or the file had them.
+ */
+static void test_include(void)
+{
+    ProjConf c, d;
+    char *json, *full;
+    projconf_init(&c);
+    assert(projconf_parse(&c, "{\"include\": [\"include\", 3, \"NDK:Include_H\"]}") == 1);
+    assert(c.include_count == 2 && strcmp(c.include[1], "NDK:Include_H") == 0);
+    full = projconf_include_full(&c, 0, "Work:Proj");
+    assert(full != NULL && strcmp(full, "Work:Proj/include") == 0);
+    free(full);
+    full = projconf_include_full(&c, 0, "Work:");
+    assert(full != NULL && strcmp(full, "Work:include") == 0);
+    free(full);
+    full = projconf_include_full(&c, 1, "Work:Proj");
+    assert(full != NULL && strcmp(full, "NDK:Include_H") == 0);
+    free(full);
+    assert(projconf_include_set(&c, -1, "") == 0);
+    assert(projconf_include_set(&c, -1, "sdk") == 1 && c.include_count == 3);
+    assert(projconf_include_set(&c, 0, "inc") == 1 && strcmp(c.include[0], "inc") == 0);
+    assert(projconf_include_move(&c, 2, -1) == 1 && strcmp(c.include[1], "sdk") == 0);
+    assert(projconf_include_move(&c, 0, -1) == 0);
+    assert(projconf_copy(&d, &c) && d.include_count == 3 && strcmp(d.include[2], "NDK:Include_H") == 0);
+    projconf_clear(&d);
+    json = projconf_format(&c, "{\"version\": 1}");
+    assert(json != NULL && strstr(json, "\"include\": [\"inc\", \"sdk\", \"NDK:Include_H\"]") != NULL);
+    free(json);
+    projconf_include_remove(&c, 0);
+    projconf_include_remove(&c, 0);
+    projconf_include_remove(&c, 0);
+    assert(c.include_count == 0);
+    /* none, and the file had none: no key; the file had some: an empty list */
+    json = projconf_format(&c, "{\"version\": 1}");
+    assert(json != NULL && strstr(json, "include") == NULL);
+    free(json);
+    json = projconf_format(&c, "{\"version\": 1, \"include\": [\"x\"]}");
+    assert(json != NULL && strstr(json, "\"include\": []") != NULL);
+    free(json);
+    projconf_clear(&c);
+}
+
+/**
  * @brief Host-native tests of the project settings: the three actions,
  *        names, drawers, command lines as string or array, the default
  *        command, skipped entries, refused files, and the placeholders.
@@ -219,6 +263,7 @@ int main(void)
     }
 
     test_edit_and_format();
+    test_include();
     puts("project settings tests passed");
     return 0;
 }

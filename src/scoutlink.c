@@ -17,7 +17,8 @@
  * in typing, as IntuiTicks only come while the main window is active.
  *
  * The project (the folder tree's root) gets a session (OPEN, CLOSE when
- * the project changes or TinyDev quits). A document is analysed when it
+ * the project changes or TinyDev quits), with the include drawers of its
+ * settings (project.json); saving the settings opens it anew. A document is analysed when it
  * is loaded or saved (the file) and after a pause in typing (a snapshot
  * of the editor's text, written to the drawer of the temporary files, with
  * a version raised for every snapshot). One analysis per document is on
@@ -47,6 +48,7 @@
 #include "json.h"
 #include "rules.h"
 #include "tokenmap.h"
+#include "projconf.h"
 
 #include <devices/timer.h>
 #include <dos/dostags.h>
@@ -135,6 +137,7 @@ static struct {
     int opening;                /**< OPEN is on its way */
     int want_open;              /**< a session is to be opened for project */
     char project[EDITOR_PATH_MAX];  /**< the project of the session */
+    char *include;              /**< its include drawers as OPEN's arguments, quoted (malloc()), NULL */
     int languages;              /**< LANGUAGES was answered */
     int asked_languages;        /**< LANGUAGES is on its way */
     char *extensions[MAX_EXTENSIONS];   /**< extensions with a parser (malloc()) */
@@ -298,16 +301,19 @@ static void connect(EditorApp *app)
  */
 static void when_ready(void)
 {
-    char command[EDITOR_PATH_MAX + 16];
     if (sl.state != SL_READY) return;
     if (!sl.languages && !sl.asked_languages && send_command("LANGUAGES", RQ_LANGUAGES, 0, -1))
         sl.asked_languages = 1;
     if (sl.want_open && !sl.opening) {
-        snprintf(command, sizeof(command), "OPEN \"%s\"", sl.project);
-        if (send_command(command, RQ_OPEN, 0, -1)) {
+        size_t n = strlen(sl.project) + (sl.include != NULL ? strlen(sl.include) : 0) + 16;
+        char *open = malloc(n);
+        if (open == NULL) return;
+        snprintf(open, n, "OPEN \"%s\"%s", sl.project, sl.include != NULL ? sl.include : "");
+        if (send_command(open, RQ_OPEN, 0, -1)) {
             sl.opening = 1;
             sl.want_open = 0;
         }
+        free(open);
     }
 }
 
@@ -758,6 +764,38 @@ static void tick(EditorApp *app)
     }
 }
 
+/**
+ * @brief Read the include drawers of a project's settings into OPEN's
+ *        arguments (sl.include).
+ * @param root The project directory.
+ */
+static void read_include(const char *root)
+{
+    char *text = NULL;
+    ProjConf c;
+    long i;
+    free(sl.include);
+    sl.include = NULL;
+    if (projdata_read(root, "project.json", &text) <= 0) return;
+    projconf_init(&c);
+    if (projconf_parse(&c, text) > 0) {
+        for (i = 0; i < c.include_count; ++i) {
+            char *full = projconf_include_full(&c, i, root);
+            size_t old = sl.include != NULL ? strlen(sl.include) : 0;
+            char *bigger;
+            if (full == NULL) continue;
+            bigger = realloc(sl.include, old + strlen(full) + 4);
+            if (bigger != NULL) {
+                sl.include = bigger;
+                snprintf(sl.include + old, strlen(full) + 4, " \"%s\"", full);
+            }
+            free(full);
+        }
+    }
+    projconf_clear(&c);
+    free(text);
+}
+
 /* ---- Interface ---- */
 
 void scoutlink_project_opened(EditorApp *app)
@@ -773,6 +811,7 @@ void scoutlink_project_opened(EditorApp *app)
     sl.project[0] = '\0';
     if (!app->settings.scout || !tree_project_root(app, root, sizeof(root))) return;
     strcpy(sl.project, root);
+    read_include(root);
     sl.want_open = 1;
     connect(app);
     when_ready();
@@ -1018,6 +1057,8 @@ void scoutlink_cleanup(EditorApp *app)
     }
     /* otherwise the port stays: a late answer must not reach freed memory */
     while (sl.extension_count > 0) free(sl.extensions[--sl.extension_count]);
+    free(sl.include);
+    sl.include = NULL;
     if (sl.timer_open) {
         if (sl.timer_pending) {
             AbortIO((struct IORequest *)sl.timer);

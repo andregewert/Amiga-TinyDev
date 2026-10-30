@@ -1,7 +1,8 @@
 /**
  * @file projwin.c
  * @brief The project settings window: the commands of the actions Build,
- *        Run and Debug, kept in \<project\>/.tinydev/project.json.
+ *        Run and Debug and the include drawers, kept in
+ *        \<project\>/.tinydev/project.json.
  *
  * Built like the settings window (prefswin.c): the categories on the left,
  * one page per action on the right with a listbrowser of its commands
@@ -9,7 +10,11 @@
  * buttons Add, Edit, Remove, Up and Down sit next to the page and act on
  * the list shown, so their shortcuts exist once in the window. A double
  * click edits a command, as does Edit, in a second modal window (name,
- * command lines in a texteditor.gadget, drawer, default).
+ * command lines in a texteditor.gadget, drawer, default). The last page
+ * lists the include drawers (for TinyDev-Scout); Add and Edit choose a
+ * drawer with the ASL requester (one in the project goes in relative to
+ * it). After saving, Scout's session of the project is opened anew, so
+ * the include drawers count.
  *
  * The window edits a copy of the settings read when it opens. "Save"
  * reads the file again and replaces only the lists of the actions
@@ -68,16 +73,21 @@ extern struct Library *StringBase;         /* shared with the find window */
 /** Gadget IDs of the project window. */
 enum {
     PJ_CATS = 100,
-    PJ_LIST,                    /* + action */
-    PJ_ADD = PJ_LIST + PROJ_ACTIONS,
+    PJ_LIST,                    /* + page */
+    PJ_ADD = PJ_LIST + PROJ_ACTIONS + 1,
     PJ_EDIT, PJ_REMOVE, PJ_UP, PJ_DOWN, PJ_SAVE, PJ_CANCEL
 };
 
 /** Gadget IDs of the command window. */
 enum { PE_NAME = 200, PE_COMMAND, PE_DIR, PE_CHOOSE, PE_DEFAULT, PE_OK, PE_CANCEL };
 
-/** Names of the categories (MSG_), in the order of ProjAction. */
-static const LONG categories[PROJ_ACTIONS] = { MSG_PJ_CAT_BUILD, MSG_PJ_CAT_RUN, MSG_PJ_CAT_DEBUG };
+/** Number of pages: one per action, then the include drawers. */
+#define PAGES (PROJ_ACTIONS + 1)
+/** The page of the include drawers. */
+#define PAGE_INCLUDE PROJ_ACTIONS
+
+/** Names of the categories (MSG_), in the order of ProjAction, then the include drawers. */
+static const LONG categories[PAGES] = { MSG_PJ_CAT_BUILD, MSG_PJ_CAT_RUN, MSG_PJ_CAT_DEBUG, MSG_PJ_CAT_INCLUDE };
 
 /**
  * @name Spacing
@@ -99,12 +109,12 @@ static struct {
     char root[EDITOR_PATH_MAX];         /* the project directory */
     char title[EDITOR_PATH_MAX + 64];
     ProjConf conf;                      /* the settings edited */
-    Object *winobj, *layout, *cats, *page, *lists[PROJ_ACTIONS];
+    Object *winobj, *layout, *cats, *page, *lists[PAGES];
     Object *add, *edit, *remove, *up, *down;
     struct Window *win;
-    struct List catlist, nodes[PROJ_ACTIONS];
-    struct ColumnInfo columns[PROJ_ACTIONS][3];
-    int action;                         /* the page shown */
+    struct List catlist, nodes[PAGES];
+    struct ColumnInfo columns[PAGES][3];
+    int action;                         /* the page shown (an action or PAGE_INCLUDE) */
 } pj;
 
 /**
@@ -438,7 +448,8 @@ static int edit_command(long index)
 static long selected(void)
 {
     LONG sel = (LONG)get(pj.lists[pj.action], LISTBROWSER_Selected);
-    return sel >= 0 && sel < pj.conf.count[pj.action] ? (long)sel : -1;
+    long count = pj.action == PAGE_INCLUDE ? pj.conf.include_count : pj.conf.count[pj.action];
+    return sel >= 0 && sel < count ? (long)sel : -1;
 }
 
 /**
@@ -446,7 +457,8 @@ static long selected(void)
  */
 static void update_buttons(void)
 {
-    long sel = selected(), count = pj.conf.count[pj.action];
+    long sel = selected();
+    long count = pj.action == PAGE_INCLUDE ? pj.conf.include_count : pj.conf.count[pj.action];
     struct { Object *o; int off; } b[] = {
         { pj.edit, sel < 0 }, { pj.remove, sel < 0 },
         { pj.up, sel <= 0 }, { pj.down, sel < 0 || sel >= count - 1 },
@@ -458,13 +470,21 @@ static void update_buttons(void)
 }
 
 /**
- * @brief Build the nodes of an action's list from the settings.
- * @param a The action.
+ * @brief Build the nodes of a page's list from the settings.
+ * @param a The action, or PAGE_INCLUDE.
  */
-static void make_nodes(ProjAction a)
+static void make_nodes(int a)
 {
     long i;
     NewList(&pj.nodes[a]);
+    if (a == PAGE_INCLUDE) {
+        for (i = 0; i < pj.conf.include_count; ++i) {
+            struct Node *n = AllocListBrowserNode(1, LBNCA_CopyText, TRUE,
+                                                  LBNCA_Text, (ULONG)pj.conf.include[i], TAG_END);
+            if (n != NULL) AddTail(&pj.nodes[a], n);
+        }
+        return;
+    }
     for (i = 0; i < pj.conf.count[a]; ++i) {
         const ProjCommand *cmd = &pj.conf.commands[a][i];
         char shown[160];
@@ -481,11 +501,11 @@ static void make_nodes(ProjAction a)
 }
 
 /**
- * @brief Show an action's commands anew in its list.
- * @param a The action.
- * @param sel The command to select, or -1.
+ * @brief Show a page's entries anew in its list.
+ * @param a The action, or PAGE_INCLUDE.
+ * @param sel The entry to select, or -1.
  */
-static void refill(ProjAction a, long sel)
+static void refill(int a, long sel)
 {
     SetPageGadgetAttrs((struct Gadget *)pj.lists[a], pj.page, pj.win, NULL,
                        LISTBROWSER_Labels, ~0UL, TAG_END);
@@ -496,7 +516,42 @@ static void refill(ProjAction a, long sel)
         LISTBROWSER_Selected, (ULONG)(LONG)sel,
         sel >= 0 ? LISTBROWSER_MakeVisible : TAG_IGNORE, (ULONG)sel,
         TAG_END);
-    if (a == (ProjAction)pj.action) update_buttons();
+    if (a == pj.action) update_buttons();
+}
+
+/**
+ * @brief Let the user choose an include drawer with the ASL requester; a
+ *        drawer in the project goes in relative to it.
+ * @param index The drawer to change, or -1 to add one.
+ * @return Non-zero if the settings changed.
+ */
+static int choose_include(long index)
+{
+    char start[EDITOR_PATH_MAX], chosen[EDITOR_PATH_MAX];
+    struct FileRequester *fr;
+    size_t n;
+    int r = 0;
+    char *full = index >= 0 ? projconf_include_full(&pj.conf, index, pj.root) : NULL;
+    strcpy(start, full != NULL && strlen(full) < sizeof(start) ? full : pj.root);
+    free(full);
+    fr = AllocAslRequestTags(ASL_FileRequest, ASLFR_TitleText, (ULONG)S(MSG_PJ_ASL_INCLUDE),
+                             ASLFR_DrawersOnly, TRUE, TAG_END);
+    if (fr == NULL) return 0;
+    if (AslRequestTags(fr, ASLFR_Window, (ULONG)pj.win, ASLFR_SleepWindow, TRUE,
+                       ASLFR_InitialDrawer, (ULONG)start, TAG_END) && fr->fr_Drawer[0] != '\0') {
+        strncpy(chosen, fr->fr_Drawer, sizeof(chosen) - 1);
+        chosen[sizeof(chosen) - 1] = '\0';
+        n = strlen(pj.root);
+        if (n > 0 && Strnicmp((STRPTR)chosen, (STRPTR)pj.root, (LONG)n) == 0 &&
+            (pj.root[n - 1] == ':' || chosen[n] == '/') && chosen[n] != '\0') {
+            memmove(chosen, chosen + n + (pj.root[n - 1] == ':' ? 0 : 1),
+                    strlen(chosen + n + (pj.root[n - 1] == ':' ? 0 : 1)) + 1);
+        }
+        r = projconf_include_set(&pj.conf, index, chosen);
+        if (r < 0) message(pj.win, S(MSG_PJ_NOMEM));
+    }
+    FreeAslRequest(fr);
+    return r > 0;
 }
 
 /**
@@ -508,7 +563,7 @@ static ULONG list_width(EditorApp *app)
 {
     ULONG w = 0, t;
     int a;
-    for (a = 0; a < PROJ_ACTIONS; ++a) {
+    for (a = 0; a < PAGES; ++a) {
         t = (ULONG)TextLength(&app->screen->RastPort, (STRPTR)S(categories[a]),
                               (UWORD)strlen(S(categories[a])));
         if (t > w) w = t;
@@ -523,11 +578,11 @@ static ULONG list_width(EditorApp *app)
  */
 static Object *build(EditorApp *app)
 {
-    Object *pages[PROJ_ACTIONS];
+    Object *pages[PAGES];
     int a;
 
     NewList(&pj.catlist);
-    for (a = 0; a < PROJ_ACTIONS; ++a) {
+    for (a = 0; a < PAGES; ++a) {
         struct Node *n = AllocListBrowserNode(1, LBNCA_Text, (ULONG)S(categories[a]), TAG_END);
         if (n != NULL) AddTail(&pj.catlist, n);
     }
@@ -540,16 +595,24 @@ static Object *build(EditorApp *app)
         LISTBROWSER_VerticalProp, FALSE,
         TAG_END);
 
-    for (a = 0; a < PROJ_ACTIONS; ++a) {
+    for (a = 0; a < PAGES; ++a) {
         struct ColumnInfo *ci = pj.columns[a];
-        ci[0].ci_Width = 35;
-        ci[0].ci_Title = (STRPTR)S(MSG_PJ_COL_NAME);
-        ci[1].ci_Width = 65;
-        ci[1].ci_Title = (STRPTR)S(MSG_PJ_COL_COMMAND);
-        ci[2].ci_Width = -1;
-        ci[2].ci_Title = (STRPTR)~0;
-        ci[2].ci_Flags = (ULONG)-1;
-        make_nodes((ProjAction)a);
+        if (a == PAGE_INCLUDE) {
+            ci[0].ci_Width = 100;
+            ci[0].ci_Title = (STRPTR)S(MSG_PJ_COL_DRAWER);
+            ci[1].ci_Width = -1;
+            ci[1].ci_Title = (STRPTR)~0;
+            ci[1].ci_Flags = (ULONG)-1;
+        } else {
+            ci[0].ci_Width = 35;
+            ci[0].ci_Title = (STRPTR)S(MSG_PJ_COL_NAME);
+            ci[1].ci_Width = 65;
+            ci[1].ci_Title = (STRPTR)S(MSG_PJ_COL_COMMAND);
+            ci[2].ci_Width = -1;
+            ci[2].ci_Title = (STRPTR)~0;
+            ci[2].ci_Flags = (ULONG)-1;
+        }
+        make_nodes(a);
         pj.lists[a] = NewObject(LISTBROWSER_GetClass(), NULL,
             GA_ID, (ULONG)(PJ_LIST + a), GA_RelVerify, TRUE,
             LISTBROWSER_ColumnInfo, (ULONG)ci,
@@ -574,6 +637,7 @@ static Object *build(EditorApp *app)
         PAGE_Add, (ULONG)pages[0],
         PAGE_Add, (ULONG)pages[1],
         PAGE_Add, (ULONG)pages[2],
+        PAGE_Add, (ULONG)pages[3],
         PAGE_Current, 0,
         TAG_END);
 
@@ -672,6 +736,11 @@ static void list_event(void)
     ProjAction a = (ProjAction)pj.action;
     struct Node *n;
 
+    if (pj.action == PAGE_INCLUDE) {
+        if (sel >= 0 && (event & LBRE_DOUBLECLICK) != 0 && choose_include(sel)) refill(PAGE_INCLUDE, sel);
+        else update_buttons();
+        return;
+    }
     if ((event & (LBRE_CHECKED | LBRE_UNCHECKED)) != 0) {
         /* compare the checkboxes with the settings rather than rely on the
          * selection: the newly checked one becomes the default */
@@ -761,29 +830,45 @@ void project_settings(EditorApp *app)
             switch (id) {
                 case PJ_CATS:
                     a = (int)(LONG)get(pj.cats, LISTBROWSER_Selected);
-                    if (a < 0 || a >= PROJ_ACTIONS) break;
+                    if (a < 0 || a >= PAGES) break;
                     pj.action = a;
                     SetGadgetAttrs((struct Gadget *)pj.page, pj.win, NULL, PAGE_Current, (ULONG)a, TAG_END);
                     RethinkLayout((struct Gadget *)pj.layout, pj.win, NULL, TRUE);
                     update_buttons();
                     break;
                 case PJ_ADD:
-                    if (edit_command(-1)) refill(act, pj.conf.count[act] - 1);
+                    if (pj.action == PAGE_INCLUDE) {
+                        if (choose_include(-1)) refill(PAGE_INCLUDE, pj.conf.include_count - 1);
+                    } else if (edit_command(-1)) refill(act, pj.conf.count[act] - 1);
                     break;
                 case PJ_EDIT:
-                    if (sel >= 0 && edit_command(sel)) refill(act, sel);
+                    if (sel < 0) break;
+                    if (pj.action == PAGE_INCLUDE) {
+                        if (choose_include(sel)) refill(PAGE_INCLUDE, sel);
+                    } else if (edit_command(sel)) refill(act, sel);
                     break;
                 case PJ_REMOVE:
                     if (sel < 0) break;
+                    if (pj.action == PAGE_INCLUDE) {
+                        projconf_include_remove(&pj.conf, sel);
+                        refill(PAGE_INCLUDE, sel < pj.conf.include_count ? sel : pj.conf.include_count - 1);
+                        break;
+                    }
                     projconf_remove(&pj.conf, act, sel);
                     refill(act, sel < pj.conf.count[act] ? sel : pj.conf.count[act] - 1);
                     break;
                 case PJ_UP:
                 case PJ_DOWN:
-                    if (sel >= 0) refill(act, projconf_move(&pj.conf, act, sel, id == PJ_UP ? -1 : 1));
+                    if (sel < 0) break;
+                    if (pj.action == PAGE_INCLUDE)
+                        refill(PAGE_INCLUDE, projconf_include_move(&pj.conf, sel, id == PJ_UP ? -1 : 1));
+                    else refill(act, projconf_move(&pj.conf, act, sel, id == PJ_UP ? -1 : 1));
                     break;
                 case PJ_SAVE:
-                    if (save()) done = 1;
+                    if (save()) {
+                        done = 1;
+                        scoutlink_project_opened(app);     /* the include drawers count */
+                    }
                     break;
                 case PJ_CANCEL:
                     done = 1;
@@ -799,7 +884,7 @@ void project_settings(EditorApp *app)
 out:
     if (pj.winobj != NULL) DisposeObject(pj.winobj);         /* the gadgets with it */
     if (pj.catlist.lh_Head != NULL) FreeListBrowserList(&pj.catlist);
-    for (a = 0; a < PROJ_ACTIONS; ++a)
+    for (a = 0; a < PAGES; ++a)
         if (pj.nodes[a].lh_Head != NULL) FreeListBrowserList(&pj.nodes[a]);
     projconf_clear(&pj.conf);
     memset(&pj, 0, sizeof(pj));

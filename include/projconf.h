@@ -25,7 +25,8 @@
  *     ],
  *     "debug": [
  *       { "name": "Debugger", "command": "BDebug bin/TinyDev" }
- *     ]
+ *     ],
+ *     "include": [ "include", "NDK:Include_H" ]
  *   }
  *
  * Each action has a list of commands:
@@ -39,6 +40,10 @@
  * Entries without a command are skipped, as are lists that are no arrays.
  * Other keys, in the file and in the entries, are ignored, so the file can
  * grow; projconf_format() keeps them.
+ *
+ * "include" lists the drawers searched for included files (relative to the
+ * project directory or absolute); TinyDev-Scout indexes the files found
+ * there, so a definition in a system header can be found.
  *
  * In command lines and "dir", {project} stands for the project directory,
  * {file} for the active document and {base} for the document without its
@@ -68,6 +73,8 @@ typedef struct ProjCommand {
 typedef struct ProjConf {
     ProjCommand *commands[PROJ_ACTIONS];    /**< the commands of each action (malloc()) */
     long count[PROJ_ACTIONS];               /**< number of commands of each action */
+    char **include;                         /**< the include drawers, as written (malloc()) */
+    long include_count;                     /**< number of them */
 } ProjConf;
 
 /**
@@ -163,8 +170,9 @@ char *projconf_command_text(const ProjCommand *cmd);
 /**
  * @brief Write settings as the JSON text of a project file.
  *
- * The lists of the actions replace those of @p old_json; everything else
- * in it stays, in its place, and so do the other keys of the entries
+ * The lists of the actions (and the include drawers, when there are some or
+ * the file had them) replace those of @p old_json; everything else in it
+ * stays, in its place, and so do the other keys of the entries
  * (ProjCommand::extra). "name" is left out when it is the first line,
  * "dir" and "default" when they are not set. A new file starts with
  * "version": 1.
@@ -176,6 +184,42 @@ char *projconf_command_text(const ProjCommand *cmd);
  *         is not a JSON object.
  */
 char *projconf_format(const ProjConf *c, const char *old_json);
+
+/**
+ * @brief Add or change an include drawer.
+ * @param c The settings.
+ * @param index The drawer to change, or -1 to add one at the end.
+ * @param path The drawer (relative to the project directory or absolute).
+ * @return 1 on success; 0 if @p path is empty (nothing changes); -1 if
+ *         out of memory (nothing changes).
+ */
+int projconf_include_set(ProjConf *c, long index, const char *path);
+
+/**
+ * @brief Remove an include drawer.
+ * @param c The settings.
+ * @param index The drawer.
+ */
+void projconf_include_remove(ProjConf *c, long index);
+
+/**
+ * @brief Move an include drawer one place up or down.
+ * @param c The settings.
+ * @param index The drawer.
+ * @param delta -1 for up, 1 for down.
+ * @return Its new index (the old one if it cannot move).
+ */
+long projconf_include_move(ProjConf *c, long index, int delta);
+
+/**
+ * @brief Return the full path of an include drawer (a relative one joined
+ *        to the project directory).
+ * @param c The settings.
+ * @param index The drawer.
+ * @param project The project directory.
+ * @return The path (free() it), or NULL if out of memory.
+ */
+char *projconf_include_full(const ProjConf *c, long index, const char *project);
 
 /**
  * @brief Return the command an action runs: the first marked as default,

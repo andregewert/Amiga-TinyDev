@@ -1388,3 +1388,15 @@ MSG_COMP_NONE
 Keine Namen beginnen mit "%s".
 ; No names start with "%s".
 ;
+MSG_PJ_CAT_INCLUDE
+Include-Verzeichnisse
+; Include Drawers
+;
+MSG_PJ_COL_DRAWER
+Verzeichnis (relativ zum Projekt oder absolut)
+; Drawer (relative to the project or absolute)
+;
+MSG_PJ_ASL_INCLUDE
+Verzeichnis für eingebundene Dateien
+; Drawer searched for included files
+;

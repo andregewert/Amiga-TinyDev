@@ -1067,3 +1067,12 @@ Complete
 MSG_COMP_NONE (//)
 No names start with "%s".
 ;
+MSG_PJ_CAT_INCLUDE (//)
+Include Drawers
+;
+MSG_PJ_COL_DRAWER (//)
+Drawer (relative to the project or absolute)
+;
+MSG_PJ_ASL_INCLUDE (//)
+Drawer searched for included files
+;

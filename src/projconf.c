@@ -27,6 +27,8 @@ void projconf_init(ProjConf *c)
         c->commands[a] = NULL;
         c->count[a] = 0;
     }
+    c->include = NULL;
+    c->include_count = 0;
 }
 
 /**
@@ -51,6 +53,8 @@ void projconf_clear(ProjConf *c)
         for (i = 0; i < c->count[a]; ++i) free_command(&c->commands[a][i]);
         free(c->commands[a]);
     }
+    for (i = 0; i < c->include_count; ++i) free(c->include[i]);
+    free(c->include);
     projconf_init(c);
 }
 
@@ -142,6 +146,14 @@ int projconf_parse(ProjConf *c, const char *json)
             int r = read_command(json_array_get(list, i), &c->commands[a][c->count[a]]);
             if (r < 0) goto nomem;
             if (r > 0) ++c->count[a];
+        }
+    }
+    {
+        const JsonValue *list = json_obj_get_array(root, "include");
+        size_t i;
+        for (i = 0; i < json_array_length(list); ++i) {
+            const JsonValue *v = json_array_get(list, i);
+            if (v != NULL && v->type == JSON_STRING && projconf_include_set(c, -1, v->u.str_val) < 0) goto nomem;
         }
     }
     json_value_free(root);
@@ -262,11 +274,66 @@ int projconf_copy(ProjConf *dst, const ProjConf *src)
             }
         }
     }
+    for (i = 0; i < src->include_count && ok && a == PROJ_ACTIONS; ++i)
+        if (projconf_include_set(dst, -1, src->include[i]) < 0) ok = 0;
     if (a < PROJ_ACTIONS || !ok) {
         projconf_clear(dst);
         return 0;
     }
     return 1;
+}
+
+int projconf_include_set(ProjConf *c, long index, const char *path)
+{
+    char *p;
+    if (path == NULL || path[0] == '\0') return 0;
+    if ((p = copy(path)) == NULL) return -1;
+    if (index >= 0 && index < c->include_count) {
+        free(c->include[index]);
+        c->include[index] = p;
+        return 1;
+    } else {
+        char **bigger = realloc(c->include, (size_t)(c->include_count + 1) * sizeof(char *));
+        if (bigger == NULL) {
+            free(p);
+            return -1;
+        }
+        c->include = bigger;
+        c->include[c->include_count++] = p;
+    }
+    return 1;
+}
+
+void projconf_include_remove(ProjConf *c, long index)
+{
+    if (index < 0 || index >= c->include_count) return;
+    free(c->include[index]);
+    memmove(&c->include[index], &c->include[index + 1], (size_t)(c->include_count - index - 1) * sizeof(char *));
+    --c->include_count;
+}
+
+long projconf_include_move(ProjConf *c, long index, int delta)
+{
+    long to = index + delta;
+    char *t;
+    if (index < 0 || index >= c->include_count || to < 0 || to >= c->include_count) return index;
+    t = c->include[index];
+    c->include[index] = c->include[to];
+    c->include[to] = t;
+    return to;
+}
+
+char *projconf_include_full(const ProjConf *c, long index, const char *project)
+{
+    const char *path = c->include[index];
+    size_t np = strlen(project), n = strlen(path);
+    char *full;
+    if (strchr(path, ':') != NULL || np == 0) return copy(path);
+    if ((full = malloc(np + n + 2)) == NULL) return NULL;
+    memcpy(full, project, np);
+    if (project[np - 1] != ':' && project[np - 1] != '/') full[np++] = '/';
+    memcpy(full + np, path, n + 1);
+    return full;
 }
 
 /**
@@ -466,6 +533,15 @@ char *projconf_format(const ProjConf *c, const char *old_json)
                 list = NULL;
             }
         ok = json_obj_set(root, action_keys[a], list);
+    }
+    if (ok && (c->include_count > 0 || json_obj_get(root, "include") != NULL)) {
+        JsonValue *list = json_new_array();
+        for (i = 0; list != NULL && i < c->include_count; ++i)
+            if (!json_array_append(list, json_new_string(c->include[i]))) {
+                json_value_free(list);
+                list = NULL;
+            }
+        ok = json_obj_set(root, "include", list);
     }
     if (ok) {
         json_writer_init_alloc(&w, 512);

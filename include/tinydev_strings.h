@@ -346,7 +346,10 @@
 #define MSG_PREFS_TTL_CONSTANT       341
 #define MSG_MENU_COMPLETE            342
 #define MSG_COMP_NONE                343
-#define MSG_COUNT                    344
+#define MSG_PJ_CAT_INCLUDE           344
+#define MSG_PJ_COL_DRAWER            345
+#define MSG_PJ_ASL_INCLUDE           346
+#define MSG_COUNT                    347
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -695,6 +698,9 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Colour of constants and numbers",
     "Complete",
     "No names start with \"%s\".",
+    "Include Drawers",
+    "Drawer (relative to the project or absolute)",
+    "Drawer searched for included files",
 };
 #endif
 
