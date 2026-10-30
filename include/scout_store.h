@@ -116,6 +116,8 @@ typedef struct ScoutSession {
     long include_count;     /**< number of them */
     ScoutFile *files;       /**< its files */
     long file_count;        /**< number of them */
+    long changes;           /**< raised when the index changes by itself (indexing, files changed on disk) */
+    unsigned long last_used;    /**< when a command last named it (seconds, the caller's clock) */
     long error_code;        /**< code of the last error (RC2), 0 */
     char *error_text;       /**< its text (allocated, may be NULL) */
     struct ScoutSession *next;  /**< the next session */
@@ -246,6 +248,15 @@ ScoutSession *scout_session_find(const ScoutStore *st, long id);
 int scout_session_close(ScoutStore *st, long id);
 
 /**
+ * @brief Find the session (not session 0) used least recently, if it was
+ *        last used at or before a time.
+ * @param st The store.
+ * @param before The latest ScoutSession::last_used it may have.
+ * @return The session, or NULL.
+ */
+ScoutSession *scout_session_idlest(const ScoutStore *st, unsigned long before);
+
+/**
  * @brief Add an include path to a session (once).
  * @param s The session.
  * @param path The path.
@@ -282,6 +293,14 @@ ScoutFile *scout_file_find(const ScoutSession *s, const char *path);
  * @return The file, or NULL if out of memory.
  */
 ScoutFile *scout_file_get(ScoutSession *s, const char *path);
+
+/**
+ * @brief Remove a file and its result from a session (it was deleted).
+ * @param s The session.
+ * @param path The file.
+ * @return 1 if it was there.
+ */
+int scout_file_remove(ScoutSession *s, const char *path);
 
 /**
  * @brief Drop the result of a file (FORGET), so the file on disk counts

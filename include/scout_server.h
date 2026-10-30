@@ -14,6 +14,7 @@
 #include <exec/types.h>
 #include <exec/ports.h>
 #include <dos/dos.h>
+#include <dos/notify.h>
 #include <devices/timer.h>
 #include <libraries/commodities.h>
 #include <rexx/storage.h>
@@ -93,6 +94,19 @@ typedef struct ScoutJob {
     char arg[16];           /**< the job's address in hex, the process's argument */
 } ScoutJob;
 
+/** Most drawers watched per session. */
+#define SCOUT_MAX_WATCHES   128
+
+/** A drawer of a session's project watched with StartNotify(). */
+typedef struct ScoutWatch {
+    struct NotifyRequest nr;        /**< the request (nr_UserData: this watch) */
+    struct ScoutWatch *next;        /**< the next watch */
+    long session;                   /**< the session */
+    int active;                     /**< StartNotify() succeeded */
+    int dirty;                      /**< changed, waiting until the drawer is quiet */
+    char path[SCOUT_PATH_MAX];      /**< the drawer (full name; nr_Name) */
+} ScoutWatch;
+
 /** A directory being read while walking a project. */
 typedef struct ScoutWalkDir {
     BPTR lock;                      /**< the directory */
@@ -106,6 +120,7 @@ typedef struct ScoutWalk {
     ScoutWalkDir dirs[16];          /**< the directories being read (at most 16 deep) */
     int depth;                      /**< number of them */
     long found;                     /**< files queued */
+    int refresh;                    /**< a changed drawer: watched subdrawers are not entered */
     struct ScoutWalk *next;         /**< the next walk */
 } ScoutWalk;
 
@@ -136,10 +151,18 @@ typedef struct ScoutServer {
     ScoutDeferred *deferred;        /**< messages waiting for the scan */
     ScoutWalk *walks;               /**< project walks going on */
 
+    struct MsgPort *watch_port;     /**< port of the notification messages */
+    struct MsgPort *settle_port;    /**< port of the settle timer */
+    struct timerequest *settle;     /**< waits until changed drawers are quiet */
+    int settle_open;                /**< its timer.device is open */
+    int settle_pending;             /**< it runs */
+    ScoutWatch *watches;            /**< the watched drawers */
+
     char tempdir[SCOUT_PATH_MAX];   /**< drawer of the temporary files (TEMPDIR) */
     char parsers[SCOUT_PATH_MAX];   /**< drawer of the parsers (PARSERS) */
     long timeout;                   /**< seconds a parser may take per request (TIMEOUT) */
     long priority;                  /**< the commodity's priority (CX_PRIORITY) */
+    long minfree;                   /**< free memory (KB) below which memory runs low (MINFREE) */
     unsigned long temp_count;       /**< counter of the temporary files */
 
     int running;                    /**< the main loop runs */
@@ -348,6 +371,15 @@ void scout_walk_stop(ScoutServer *srv, long session);
 int scout_walk_step(ScoutServer *srv);
 
 /**
+ * @brief Walk one changed drawer of a session again: queue its new and
+ *        changed files, enter its subdrawers that are not watched yet.
+ * @param srv The server.
+ * @param s The session.
+ * @param path The drawer.
+ */
+void scout_walk_refresh(ScoutServer *srv, ScoutSession *s, const char *path);
+
+/**
  * @brief Queue the included files of a file of a session that are not
  *        known yet (resolved next to the file and along the include paths).
  * @param srv The server.
@@ -355,5 +387,87 @@ int scout_walk_step(ScoutServer *srv);
  * @param f The file.
  */
 void scout_walk_references(ScoutServer *srv, ScoutSession *s, const ScoutFile *f);
+
+/**
+ * @brief Open what watching needs (ports, the settle timer).
+ * @param srv The server.
+ * @return 1 on success, 0 if it failed.
+ */
+int scout_watch_init(ScoutServer *srv);
+
+/**
+ * @brief Watch a drawer of a session (once; at most SCOUT_MAX_WATCHES per
+ *        session).
+ * @param srv The server.
+ * @param session The session.
+ * @param path The drawer (full name).
+ */
+void scout_watch_add(ScoutServer *srv, long session, const char *path);
+
+/**
+ * @brief Tell whether a drawer of a session is watched.
+ * @param srv The server.
+ * @param session The session.
+ * @param path The drawer.
+ * @return Non-zero if it is.
+ */
+int scout_watch_known(const ScoutServer *srv, long session, const char *path);
+
+/**
+ * @brief End the watches of a session.
+ * @param srv The server.
+ * @param session The session.
+ */
+void scout_watch_drop_session(ScoutServer *srv, long session);
+
+/**
+ * @brief Handle the notifications and the settle timer: a drawer that has
+ *        been quiet for a second is checked (deleted files and drawers
+ *        leave the index, new and changed files are queued).
+ * @param srv The server.
+ * @param signals The signals received.
+ */
+void scout_watch_handle(ScoutServer *srv, ULONG signals);
+
+/**
+ * @brief Return the signals of watching (notifications, settle timer).
+ * @param srv The server.
+ * @return The mask.
+ */
+ULONG scout_watch_sigmask(const ScoutServer *srv);
+
+/**
+ * @brief End all watches and close the timer.
+ * @param srv The server.
+ */
+void scout_watch_cleanup(ScoutServer *srv);
+
+/**
+ * @brief Return the time in seconds (for ScoutSession::last_used).
+ * @return The seconds since 1978.
+ */
+unsigned long scout_now(void);
+
+/**
+ * @brief Tell whether free memory is below MINFREE.
+ * @param srv The server.
+ * @return Non-zero if it is.
+ */
+int scout_memory_low(const ScoutServer *srv);
+
+/**
+ * @brief Close sessions while memory runs low, the least recently used
+ *        first, only those no command named for a minute; session 0's
+ *        results are dropped too.
+ * @param srv The server.
+ */
+void scout_memory_check(ScoutServer *srv);
+
+/**
+ * @brief End a session: stop its walks, jobs and watches, then close it.
+ * @param srv The server.
+ * @param id The session.
+ */
+void scout_session_end(ScoutServer *srv, long id);
 
 #endif /* TINYDEV_SCOUT_SERVER_H */

@@ -6,7 +6,8 @@
  * The walk is bounded (16 levels, SCOUT_MAX_FILES files per session),
  * leaves out links, icons and drawers whose names start with a dot, and
  * goes on a few entries at a time from the main loop, so ARexx commands
- * are answered meanwhile.
+ * are answered meanwhile. Every drawer it enters is watched
+ * (scout_watch.c); while memory runs low, no files are queued.
  */
 #include "scout_server.h"
 
@@ -25,7 +26,7 @@ int scout_index_file(ScoutServer *srv, ScoutSession *s, const char *path, int in
     ScoutStamp stamp;
     ScoutItem item;
 
-    if (!lang || srv->store.parsers[lang->parser].disabled) return 0;
+    if (!lang || srv->store.parsers[lang->parser].disabled || scout_memory_low(srv)) return 0;
     f = scout_file_find(s, path);
     if (!f && s->file_count >= SCOUT_MAX_FILES) return 0;
     if (!scout_file_stamp(path, &stamp)) return 0;
@@ -42,12 +43,13 @@ int scout_index_file(ScoutServer *srv, ScoutSession *s, const char *path, int in
 }
 
 /**
- * @brief Open a directory for reading and push it onto a walk.
+ * @brief Open a directory for reading, push it onto a walk and watch it.
+ * @param srv The server.
  * @param w The walk.
  * @param path The directory.
  * @return 1 on success.
  */
-static int push_dir(ScoutWalk *w, const char *path)
+static int push_dir(ScoutServer *srv, ScoutWalk *w, const char *path)
 {
     ScoutWalkDir *d;
     if (w->depth >= (int)(sizeof(w->dirs) / sizeof(w->dirs[0]))) return 0;
@@ -62,6 +64,7 @@ static int push_dir(ScoutWalk *w, const char *path)
     strncpy(d->path, path, sizeof(d->path) - 1);
     d->path[sizeof(d->path) - 1] = '\0';
     w->depth++;
+    scout_watch_add(srv, w->session, d->path);
     return 1;
 }
 
@@ -90,17 +93,35 @@ static void free_walk(ScoutServer *srv, ScoutWalk *w)
     free(w);
 }
 
-void scout_walk_start(ScoutServer *srv, ScoutSession *s)
+/**
+ * @brief Start a walk through a drawer of a session.
+ * @param srv The server.
+ * @param s The session.
+ * @param path The drawer.
+ * @param refresh Watched subdrawers are not entered.
+ */
+static void start_walk(ScoutServer *srv, ScoutSession *s, const char *path, int refresh)
 {
     ScoutWalk *w = (ScoutWalk *)calloc(1, sizeof(ScoutWalk)), **p;
     if (!w) return;
     w->session = s->id;
-    if (!push_dir(w, s->project)) {
+    w->refresh = refresh;
+    if (!push_dir(srv, w, path)) {
         free(w);
         return;
     }
     for (p = &srv->walks; *p; p = &(*p)->next);
     *p = w;
+}
+
+void scout_walk_start(ScoutServer *srv, ScoutSession *s)
+{
+    start_walk(srv, s, s->project, 0);
+}
+
+void scout_walk_refresh(ScoutServer *srv, ScoutSession *s, const char *path)
+{
+    start_walk(srv, s, path, 1);
 }
 
 void scout_walk_stop(ScoutServer *srv, long session)
@@ -134,7 +155,7 @@ int scout_walk_step(ScoutServer *srv)
         path[sizeof(path) - 1] = '\0';
         if (!AddPart((STRPTR)path, (STRPTR)name, sizeof(path))) continue;
         if (d->fib->fib_DirEntryType == ST_USERDIR) {
-            if (name[0] != '.') push_dir(w, path);
+            if (name[0] != '.' && !(w->refresh && scout_watch_known(srv, w->session, path))) push_dir(srv, w, path);
         } else if (d->fib->fib_DirEntryType == ST_FILE) {
             if (len > 5 && scout_path_equal(name + len - 5, ".info")) continue;
             if (scout_index_file(srv, s, path, 1)) w->found++;

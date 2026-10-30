@@ -660,6 +660,7 @@ static void analyze_done(ScoutServer *srv, ScoutJob *job, const char *answers)
                 snprintf(message, sizeof(message), "invalid result of the parser");
             } else {
                 if (it->in_project) f->in_project = 1;
+                if (job->background) s->changes++;
                 if (s->id != 0) scout_walk_references(srv, s, f);
                 if (it->rx) {
                     struct RexxMsg *rx = it->rx;

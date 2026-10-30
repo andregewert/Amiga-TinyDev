@@ -28,10 +28,14 @@
  * The answers' counts of symbols and diagnostics are shown in the status
  * line. The symbol list asks for the symbols of a document or of the
  * project (SYMBOLS with TO: the answer can exceed what ARexx takes); the
- * file is read, handed to symlist_symbols() and deleted. While Scout
- * indexes a new project, its STATUS is asked every two seconds; the
- * number of jobs waiting is shown by the symbol list, and when it drops to
- * nought the project's symbols count as changed. After an analysis that
+ * file is read, handed to symlist_symbols() and deleted. While the
+ * session is open, STATUS with it is asked every two seconds (this also
+ * keeps Scout from closing it when memory runs low): while Scout indexes,
+ * the number of jobs waiting is shown by the symbol list, and when it
+ * drops to nought, or when the session's changes counter moves (Scout
+ * noticed files changed on disk), the project's symbols count as changed.
+ * A command that fails because Scout no longer knows the session (it
+ * closed it when memory ran low) has the session opened again. After an analysis that
  * found problems (or none where there were some), the document's
  * diagnostics are asked for (DIAGNOSTICS ... TO) and go to diag.c.
  *
@@ -82,10 +86,12 @@ struct RxsLib *RexxSysBase = NULL;
 #define MAX_EXTENSIONS 48
 /** Most languages remembered from LANGUAGES. */
 #define MAX_LANGUAGES 16
-/** Timer ticks between two STATUS while the project is indexed (2 s). */
+/** Timer ticks between two STATUS while a session is open (2 s). */
 #define STATUS_TICKS 8
 /** Scout's error number when no parser handles a file. */
 #define SCOUT_E_NO_PARSER 4
+/** Scout's error number (RC2): the session is unknown. */
+#define SCOUT_E_SESSION 2
 
 /** States of the connection. */
 enum {
@@ -151,6 +157,7 @@ static struct {
     int asked_status;           /**< STATUS is on its way */
     int status_ticks;           /**< timer ticks since the last STATUS */
     long queue;                 /**< Scout's jobs waiting, by the last STATUS */
+    long changes;               /**< the session's changes counter by the last STATUS, -1 */
     ScoutRequest *last;         /**< the request send_command() made last */
 } sl;
 
@@ -596,6 +603,12 @@ static void read_languages(const char *result)
 static void answer(EditorApp *app, ScoutRequest *rq, int ok, const char *result, long code)
 {
     Document *doc;
+    if (!ok && code == SCOUT_E_SESSION && rq->session > 0 && rq->session == sl.session) {
+        /* Scout closed the session (memory ran low): open it again */
+        sl.session = 0;
+        sl.indexing = 0;
+        sl.want_open = sl.project[0] != '\0';
+    }
     switch (rq->kind) {
         case RQ_LANGUAGES:
             sl.asked_languages = 0;
@@ -616,18 +629,25 @@ static void answer(EditorApp *app, ScoutRequest *rq, int ok, const char *result,
                 sl.indexing = 1;
                 sl.status_ticks = STATUS_TICKS;     /* ask soon */
                 sl.queue = -1;
+                sl.changes = -1;
                 all_pending(app);
             }
             break;
         case RQ_STATUS:
             sl.asked_status = 0;
-            if (ok && result != NULL) {
+            if (ok && result != NULL && rq->session == sl.session) {
                 long queue = result_int(result, "queue", 0);
-                /* done when nothing waits and no project is walked */
-                if (queue == 0 && result_int(result, "walks", 0) == 0 && sl.indexing) {
+                long changes = result_int(result, "changes", -1);
+                if (queue > 0 || result_int(result, "walks", 0) > 0) {
+                    sl.indexing = 1;
+                } else if (sl.indexing) {
+                    /* done: nothing waits and no project is walked */
                     sl.indexing = 0;
                     ++sl.project_generation;
+                } else if (changes != sl.changes && sl.changes >= 0) {
+                    ++sl.project_generation;
                 }
+                sl.changes = changes;
                 sl.queue = queue;
             }
             break;
@@ -717,8 +737,8 @@ static void start_timer(void)
 }
 
 /**
- * @brief Tell whether the timer is needed: Scout is starting, or a
- *        document waits for its analysis.
+ * @brief Tell whether the timer is needed: Scout is starting, a session
+ *        is open (STATUS), or a document waits for its analysis.
  * @param app The application state.
  * @return Non-zero if it is.
  */
@@ -726,7 +746,7 @@ static int timer_needed(EditorApp *app)
 {
     Document *doc;
     if (!app->settings.scout || sl.state == SL_FAILED) return 0;
-    if (sl.state == SL_STARTING || sl.indexing) return 1;
+    if (sl.state == SL_STARTING || sl.indexing || (sl.session > 0 && sl.state == SL_READY)) return 1;
     for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ;
          doc = (Document *)doc->node.ln_Succ)
         if (doc->scout_pending && doc->path != NULL && !doc->scout_none) return 1;
@@ -758,9 +778,11 @@ static void tick(EditorApp *app)
     }
     when_ready();
     send_due(app);
-    if (sl.indexing && sl.state == SL_READY && !sl.asked_status && ++sl.status_ticks >= STATUS_TICKS) {
+    if (sl.session > 0 && sl.state == SL_READY && !sl.asked_status && ++sl.status_ticks >= STATUS_TICKS) {
+        char command[32];
         sl.status_ticks = 0;
-        if (send_command("STATUS", RQ_STATUS, 0, -1)) sl.asked_status = 1;
+        snprintf(command, sizeof(command), "STATUS SESSION %ld", sl.session);
+        if (send_command(command, RQ_STATUS, 0, -1)) sl.asked_status = 1;
     }
 }
 

@@ -371,6 +371,13 @@ static void test_sessions(ScoutStore *st)
     TEST_ASSERT(scout_file_set_result(c, "c", -1, &stamp, "{}") == 1);
     TEST_ASSERT(c->valid && c->stamp.size == 4 && c->tokens == NULL);
 
+    /* a deleted file leaves the session */
+    {
+        long before = s->file_count;
+        TEST_ASSERT(scout_file_remove(s, "work:hello/SAMPLE.c") && s->file_count == before - 1);
+        TEST_ASSERT(scout_file_find(s, "Work:Hello/sample.c") == NULL && !scout_file_remove(s, "Work:Hello/sample.c"));
+    }
+
     scout_session_set_error(s, 5, "the parser failed");
     TEST_ASSERT(s->error_code == 5 && strcmp(s->error_text, "the parser failed") == 0);
 
@@ -379,6 +386,20 @@ static void test_sessions(ScoutStore *st)
     TEST_ASSERT(scout_session_close(st, 0) && scout_session_find(st, 0) != NULL);
     s = scout_session_open(st, "Work:Other");
     TEST_ASSERT(s && s->id == 2);
+
+    /* the session used least recently, if it was idle long enough */
+    {
+        ScoutSession *t = scout_session_open(st, "Work:Third");
+        TEST_ASSERT(t != NULL);
+        if (s && t) {
+            s->last_used = 500;
+            t->last_used = 100;
+            TEST_ASSERT(scout_session_idlest(st, 1000) == t);
+            TEST_ASSERT(scout_session_idlest(st, 99) == NULL);
+            t->last_used = 900;
+            TEST_ASSERT(scout_session_idlest(st, 600) == s);
+        }
+    }
 }
 
 /**

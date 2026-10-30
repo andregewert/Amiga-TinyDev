@@ -154,6 +154,7 @@ static ScoutSession *get_session(ScoutServer *srv, struct RexxMsg *rx, LONG *id)
 {
     ScoutSession *s = scout_session_find(&srv->store, id ? *id : 0);
     if (!s) scout_fail(srv, rx, -1, SCOUT_E_SESSION, "unknown session");
+    else s->last_used = scout_now();
     return s;
 }
 
@@ -287,6 +288,7 @@ static void cmd_open(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
     }
     UnLock(lock);
     s = scout_session_open(&srv->store, path);
+    if (s) s->last_used = scout_now();
     if (!s) {
         scout_fail(srv, rx, -1, SCOUT_E_MEMORY, "out of memory");
         return;
@@ -316,9 +318,7 @@ static void cmd_close(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
         scout_fail(srv, rx, -1, SCOUT_E_SESSION, "unknown session");
         return;
     }
-    scout_walk_stop(srv, id);
-    scout_jobs_drop_session(srv, id);
-    scout_session_close(&srv->store, id);
+    scout_session_end(srv, id);
     scout_reply(rx, "{}");
 }
 
@@ -717,17 +717,18 @@ static void cmd_rescan(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
 }
 
 /**
- * @brief STATUS: Scout's state.
+ * @brief STATUS SESSION/K/N: Scout's state; with a session also its
+ *        changes counter (a client polls it to notice changes on disk).
  * @param srv The server.
  * @param rx The message.
- * @param v The arguments (none).
+ * @param v The arguments.
  */
 static void cmd_status(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
 {
-    const ScoutSession *s;
+    const ScoutSession *s, *named = NULL;
     long sessions = 0;
     JsonWriter w;
-    (void)v;
+    if (v[0] && (named = get_session(srv, rx, (LONG *)v[0])) == NULL) return;
     for (s = srv->store.sessions; s; s = s->next) {
         if (s->id != 0) sessions++;
     }
@@ -750,6 +751,12 @@ static void cmd_status(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
         for (wk = srv->walks; wk; wk = wk->next) walks++;
         json_write_raw(&w, ",\"walks\":");
         json_write_int(&w, walks);
+    }
+    json_write_raw(&w, ",\"lowMemory\":");
+    json_write_bool(&w, scout_memory_low(srv));
+    if (named) {
+        json_write_raw(&w, ",\"changes\":");
+        json_write_int(&w, named->changes);
     }
     scout_write_parsers(&w, &srv->store);
     json_write_raw(&w, "}");
@@ -787,7 +794,7 @@ static const Command commands[] = {
     { "SYNTAX",      "LANG/A,TO/K",                                      cmd_syntax,      1 },
     { "REGISTER",    "EXTENSION/A,PARSER/A",                             cmd_register,    1 },
     { "RESCAN",      "",                                                 cmd_rescan,      1 },
-    { "STATUS",      "",                                                 cmd_status,      0 },
+    { "STATUS",      "SESSION/K/N",                                      cmd_status,      0 },
     { "QUIT",        "",                                                 cmd_quit,        0 },
     { NULL, NULL, NULL, 0 }
 };

@@ -9,9 +9,7 @@ its ARexx interface. The protocol between Scout and its parsers is in
 [Scout-Protocol.md](Scout-Protocol.md).
 
 > **Status:** Scout and the C parser follow this design, version 1 of the
-> protocol. Not done yet: watching the project with `StartNotify()`,
-> dropping sessions when memory runs low, a window. TinyDev does not use
-> Scout yet.
+> protocol. Not done yet: a window with statistics.
 
 ## Contents
 
@@ -113,8 +111,12 @@ A session is one client working on one project.
 - The session holds the project drawer, the paths searched for included
   files (`INCLUDE`), the results of its files and the project index.
 - `CLOSE` ends it and frees everything. Sessions of a client that quits
-  without `CLOSE` stay until `QUIT` (later also until Scout runs low on
-  memory, the least recently used first).
+  without `CLOSE` stay until `QUIT`, or until Scout runs low on memory
+  (free memory below `MINFREE`): then sessions no command has named for a
+  minute are closed, the least recently used first, and no files are
+  indexed until memory is free again. A client that runs keeps its
+  session by asking `STATUS SESSION` now and then; if it lost it anyway,
+  its commands fail with `RC2` 2 and it opens it again.
 - Commands without a session work on single files without a project:
   results are kept, but there is no project index. ARexx scripts use this.
 
@@ -150,8 +152,13 @@ the snapshot, so it can tell which state an answer belongs to.
   `file` scope symbols of each file.
 - **Changes on disk:** A file's result is checked against the file's
   date and size when a query uses it, and analysed again if they changed.
-  Files of the index are checked when the project is opened again (later:
-  watching the drawer with `StartNotify()`).
+  Every drawer the walk enters is watched with `StartNotify()` (at most
+  128 per session): when one has been quiet for a second after a change,
+  files and drawers that are gone leave the index and the drawer is
+  walked again, which analyses new and changed files. The session's
+  `changes` counter in `STATUS` goes up whenever the index changes this
+  way (indexing, changes on disk), so a client polling it knows when to
+  ask for the project's symbols again.
 - **Queries:** `SYMBOLS`, `DIAGNOSTICS`, `TOKENS` read the results of a
   file (or the index); `DEFINITION` and `COMPLETE` combine the symbol at
   the position, the scopes in the file and the index. Context-sensitive
@@ -257,6 +264,7 @@ same names), as for commodities:
 | `TEMPDIR` | `T:` | drawer of Scout's temporary files |
 | `PARSERS` | `PROGDIR:Parsers` | drawer searched for parsers |
 | `TIMEOUT` | `10` | seconds a parser may take per request |
+| `MINFREE` | `1024` | free memory in KB below which sessions are closed (0: never) |
 | `CX_PRIORITY` | `0` | the commodity's priority |
 
 ## 10. ARexx interface
@@ -329,7 +337,7 @@ Scout:
 
 | Command | Template | Result |
 |---|---|---|
-| `STATUS` | | `{"version":"1.0","protocol":1,"enabled":true,"scanning":false,"tempdir":"T:","sessions":2,"queue":0,"walks":0,"parsers":[...],"problems":[...]}` |
+| `STATUS` | `SESSION/K/N` | `{"version":"1.0","protocol":1,"enabled":true,"scanning":false,"tempdir":"T:","sessions":2,"queue":0,"walks":0,"lowMemory":false,"changes":12,"parsers":[...],"problems":[...]}` (`changes` only with `SESSION`) |
 | `QUIT` | | `{}`; Scout ends after replying to waiting messages |
 
 Exchange enables and disables Scout and removes it. Show and Hide do

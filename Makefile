@@ -14,7 +14,7 @@ CFLAGS := -std=gnu99 -m68000 -msoft-float -noixemul -Os -Wall -Wextra -Wshadow -
 LDFLAGS := -m68000 -msoft-float -noixemul
 
 SCOUT_TARGET := $(BIN_DIR)/TinyDev-Scout
-SCOUT_SOURCES := src/scout/scout_main.c src/scout/scout_broker.c src/scout/scout_rexx.c src/scout/scout_jobs.c src/scout/scout_walk.c src/scout/scout_store.c src/scout/scout_rpc.c src/json.c
+SCOUT_SOURCES := src/scout/scout_main.c src/scout/scout_broker.c src/scout/scout_rexx.c src/scout/scout_jobs.c src/scout/scout_walk.c src/scout/scout_watch.c src/scout/scout_store.c src/scout/scout_rpc.c src/json.c
 SCOUT_OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SCOUT_SOURCES))
 SCOUT_DEPS := $(SCOUT_OBJECTS:.o=.d)
 

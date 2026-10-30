@@ -4,7 +4,13 @@
  *        settings, start-up and main loop.
  *
  * Settings are tool types of Scout's icon or Shell arguments of the same
- * names (ArgArrayInit()): TEMPDIR, PARSERS, TIMEOUT, CX_PRIORITY.
+ * names (ArgArrayInit()): TEMPDIR, PARSERS, TIMEOUT, MINFREE, CX_PRIORITY.
+ *
+ * Memory: when free memory falls below MINFREE (KB, 0: never), sessions
+ * no command has named for a minute are closed, the least recently used
+ * first, and no more files are indexed until memory is free again.
+ * Clients poll STATUS with their session, so a client that runs keeps
+ * its session; a client that quit without CLOSE loses it.
  */
 #include "scout_server.h"
 
@@ -68,8 +74,43 @@ static void read_settings(ScoutServer *srv, int argc, char **argv)
                srv->parsers, sizeof(srv->parsers));
     srv->timeout = ArgInt((CONST_STRPTR *)tt, (STRPTR)"TIMEOUT", 10);
     srv->priority = ArgInt((CONST_STRPTR *)tt, (STRPTR)"CX_PRIORITY", 0);
+    srv->minfree = ArgInt((CONST_STRPTR *)tt, (STRPTR)"MINFREE", 1024);
+    if (srv->minfree < 0) srv->minfree = 0;
     if (srv->timeout < 1) srv->timeout = 1;
     ArgArrayDone();
+}
+
+unsigned long scout_now(void)
+{
+    struct DateStamp ds;
+    DateStamp(&ds);
+    return (unsigned long)ds.ds_Days * 86400UL + (unsigned long)ds.ds_Minute * 60UL +
+           (unsigned long)ds.ds_Tick / TICKS_PER_SECOND;
+}
+
+int scout_memory_low(const ScoutServer *srv)
+{
+    return srv->minfree > 0 && AvailMem(MEMF_ANY) < (ULONG)srv->minfree * 1024UL;
+}
+
+void scout_session_end(ScoutServer *srv, long id)
+{
+    scout_walk_stop(srv, id);
+    scout_jobs_drop_session(srv, id);
+    scout_watch_drop_session(srv, id);
+    scout_session_close(&srv->store, id);
+}
+
+void scout_memory_check(ScoutServer *srv)
+{
+    ScoutSession *s;
+    unsigned long now;
+    if (!scout_memory_low(srv)) return;
+    now = scout_now();
+    while (scout_memory_low(srv) && (s = scout_session_idlest(&srv->store, now - 60)) != NULL)
+        scout_session_end(srv, s->id);
+    s = scout_session_find(&srv->store, 0);
+    if (scout_memory_low(srv) && s && s->files) scout_session_close(&srv->store, 0);
 }
 
 /**
@@ -114,14 +155,14 @@ int main(int argc, char **argv)
     ok = scout_broker_init(srv);
     if (!ok) say("TinyDev-Scout: runs already, or the commodity cannot be created\n");
     if (ok && !(ok = scout_rexx_init(srv))) say("TinyDev-Scout: the ARexx port " SCOUT_AREXX_PORT_NAME " exists already\n");
-    if (ok && !(ok = scout_jobs_init(srv))) say("TinyDev-Scout: cannot open timer.device\n");
+    if (ok && !(ok = scout_jobs_init(srv) && scout_watch_init(srv))) say("TinyDev-Scout: cannot open timer.device\n");
 
     if (ok) {
         srv->running = 1;
         scout_jobs_scan(srv);
     }
     while (srv->running) {
-        ULONG mask = SIGBREAKF_CTRL_C | scout_jobs_sigmask(srv);
+        ULONG mask = SIGBREAKF_CTRL_C | scout_jobs_sigmask(srv) | scout_watch_sigmask(srv);
         ULONG got;
         if (srv->broker_port) mask |= 1UL << srv->broker_port->mp_SigBit;
         if (srv->rexx_port) mask |= 1UL << srv->rexx_port->mp_SigBit;
@@ -135,10 +176,13 @@ int main(int argc, char **argv)
         scout_broker_handle(srv);
         scout_rexx_handle(srv);
         scout_jobs_handle(srv, got);
+        scout_watch_handle(srv, got);
+        scout_memory_check(srv);
         if (srv->running && srv->walks && !srv->scanning) scout_walk_step(srv);
     }
 
     while (srv->walks) scout_walk_stop(srv, srv->walks->session);
+    scout_watch_cleanup(srv);
     scout_jobs_cleanup(srv);
     scout_rexx_cleanup(srv);
     scout_broker_cleanup(srv);

@@ -158,7 +158,8 @@ below the tree's root.
   `scout_broker.c` (Exchange), `scout_rexx.c` (the commands, ReadArgs
   templates, JSON results), `scout_jobs.c` (parser runs: queue, a process
   per run, temporary files, timeout), `scout_walk.c` (project walk,
-  includes), `scout_store.c` with `include/scout_store.h` (the portable
+  includes), `scout_watch.c` (the project's drawers watched with
+  `StartNotify()`, the index brought up to date), `scout_store.c` with `include/scout_store.h` (the portable
   core: parsers, languages, sessions, results, the answers;
   host-tested in `tests/test_scout_store.c`), `scout_rpc.c` with
   `include/scout_rpc.h` (JSON-RPC framing). Scout talks to the parsers

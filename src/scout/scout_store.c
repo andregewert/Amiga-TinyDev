@@ -542,6 +542,15 @@ int scout_session_close(ScoutStore *st, long id)
     return 0;
 }
 
+ScoutSession *scout_session_idlest(const ScoutStore *st, unsigned long before)
+{
+    ScoutSession *s, *best = NULL;
+    for (s = st->sessions; s; s = s->next) {
+        if (s->id != 0 && s->last_used <= before && (!best || s->last_used < best->last_used)) best = s;
+    }
+    return best;
+}
+
 int scout_session_add_include(ScoutSession *s, const char *path)
 {
     long i;
@@ -594,6 +603,22 @@ ScoutFile *scout_file_get(ScoutSession *s, const char *path)
     }
     s->file_count++;
     return f;
+}
+
+int scout_file_remove(ScoutSession *s, const char *path)
+{
+    ScoutFile **p;
+    for (p = &s->files; *p; p = &(*p)->next) {
+        ScoutFile *f = *p;
+        if (!scout_path_equal(f->path, path)) continue;
+        *p = f->next;
+        free_result(f);
+        free(f->path);
+        free(f);
+        s->file_count--;
+        return 1;
+    }
+    return 0;
 }
 
 void scout_file_forget(ScoutFile *f)
