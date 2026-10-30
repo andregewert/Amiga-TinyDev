@@ -172,7 +172,8 @@ enum MenuId {
     MID_SYMLIST,        /**< View/Symbol List (check item) */
     MID_DIAGLIST,       /**< View/Problem List (check item) */
     MID_DEFINITION,     /**< Edit/Go to Definition */
-    MID_GOBACK          /**< Edit/Go Back */
+    MID_GOBACK,         /**< Edit/Go Back */
+    MID_COMPLETE        /**< Edit/Complete */
 };
 
 /** Bookmarks of a document that TinyDev keeps track of. */
@@ -1814,5 +1815,46 @@ void scoutlink_document_free(Document *doc);
  *        after the documents).
  */
 void scoutlink_free_rules(void);
+
+/**
+ * @brief Ask Scout which names could complete a prefix at a position; the
+ *        answer goes to complete_answer().
+ * @param app The application state.
+ * @param doc The document (with a file).
+ * @param line The position's line (1-based).
+ * @param col Its column (1-based).
+ * @param prefix The part of the word before the position ("" for any).
+ * @return Non-zero if the request was sent.
+ */
+int scoutlink_request_complete(EditorApp *app, Document *doc, long line, long col, const char *prefix);
+
+/**
+ * @brief Edit/Complete: ask Scout for the names that could complete the
+ *        word at the cursor.
+ * @param app The application state.
+ */
+void complete_start(EditorApp *app);
+/**
+ * @brief Take Scout's answer to COMPLETE: open the list at the cursor, or
+ *        say that there are none.
+ * @param app The application state.
+ * @param json The answer, NULL if the request failed.
+ */
+void complete_answer(EditorApp *app, const char *json);
+/**
+ * @brief Return the signal mask of the list window (0 when closed).
+ * @return The mask.
+ */
+ULONG complete_sigmask(void);
+/**
+ * @brief Handle the list window's input (keys, clicks, deactivation).
+ * @param app The application state.
+ */
+void complete_handle(EditorApp *app);
+/**
+ * @brief Close the list and free what it holds.
+ * @param app The application state.
+ */
+void complete_cleanup(EditorApp *app);
 
 #endif

@@ -41,6 +41,8 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
   listed in a problem list (View/Problem List).
 - Go to Definition (Amiga+T) jumps to where the name at the cursor is
   defined, also in another file; Go Back (Amiga+U) returns.
+- Completion (Amiga+L): a list of the names that could complete the word
+  at the cursor (locals, the file's and the project's symbols, keywords).
 - Project settings (Build/Project Settings...): Shell commands for
   building, running and debugging the project, several per action with
   one default. Build (Amiga+E) saves the modified documents and runs in
@@ -80,6 +82,7 @@ From the Workbench, TinyDev opens the files given as project icons.
 | Amiga+Z, Y, X, C, V, A | Undo, Redo, Cut, Copy, Paste, Select All |
 | Amiga+F, G | Find and replace, Find Next |
 | Amiga+T, U | Go to the definition of the name at the cursor (again: the next one), go back |
+| Amiga+L | Complete the word at the cursor (a list of names from TinyDev-Scout) |
 | Amiga+B, J, K | Set/remove bookmark, next and previous bookmark |
 | Amiga+E, R, D | Build project, Run, Debug (the default commands of the project settings) |
 | Amiga+, | Settings |

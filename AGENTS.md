@@ -91,6 +91,9 @@ below the tree's root.
 - `src/navigate.c`: Edit/Go to Definition (DEFINITION with the name at
   the cursor, cycling through several) and Edit/Go Back (a history of
   places).
+- `src/complete.c`: Edit/Complete: COMPLETE with the prefix at the
+  cursor, a borderless list window at the cursor that takes the keys
+  (choose, insert with MarkText/Replace, narrow while typing).
 - `src/tempfile.c`: unique names of temporary files in the drawer of the
   setting TEMPDIR (`temp_name()`), used by the Build menu and Scout's
   snapshots.

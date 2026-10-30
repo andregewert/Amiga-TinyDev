@@ -105,7 +105,8 @@ enum {
     RQ_DIAGNOSTICS,     /**< DIAGNOSTICS of a document or the project */
     RQ_DEFINITION,      /**< DEFINITION of a name (Go to Definition) */
     RQ_SYNTAX,          /**< SYNTAX of a language */
-    RQ_TOKENS           /**< TOKENS of a document */
+    RQ_TOKENS,          /**< TOKENS of a document */
+    RQ_COMPLETE         /**< COMPLETE of a prefix (Edit/Complete) */
 };
 
 /** A message on its way to Scout. */
@@ -633,6 +634,9 @@ static void answer(EditorApp *app, ScoutRequest *rq, int ok, const char *result,
         case RQ_DEFINITION:
             navigate_definition_answer(app, ok ? result : NULL);
             break;
+        case RQ_COMPLETE:
+            complete_answer(app, ok ? result : NULL);
+            break;
         case RQ_SYNTAX:
             if (ok && result != NULL && rq->doc < (unsigned long)sl.language_count && sl.rules[rq->doc] == NULL) {
                 sl.rules[rq->doc] = rules_parse(result);
@@ -884,6 +888,17 @@ int scoutlink_request_definition(EditorApp *app, Document *doc, long line, long 
     snprintf(command, sizeof(command), "DEFINITION %sFILE \"%s\" LINE %ld COLUMN %ld NAME \"%s\"",
              session, doc->path, line, col, name);
     return send_command(command, RQ_DEFINITION, doc->number, -1);
+}
+
+int scoutlink_request_complete(EditorApp *app, Document *doc, long line, long col, const char *prefix)
+{
+    char command[2 * EDITOR_PATH_MAX], session[24];
+    if (scoutlink_unavailable(app) || !sl.languages || sl.opening || sl.want_open || doc->path == NULL) return 0;
+    session[0] = '\0';
+    if (sl.session > 0) snprintf(session, sizeof(session), "SESSION %ld ", sl.session);
+    snprintf(command, sizeof(command), "COMPLETE %sFILE \"%s\" LINE %ld COLUMN %ld PREFIX \"%s\" MAX 50",
+             session, doc->path, line, col, prefix);
+    return send_command(command, RQ_COMPLETE, doc->number, -1);
 }
 
 unsigned long scoutlink_project_generation(void)

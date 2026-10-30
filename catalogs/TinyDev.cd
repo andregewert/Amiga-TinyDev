@@ -1061,3 +1061,9 @@ Colour of macros
 MSG_PREFS_TTL_CONSTANT (//)
 Colour of constants and numbers
 ;
+MSG_MENU_COMPLETE (//)
+Complete
+;
+MSG_COMP_NONE (//)
+No names start with "%s".
+;

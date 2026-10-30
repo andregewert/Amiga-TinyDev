@@ -344,7 +344,9 @@
 #define MSG_PREFS_TTL_FUNCTION       339
 #define MSG_PREFS_TTL_MACRO          340
 #define MSG_PREFS_TTL_CONSTANT       341
-#define MSG_COUNT                    342
+#define MSG_MENU_COMPLETE            342
+#define MSG_COMP_NONE                343
+#define MSG_COUNT                    344
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -691,6 +693,8 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Colour of functions",
     "Colour of macros",
     "Colour of constants and numbers",
+    "Complete",
+    "No names start with \"%s\".",
 };
 #endif
 

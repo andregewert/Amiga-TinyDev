@@ -255,6 +255,7 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, "T", 0, 0, UD(MID_DEFINITION)},
     {NM_ITEM, NULL, "U", 0, 0, UD(MID_GOBACK)},
+    {NM_ITEM, NULL, "L", 0, 0, UD(MID_COMPLETE)},
     {NM_TITLE, NULL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, "B", 0, 0, UD(MID_BM_TOGGLE)},
     {NM_ITEM, NULL, "J", 0, 0, UD(MID_BM_NEXT)},
@@ -313,6 +314,7 @@ static const LONG menu_texts[] = {
     -1,
     MSG_MENU_DEFINITION,
     MSG_MENU_GOBACK,
+    MSG_MENU_COMPLETE,
     MSG_MENU_BOOKMARKS,
     MSG_MENU_BM_TOGGLE,
     MSG_MENU_BM_NEXT,
@@ -1028,10 +1030,12 @@ static void menu_action(EditorApp *app, ULONG id)
             else bmlist_open(app);
             ui_set_menu_check(app, MID_BM_LIST, bmlist_is_open());
             break;
+        case MID_COMPLETE:
         case MID_DEFINITION:
         case MID_GOBACK:
             if (id == MID_DEFINITION) navigate_definition(app);
-            else navigate_back(app);
+            else if (id == MID_GOBACK) navigate_back(app);
+            else complete_start(app);
             /* the menu pick took the input focus; a jump gives it back
              * later, without one (nothing found) it is given back here */
             if (app->window != NULL && app->layout != NULL && app->active != NULL)
@@ -1179,7 +1183,7 @@ int ui_run(EditorApp *app)
          * minimap_poll() at its end shows the new picture. */
         signals = Wait(mask | scroll_mask | minimap_mask | tree_mask | find_sigmask() |
                        bmlist_sigmask() | outwin_sigmask() | build_sigmask() | scoutlink_sigmask() |
-                       symlist_sigmask() | diaglist_sigmask() |
+                       symlist_sigmask() | diaglist_sigmask() | complete_sigmask() |
                        SIGBREAKF_CTRL_C);
         build_handle(app, signals);
         scoutlink_handle(app);
@@ -1230,6 +1234,7 @@ int ui_run(EditorApp *app)
         bmlist_handle(app);
         symlist_handle(app);
         diaglist_handle(app);
+        complete_handle(app);
         outwin_handle(app);
         /* The texteditor gadget does not notify listeners when the user
          * scrolls it from the keyboard or mouse, so re-read its scroll
@@ -1269,6 +1274,7 @@ void ui_destroy(EditorApp *app)
     build_cleanup(app);
     symlist_cleanup(app);
     diaglist_cleanup(app);
+    complete_cleanup(app);
     navigate_cleanup();
     scoutlink_cleanup(app);
     outwin_cleanup(app);

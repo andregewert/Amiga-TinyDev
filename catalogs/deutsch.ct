@@ -1380,3 +1380,11 @@ MSG_PREFS_TTL_CONSTANT
 Farbe der Konstanten und Zahlen
 ; Colour of constants and numbers
 ;
+MSG_MENU_COMPLETE
+Vervollständigen
+; Complete
+;
+MSG_COMP_NONE
+Keine Namen beginnen mit "%s".
+; No names start with "%s".
+;
