@@ -94,8 +94,15 @@ runs once per change of a file, and it only has to understand one file.
   their file extensions, what it can deliver, and the lexical rules for
   highlighting. Installing a parser means copying it into the drawer.
 - A language has an identifier (`"c"`, `"amigados"`, `"pascal"`, ...,
-  lower case). Scout picks the language of a file by its extension; a
-  client may name it instead (`LANG`). If two parsers claim a language or
+  lower case). Scout picks the language of a file by its extension. A
+  file whose extension no parser handles is an AmigaDOS script
+  (`"amigados"`, if a parser handles it) when its script bit (`s`) is
+  set, or when its name has no extension and its first line is a
+  `.KEY` (`.K`) line; files starting with `/*` (ARexx, which carries the
+  script bit too) or holding a zero byte (binaries) are not. A client
+  may choose the language of a file for a session (`LANGUAGE ... SET`,
+  `TEXT` for none, `AUTO` to detect it again); the choice counts for the
+  index too. `ANALYZE` may also name it for one analysis (`LANG`). If two parsers claim a language or
   an extension, the first in alphabetical order wins, and `STATUS` reports
   the conflict.
 - `REGISTER` adds or overrides the parser of an extension at run time,
@@ -330,7 +337,7 @@ Languages and parsers:
 | Command | Template | Result |
 |---|---|---|
 | `LANGUAGES` | | `{"languages":[{"id":"c","name":"C","extensions":[".c",".h"],"parser":"c_parser"}]}` |
-| `LANGUAGE` | `FILE/A` | `{"language":"c"}` or `{"language":null}` |
+| `LANGUAGE` | `SESSION/K/N,FILE/A,SET/K,TEXT/S,AUTO/S` | `{"language":"c","chosen":false}`, `"language":null` for none; `SET` chooses a language for the file in the session, `TEXT` plain text (no parser), `AUTO` takes the choice back; a choice drops what the session knows of the file and indexes a project file anew |
 | `SYNTAX` | `LANG/A,TO/K` | the lexical rules of a language, as in `scout/describe` |
 | `REGISTER` | `EXTENSION/A,PARSER/A` | `{}` |
 | `RESCAN` | | `LANGUAGES`' result after reading `PROGDIR:Parsers/` again |

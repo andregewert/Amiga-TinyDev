@@ -116,6 +116,9 @@ typedef struct ScoutSession {
     char *project;          /**< the project drawer (allocated, NULL for session 0) */
     char **include;         /**< paths searched for included files (allocated) */
     long include_count;     /**< number of them */
+    char **lang_paths;      /**< files whose language a client chose (allocated) */
+    char **lang_ids;        /**< the language of each, "" for plain text (allocated) */
+    long lang_count;        /**< number of them */
     ScoutFile *files;       /**< its files */
     long file_count;        /**< number of them */
     long changes;           /**< raised when the index changes by itself (indexing, files changed on disk) */
@@ -207,6 +210,30 @@ const ScoutLanguage *scout_store_language(const ScoutStore *st, const char *id);
  */
 const ScoutLanguage *scout_store_language_for(const ScoutStore *st, const char *path);
 
+/** Identifier of the language of AmigaDOS scripts (scout_store_detect()). */
+#define SCOUT_LANG_AMIGADOS "amigados"
+
+/**
+ * @brief Find the language of a file by its extension, or else by its
+ *        protection bits and its first bytes.
+ *
+ * A file whose extension no parser handles is an AmigaDOS script (if a
+ * parser handles SCOUT_LANG_AMIGADOS) when its script bit ("s") is set,
+ * or when its name has no extension and its first line starts with the
+ * dot command .KEY (or .K). A file starting with a comment (an ARexx
+ * script, which also carries the script bit) or with a zero byte (a
+ * binary) is none.
+ *
+ * @param st The store.
+ * @param path The file.
+ * @param script Its script bit is set.
+ * @param head Its first bytes (may be NULL).
+ * @param head_len Their number.
+ * @return The language, or NULL.
+ */
+const ScoutLanguage *scout_store_detect(const ScoutStore *st, const char *path, int script, const char *head,
+                                        size_t head_len);
+
 /**
  * @brief Compare two paths without regard to case (as AmigaDOS does).
  * @param a A path.
@@ -271,6 +298,24 @@ int scout_session_add_include(ScoutSession *s, const char *path);
  * @param s The session.
  */
 void scout_session_clear_include(ScoutSession *s);
+
+/**
+ * @brief Set or remove the language a client chose for a file.
+ * @param s The session.
+ * @param path The file (full name).
+ * @param id The language's identifier, "" for plain text (no parser),
+ *        NULL to remove the choice.
+ * @return 1 on success, 0 if out of memory.
+ */
+int scout_session_set_language(ScoutSession *s, const char *path, const char *id);
+
+/**
+ * @brief Return the language a client chose for a file.
+ * @param s The session.
+ * @param path The file (full name).
+ * @return Its identifier, "" for plain text, or NULL if none was chosen.
+ */
+const char *scout_session_language(const ScoutSession *s, const char *path);
 
 /**
  * @brief Note the last error of a session (ERROR returns it).

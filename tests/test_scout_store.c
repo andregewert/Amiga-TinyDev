@@ -403,6 +403,57 @@ static void test_sessions(ScoutStore *st)
 }
 
 /**
+ * @brief Languages of files without a known extension, and the languages
+ *        a client chose.
+ * @param st The store with the C parser.
+ */
+static void test_languages(ScoutStore *st)
+{
+    const ScoutLanguage *c, *dos;
+    ScoutSession *s = scout_session_find(st, 0);
+    /* no script language yet: nothing is detected */
+    TEST_ASSERT(scout_store_detect(st, "S:Startup-Sequence", 1, "SetPatch\n", 9) == NULL);
+    TEST_ASSERT(scout_store_add_parser(st, "Scout:Parsers/dos_parser",
+        "{\"protocol\":1,\"name\":\"dos_parser\",\"languages\":[{\"id\":\"amigados\",\"extensions\":[\".script\"]}]}",
+        NULL) == 1);
+    /* (adding a parser moves the languages) */
+    c = scout_store_language(st, "c");
+    dos = scout_store_language(st, SCOUT_LANG_AMIGADOS);
+    TEST_ASSERT(c != NULL && dos != NULL);
+    /* the extension wins */
+    TEST_ASSERT(scout_store_detect(st, "Work:a.c", 1, "SetPatch", 8) == c);
+    TEST_ASSERT(scout_store_detect(st, "Work:x.script", 0, NULL, 0) == dos);
+    /* the script bit */
+    TEST_ASSERT(scout_store_detect(st, "S:Startup-Sequence", 1, "SetPatch\n", 9) == dos);
+    TEST_ASSERT(scout_store_detect(st, "S:Startup-Sequence", 1, NULL, 0) == dos);
+    TEST_ASSERT(scout_store_detect(st, "S:Startup-Sequence", 0, "SetPatch\n", 9) == NULL);
+    /* ARexx scripts and binaries carry the bit too */
+    TEST_ASSERT(scout_store_detect(st, "Rexx:hello", 1, "/* hello */", 11) == NULL);
+    TEST_ASSERT(scout_store_detect(st, "Work:prog", 1, "\0\0\3\363", 4) == NULL);
+    /* .KEY first, without the bit, only in a name without extension */
+    TEST_ASSERT(scout_store_detect(st, "Work:s/copyall", 0, ".KEY FROM/A\n", 12) == dos);
+    TEST_ASSERT(scout_store_detect(st, "Work:s/copyall", 0, ".k from", 7) == dos);
+    TEST_ASSERT(scout_store_detect(st, "Work:s/copyall", 0, ".KEY", 4) == dos);
+    TEST_ASSERT(scout_store_detect(st, "Work:s/copyall", 0, ".KETTLE", 7) == NULL);
+    TEST_ASSERT(scout_store_detect(st, "Work:notes.txt", 0, ".KEY x", 6) == NULL);
+
+    /* chosen languages */
+    TEST_ASSERT(s && scout_session_language(s, "Work:a") == NULL);
+    if (!s) return;
+    TEST_ASSERT(scout_session_set_language(s, "Work:a", "amigados") && scout_session_set_language(s, "Work:b", ""));
+    TEST_ASSERT(s->lang_count == 2 && strcmp(scout_session_language(s, "WORK:A"), "amigados") == 0);
+    TEST_ASSERT(strcmp(scout_session_language(s, "Work:b"), "") == 0);
+    TEST_ASSERT(scout_session_set_language(s, "work:a", "c") && s->lang_count == 2);
+    TEST_ASSERT(strcmp(scout_session_language(s, "Work:a"), "c") == 0);
+    TEST_ASSERT(scout_session_set_language(s, "Work:a", NULL) && s->lang_count == 1);
+    TEST_ASSERT(scout_session_language(s, "Work:a") == NULL && strcmp(scout_session_language(s, "Work:b"), "") == 0);
+    TEST_ASSERT(scout_session_set_language(s, "Work:x", NULL) && s->lang_count == 1);
+    /* closing session 0 empties it */
+    scout_session_close(st, 0);
+    TEST_ASSERT(s->lang_count == 0 && scout_session_language(s, "Work:b") == NULL);
+}
+
+/**
  * @brief Run the tests of Scout's core.
  * @return 0 when all checks pass, 1 otherwise.
  */
@@ -429,6 +480,7 @@ int main(void)
     TEST_ASSERT(scout_store_init(&st));
     test_parsers(&st);
     test_sessions(&st);
+    test_languages(&st);
     scout_store_free(&st);
     printf("Scout store tests completed: %d tests run, %d failures.\n", g_test_count, g_fail_count);
     return g_fail_count ? 1 : 0;

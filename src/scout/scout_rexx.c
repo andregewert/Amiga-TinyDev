@@ -185,7 +185,7 @@ static ScoutFile *ready_file(ScoutServer *srv, struct RexxMsg *rx, ScoutSession 
         return NULL;
     }
     lang = f && f->language ? scout_store_language(&srv->store, f->language) : NULL;
-    if (!lang) lang = scout_store_language_for(&srv->store, path);
+    if (!lang) lang = scout_language_of(srv, s, path, -1);
     if (!lang) {
         scout_fail(srv, rx, s->id, SCOUT_E_NO_PARSER, "no parser for this file");
         return NULL;
@@ -390,7 +390,7 @@ static void cmd_analyze(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
     ScoutFile *f;
     if (!s) return;
     full_name((const char *)v[1], path, sizeof(path));
-    lang = v[4] ? scout_store_language(&srv->store, (const char *)v[4]) : scout_store_language_for(&srv->store, path);
+    lang = v[4] ? scout_store_language(&srv->store, (const char *)v[4]) : scout_language_of(srv, s, path, -1);
     if (!lang) {
         scout_fail(srv, rx, s->id, SCOUT_E_NO_PARSER, "no parser for this file or language");
         return;
@@ -617,15 +617,36 @@ static void cmd_languages(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
 }
 
 /**
- * @brief LANGUAGE FILE/A: the language of a file.
+ * @brief LANGUAGE SESSION/K/N,FILE/A,SET/K,TEXT/S,AUTO/S: the language of
+ *        a file, or choose it: SET a language, TEXT for plain text (no
+ *        parser), AUTO to detect it again. A choice drops what the session
+ *        knows of the file and indexes a project file anew.
  * @param srv The server.
  * @param rx The message.
  * @param v The arguments.
  */
 static void cmd_language(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
 {
-    const ScoutLanguage *lang = scout_store_language_for(&srv->store, (const char *)v[0]);
+    ScoutSession *s = get_session(srv, rx, (LONG *)v[0]);
+    const char *set = (const char *)v[2];
+    const ScoutLanguage *lang;
+    char path[SCOUT_PATH_MAX];
     JsonWriter w;
+    if (!s) return;
+    full_name((const char *)v[1], path, sizeof(path));
+    if (set || v[3] || v[4]) {
+        if (set && !scout_store_language(&srv->store, set)) {
+            scout_fail(srv, rx, s->id, SCOUT_E_NO_PARSER, "unknown language");
+            return;
+        }
+        if (!scout_session_set_language(s, path, set ? set : v[3] ? "" : NULL)) {
+            scout_fail(srv, rx, s->id, SCOUT_E_MEMORY, "out of memory");
+            return;
+        }
+        if (scout_file_remove(s, path)) s->changes++;
+        if (s->id > 0 && scout_path_inside(s->project, path)) scout_index_file(srv, s, path, 1, -1);
+    }
+    lang = scout_language_of(srv, s, path, -1);
     json_writer_init_alloc(&w, 64);
     json_write_raw(&w, "{\"language\":");
     if (lang) {
@@ -633,8 +654,8 @@ static void cmd_language(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
     } else {
         json_write_null(&w);
     }
-    json_write_raw(&w, "}");
-    finish(srv, rx, -1, &w, NULL);
+    json_write_raw(&w, scout_session_language(s, path) ? ",\"chosen\":true}" : ",\"chosen\":false}");
+    finish(srv, rx, s->id, &w, NULL);
 }
 
 /**
@@ -791,7 +812,7 @@ static const Command commands[] = {
     { "DEFINITION",  "SESSION/K/N,FILE/A,LINE/N/A,COLUMN/N/A,NAME/K",    cmd_definition,  1 },
     { "COMPLETE",    "SESSION/K/N,FILE/A,LINE/N/A,COLUMN/N/A,PREFIX/K,MAX/K/N", cmd_complete, 1 },
     { "LANGUAGES",   "",                                                 cmd_languages,   1 },
-    { "LANGUAGE",    "FILE/A",                                           cmd_language,    1 },
+    { "LANGUAGE",    "SESSION/K/N,FILE/A,SET/K,TEXT/S,AUTO/S",           cmd_language,    1 },
     { "SYNTAX",      "LANG/A,TO/K",                                      cmd_syntax,      1 },
     { "REGISTER",    "EXTENSION/A,PARSER/A",                             cmd_register,    1 },
     { "RESCAN",      "",                                                 cmd_rescan,      1 },

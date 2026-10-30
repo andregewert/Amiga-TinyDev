@@ -353,15 +353,28 @@ void scout_temp_name(ScoutServer *srv, const char *suffix, char *out, size_t siz
 int scout_file_stamp(const char *path, ScoutStamp *stamp);
 
 /**
+ * @brief Return the language of a file: the one a client chose
+ *        (LANGUAGE), else by its extension, else by its script bit and
+ *        first bytes (scout_store_detect()).
+ * @param srv The server.
+ * @param s The session.
+ * @param path The file (full name).
+ * @param protection Its protection bits, -1 to read them.
+ * @return The language, or NULL (also for a file chosen as plain text).
+ */
+const ScoutLanguage *scout_language_of(ScoutServer *srv, const ScoutSession *s, const char *path, long protection);
+
+/**
  * @brief Queue the background analysis of a file of a session, unless it
  *        is known and unchanged, has no parser, or the session is full.
  * @param srv The server.
  * @param s The session.
  * @param path The file.
  * @param in_project It is a project file (not only included).
+ * @param protection Its protection bits, -1 to read them when needed.
  * @return 1 if queued.
  */
-int scout_index_file(ScoutServer *srv, ScoutSession *s, const char *path, int in_project);
+int scout_index_file(ScoutServer *srv, ScoutSession *s, const char *path, int in_project, long protection);
 
 /**
  * @brief Start walking a session's project drawer.

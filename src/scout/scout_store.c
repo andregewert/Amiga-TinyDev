@@ -225,6 +225,10 @@ static void empty_session(ScoutSession *s)
     s->files = NULL;
     s->file_count = 0;
     scout_session_clear_include(s);
+    free_strings(s->lang_paths, s->lang_count);
+    free_strings(s->lang_ids, s->lang_count);
+    s->lang_paths = s->lang_ids = NULL;
+    s->lang_count = 0;
     free(s->error_text);
     s->error_text = NULL;
     s->error_code = 0;
@@ -501,6 +505,31 @@ const ScoutLanguage *scout_store_language_for(const ScoutStore *st, const char *
     return i >= 0 ? &st->languages[i] : NULL;
 }
 
+const ScoutLanguage *scout_store_detect(const ScoutStore *st, const char *path, int script, const char *head,
+                                        size_t head_len)
+{
+    const ScoutLanguage *lang = scout_store_language_for(st, path);
+    const char *name = path, *p;
+    size_t i;
+    if (lang) return lang;
+    for (p = path; *p; p++) {
+        if (*p == '/' || *p == ':') name = p + 1;
+    }
+    for (i = 0; head && i < head_len; i++) {
+        if (head[i] == '\0') return NULL;
+    }
+    if (head && head_len >= 2 && head[0] == '/' && head[1] == '*') return NULL;
+    if (!script) {
+        /* without the bit: a name without extension and a .KEY line first */
+        size_t n;
+        if (strchr(name, '.') || !head || head_len < 2 || head[0] != '.' || (head[1] != 'k' && head[1] != 'K'))
+            return NULL;
+        n = head_len >= 4 && (head[2] == 'e' || head[2] == 'E') && (head[3] == 'y' || head[3] == 'Y') ? 4 : 2;
+        if (n < head_len && head[n] != ' ' && head[n] != '\t' && head[n] != '\n' && head[n] != '\r') return NULL;
+    }
+    return scout_store_language(st, SCOUT_LANG_AMIGADOS);
+}
+
 /* ---- Sessions and files ---- */
 
 ScoutSession *scout_session_open(ScoutStore *st, const char *project)
@@ -565,6 +594,48 @@ void scout_session_clear_include(ScoutSession *s)
     free_strings(s->include, s->include_count);
     s->include = NULL;
     s->include_count = 0;
+}
+
+int scout_session_set_language(ScoutSession *s, const char *path, const char *id)
+{
+    long i;
+    for (i = 0; i < s->lang_count; i++) {
+        if (!scout_path_equal(s->lang_paths[i], path)) continue;
+        if (id) {
+            char *copy = dup_str(id);
+            if (!copy) return 0;
+            free(s->lang_ids[i]);
+            s->lang_ids[i] = copy;
+        } else {
+            free(s->lang_paths[i]);
+            free(s->lang_ids[i]);
+            s->lang_count--;
+            memmove(&s->lang_paths[i], &s->lang_paths[i + 1], (size_t)(s->lang_count - i) * sizeof(char *));
+            memmove(&s->lang_ids[i], &s->lang_ids[i + 1], (size_t)(s->lang_count - i) * sizeof(char *));
+        }
+        return 1;
+    }
+    if (!id) return 1;
+    {
+        long n = s->lang_count;
+        if (!add_string(&s->lang_paths, &n, path)) return 0;
+        n = s->lang_count;
+        if (!add_string(&s->lang_ids, &n, id)) {
+            free(s->lang_paths[s->lang_count]);
+            return 0;
+        }
+        s->lang_count++;
+    }
+    return 1;
+}
+
+const char *scout_session_language(const ScoutSession *s, const char *path)
+{
+    long i;
+    for (i = 0; i < s->lang_count; i++) {
+        if (scout_path_equal(s->lang_paths[i], path)) return s->lang_ids[i];
+    }
+    return NULL;
 }
 
 void scout_session_set_error(ScoutSession *s, long code, const char *text)
