@@ -483,6 +483,7 @@ void scout_jobs_next(ScoutServer *srv)
             continue;
         }
         srv->job = job;
+        job->started = scout_now();
         start_timer(srv, srv->timeout * (job->count > 0 ? job->count : 1));
     }
 }
@@ -661,6 +662,7 @@ static void analyze_done(ScoutServer *srv, ScoutJob *job, const char *answers)
             } else {
                 if (it->in_project) f->in_project = 1;
                 if (job->background) s->changes++;
+                srv->stats.analyses++;
                 if (s->id != 0) scout_walk_references(srv, s, f);
                 if (it->rx) {
                     struct RexxMsg *rx = it->rx;
@@ -678,6 +680,8 @@ static void analyze_done(ScoutServer *srv, ScoutJob *job, const char *answers)
                 continue;
             }
         }
+        srv->stats.failed++;
+        if (job->parser >= 0 && job->parser < srv->store.parser_count) srv->store.parsers[job->parser].failures++;
         if (it->rx) {
             scout_fail(srv, it->rx, job->session, code, message);
             it->rx = NULL;
@@ -717,6 +721,7 @@ static void job_timeout(ScoutServer *srv)
     if (!job) return;
     if (!job->timed_out) {
         job->timed_out = 1;
+        srv->stats.timeouts++;
         break_job(job);
         for (i = 0; i < job->count; i++) {
             if (job->items[i].rx) {
@@ -775,6 +780,7 @@ static void job_done(ScoutServer *srv, ScoutJob *job)
     if (job->type == SCOUT_JOB_DESCRIBE) {
         describe_done(srv, job, answers);
     } else {
+        if (job->parser >= 0 && job->parser < srv->store.parser_count) srv->store.parsers[job->parser].runs++;
         analyze_done(srv, job, answers);
     }
     free(answers);

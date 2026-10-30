@@ -1,0 +1,160 @@
+; TinyDev-Scout.cd - catalog description of TinyDev-Scout's window (built-in language: english)
+;
+; Format of CatComp/FlexCat; amiga-devkit/tools/catcomp.py makes
+; scout_strings.h and the catalogs. Keep the format specifiers and
+; the '_' shortcuts unique in every language. Scout's ARexx results
+; and messages in the Shell stay English.
+;
+MSG_WIN_TITLE (//)
+TinyDev Scout
+;
+MSG_GROUP_STATE (//)
+State
+;
+MSG_GROUP_SESSIONS (//)
+Sessions
+;
+MSG_GROUP_PARSERS (//)
+Parsers
+;
+MSG_LABEL_STATE (//)
+State 
+;
+MSG_LABEL_RUNNING (//)
+Running 
+;
+MSG_LABEL_QUEUE (//)
+Waiting 
+;
+MSG_LABEL_MEMORY (//)
+Memory 
+;
+MSG_GROUP_COUNTS (//)
+Since the Start
+;
+MSG_LABEL_COMMANDS (//)
+Commands 
+;
+MSG_LABEL_ANALYSES (//)
+Analyses 
+;
+MSG_LABEL_TIMEOUTS (//)
+Timeouts 
+;
+MSG_LABEL_CACHED (//)
+From the cache 
+;
+MSG_STATE_ACTIVE (//)
+Active
+;
+MSG_STATE_DISABLED (//)
+Disabled (Exchange)
+;
+MSG_STATE_SCANNING (//)
+%s, reading the parsers
+;
+MSG_RUNNING_IDLE (//)
+Nothing
+;
+MSG_RUNNING_DESCRIBE (//)
+%s: description (%lu s)
+;
+MSG_RUNNING_ANALYZE (//)
+%s: %s (%lu s)
+;
+MSG_RUNNING_MORE (//)
+%s: %s and %ld more (%lu s)
+;
+MSG_QUEUE (//)
+%ld jobs, %ld project walks
+;
+MSG_MEMORY (//)
+%lu KB free (minimum %ld KB)
+;
+MSG_MEMORY_LOW (//)
+%lu KB free: low (minimum %ld KB)
+;
+MSG_MEMORY_NOLIMIT (//)
+%lu KB free
+;
+MSG_ANALYSES (//)
+%lu, %lu of them failed
+;
+MSG_COL_NUMBER (//)
+No.
+;
+MSG_COL_PROJECT (//)
+Project
+;
+MSG_COL_FILES (//)
+Files
+;
+MSG_COL_DRAWERS (//)
+Watched
+;
+MSG_COL_IDLE (//)
+Unused
+;
+MSG_IDLE_SECONDS (//)
+%lu s
+;
+MSG_IDLE_MINUTES (//)
+%lu min
+;
+MSG_COL_PARSER (//)
+Parser
+;
+MSG_COL_VERSION (//)
+Version
+;
+MSG_COL_LANGUAGES (//)
+Languages
+;
+MSG_COL_RUNS (//)
+Runs
+;
+MSG_COL_FAILURES (//)
+Failed
+;
+MSG_COL_PSTATE (//)
+State
+;
+MSG_PARSER_ACTIVE (//)
+active
+;
+MSG_PARSER_DISABLED (//)
+disabled
+;
+MSG_BTN_CLOSE_SESSION (//)
+_Close Session
+;
+MSG_BTN_RESCAN (//)
+_Rescan Parsers
+;
+MSG_BTN_ENABLE (//)
+E_nable Parser
+;
+MSG_BTN_QUIT (//)
+_Quit Scout
+;
+MSG_BTN_HIDE (//)
+_Hide
+;
+MSG_HINT_CLOSE_SESSION (//)
+Ends the selected session (e.g. of an editor that crashed)
+;
+MSG_HINT_RESCAN (//)
+Reads the parser drawer again
+;
+MSG_HINT_ENABLE (//)
+Uses the selected parser again after it hung
+;
+MSG_OK (//)
+OK
+;
+MSG_ERR_CLASS (//)
+%s cannot be opened.
+;
+MSG_ERR_WINDOW (//)
+The window cannot be opened.
+;

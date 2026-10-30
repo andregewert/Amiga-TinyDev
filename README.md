@@ -226,6 +226,8 @@ Tool types of its icon (or Shell arguments of the same names):
 | `PARSERS` | `PROGDIR:Parsers` | drawer of the parsers |
 | `TIMEOUT` | `10` | seconds a parser may take per file |
 | `MINFREE` | `1024` | free memory (KB) below which idle sessions are closed, 0: never |
+| `CX_POPKEY` | `ctrl alt s` | hotkey that shows Scout's window |
+| `CX_POPUP` | `NO` | `YES` shows the window at the start |
 | `CX_PRIORITY` | `0` | commodity priority |
 
 `scripts/tdscout_query.rexx` sends a command and shows the result, e.g.
@@ -236,7 +238,8 @@ the commands with the sample sources of `tests/data/c_parser/` (it starts
 TinyDev starts Scout (from its own drawer) when it needs it, opens a
 session for the project and has the open documents analysed (status
 line, symbol list, problems). Scout notices files of the project that
-change on disk. Its design, the
+change on disk. Its window (Exchange's Show, or its hotkey) shows what
+it does, its sessions and parsers. Its design, the
 ARexx commands and the protocol for writing parsers are described in
 [src/scout/docs/Scout.md](src/scout/docs/Scout.md) and
 [src/scout/docs/Scout-Protocol.md](src/scout/docs/Scout-Protocol.md).

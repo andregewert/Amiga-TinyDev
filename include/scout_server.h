@@ -91,6 +91,7 @@ typedef struct ScoutJob {
     int timed_out;          /**< Ctrl-C was sent after the timeout */
     int scan;               /**< describe: part of the scan, still counted in ScoutServer::scanning */
     char command[SCOUT_PATH_MAX + 4];   /**< the command line run (the quoted parser) */
+    unsigned long started;  /**< when it started (scout_now()) */
     char arg[16];           /**< the job's address in hex, the process's argument */
 } ScoutJob;
 
@@ -131,6 +132,15 @@ typedef struct ScoutDeferred {
     struct ScoutDeferred *next;     /**< the next one */
 } ScoutDeferred;
 
+/** What Scout counts for its window (since it started). */
+typedef struct ScoutStats {
+    unsigned long commands;     /**< ARexx commands received */
+    unsigned long analyses;     /**< files analysed */
+    unsigned long failed;       /**< analyses without a result */
+    unsigned long timeouts;     /**< parser runs stopped after the timeout */
+    unsigned long cached;       /**< queries answered from a kept result */
+} ScoutStats;
+
 /** The state of the Scout commodity. */
 typedef struct ScoutServer {
     ScoutStore store;               /**< parsers, sessions, results */
@@ -163,6 +173,9 @@ typedef struct ScoutServer {
     long timeout;                   /**< seconds a parser may take per request (TIMEOUT) */
     long priority;                  /**< the commodity's priority (CX_PRIORITY) */
     long minfree;                   /**< free memory (KB) below which memory runs low (MINFREE) */
+    char popkey[64];                /**< hotkey that shows the window (CX_POPKEY), "" for none */
+    int popup;                      /**< show the window at the start (CX_POPUP) */
+    ScoutStats stats;               /**< the counts shown in the window */
     unsigned long temp_count;       /**< counter of the temporary files */
 
     int running;                    /**< the main loop runs */
@@ -175,7 +188,8 @@ extern ScoutServer g_scout;
 /**
  * @brief Create the commodity's broker.
  * @param srv The server.
- * @return 1 on success, 0 if it failed (or Scout runs already).
+ * @return 1 on success, -1 if Scout runs already (it shows its window
+ *         then), 0 if it failed.
  */
 int scout_broker_init(ScoutServer *srv);
 
@@ -441,6 +455,46 @@ ULONG scout_watch_sigmask(const ScoutServer *srv);
  * @param srv The server.
  */
 void scout_watch_cleanup(ScoutServer *srv);
+
+/**
+ * @brief Open what the window needs at the start (catalog, timer); the
+ *        classes are opened when it is first shown.
+ * @param srv The server.
+ * @return 1 on success, 0 if the timer cannot be opened.
+ */
+int scout_window_init(ScoutServer *srv);
+
+/**
+ * @brief Show the window (or bring it to the front).
+ * @param srv The server.
+ */
+void scout_window_show(ScoutServer *srv);
+
+/**
+ * @brief Hide the window (its place is kept for the next show).
+ * @param srv The server.
+ */
+void scout_window_hide(ScoutServer *srv);
+
+/**
+ * @brief Return the signals of the window and its refresh timer.
+ * @param srv The server.
+ * @return The mask.
+ */
+ULONG scout_window_sigmask(const ScoutServer *srv);
+
+/**
+ * @brief Handle the window's input and its refresh timer.
+ * @param srv The server.
+ * @param signals The signals received.
+ */
+void scout_window_handle(ScoutServer *srv, ULONG signals);
+
+/**
+ * @brief Hide the window and close what it opened.
+ * @param srv The server.
+ */
+void scout_window_cleanup(ScoutServer *srv);
 
 /**
  * @brief Return the time in seconds (for ScoutSession::last_used).

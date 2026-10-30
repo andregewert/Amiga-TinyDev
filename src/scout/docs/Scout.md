@@ -9,7 +9,7 @@ its ARexx interface. The protocol between Scout and its parsers is in
 [Scout-Protocol.md](Scout-Protocol.md).
 
 > **Status:** Scout and the C parser follow this design, version 1 of the
-> protocol. Not done yet: a window with statistics.
+> protocol, including its window.
 
 ## Contents
 
@@ -265,6 +265,8 @@ same names), as for commodities:
 | `PARSERS` | `PROGDIR:Parsers` | drawer searched for parsers |
 | `TIMEOUT` | `10` | seconds a parser may take per request |
 | `MINFREE` | `1024` | free memory in KB below which sessions are closed (0: never) |
+| `CX_POPKEY` | `ctrl alt s` | hotkey that shows the window |
+| `CX_POPUP` | `NO` | `YES` shows the window at the start |
 | `CX_PRIORITY` | `0` | the commodity's priority |
 
 ## 10. ARexx interface
@@ -340,10 +342,20 @@ Scout:
 | `STATUS` | `SESSION/K/N` | `{"version":"1.0","protocol":1,"enabled":true,"scanning":false,"tempdir":"T:","sessions":2,"queue":0,"walks":0,"lowMemory":false,"changes":12,"parsers":[...],"problems":[...]}` (`changes` only with `SESSION`) |
 | `QUIT` | | `{}`; Scout ends after replying to waiting messages |
 
-Exchange enables and disables Scout and removes it. Show and Hide do
-nothing yet; a window with statistics (running commands, open sessions,
-cache use) is planned. While disabled, commands fail with `RC2` 5 except `STATUS` and
-`QUIT`.
+Exchange enables and disables Scout and removes it. While disabled,
+commands fail with `RC2` 5 except `STATUS` and `QUIT`.
+
+Show (or the hotkey `CX_POPKEY`, or `CX_POPUP=YES` at the start, or
+starting Scout a second time) opens Scout's window; Hide or its close
+gadget hides it. It shows Scout's state, the parser running and for how
+long, the jobs waiting, free memory against `MINFREE` and counts since
+the start (commands, analyses, failures, timeouts, queries answered from
+kept results), and lists the sessions (project, files, watched drawers,
+time unused) and the parsers (version, languages, runs, failures,
+state). Its buttons close the selected session, read the parser drawer
+again, use a parser again that was disabled after it hung, and quit
+Scout. Its texts come from `TinyDev-Scout.catalog`
+(`src/scout/catalogs/`).
 
 ## 11. Writing a client
 

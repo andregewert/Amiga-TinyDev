@@ -177,6 +177,7 @@ static ScoutFile *ready_file(ScoutServer *srv, struct RexxMsg *rx, ScoutSession 
     int exists = scout_file_stamp(path, &stamp);
 
     if (f && f->valid && (f->version >= 0 || !exists || memcmp(&f->stamp, &stamp, sizeof(stamp)) == 0)) {
+        srv->stats.cached++;
         return f;
     }
     if (!exists) {
@@ -902,6 +903,7 @@ void scout_rexx_handle(ScoutServer *srv)
             ReplyMsg((struct Message *)rx);
             continue;
         }
+        srv->stats.commands++;
         scout_rexx_command(srv, rx, 0);
     }
 }

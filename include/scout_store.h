@@ -106,6 +106,8 @@ typedef struct ScoutParser {
     char *name;             /**< its name (allocated) */
     char *version;          /**< its version (allocated) */
     int disabled;           /**< not used any more (it hung) */
+    long runs;              /**< analyze runs since it was read */
+    long failures;          /**< files it gave no result for */
 } ScoutParser;
 
 /** A session: a client working on a project. */

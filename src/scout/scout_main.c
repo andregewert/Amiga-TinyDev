@@ -4,7 +4,9 @@
  *        settings, start-up and main loop.
  *
  * Settings are tool types of Scout's icon or Shell arguments of the same
- * names (ArgArrayInit()): TEMPDIR, PARSERS, TIMEOUT, MINFREE, CX_PRIORITY.
+ * names (ArgArrayInit()): TEMPDIR, PARSERS, TIMEOUT, MINFREE, CX_PRIORITY,
+ * CX_POPKEY (the hotkey of the window, "ctrl alt s"), CX_POPUP (show the
+ * window at the start, NO).
  *
  * Memory: when free memory falls below MINFREE (KB, 0: never), sessions
  * no command has named for a minute are closed, the least recently used
@@ -32,13 +34,17 @@ unsigned long __stack = 16384;
 
 ScoutServer g_scout;
 
+/** Scout was started from a Shell (not from the Workbench). */
+static int from_shell = 0;
+
 /**
- * @brief Print a message if Scout runs in a Shell.
+ * @brief Print a message if Scout was started from a Shell; from the
+ *        Workbench nothing is shown (writing would open a console).
  * @param text The message (with its line end).
  */
 static void say(const char *text)
 {
-    BPTR out = Output();
+    BPTR out = from_shell ? Output() : 0;
     if (out) Write(out, (APTR)text, (LONG)strlen(text));
 }
 
@@ -75,6 +81,9 @@ static void read_settings(ScoutServer *srv, int argc, char **argv)
     srv->timeout = ArgInt((CONST_STRPTR *)tt, (STRPTR)"TIMEOUT", 10);
     srv->priority = ArgInt((CONST_STRPTR *)tt, (STRPTR)"CX_PRIORITY", 0);
     srv->minfree = ArgInt((CONST_STRPTR *)tt, (STRPTR)"MINFREE", 1024);
+    strncpy(srv->popkey, (const char *)ArgString((CONST_STRPTR *)tt, (STRPTR)"CX_POPKEY", (STRPTR)"ctrl alt s"),
+            sizeof(srv->popkey) - 1);
+    srv->popup = scout_path_equal((const char *)ArgString((CONST_STRPTR *)tt, (STRPTR)"CX_POPUP", (STRPTR)"NO"), "YES");
     if (srv->minfree < 0) srv->minfree = 0;
     if (srv->timeout < 1) srv->timeout = 1;
     ArgArrayDone();
@@ -138,6 +147,7 @@ int main(int argc, char **argv)
     int ok;
 
     memset(srv, 0, sizeof(*srv));
+    from_shell = argc > 0;
     CxBase = OpenLibrary((STRPTR)"commodities.library", 37);
     IconBase = OpenLibrary((STRPTR)"icon.library", 37);
     RexxSysBase = (struct RxsLib *)OpenLibrary((STRPTR)"rexxsyslib.library", 36);
@@ -153,16 +163,25 @@ int main(int argc, char **argv)
     }
 
     ok = scout_broker_init(srv);
-    if (!ok) say("TinyDev-Scout: runs already, or the commodity cannot be created\n");
+    if (ok < 0) {
+        /* runs already: that Scout shows its window, this one just ends */
+        scout_store_free(&srv->store);
+        close_libraries();
+        return 0;
+    }
+    if (!ok) say("TinyDev-Scout: the commodity cannot be created\n");
     if (ok && !(ok = scout_rexx_init(srv))) say("TinyDev-Scout: the ARexx port " SCOUT_AREXX_PORT_NAME " exists already\n");
-    if (ok && !(ok = scout_jobs_init(srv) && scout_watch_init(srv))) say("TinyDev-Scout: cannot open timer.device\n");
+    if (ok && !(ok = scout_jobs_init(srv) && scout_watch_init(srv) && scout_window_init(srv)))
+        say("TinyDev-Scout: cannot open timer.device\n");
 
     if (ok) {
         srv->running = 1;
         scout_jobs_scan(srv);
+        if (srv->popup) scout_window_show(srv);
     }
     while (srv->running) {
-        ULONG mask = SIGBREAKF_CTRL_C | scout_jobs_sigmask(srv) | scout_watch_sigmask(srv);
+        ULONG mask = SIGBREAKF_CTRL_C | scout_jobs_sigmask(srv) | scout_watch_sigmask(srv) |
+                     scout_window_sigmask(srv);
         ULONG got;
         if (srv->broker_port) mask |= 1UL << srv->broker_port->mp_SigBit;
         if (srv->rexx_port) mask |= 1UL << srv->rexx_port->mp_SigBit;
@@ -177,11 +196,13 @@ int main(int argc, char **argv)
         scout_rexx_handle(srv);
         scout_jobs_handle(srv, got);
         scout_watch_handle(srv, got);
+        scout_window_handle(srv, got);
         scout_memory_check(srv);
         if (srv->running && srv->walks && !srv->scanning) scout_walk_step(srv);
     }
 
     while (srv->walks) scout_walk_stop(srv, srv->walks->session);
+    scout_window_cleanup(srv);
     scout_watch_cleanup(srv);
     scout_jobs_cleanup(srv);
     scout_rexx_cleanup(srv);

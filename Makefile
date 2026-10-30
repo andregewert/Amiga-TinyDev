@@ -14,7 +14,7 @@ CFLAGS := -std=gnu99 -m68000 -msoft-float -noixemul -Os -Wall -Wextra -Wshadow -
 LDFLAGS := -m68000 -msoft-float -noixemul
 
 SCOUT_TARGET := $(BIN_DIR)/TinyDev-Scout
-SCOUT_SOURCES := src/scout/scout_main.c src/scout/scout_broker.c src/scout/scout_rexx.c src/scout/scout_jobs.c src/scout/scout_walk.c src/scout/scout_watch.c src/scout/scout_store.c src/scout/scout_rpc.c src/json.c
+SCOUT_SOURCES := src/scout/scout_main.c src/scout/scout_broker.c src/scout/scout_rexx.c src/scout/scout_jobs.c src/scout/scout_walk.c src/scout/scout_watch.c src/scout/scout_window.c src/scout/scout_store.c src/scout/scout_rpc.c src/json.c
 SCOUT_OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SCOUT_SOURCES))
 SCOUT_DEPS := $(SCOUT_OBJECTS:.o=.d)
 
@@ -88,7 +88,7 @@ REGEX_HEADERS := $(REGEX_GEN)/regex.h $(REGEX_GEN)/regcomp.ih $(REGEX_GEN)/engin
 REGEX_CFLAGS := -DPOSIX_MISTAKE -I$(REGEX_GEN) -I$(REGEX_DIR) -w
 REGEX_OBJECTS := $(foreach n,$(REGEX_NAMES),$(REGEX_GEN)/$(n).o)
 REGEX_HOST_OBJECTS := $(foreach n,$(REGEX_NAMES),$(REGEX_GEN)/host/$(n).o)
-LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h src/helpviewer/*.h src/helpviewer/catalogs/* sfd/*.sfd tests/*.c scripts/* tests-host/* catalogs/* package/*.readme $(HELP_SOURCES) examples/*/*.c examples/*/Makefile examples/*/*.txt examples/*/.tinydev/*.json tests/data/*/* LICENSE Makefile)
+LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h src/helpviewer/*.h src/helpviewer/catalogs/* src/scout/*.h src/scout/catalogs/* sfd/*.sfd tests/*.c scripts/* tests-host/* catalogs/* package/*.readme $(HELP_SOURCES) examples/*/*.c examples/*/Makefile examples/*/*.txt examples/*/.tinydev/*.json tests/data/*/* LICENSE Makefile)
 
 # Translations: catalogs/TinyDev.cd holds the built-in English strings,
 # catalogs/<language>.ct the translations. include/tinydev_strings.h is in
@@ -99,9 +99,11 @@ LANGUAGES := $(basename $(notdir $(wildcard catalogs/*.ct)))
 CATALOGS := $(foreach l,$(LANGUAGES),$(BIN_DIR)/Catalogs/$(l)/TinyDev.catalog)
 HV_LANGUAGES := $(basename $(notdir $(wildcard src/helpviewer/catalogs/*.ct)))
 HV_CATALOGS := $(foreach l,$(HV_LANGUAGES),$(BIN_DIR)/Catalogs/$(l)/HelpViewer.catalog)
+SCOUT_LANGUAGES := $(basename $(notdir $(wildcard src/scout/catalogs/*.ct)))
+SCOUT_CATALOGS := $(foreach l,$(SCOUT_LANGUAGES),$(BIN_DIR)/Catalogs/$(l)/TinyDev-Scout.catalog)
 
 .PHONY: all clean test icons dist
-all: charcheck $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(PARSER_C_TARGET) $(CATALOGS) \
+all: charcheck $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(SCOUT_CATALOGS) $(PARSER_C_TARGET) $(CATALOGS) \
      $(HV_TARGET) $(HV_CATALOGS) $(HELP_FILES)
 
 # Included after "all" so that charcheck does not become the default goal.
@@ -115,7 +117,7 @@ $(foreach c,$(CLASS_NAMES),$(eval $(call CLASS_RULES,$(c))))
 # wrong comment (amiga-devkit/docs/Dokumentation.md). Generated headers
 # (catalog strings, sfdc output) are left out.
 include $(DEVKIT)/make/docs.mk
-DOC_SOURCES := $(filter-out include/tinydev_strings.h src/helpviewer/helpviewer_strings.h, \
+DOC_SOURCES := $(filter-out include/tinydev_strings.h src/helpviewer/helpviewer_strings.h src/scout/scout_strings.h, \
     $(wildcard src/*.c src/scout/*.c src/parsers/*.c src/classes/*/*.c src/classes/*/*.h \
                src/helpviewer/*.c src/helpviewer/*.h \
                include/*.h include/gadgets/*.h tests/*.c))
@@ -125,6 +127,13 @@ $(foreach c,$(CLASS_NAMES),$(eval $(call DOXYGEN_DOCS,docs-$(c),$(c).gadget,1.0,
 ifeq ($(wildcard $(HTML_GADGET)/include/gadgets/html.h),)
 $(error $(HTML_GADGET) is missing: git submodule update --init)
 endif
+
+src/scout/scout_strings.h: src/scout/catalogs/TinyDev-Scout.cd $(CATCOMP)
+	python3 $(CATCOMP) header $< $@ SCOUT_STRINGS
+
+$(BIN_DIR)/Catalogs/%/TinyDev-Scout.catalog: src/scout/catalogs/%.ct src/scout/catalogs/TinyDev-Scout.cd $(CATCOMP)
+	@mkdir -p $(dir $@)
+	python3 $(CATCOMP) catalog src/scout/catalogs/TinyDev-Scout.cd $< $@
 
 src/helpviewer/helpviewer_strings.h: src/helpviewer/catalogs/HelpViewer.cd $(CATCOMP)
 	python3 $(CATCOMP) header $< $@ HELPVIEWER_STRINGS

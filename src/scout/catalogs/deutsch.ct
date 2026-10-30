@@ -1,0 +1,210 @@
+## version $VER: TinyDev-Scout.catalog 1.0 (30.10.2026)
+## codeset 0
+## language deutsch
+;
+; German translation of TinyDev-Scout's window (TinyDev-Scout.cd)
+;
+MSG_WIN_TITLE
+TinyDev Scout
+; TinyDev Scout
+;
+MSG_GROUP_STATE
+Zustand
+; State
+;
+MSG_GROUP_SESSIONS
+Sitzungen
+; Sessions
+;
+MSG_GROUP_PARSERS
+Parser
+; Parsers
+;
+MSG_LABEL_STATE
+Zustand 
+; State 
+;
+MSG_LABEL_RUNNING
+Läuft 
+; Running 
+;
+MSG_LABEL_QUEUE
+Wartend 
+; Waiting 
+;
+MSG_LABEL_MEMORY
+Speicher 
+; Memory 
+;
+MSG_GROUP_COUNTS
+Seit dem Start
+; Since the Start
+;
+MSG_LABEL_COMMANDS
+Befehle 
+; Commands 
+;
+MSG_LABEL_ANALYSES
+Analysen 
+; Analyses 
+;
+MSG_LABEL_TIMEOUTS
+Zeitüberschreitungen 
+; Timeouts 
+;
+MSG_LABEL_CACHED
+Aus dem Cache 
+; From the cache 
+;
+MSG_STATE_ACTIVE
+Aktiv
+; Active
+;
+MSG_STATE_DISABLED
+Abgeschaltet (Exchange)
+; Disabled (Exchange)
+;
+MSG_STATE_SCANNING
+%s, liest die Parser
+; %s, reading the parsers
+;
+MSG_RUNNING_IDLE
+Nichts
+; Nothing
+;
+MSG_RUNNING_DESCRIBE
+%s: Beschreibung (%lu s)
+; %s: description (%lu s)
+;
+MSG_RUNNING_ANALYZE
+%s: %s (%lu s)
+; %s: %s (%lu s)
+;
+MSG_RUNNING_MORE
+%s: %s und %ld weitere (%lu s)
+; %s: %s and %ld more (%lu s)
+;
+MSG_QUEUE
+%ld Aufträge, %ld Projektdurchläufe
+; %ld jobs, %ld project walks
+;
+MSG_MEMORY
+%lu KB frei (Minimum %ld KB)
+; %lu KB free (minimum %ld KB)
+;
+MSG_MEMORY_LOW
+%lu KB frei: knapp (Minimum %ld KB)
+; %lu KB free: low (minimum %ld KB)
+;
+MSG_MEMORY_NOLIMIT
+%lu KB frei
+; %lu KB free
+;
+MSG_ANALYSES
+%lu, davon %lu fehlgeschlagen
+; %lu, %lu of them failed
+;
+MSG_COL_NUMBER
+Nr.
+; No.
+;
+MSG_COL_PROJECT
+Projekt
+; Project
+;
+MSG_COL_FILES
+Dateien
+; Files
+;
+MSG_COL_DRAWERS
+Beobachtet
+; Watched
+;
+MSG_COL_IDLE
+Unbenutzt
+; Unused
+;
+MSG_IDLE_SECONDS
+%lu s
+; %lu s
+;
+MSG_IDLE_MINUTES
+%lu min
+; %lu min
+;
+MSG_COL_PARSER
+Parser
+; Parser
+;
+MSG_COL_VERSION
+Version
+; Version
+;
+MSG_COL_LANGUAGES
+Sprachen
+; Languages
+;
+MSG_COL_RUNS
+Läufe
+; Runs
+;
+MSG_COL_FAILURES
+Fehler
+; Failed
+;
+MSG_COL_PSTATE
+Zustand
+; State
+;
+MSG_PARSER_ACTIVE
+aktiv
+; active
+;
+MSG_PARSER_DISABLED
+abgeschaltet
+; disabled
+;
+MSG_BTN_CLOSE_SESSION
+Sitzung _schließen
+; _Close Session
+;
+MSG_BTN_RESCAN
+Parser neu _einlesen
+; _Rescan Parsers
+;
+MSG_BTN_ENABLE
+Parser _aktivieren
+; E_nable Parser
+;
+MSG_BTN_QUIT
+Scout _beenden
+; _Quit Scout
+;
+MSG_BTN_HIDE
+_Verbergen
+; _Hide
+;
+MSG_HINT_CLOSE_SESSION
+Beendet die gewählte Sitzung (z. B. die eines abgestürzten Editors)
+; Ends the selected session (e.g. of an editor that crashed)
+;
+MSG_HINT_RESCAN
+Liest die Parser-Schublade neu ein
+; Reads the parser drawer again
+;
+MSG_HINT_ENABLE
+Verwendet den gewählten Parser wieder, nachdem er hängen blieb
+; Uses the selected parser again after it hung
+;
+MSG_OK
+OK
+; OK
+;
+MSG_ERR_CLASS
+%s kann nicht geöffnet werden.
+; %s cannot be opened.
+;
+MSG_ERR_WINDOW
+Das Fenster kann nicht geöffnet werden.
+; The window cannot be opened.
+;
