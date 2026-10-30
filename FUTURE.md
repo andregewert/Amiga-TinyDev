@@ -24,25 +24,25 @@ Design: `src/scout/docs/Scout.md`, protocol: `src/scout/docs/Scout-Protocol.md`.
    temporary drawer (also for the Build menu's files).
 4. [x] Features: symbol list, diagnostics (list and marks in the left bar), go
    to definition and back, highlighting from the lexical rules and tokens
-   (the built-in scanners of `syntax.c` stay for languages without a
-   parser and without Scout), completion.
+   (TinyDev has no built-in scanners any more), completion.
 
 Next:
-- A clearer default colour scheme: the colours must differ more and be
+- [x] A clearer default colour scheme: the colours must differ more and be
   brighter.
-- Include paths of a project (e.g. the NDK's or the compiler's headers) in
+- [x] Include paths of a project (e.g. the NDK's or the compiler's headers) in
   the project settings, passed to Scout (`OPEN ... INCLUDE`), so system
   headers are indexed for definition and completion.
-- Speed of the rules scanner while scrolling (check delimiters only at
+- [x] Speed of the rules scanner while scrolling (check delimiters only at
   characters that can start one).
-- Scout: watch the project with `StartNotify()`; drop sessions when memory
+- [x] Scout: watch the project with `StartNotify()`; drop sessions when memory
   runs low.
-- A Scout window with statistics (running commands, open sessions, cache
+- [x] A Scout window with statistics (running commands, open sessions, cache
   use), shown with Exchange's Show.
-- An AmigaDOS script parser (so `syntax.c` needs no built-in scanners).
+- [x] An AmigaDOS script parser (so `syntax.c` needs no built-in scanners).
 
 ## Additional Scout / syntax parsers
 - Standalone C Parser (`bin/parsers/c_parser` with JSON-RPC 2.0) - *Implemented*
+- AmigaDOS script parser (`bin/parsers/dos_parser`) - *Implemented*
 - ACE Amiga BASIC parser
 - Free Pascal (FPC) parser
 - Amiga E parser
