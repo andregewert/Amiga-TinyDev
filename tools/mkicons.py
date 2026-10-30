@@ -370,16 +370,18 @@ ai.register('tinydev', pic_tinydev, m_tinydev, n_tinydev)
 ai.register('scout', pic_scout, m_scout, n_scout)
 ai.register('helpviewer', pic_helpviewer, m_helpviewer, n_helpviewer)
 PARSER_C = parser('C')
+PARSER_DOS = parser('S', GREEN, ai.N_GREEN)    # AmigaDOS scripts
 
 
 # ---------------------------------------------------------------- samples ---
 
-ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, 'helpviewer', 'readme', 'license')
+ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, PARSER_DOS, 'helpviewer', 'readme', 'license')
 
 SAMPLES = (('Drawer', 'drawer', WBDRAWER, {}),
            ('TinyDev', 'tinydev', WBTOOL, {'stack': 32768}),
            ('TinyDev-Scout', 'scout', WBTOOL, {'stack': 16384}),
            ('c_parser', PARSER_C, WBTOOL, {'stack': 16384}),
+           ('dos_parser', PARSER_DOS, WBTOOL, {'stack': 16384}),
            ('HelpViewer', 'helpviewer', WBTOOL, {'stack': 32768}),
            ('ReadMe', 'readme', WBPROJECT, {'default_tool': 'SYS:Utilities/MultiView'}),
            ('License', 'license', WBPROJECT, {'default_tool': 'SYS:Utilities/MultiView'}))

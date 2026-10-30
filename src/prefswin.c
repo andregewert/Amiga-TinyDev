@@ -98,7 +98,7 @@ static STRPTR tbmodes[TBMODE_COUNT + 1];      /**< the chooser's labels, filled 
 static const LONG colour_labels[SCOL_COUNT] = {
     MSG_PREFS_COL_TEXT, MSG_PREFS_COL_KEYWORD, MSG_PREFS_COL_STRING, MSG_PREFS_COL_COMMENT,
     MSG_PREFS_COL_PREPROC, MSG_PREFS_COL_TYPE, MSG_PREFS_COL_FUNCTION, MSG_PREFS_COL_MACRO,
-    MSG_PREFS_COL_CONSTANT
+    MSG_PREFS_COL_CONSTANT, MSG_PREFS_COL_VARIABLE
 };
 /**
  * Titles of the colour requesters (MSG_), SettingsColour order.
@@ -106,7 +106,7 @@ static const LONG colour_labels[SCOL_COUNT] = {
 static const LONG colour_titles[SCOL_COUNT] = {
     MSG_PREFS_TTL_TEXT, MSG_PREFS_TTL_KEYWORD, MSG_PREFS_TTL_STRING, MSG_PREFS_TTL_COMMENT,
     MSG_PREFS_TTL_PREPROC, MSG_PREFS_TTL_TYPE, MSG_PREFS_TTL_FUNCTION, MSG_PREFS_TTL_MACRO,
-    MSG_PREFS_TTL_CONSTANT
+    MSG_PREFS_TTL_CONSTANT, MSG_PREFS_TTL_VARIABLE
 };
 
 /**
@@ -345,6 +345,7 @@ static Object *build(EditorApp *app, const Settings *s)
         LAYOUT_AddChild, (ULONG)pw.colours[6], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[6])),
         LAYOUT_AddChild, (ULONG)pw.colours[7], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[7])),
         LAYOUT_AddChild, (ULONG)pw.colours[8], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[8])),
+        LAYOUT_AddChild, (ULONG)pw.colours[9], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[9])),
         LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_COLOURNOTE)),
         FIXED,
         /* the button on the right, not across the page */

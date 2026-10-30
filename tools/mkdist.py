@@ -13,7 +13,7 @@
 import os, shutil, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from mkicons import ROOT, PARSER_C, WBDRAWER, WBTOOL, WBPROJECT  # noqa: E402  (registers the motifs)
+from mkicons import ROOT, PARSER_C, PARSER_DOS, WBDRAWER, WBTOOL, WBPROJECT  # noqa: E402  (registers the motifs)
 from distlib import copy, copytree, copy_devkit, latin1_copy, package_icons, pack  # noqa: E402
 
 NAME = 'TinyDev'
@@ -40,7 +40,8 @@ def main():
     copy(b('package', NAME + '.readme'), os.path.join(PKG, NAME + '.readme'))
     copy(b('LICENSE'), os.path.join(PKG, 'LICENSE'))
     # bin/ is laid out as on the Amiga: programs, classes, catalogs, help
-    for f in ('TinyDev', 'TinyDev-Scout', 'HelpViewer', os.path.join('parsers', 'c_parser')):
+    for f in ('TinyDev', 'TinyDev-Scout', 'HelpViewer', os.path.join('parsers', 'c_parser'),
+              os.path.join('parsers', 'dos_parser')):
         copy(b('bin', f), os.path.join(PKG, f))
     for d in ('Classes', 'Catalogs', 'Help'):
         copytree(b('bin', d), os.path.join(PKG, d))
@@ -70,6 +71,7 @@ def main():
               dict(stack=32768, tooltypes=('(TOOLBAR=BOTH)', '(TOOLBARFRAMES)', '(NOSPLASH)'))),
              ('TinyDev-Scout', 'scout', WBTOOL, dict(stack=16384)),
              ('parsers/c_parser', PARSER_C, WBTOOL, dict(stack=16384)),
+             ('parsers/dos_parser', PARSER_DOS, WBTOOL, dict(stack=16384)),
              ('HelpViewer', 'helpviewer', WBTOOL,
               dict(stack=32768, tooltypes=('(TTF)', '(FONTSET=Vera)', '(SIZE=12)'))),
              (NAME + '.readme', 'readme', WBPROJECT, dict(default_tool=MULTIVIEW)),

@@ -68,7 +68,7 @@ static ULONG minimap_color_line(struct Hook *hook, Object *obj,
     cf.pens = msg->mlm_Pens;
     cf.length = msg->mlm_Length;
     cf.colors = &doc->highlight;
-    return (ULONG)syntax_scan(doc->language, doc->highlight.rules, doc->highlight.tokens,
+    return (ULONG)syntax_scan(doc->highlight.rules, doc->highlight.tokens,
                               (const char *)msg->mlm_Text, msg->mlm_State, minimap_fill_pens, &cf);
 }
 

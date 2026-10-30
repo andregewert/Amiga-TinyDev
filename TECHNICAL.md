@@ -38,11 +38,13 @@ without a scroll signal (`document.c`, `ui.c`). A drag in the minimap
 suspends the highlighting in the same way until the button is released.
 
 Two layers make the highlighting (`syntax_scan()`): the lexical rules of
-the language from Scout's parser (`rules.c`; without them the built-in
-scanners of `syntax.c`) decide comments, strings, numbers and keywords at
-once; Scout's tokens (`tokenmap.c`, fetched by `scoutlink.c` after each
-analysis) add the project's types, functions, macros and constants where
-a line is normal text. The hook gets a line's text but not its number,
+the language from Scout's parser (`rules.c`; TinyDev has no scanners of
+its own, so without Scout nothing is highlighted) decide comments,
+strings, numbers and keywords at once; Scout's tokens (`tokenmap.c`,
+fetched by `scoutlink.c` after each analysis) add the project's types,
+functions, macros and constants where a line is normal text, parameters
+and variables also in strings and preprocessor lines (scripts substitute
+them there). The hook gets a line's text but not its number,
 so tokens are found by a checksum of the line's text: a line changed
 since the analysis shows the first layer only until the next one. Rules
 and tokens are read by the editor's hook and by the minimap's render

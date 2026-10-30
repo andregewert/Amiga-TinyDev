@@ -1,12 +1,14 @@
 /**
  * @file test_rules.c
  * @brief Host-native tests of the generic scanner with lexical rules (the
- *        C parser's and rules of a made-up language) and of the token map.
+ *        C parser's, the AmigaDOS parser's and rules of a made-up
+ *        language) and of the token map.
  */
 #include "rules.h"
 #include "tokenmap.h"
 #include "syntax.h"
 #include "c_parser.h"
+#include "dos_parser.h"
 #include "scout_protocol.h"
 #include "json.h"
 
@@ -79,17 +81,18 @@ static unsigned long scan(const SyntaxRules *r, const char *text, unsigned long 
 }
 
 /**
- * @brief Return the "syntax" object of the C parser's description as text.
+ * @brief Return the "syntax" object of a parser's description as text.
+ * @param describe The parser's function writing scout/describe.
  * @return The text (free() it).
  */
-static char *c_syntax(void)
+static char *parser_syntax(void (*describe)(JsonWriter *))
 {
     JsonWriter w, out;
     JsonValue *root;
     const JsonValue *lang;
     char *text = NULL;
     json_writer_init_alloc(&w, 2048);
-    c_parser_describe(&w);
+    describe(&w);
     root = json_parse(json_writer_get(&w), NULL);
     lang = root != NULL ? json_array_get(json_obj_get_array(root, "languages"), 0) : NULL;
     if (lang != NULL) {
@@ -107,7 +110,7 @@ static char *c_syntax(void)
 /** @brief The C parser's rules: keywords, types, constants, numbers, comments, strings, preprocessor. */
 static void test_c_rules(void)
 {
-    char *json = c_syntax();
+    char *json = parser_syntax(c_parser_describe);
     SyntaxRules *r = json != NULL ? rules_parse(json) : NULL;
     Capture c;
     unsigned long st;
@@ -147,6 +150,27 @@ static void test_c_rules(void)
     /* an unterminated string ends at the line end (not multiline) */
     st = scan(r, "s = \"open", 0, &c);
     TEST_ASSERT(st == 0 && has(&c, 4, 9, SYNTAX_STRING));
+    rules_free(r);
+}
+
+/** @brief The AmigaDOS parser's rules: case-insensitive words, ";" comments, "*" escapes, dot lines. */
+static void test_dos_rules(void)
+{
+    char *json = parser_syntax(dos_parser_describe);
+    SyntaxRules *r = json != NULL ? rules_parse(json) : NULL;
+    Capture c;
+    unsigned long st;
+    TEST_ASSERT(r != NULL);
+    free(json);
+    if (r == NULL) return;
+    TEST_ASSERT(!r->case_sensitive && r->string_count == 1 && r->line_comment_count == 1);
+    st = scan(r, "IF NOT EXISTS ram:x ; test", 0, &c);
+    TEST_ASSERT(st == 0 && has(&c, 0, 2, SYNTAX_KEYWORD) && has(&c, 3, 6, SYNTAX_CONSTANT));
+    TEST_ASSERT(has(&c, 7, 13, SYNTAX_CONSTANT) && has(&c, 20, 26, SYNTAX_COMMENT) && c.count == 4);
+    st = scan(r, "Copy \"a*\"b;\" TO RAM:", 0, &c);
+    TEST_ASSERT(has(&c, 0, 4, SYNTAX_FUNCTION) && has(&c, 5, 12, SYNTAX_STRING) && c.count == 2);
+    st = scan(r, ".KEY FROM/A", 0, &c);
+    TEST_ASSERT(has(&c, 0, 11, SYNTAX_PREPROCESSOR));
     rules_free(r);
 }
 
@@ -216,13 +240,13 @@ static void test_tokens(void)
     s = tokenmap_find(map, "Point q;", 8, &n);
     TEST_ASSERT(s == NULL && n == 0);
 
-    /* with the built-in scanner: tokens only in normal text */
+    /* without rules: the tokens alone */
     c.count = 0;
-    syntax_scan(SYNTAX_C, NULL, map, "x = MAX;", 0, capture, &c);
+    syntax_scan(NULL, map, "x = MAX;", 0, capture, &c);
     TEST_ASSERT(c.count == 1 && has(&c, 4, 7, SYNTAX_MACRO));
     c.count = 0;
-    syntax_scan(SYNTAX_C, NULL, map, "int f(void);", 0, capture, &c);
-    TEST_ASSERT(has(&c, 0, 3, SYNTAX_KEYWORD) && has(&c, 4, 5, SYNTAX_FUNCTION));
+    syntax_scan(NULL, map, "int f(void);", 0, capture, &c);
+    TEST_ASSERT(c.count == 1 && has(&c, 4, 5, SYNTAX_FUNCTION));
     tokenmap_free(map);
 
     TEST_ASSERT(tokenmap_read("{\"tokens\":[]}", &count) == NULL && count == 0);
@@ -237,6 +261,7 @@ int main(void)
 {
     printf("Running rules tests...\n");
     test_c_rules();
+    test_dos_rules();
     test_other_rules();
     test_tokens();
     printf("Rules tests completed: %d tests run, %d failures.\n", g_test_count, g_fail_count);

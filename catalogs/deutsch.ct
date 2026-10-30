@@ -1372,6 +1372,10 @@ MSG_PREFS_COL_CONSTANT
 Konstanten\x20
 ; Constants\x20
 ;
+MSG_PREFS_COL_VARIABLE
+Variablen\x20
+; Variables\x20
+;
 MSG_PREFS_TTL_TYPE
 Farbe der Typen
 ; Colour of types
@@ -1387,6 +1391,10 @@ Farbe der Makros
 MSG_PREFS_TTL_CONSTANT
 Farbe der Konstanten und Zahlen
 ; Colour of constants and numbers
+;
+MSG_PREFS_TTL_VARIABLE
+Farbe der Parameter und Variablen
+; Colour of parameters and variables
 ;
 MSG_MENU_COMPLETE
 Vervollständigen

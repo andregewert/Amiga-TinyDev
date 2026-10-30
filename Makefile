@@ -19,6 +19,7 @@ SCOUT_OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SCOUT_SOURCES))
 SCOUT_DEPS := $(SCOUT_OBJECTS:.o=.d)
 
 PARSER_C_TARGET := $(BIN_DIR)/parsers/c_parser
+PARSER_DOS_TARGET := $(BIN_DIR)/parsers/dos_parser
 
 # HelpViewer (src/helpviewer/): shows a directory of HTML help pages with
 # html.gadget (submodule external/html_gadget, for its headers) and
@@ -103,7 +104,7 @@ SCOUT_LANGUAGES := $(basename $(notdir $(wildcard src/scout/catalogs/*.ct)))
 SCOUT_CATALOGS := $(foreach l,$(SCOUT_LANGUAGES),$(BIN_DIR)/Catalogs/$(l)/TinyDev-Scout.catalog)
 
 .PHONY: all clean test icons dist
-all: charcheck $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(SCOUT_CATALOGS) $(PARSER_C_TARGET) $(CATALOGS) \
+all: charcheck $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(SCOUT_CATALOGS) $(PARSER_C_TARGET) $(PARSER_DOS_TARGET) $(CATALOGS) \
      $(HV_TARGET) $(HV_CATALOGS) $(HELP_FILES)
 
 # Included after "all" so that charcheck does not become the default goal.
@@ -195,11 +196,15 @@ $(PARSER_C_TARGET): src/parsers/c_parser.c src/parsers/c_parser_rpc.c src/scout/
 	@mkdir -p $(BIN_DIR)/parsers
 	$(TARGET_CC) $(CPPFLAGS) $(filter-out -MMD -MP,$(CFLAGS)) $(LDFLAGS) -Wl,-u,___stkinit -o $@ src/parsers/c_parser.c src/parsers/c_parser_rpc.c src/scout/scout_rpc.c src/json.c
 
+$(PARSER_DOS_TARGET): src/parsers/dos_parser.c src/parsers/dos_parser_rpc.c src/scout/scout_rpc.c src/json.c include/dos_parser.h include/scout_protocol.h include/scout_rpc.h include/json.h
+	@mkdir -p $(BIN_DIR)/parsers
+	$(TARGET_CC) $(CPPFLAGS) $(filter-out -MMD -MP,$(CFLAGS)) $(LDFLAGS) -Wl,-u,___stkinit -o $@ src/parsers/dos_parser.c src/parsers/dos_parser_rpc.c src/scout/scout_rpc.c src/json.c
+
 $(BUILD_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)
 	$(TARGET_CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_projconf $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_json $(BUILD_DIR)/test_scout_rpc $(BUILD_DIR)/test_c_parser $(BUILD_DIR)/test_scout_store $(BUILD_DIR)/test_rules
+test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_projconf $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_json $(BUILD_DIR)/test_scout_rpc $(BUILD_DIR)/test_c_parser $(BUILD_DIR)/test_dos_parser $(BUILD_DIR)/test_scout_store $(BUILD_DIR)/test_rules
 	./$(BUILD_DIR)/test_syntax
 	./$(BUILD_DIR)/test_search
 	./$(BUILD_DIR)/test_bmstore
@@ -209,6 +214,7 @@ test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstor
 	./$(BUILD_DIR)/test_json
 	./$(BUILD_DIR)/test_scout_rpc
 	./$(BUILD_DIR)/test_c_parser
+	./$(BUILD_DIR)/test_dos_parser
 	./$(BUILD_DIR)/test_scout_store
 	./$(BUILD_DIR)/test_rules
 
@@ -248,13 +254,17 @@ $(BUILD_DIR)/test_c_parser: src/parsers/c_parser.c src/parsers/c_parser_rpc.c sr
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Iinclude -DC_PARSER_NO_MAIN -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/parsers/c_parser.c src/parsers/c_parser_rpc.c src/scout/scout_rpc.c src/json.c tests/test_c_parser.c
 
+$(BUILD_DIR)/test_dos_parser: src/parsers/dos_parser.c src/parsers/dos_parser_rpc.c src/scout/scout_rpc.c src/json.c tests/test_dos_parser.c include/dos_parser.h include/scout_protocol.h include/scout_rpc.h include/json.h $(wildcard tests/data/dos_parser/*)
+	@mkdir -p $(BUILD_DIR)
+	$(HOST_CC) -Iinclude -DDOS_PARSER_NO_MAIN -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/parsers/dos_parser.c src/parsers/dos_parser_rpc.c src/scout/scout_rpc.c src/json.c tests/test_dos_parser.c
+
 $(BUILD_DIR)/test_scout_store: src/scout/scout_store.c src/parsers/c_parser.c src/parsers/c_parser_rpc.c src/scout/scout_rpc.c src/json.c tests/test_scout_store.c include/scout_store.h include/c_parser.h include/scout_protocol.h include/scout_rpc.h include/json.h $(wildcard tests/data/c_parser/*)
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Iinclude -DC_PARSER_NO_MAIN -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/scout/scout_store.c src/parsers/c_parser.c src/parsers/c_parser_rpc.c src/scout/scout_rpc.c src/json.c tests/test_scout_store.c
 
-$(BUILD_DIR)/test_rules: src/rules.c src/tokenmap.c src/syntax.c src/json.c src/parsers/c_parser.c src/parsers/c_parser_rpc.c src/scout/scout_rpc.c tests/test_rules.c include/rules.h include/tokenmap.h include/syntax.h include/c_parser.h
+$(BUILD_DIR)/test_rules: src/rules.c src/tokenmap.c src/syntax.c src/json.c src/parsers/c_parser.c src/parsers/c_parser_rpc.c src/parsers/dos_parser.c src/parsers/dos_parser_rpc.c src/scout/scout_rpc.c tests/test_rules.c include/rules.h include/tokenmap.h include/syntax.h include/c_parser.h include/dos_parser.h
 	@mkdir -p $(BUILD_DIR)
-	$(HOST_CC) -Iinclude -DSYNTAX_HOST_TEST -DC_PARSER_NO_MAIN -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/rules.c src/tokenmap.c src/syntax.c src/json.c src/parsers/c_parser.c src/parsers/c_parser_rpc.c src/scout/scout_rpc.c tests/test_rules.c
+	$(HOST_CC) -Iinclude -DSYNTAX_HOST_TEST -DC_PARSER_NO_MAIN -DDOS_PARSER_NO_MAIN -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/rules.c src/tokenmap.c src/syntax.c src/json.c src/parsers/c_parser.c src/parsers/c_parser_rpc.c src/parsers/dos_parser.c src/parsers/dos_parser_rpc.c src/scout/scout_rpc.c tests/test_rules.c
 
 # Sample icons of every style (icons/<Style>/*.info) and icons/preview.png,
 # drawn by tools/mkicons.py with amiga-devkit/tools/amigaicons.py.

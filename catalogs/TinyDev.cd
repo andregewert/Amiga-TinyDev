@@ -1055,6 +1055,9 @@ Macros\x20
 MSG_PREFS_COL_CONSTANT (//)
 Constants\x20
 ;
+MSG_PREFS_COL_VARIABLE (//)
+Variables\x20
+;
 MSG_PREFS_TTL_TYPE (//)
 Colour of types
 ;
@@ -1066,6 +1069,9 @@ Colour of macros
 ;
 MSG_PREFS_TTL_CONSTANT (//)
 Colour of constants and numbers
+;
+MSG_PREFS_TTL_VARIABLE (//)
+Colour of parameters and variables
 ;
 MSG_MENU_COMPLETE (//)
 Complete

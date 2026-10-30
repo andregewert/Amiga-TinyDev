@@ -188,8 +188,7 @@ static Document *new_document(EditorApp *app)
     doc->eol = EOL_LF;
     doc->final_eol = 1;
     document_mark_saved(doc, "", 0, 0);
-    doc->language = SYNTAX_PLAIN;
-    syntax_init_hook(&doc->highlight, doc->language);
+    syntax_init_hook(&doc->highlight);
     minimap_init_document(doc);
     bookmarks_init_document(doc);
     doc->scout_symbols = -1;
@@ -550,8 +549,6 @@ void document_set_path(EditorApp *app, Document *doc, const char *path)
     doc->path = copy;
     strncpy(doc->title, base_name(path), sizeof(doc->title) - 1);
     doc->title[sizeof(doc->title) - 1] = '\0';
-    doc->language = syntax_language_for_path(path);
-    doc->highlight.language = doc->language;
     /* The callers mark the document clean right after this; show the new
      * title now (without toggling the dirty flag, which redrew twice). */
     doc->dirty = 1;

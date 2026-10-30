@@ -1,0 +1,31 @@
+.KEY FROM/A,TO,QUIET/S
+.DEFAULT TO "RAM:"
+.BRA {
+.KET }
+; Kopiert eine Datei
+FailAt 21
+IF NOT EXISTS {FROM}
+  Echo "Keine Datei: {FROM} *"fehlt*""
+  SKIP ende
+ELSE
+  C:Copy {FROM} {TO$RAM:} QUIET
+ENDIF
+Set zaehler 1
+SetEnv Editor TinyDev
+Alias ll List {LFORMAT=%N}
+LAB oben
+Echo "Lauf $zaehler von ${Editor} {NAME}"
+IF $zaehler EQ 3
+  SKIP weiter
+ENDIF
+SKIP oben BACK
+LAB weiter
+SKIP fehlt
+SKIP weiter BACK
+LAB ende
+LAB ende
+.UNKNOWN x
+ENDIF
+ELSE
+Echo "offen
+IF EXISTS RAM:x

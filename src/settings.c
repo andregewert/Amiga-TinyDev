@@ -36,7 +36,8 @@
  *   COLOR_TEXT=RRGGBB ...      colours of the syntax highlighting:
  *                              COLOR_KEYWORD, COLOR_STRING, COLOR_COMMENT,
  *                              COLOR_PREPROCESSOR, COLOR_TYPE,
- *                              COLOR_FUNCTION, COLOR_MACRO, COLOR_CONSTANT
+ *                              COLOR_FUNCTION, COLOR_MACRO, COLOR_CONSTANT,
+ *                              COLOR_VARIABLE
  */
 #include "editor.h"
 
@@ -69,12 +70,14 @@ const unsigned long settings_default_colours[SCOL_COUNT] = {
     0x7030c0,                       /* functions: violet */
     0xc05000,                       /* macros: orange */
     0xd01010,                       /* constants and numbers: red */
+    0x8a5a00,                       /* parameters and variables: brown */
 };
 
 /** Tool type names of the colours, SettingsColour order. */
 static const char *const colour_names[SCOL_COUNT] = {
     "COLOR_TEXT", "COLOR_KEYWORD", "COLOR_STRING", "COLOR_COMMENT", "COLOR_PREPROCESSOR",
-    "COLOR_TYPE", "COLOR_FUNCTION", "COLOR_MACRO", "COLOR_CONSTANT"
+    "COLOR_TYPE", "COLOR_FUNCTION", "COLOR_MACRO", "COLOR_CONSTANT",
+    "COLOR_VARIABLE"
 };
 
 void settings_default(Settings *s)

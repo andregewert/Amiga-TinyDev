@@ -450,7 +450,7 @@ static void add_words(Document *doc)
         size_t i = 0, len;
         if ((nl = strchr(line, '\n')) != NULL) *nl = '\0';
         sk.count = 0;
-        state = syntax_scan(doc->language, doc->highlight.rules, NULL, line, state, note_skip, &sk);
+        state = syntax_scan(doc->highlight.rules, NULL, line, state, note_skip, &sk);
         len = strlen(line);
         while (i < len && cp.count < MAX_ITEMS) {
             size_t w = i, wl;

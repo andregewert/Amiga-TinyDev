@@ -28,7 +28,7 @@ struct HintInfo;
 #define EDITOR_MAX_FILE (8UL * 1024UL * 1024UL) /**< largest file that is loaded (bytes) */
 #define EDITOR_PATH_MAX 1024                /**< size of path buffers */
 #define EDITOR_TITLE_MAX 128                /**< size of a document's title */
-#define EDITOR_COLOR_COUNT 10               /**< number of editor colours (enum EditorColor) */
+#define EDITOR_COLOR_COUNT 11               /**< number of editor colours (enum EditorColor) */
 /** @} */
 
 /**
@@ -55,7 +55,8 @@ enum EditorColor {
     EDITOR_COLOR_TYPE,              /**< types */
     EDITOR_COLOR_FUNCTION,          /**< functions */
     EDITOR_COLOR_MACRO,             /**< macros */
-    EDITOR_COLOR_CONSTANT           /**< constants and numbers */
+    EDITOR_COLOR_CONSTANT,          /**< constants and numbers */
+    EDITOR_COLOR_VARIABLE           /**< parameters and script variables */
 };
 
 /** Gadget IDs of the main window (an editor has 100 + its document number). */
@@ -90,6 +91,7 @@ enum SettingsColour {
     SCOL_FUNCTION,      /**< functions */
     SCOL_MACRO,         /**< macros */
     SCOL_CONSTANT,      /**< constants and numbers */
+    SCOL_VARIABLE,      /**< parameters and script variables */
     SCOL_COUNT          /**< number of colours */
 };
 
@@ -234,7 +236,6 @@ typedef struct Document {
     int check_pending;          /**< changed since the last document_check_unchanged() */
     LineEnding eol;             /**< line endings of the file */
     int final_eol;              /**< the file ends with a line end (new documents: yes); kept when saving, as the editor exports the text without it */
-    SyntaxLanguage language;    /**< language for the highlighting */
     SyntaxHookContext highlight;    /**< the editor's highlighter hook and its state */
     struct Hook minimap_hook;   /**< MINIMAP_ColorHook, h_Data = document */
     struct Hook leftbar_hook;   /**< GA_TEXTEDITOR_LeftBarHook, h_Data = document */

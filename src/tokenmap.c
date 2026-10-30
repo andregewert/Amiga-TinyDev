@@ -35,6 +35,7 @@ static SyntaxStyle style_of(long kind)
     case SCOUT_TOKEN_FUNCTION:  return SYNTAX_FUNCTION;
     case SCOUT_TOKEN_MACRO:     return SYNTAX_MACRO;
     case SCOUT_TOKEN_CONSTANT:  return SYNTAX_CONSTANT;
+    case SCOUT_TOKEN_PARAMETER: return SYNTAX_VARIABLE;
     default:                    return SYNTAX_NORMAL;
     }
 }

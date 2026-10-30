@@ -342,16 +342,18 @@
 #define MSG_PREFS_COL_FUNCTION       337
 #define MSG_PREFS_COL_MACRO          338
 #define MSG_PREFS_COL_CONSTANT       339
-#define MSG_PREFS_TTL_TYPE           340
-#define MSG_PREFS_TTL_FUNCTION       341
-#define MSG_PREFS_TTL_MACRO          342
-#define MSG_PREFS_TTL_CONSTANT       343
-#define MSG_MENU_COMPLETE            344
-#define MSG_COMP_NONE                345
-#define MSG_PJ_CAT_INCLUDE           346
-#define MSG_PJ_COL_DRAWER            347
-#define MSG_PJ_ASL_INCLUDE           348
-#define MSG_COUNT                    349
+#define MSG_PREFS_COL_VARIABLE       340
+#define MSG_PREFS_TTL_TYPE           341
+#define MSG_PREFS_TTL_FUNCTION       342
+#define MSG_PREFS_TTL_MACRO          343
+#define MSG_PREFS_TTL_CONSTANT       344
+#define MSG_PREFS_TTL_VARIABLE       345
+#define MSG_MENU_COMPLETE            346
+#define MSG_COMP_NONE                347
+#define MSG_PJ_CAT_INCLUDE           348
+#define MSG_PJ_COL_DRAWER            349
+#define MSG_PJ_ASL_INCLUDE           350
+#define MSG_COUNT                    351
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -696,10 +698,12 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Functions ",
     "Macros ",
     "Constants ",
+    "Variables ",
     "Colour of types",
     "Colour of functions",
     "Colour of macros",
     "Colour of constants and numbers",
+    "Colour of parameters and variables",
     "Complete",
     "No names start with \"%s\".",
     "Include Drawers",

@@ -145,9 +145,10 @@ below the tree's root.
 - `src/minimap.c`: connects `minimap.gadget` to the editor (active document,
   syntax colour hook, re-render requests, scrolling the editor on minimap
   clicks and drags).
-- `src/syntax.c`: language detection, the built-in scanners, the
-  combined scan (`syntax_scan()`: Scout's lexical rules or the built-in
-  scanner, then Scout's tokens) and the TextEditor highlighting hook.
+- `src/syntax.c`: the combined scan (`syntax_scan()`: Scout's lexical
+  rules, then Scout's tokens) and the TextEditor highlighting hook.
+  TinyDev has no scanners of its own: without Scout nothing is
+  highlighted.
 - `src/rules.c`, `include/rules.h`: the lexical rules of a language from
   Scout (SYNTAX) and the generic scanner with them; portable,
   host-tested in `tests/test_rules.c`.
@@ -196,12 +197,15 @@ below the tree's root.
   STDIN/STDOUT (to move to `src/scout/parsers/`). The C parser is
   `c_parser.c` (the portable, heuristic analysis: lexer, preprocessor
   lines, declarations, highlighting tokens) and `c_parser_rpc.c`
-  (`scout/describe`, `scout/analyze`, the program);
+  (`scout/describe`, `scout/analyze`, the program); the AmigaDOS script
+  parser is `dos_parser.c` (labels, variables, .KEY parameters, aliases,
+  IF/SKIP checks, tokens) and `dos_parser_rpc.c`;
   `include/scout_protocol.h` holds the protocol's numbers (kinds,
   severities, error codes) for Scout and all parsers.
 - `include/editor.h`: shared application types and cross-module declarations.
-- `include/syntax.h`: portable syntax-scanner interface.
-- `tests/test_syntax.c`: host-native syntax scanner tests.
+- `include/syntax.h`: portable interface of the highlighting (styles,
+  spans, `syntax_scan()`).
+- `tests/test_syntax.c`: host-native tests of the combined scan.
 - `tests/test_search.c`: host-native tests of the search engine.
 - `tests/test_bmstore.c`: host-native tests of the bookmark store.
 - `tests/test_projconf.c`: host-native tests of the project settings.
@@ -210,6 +214,8 @@ below the tree's root.
 - `tests/test_json.c`, `tests/test_scout_rpc.c`, `tests/test_c_parser.c`:
   host-native tests for the JSON code, Scout's JSON-RPC helpers and the C
   parser (with the sample sources in `tests/data/c_parser/`, ISO-8859-1).
+- `tests/test_dos_parser.c`: host-native tests of the AmigaDOS script
+  parser (sample in `tests/data/dos_parser/`, ISO-8859-1).
 - `amiga-devkit/`: git submodule (pinned tag) with shared Amiga tools and AI
   guidelines; see `CLAUDE.md`. Do not edit files inside the submodule.
 - `external/html_gadget/`: git submodule (tag `v1.2`), html.gadget, for
@@ -263,7 +269,7 @@ make test
 - Do not claim target-build verification if the cross-toolchain or SDK is
   unavailable; report that limitation explicitly.
 - Finished Amiga binaries go to `bin/` (`bin/TinyDev`, `bin/TinyDev-Scout`,
-  `bin/parsers/c_parser`, `bin/Classes/Gadgets/<name>.gadget`,
+  `bin/parsers/c_parser`, `bin/parsers/dos_parser`, `bin/Classes/Gadgets/<name>.gadget`,
   `bin/Catalogs/<language>/TinyDev.catalog`, `bin/HelpViewer`,
   `bin/Help/<language>/`), laid out as on
   the Amiga; nothing else goes there. All intermediate files (objects,
