@@ -64,7 +64,7 @@ const unsigned long settings_default_colours[SCOL_COUNT] = {
     0x000000,                       /* text: black */
     0x0030d0,                       /* keywords: blue (and bold) */
     0x008a00,                       /* strings: green */
-    0x707070,                       /* comments: grey (and italic) */
+    0x707070,                       /* comments: grey */
     0xb0006e,                       /* preprocessor: magenta (and bold) */
     0x00838f,                       /* types: teal */
     0x7030c0,                       /* functions: violet */

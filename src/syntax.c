@@ -105,7 +105,7 @@ static void format_span(void *context, const SyntaxSpan *span)
     switch (span->style) {
         case SYNTAX_KEYWORD:
         case SYNTAX_PREPROCESSOR: style |= TBSTYLE_BOLD; break;
-        case SYNTAX_COMMENT:      style |= TBSTYLE_ITALIC; break;
+        /* no italics: the slanted bitmap fonts read poorly */
         default: break;
     }
     HighlightSetFormat(hc->object, (ULONG)span->start, (ULONG)span->end, style);
