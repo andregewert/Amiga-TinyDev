@@ -33,6 +33,7 @@ typedef struct SyntaxRules {
     int case_sensitive;                         /**< keywords match with case */
     unsigned char start[256];                   /**< characters that may start a word */
     unsigned char part[256];                    /**< characters that may go on with a word */
+    unsigned char first[256];                   /**< 1: a comment or string may start with it; 2: a number prefix may */
     char line_comments[RULES_MAX][RULES_DELIM]; /**< what starts a comment to the end of the line */
     int line_comment_count;                     /**< number of them */
     RulesPair blocks[RULES_MAX];                /**< block comments */

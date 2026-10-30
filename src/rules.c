@@ -220,6 +220,12 @@ SyntaxRules *rules_parse(const char *json)
         if (s != NULL && s->type == JSON_STRING && set_delim(r->prefixes[r->prefix_count], s->u.str_val))
             r->prefix_count++;
     }
+    /* the characters a delimiter or a prefix starts with: the scanner tries
+     * them only there (it runs for every line drawn) */
+    for (i = 0; i < (size_t)r->line_comment_count; i++) r->first[(unsigned char)r->line_comments[i][0]] |= 1;
+    for (i = 0; i < (size_t)r->block_count; i++) r->first[(unsigned char)r->blocks[i].open[0]] |= 1;
+    for (i = 0; i < (size_t)r->string_count; i++) r->first[(unsigned char)r->strings[i].open[0]] |= 1;
+    for (i = 0; i < (size_t)r->prefix_count; i++) r->first[(unsigned char)r->prefixes[i][0]] |= 2;
     v = json_obj_get_obj(root, "preprocessor");
     if (v != NULL) {
         const char *cont = json_obj_get_string(v, "continuation", NULL);
@@ -387,12 +393,14 @@ unsigned long rules_scan_line(const SyntaxRules *r, const char *text, unsigned l
         unsigned char c = (unsigned char)text[i];
         size_t best = 0, n;
         int what = 0, which = 0, k;     /* 1 line comment, 2 block, 3 string */
-        for (k = 0; k < r->line_comment_count; k++)
-            if ((n = at(text, i, r->line_comments[k])) > best) { best = n; what = 1; which = k; }
-        for (k = 0; k < r->block_count; k++)
-            if ((n = at(text, i, r->blocks[k].open)) > best) { best = n; what = 2; which = k; }
-        for (k = 0; k < r->string_count; k++)
-            if ((n = at(text, i, r->strings[k].open)) > best) { best = n; what = 3; which = k; }
+        if (r->first[c] & 1) {
+            for (k = 0; k < r->line_comment_count; k++)
+                if ((n = at(text, i, r->line_comments[k])) > best) { best = n; what = 1; which = k; }
+            for (k = 0; k < r->block_count; k++)
+                if ((n = at(text, i, r->blocks[k].open)) > best) { best = n; what = 2; which = k; }
+            for (k = 0; k < r->string_count; k++)
+                if ((n = at(text, i, r->strings[k].open)) > best) { best = n; what = 3; which = k; }
+        }
         if (what == 1) {
             out(emit, context, i, len, SYNTAX_COMMENT);
             i = len;
@@ -415,7 +423,7 @@ unsigned long rules_scan_line(const SyntaxRules *r, const char *text, unsigned l
             continue;
         }
         /* a number: a digit not inside a word, or a prefix and a hex digit */
-        if (i == 0 || !r->part[(unsigned char)text[i - 1]]) {
+        if (((c >= '0' && c <= '9') || (r->first[c] & 2)) && (i == 0 || !r->part[(unsigned char)text[i - 1]])) {
             size_t start = i;
             int number = c >= '0' && c <= '9';
             for (k = 0; !number && k < r->prefix_count; k++) {
