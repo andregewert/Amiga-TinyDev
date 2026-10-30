@@ -81,6 +81,10 @@ MSG_MENU_SELECTALL
 Alles auswählen
 ; Select All
 ;
+MSG_MENU_RECT
+Rechteckige Auswahl
+; Rectangular Selection
+;
 MSG_MENU_FIND
 Suchen...
 ; Find...
@@ -250,6 +254,10 @@ OK
 MSG_STATUS
 Dokumente: %lu  Zeilen: %lu
 ; Documents: %lu  Lines: %lu
+;
+MSG_STATUS_RECT
+Rechteckige Auswahl (Ctrl+linke Alt) - %s
+; Rectangular selection (Ctrl+left Alt) - %s
 ;
 MSG_UNTITLED
 Unbenannt %lu

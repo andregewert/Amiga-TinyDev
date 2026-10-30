@@ -83,6 +83,7 @@ From the Workbench, TinyDev opens the files given as project icons.
 | Amiga+F, G | Find and replace, Find Next |
 | Amiga+T, U | Go to the definition of the name at the cursor (again: the next one), go back |
 | Amiga+L | Complete the word at the cursor (a list of names from TinyDev-Scout) |
+| Ctrl+left Alt | Rectangular selection on/off (texteditor.gadget; fixed-width font only; shown in the status line) |
 | Amiga+B, J, K | Set/remove bookmark, next and previous bookmark |
 | Amiga+E, R, D | Build project, Run, Debug (the default commands of the project settings) |
 | Amiga+, | Settings |

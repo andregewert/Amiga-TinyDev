@@ -64,6 +64,9 @@ Paste
 MSG_MENU_SELECTALL (//)
 Select All
 ;
+MSG_MENU_RECT (//)
+Rectangular Selection
+;
 MSG_MENU_FIND (//)
 Find...
 ;
@@ -191,6 +194,9 @@ OK
 ;
 MSG_STATUS (//)
 Documents: %lu  Lines: %lu
+;
+MSG_STATUS_RECT (//)
+Rectangular selection (Ctrl+left Alt) - %s
 ;
 MSG_UNTITLED (//)
 Untitled %lu

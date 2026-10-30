@@ -249,6 +249,7 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NULL, "C", 0, 0, UD(MID_COPY)},
     {NM_ITEM, NULL, "V", 0, 0, UD(MID_PASTE)},
     {NM_ITEM, NULL, "A", 0, 0, UD(MID_SELECT_ALL)},
+    {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_RECT)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, "F", 0, 0, UD(MID_FIND)},
     {NM_ITEM, NULL, "G", 0, 0, UD(MID_FIND_NEXT)},
@@ -308,6 +309,7 @@ static const LONG menu_texts[] = {
     MSG_MENU_COPY,
     MSG_MENU_PASTE,
     MSG_MENU_SELECTALL,
+    MSG_MENU_RECT,
     -1,
     MSG_MENU_FIND,
     MSG_MENU_FINDNEXT,
@@ -378,6 +380,26 @@ void ui_refresh(EditorApp *app)
     if (app->window_object != NULL) SetAttrs(app->window_object, WA_Title, (ULONG)window_title, TAG_END);
 }
 
+/** The active editor has rectangular selections (as the menu shows it). */
+static int rect_shown;
+
+/**
+ * @brief Tell whether the active editor has rectangular selections.
+ *
+ * texteditor.gadget toggles them itself with Ctrl+left Alt (only with a
+ * fixed-width font and without word wrap), easily pressed by mistake, so
+ * the state is read on every tick and shown in the menu and status line.
+ *
+ * @param app The application state.
+ * @return Non-zero if it has.
+ */
+static int rect_selections(EditorApp *app)
+{
+    ULONG on = 0;
+    if (app->active != NULL) GetAttr(GA_TEXTEDITOR_RectangularSelections, app->active->editor, &on);
+    return on != 0;
+}
+
 /** The message of ui_status_message(). */
 static char status_message[200];
 /** When the message goes (CurrentTime() seconds), 0 if there is none. */
@@ -424,6 +446,15 @@ void ui_update_status(EditorApp *app)
     else
         snprintf(status_text, sizeof(status_text),
                  S(MSG_STATUS), doc_count, (unsigned long)lines);
+    if (rect_selections(app) != rect_shown) {
+        rect_shown = !rect_shown;
+        ui_set_menu_check(app, MID_RECT, rect_shown);
+    }
+    if (rect_shown) {
+        char rest[sizeof(status_text)];
+        strcpy(rest, status_text);
+        snprintf(status_text, sizeof(status_text), S(MSG_STATUS_RECT), rest);
+    }
     if (status_message_until != 0) {
         ULONG secs = 0, micros = 0;
         CurrentTime(&secs, &micros);
@@ -534,6 +565,7 @@ static void set_menu_checks(EditorApp *app, int bm_open)
         else if (ud == UD(MID_OUTPUT)) on = app->outwin_was_open;
         else if (ud == UD(MID_SYMLIST)) on = app->symlist_was_open;
         else if (ud == UD(MID_DIAGLIST)) on = app->diaglist_was_open;
+        else if (ud == UD(MID_RECT)) on = rect_shown;
         else continue;
         if (on) menus[i].nm_Flags |= CHECKED;
         else menus[i].nm_Flags &= (UWORD)~CHECKED;
@@ -1017,6 +1049,16 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_COPY: editor_command(app, "COPY"); break;
         case MID_PASTE: editor_command(app, "PASTE"); break;
         case MID_SELECT_ALL: editor_command(app, "SELECTALL"); break;
+        case MID_RECT:
+            if (app->active != NULL)
+                ui_gadget_set(app, app->active->editor, GA_TEXTEDITOR_RectangularSelections,
+                              (ULONG)!rect_selections(app), TAG_IGNORE, 0);
+            /* the editor may refuse (proportional font, word wrap):
+             * marking the shown state as wrong makes ui_update_status()
+             * set the menu's check mark from the editor's state */
+            rect_shown = !rect_selections(app);
+            ui_update_status(app);
+            break;
         case MID_FIND: find_open(app); break;
         case MID_FIND_NEXT: find_next(app); break;
         case MID_BM_TOGGLE: case MID_BM_NEXT: case MID_BM_PREV:

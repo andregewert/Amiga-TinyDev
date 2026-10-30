@@ -173,7 +173,8 @@ enum MenuId {
     MID_DIAGLIST,       /**< View/Problem List (check item) */
     MID_DEFINITION,     /**< Edit/Go to Definition */
     MID_GOBACK,         /**< Edit/Go Back */
-    MID_COMPLETE        /**< Edit/Complete */
+    MID_COMPLETE,       /**< Edit/Complete */
+    MID_RECT            /**< Edit/Rectangular Selection (check item) */
 };
 
 /** Bookmarks of a document that TinyDev keeps track of. */
