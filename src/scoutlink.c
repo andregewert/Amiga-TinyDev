@@ -9,8 +9,10 @@
  * so TinyDev never waits for Scout. Each message is kept with what it
  * was for (a request) until its answer arrives.
  *
- * Scout is started (PROGDIR:TinyDev-Scout, asynchronously) when it is
- * first needed and its port does not exist; TinyDev then looks for the
+ * Scout is started (PROGDIR:TinyDev-Scout, asynchronously) with TinyDev
+ * when the setting is on (its languages fill the File Type menu, also
+ * for documents without a file), or later when it is needed and its
+ * port does not exist; TinyDev then looks for the
  * port for up to ten seconds. Without Scout, or with the setting off
  * (NOSCOUT), TinyDev works on as before. A timer of its own (four times a
  * second while something is to be done) drives the waiting and the pause
@@ -22,8 +24,17 @@
  * is loaded or saved (the file) and after a pause in typing (a snapshot
  * of the editor's text, written to the drawer of the temporary files, with
  * a version raised for every snapshot). One analysis per document is on
- * its way at a time; a change meanwhile is sent after the answer. Files
- * whose extension no parser handles (LANGUAGES) are not sent.
+ * its way at a time; a change meanwhile is sent after the answer.
+ *
+ * Languages: before a document's file is first analysed, Scout is asked
+ * for its language (LANGUAGE), which it finds by the extension, the
+ * script bit or a .KEY line; files without one are not sent. Until the
+ * answer, the extensions of LANGUAGES decide the highlighting. A language
+ * chosen in the File Type menu (or "plain text") goes to Scout with
+ * LANGUAGE ... SET (TEXT; AUTO takes it back), and for a file of the
+ * project into its settings ("languages" of project.json). When the
+ * session opens, the project's choices are sent to Scout, so its index
+ * uses them too, and a document of the project gets its file's choice.
  *
  * The answers' counts of symbols and diagnostics are shown in the status
  * line. The symbol list asks for the symbols of a document or of the
@@ -114,7 +125,8 @@ enum {
     RQ_DEFINITION,      /**< DEFINITION of a name (Go to Definition) */
     RQ_SYNTAX,          /**< SYNTAX of a language */
     RQ_TOKENS,          /**< TOKENS of a document */
-    RQ_COMPLETE         /**< COMPLETE of a prefix (Edit/Complete) */
+    RQ_COMPLETE,        /**< COMPLETE of a prefix (Edit/Complete) */
+    RQ_LANGUAGE         /**< LANGUAGE of a document's file (or a choice of the project) */
 };
 
 /** A message on its way to Scout. */
@@ -150,6 +162,8 @@ static struct {
     int ext_language[MAX_EXTENSIONS];   /**< the language of each (index in languages) */
     int extension_count;        /**< number of them */
     char lang_ids[MAX_LANGUAGES][32];   /**< identifiers of the languages */
+    char lang_names[MAX_LANGUAGES][32]; /**< their names */
+    ProjConf choices;           /**< the project's settings, for its chosen languages */
     SyntaxRules *rules[MAX_LANGUAGES];  /**< their lexical rules (kept until quitting), NULL */
     int language_count;         /**< number of languages */
     unsigned long project_generation;   /**< see scoutlink_project_generation() */
@@ -325,33 +339,49 @@ static void when_ready(void)
 }
 
 /**
- * @brief Tell whether a parser handles a file (by its extension).
- * @param path The file.
- * @return Non-zero if one does.
+ * @brief Find one of Scout's languages by its identifier.
+ * @param id The identifier.
+ * @return Its index, or -1.
  */
-static int has_parser(const char *path)
+static int language_index(const char *id)
 {
-    const char *dot = strrchr(path, '.');
     int i;
-    if (dot == NULL || strchr(dot, '/') != NULL || strchr(dot, ':') != NULL) return 0;
-    for (i = 0; i < sl.extension_count; ++i)
-        if (Stricmp((STRPTR)sl.extensions[i], (STRPTR)dot) == 0) return 1;
-    return 0;
+    for (i = 0; i < sl.language_count; ++i)
+        if (strcmp(sl.lang_ids[i], id) == 0) return i;
+    return -1;
 }
 
 /**
- * @brief Return the lexical rules of a file's language.
- * @param path The file (may be NULL).
- * @return The rules, or NULL.
+ * @brief Return the language of a document: the one chosen, else Scout's,
+ *        else (until Scout answered) the one of its extension.
+ * @param doc The document.
+ * @return The language's index, or -1 for none.
  */
-static const SyntaxRules *rules_for(const char *path)
+static int doc_language(const Document *doc)
 {
-    const char *dot = path != NULL ? strrchr(path, '.') : NULL;
+    const char *dot;
     int i;
-    if (dot == NULL || strchr(dot, '/') != NULL || strchr(dot, ':') != NULL) return NULL;
+    if (doc->lang_chosen) return language_index(doc->lang_choice);
+    if (doc->lang_state == 2) return language_index(doc->lang_detected);
+    dot = doc->path != NULL ? strrchr(doc->path, '.') : NULL;
+    if (dot == NULL || strchr(dot, '/') != NULL || strchr(dot, ':') != NULL) return -1;
     for (i = 0; i < sl.extension_count; ++i)
-        if (Stricmp((STRPTR)sl.extensions[i], (STRPTR)dot) == 0) return sl.rules[sl.ext_language[i]];
-    return NULL;
+        if (Stricmp((STRPTR)sl.extensions[i], (STRPTR)dot) == 0) return sl.ext_language[i];
+    return -1;
+}
+
+/**
+ * @brief Make a file's full path from its path relative to the project.
+ * @param file The relative path.
+ * @param[out] out The full path.
+ * @param size Size of @p out.
+ * @return Non-zero on success (zero if too long).
+ */
+static int project_path(const char *file, char *out, size_t size)
+{
+    if (strlen(sl.project) >= size) return 0;
+    strcpy(out, sl.project);
+    return AddPart((STRPTR)out, (STRPTR)file, (ULONG)size) != 0;
 }
 
 /**
@@ -376,7 +406,8 @@ static void rehighlight(EditorApp *app, Document *doc)
  */
 static void apply_rules(EditorApp *app, Document *doc)
 {
-    const SyntaxRules *r = app->settings.scout ? rules_for(doc->path) : NULL;
+    int k = app->settings.scout ? doc_language(doc) : -1;
+    const SyntaxRules *r = k >= 0 ? sl.rules[k] : NULL;
     if (r == doc->highlight.rules) return;
     Forbid();
     doc->highlight.rules = r;
@@ -484,6 +515,109 @@ static void analyze(EditorApp *app, Document *doc)
 }
 
 /**
+ * @brief Report a failure to read or write the project's settings (once
+ *        per project).
+ * @param app The application state.
+ * @param id The message (MSG_, with %s for the file).
+ */
+static void report_choice(EditorApp *app, LONG id)
+{
+    static char reported[EDITOR_PATH_MAX];
+    char name[EDITOR_PATH_MAX], text[EDITOR_PATH_MAX + 160];
+    if (strcmp(reported, sl.project) == 0) return;
+    strcpy(reported, sl.project);
+    if (!projdata_path(sl.project, "project.json", name, sizeof(name))) return;
+    snprintf(text, sizeof(text), S(id), name);
+    ui_error(app, S(MSG_MENU_FILETYPE), text);
+}
+
+/**
+ * @brief Write a document's chosen language (or that it has none) into
+ *        the project's settings, if its file is in the project and the
+ *        settings say otherwise.
+ * @param app The application state.
+ * @param doc The document.
+ */
+static void store_choice(EditorApp *app, Document *doc)
+{
+    const char *id = doc->lang_chosen ? doc->lang_choice : NULL, *file, *old;
+    char *text = NULL, *json = NULL;
+    ProjConf c;
+    int r;
+    doc->lang_store = 0;
+    if (sl.project[0] == '\0' || doc->path == NULL || (file = projconf_relative(sl.project, doc->path)) == NULL)
+        return;
+    old = projconf_language(&sl.choices, file);
+    if ((old == NULL && id == NULL) || (old != NULL && id != NULL && strcmp(old, id) == 0)) return;
+    r = projdata_read(sl.project, "project.json", &text);
+    projconf_init(&c);
+    if (r < 0 || (r > 0 && projconf_parse(&c, text) <= 0)) {
+        /* a file that cannot be read is never overwritten */
+        report_choice(app, MSG_ERR_FT_READ);
+    } else if (projconf_language_set(&c, file, id) < 0 || (json = projconf_format(&c, text)) == NULL ||
+               !projdata_write(sl.project, "project.json", json)) {
+        report_choice(app, MSG_ERR_FT_WRITE);
+    } else {
+        projconf_language_set(&sl.choices, file, id);
+    }
+    free(json);
+    projconf_clear(&c);
+    free(text);
+}
+
+/**
+ * @brief Ask Scout for the language of a document's file, or tell it the
+ *        one chosen. A document of the project without a choice gets its
+ *        file's choice from the project's settings first.
+ * @param app The application state.
+ * @param doc The document (with a file).
+ */
+static void ask_language(EditorApp *app, Document *doc)
+{
+    char command[2 * EDITOR_PATH_MAX + 64], session[24];
+    const char *file, *id;
+    if (!doc->lang_chosen && !doc->lang_unset && sl.project[0] != '\0' &&
+        (file = projconf_relative(sl.project, doc->path)) != NULL &&
+        (id = projconf_language(&sl.choices, file)) != NULL && strlen(id) < sizeof(doc->lang_choice)) {
+        strcpy(doc->lang_choice, id);
+        doc->lang_chosen = 1;
+    }
+    if (doc->lang_store) store_choice(app, doc);
+    session[0] = '\0';
+    if (sl.session > 0) snprintf(session, sizeof(session), "SESSION %ld ", sl.session);
+    if (doc->lang_chosen && doc->lang_choice[0] != '\0')
+        snprintf(command, sizeof(command), "LANGUAGE %sFILE \"%s\" SET \"%s\"", session, doc->path, doc->lang_choice);
+    else if (doc->lang_chosen)
+        snprintf(command, sizeof(command), "LANGUAGE %sFILE \"%s\" TEXT", session, doc->path);
+    else
+        snprintf(command, sizeof(command), "LANGUAGE %sFILE \"%s\"%s", session, doc->path,
+                 doc->lang_unset ? " AUTO" : "");
+    if (send_command(command, RQ_LANGUAGE, doc->number, -1)) {
+        doc->lang_state = 1;
+        doc->lang_unset = 0;
+    }
+}
+
+/**
+ * @brief Tell Scout the languages chosen in the project's settings, so its
+ *        index uses them (after the session opened).
+ */
+static void send_choices(void)
+{
+    char command[2 * EDITOR_PATH_MAX + 64], path[EDITOR_PATH_MAX];
+    long i;
+    for (i = 0; i < sl.choices.lang_count; ++i) {
+        const char *id = sl.choices.lang_ids[i];
+        if (!project_path(sl.choices.lang_files[i], path, sizeof(path))) continue;
+        if (id[0] != '\0')
+            snprintf(command, sizeof(command), "LANGUAGE SESSION %ld FILE \"%s\" SET \"%s\"", sl.session, path, id);
+        else
+            snprintf(command, sizeof(command), "LANGUAGE SESSION %ld FILE \"%s\" TEXT", sl.session, path);
+        send_command(command, RQ_LANGUAGE, 0, -1);
+    }
+}
+
+/**
  * @brief Send the analyses that are due.
  * @param app The application state.
  */
@@ -494,7 +628,9 @@ static void send_due(EditorApp *app)
     for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ;
          doc = (Document *)doc->node.ln_Succ) {
         if (!doc->scout_pending || doc->scout_busy || doc->path == NULL) continue;
-        if (doc->scout_none || !has_parser(doc->path)) { doc->scout_pending = 0; continue; }
+        if (doc->lang_state == 0) ask_language(app, doc);
+        if (doc->lang_state != 2) continue;
+        if (doc->scout_none || doc_language(doc) < 0) { doc->scout_pending = 0; continue; }
         if (doc->scout_now || sl.idle >= PAUSE_TICKS) analyze(app, doc);
     }
 }
@@ -510,6 +646,7 @@ static void all_pending(EditorApp *app)
          doc = (Document *)doc->node.ln_Succ) {
         doc->scout_pending = doc->scout_now = 1;
         doc->scout_none = 0;
+        doc->lang_state = 0;
     }
 }
 
@@ -574,6 +711,8 @@ static void read_languages(const char *result)
             sl.rules[k] = NULL;
             ++sl.language_count;
         }
+        strncpy(sl.lang_names[k], json_obj_get_string(lang, "name", id), sizeof(sl.lang_names[k]) - 1);
+        sl.lang_names[k][sizeof(sl.lang_names[k]) - 1] = '\0';
         for (j = 0; exts != NULL && j < json_array_length(exts); ++j) {
             const JsonValue *e = json_array_get(exts, j);
             char *copy;
@@ -615,6 +754,7 @@ static void answer(EditorApp *app, ScoutRequest *rq, int ok, const char *result,
             if (ok && result != NULL) {
                 read_languages(result);
                 sl.languages = 1;
+                ui_update_file_types(app);
             } else {
                 /* Scout cannot be used: not asked again until the setting
                  * is switched on again */
@@ -630,6 +770,7 @@ static void answer(EditorApp *app, ScoutRequest *rq, int ok, const char *result,
                 sl.status_ticks = STATUS_TICKS;     /* ask soon */
                 sl.queue = -1;
                 sl.changes = -1;
+                send_choices();
                 all_pending(app);
             }
             break;
@@ -692,6 +833,19 @@ static void answer(EditorApp *app, ScoutRequest *rq, int ok, const char *result,
             if (text != NULL) FreeVec(text);
             break;
         }
+        case RQ_LANGUAGE:
+            if (rq->doc == 0 || (doc = find_document(app, rq->doc)) == NULL) break;
+            if (rq->session != sl.session) { doc->lang_state = 0; break; }
+            doc->lang_state = 2;
+            doc->lang_detected[0] = '\0';
+            if (ok && result != NULL) {
+                JsonValue *v = json_parse(result, NULL);
+                const char *id = v != NULL ? json_obj_get_string(v, "language", "") : "";
+                if (strlen(id) < sizeof(doc->lang_detected)) strcpy(doc->lang_detected, id);
+                json_value_free(v);
+            }
+            apply_rules(app, doc);
+            break;
         case RQ_ANALYZE:
             if ((doc = find_document(app, rq->doc)) == NULL) break;
             doc->scout_busy = 0;
@@ -787,20 +941,23 @@ static void tick(EditorApp *app)
 }
 
 /**
- * @brief Read the include drawers of a project's settings into OPEN's
- *        arguments (sl.include).
+ * @brief Read a project's settings: the include drawers into OPEN's
+ *        arguments (sl.include), the chosen languages into sl.choices.
  * @param root The project directory.
  */
-static void read_include(const char *root)
+static void read_project(const char *root)
 {
     char *text = NULL;
     ProjConf c;
     long i;
     free(sl.include);
     sl.include = NULL;
+    projconf_clear(&sl.choices);
     if (projdata_read(root, "project.json", &text) <= 0) return;
     projconf_init(&c);
     if (projconf_parse(&c, text) > 0) {
+        for (i = 0; i < c.lang_count; ++i)
+            projconf_language_set(&sl.choices, c.lang_files[i], c.lang_ids[i]);
         for (i = 0; i < c.include_count; ++i) {
             char *full = projconf_include_full(&c, i, root);
             size_t old = sl.include != NULL ? strlen(sl.include) : 0;
@@ -833,8 +990,16 @@ void scoutlink_project_opened(EditorApp *app)
     sl.project[0] = '\0';
     if (!app->settings.scout || !tree_project_root(app, root, sizeof(root))) return;
     strcpy(sl.project, root);
-    read_include(root);
+    read_project(root);
     sl.want_open = 1;
+    connect(app);
+    when_ready();
+    if (sl.state == SL_STARTING) start_timer();
+}
+
+void scoutlink_start(EditorApp *app)
+{
+    if (!app->settings.scout) return;
     connect(app);
     when_ready();
     if (sl.state == SL_STARTING) start_timer();
@@ -846,6 +1011,7 @@ void scoutlink_settings_changed(EditorApp *app)
     if (app->settings.scout) {
         if (sl.state == SL_FAILED) sl.state = SL_OFF;   /* try again */
         if (sl.session == 0 && !sl.opening) scoutlink_project_opened(app);
+        scoutlink_start(app);
         all_pending(app);
         return;
     }
@@ -871,7 +1037,51 @@ void scoutlink_document_saved(Document *doc)
 {
     doc->scout_pending = doc->scout_now = 1;
     doc->scout_none = 0;
+    /* the file may be another one now (Save As), or its bits changed */
+    doc->lang_state = 0;
+    doc->lang_store = doc->lang_chosen;
     start_timer();
+}
+
+void scoutlink_choose_language(EditorApp *app, Document *doc, const char *id)
+{
+    if (id != NULL) {
+        if (strlen(id) >= sizeof(doc->lang_choice)) return;
+        strcpy(doc->lang_choice, id);
+        doc->lang_chosen = 1;
+        doc->lang_unset = 0;
+    } else {
+        if (doc->lang_chosen) doc->lang_unset = 1;
+        doc->lang_chosen = 0;
+    }
+    doc->lang_state = 0;
+    doc->lang_detected[0] = '\0';
+    doc->lang_store = 1;
+    doc->scout_pending = doc->scout_now = 1;
+    doc->scout_none = 0;
+    doc->scout_symbols = -1;
+    doc->scout_problems = 0;
+    /* what the old language's parser found no longer counts */
+    set_tokens(app, doc, NULL);
+    if (doc->diag_count > 0 || doc->diag_mark_count > 0) diag_set_document(app, doc, NULL);
+    apply_rules(app, doc);
+    if (doc->path != NULL) store_choice(app, doc);
+    start_timer();
+}
+
+int scoutlink_language_count(void)
+{
+    return sl.language_count;
+}
+
+const char *scoutlink_language_id(int index)
+{
+    return sl.lang_ids[index];
+}
+
+const char *scoutlink_language_name(int index)
+{
+    return sl.lang_names[index];
 }
 
 void scoutlink_document_closing(EditorApp *app, Document *doc)
@@ -1081,6 +1291,7 @@ void scoutlink_cleanup(EditorApp *app)
     while (sl.extension_count > 0) free(sl.extensions[--sl.extension_count]);
     free(sl.include);
     sl.include = NULL;
+    projconf_clear(&sl.choices);
     if (sl.timer_open) {
         if (sl.timer_pending) {
             AbortIO((struct IORequest *)sl.timer);

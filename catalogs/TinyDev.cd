@@ -1088,3 +1088,18 @@ Drawer (relative to the project or absolute)
 MSG_PJ_ASL_INCLUDE (//)
 Drawer searched for included files
 ;
+MSG_MENU_FILETYPE (//)
+File Type
+;
+MSG_MENU_FT_AUTO (//)
+Automatic
+;
+MSG_MENU_FT_TEXT (//)
+Plain Text
+;
+MSG_ERR_FT_READ (//)
+%s could not be read, so the file type is not saved in it.
+;
+MSG_ERR_FT_WRITE (//)
+The file type could not be saved in %s.
+;

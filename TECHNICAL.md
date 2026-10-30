@@ -75,7 +75,10 @@ The directory opened in the folder tree is the project. What refers to it:
 - the project's settings in `<project>/.tinydev/project.json`, read and
   written by `projconf.c`, edited in the window of `projwin.c`
   (Build/Project Settings...): lists of Shell commands for the actions Build, Run and
-  Debug, each with a default (format in `include/projconf.h`). The file is
+  Debug, each with a default, the include drawers and the languages
+  chosen in the File Type menu (format in `include/projconf.h`;
+  `scoutlink.c` writes the languages and sends them to Scout's session).
+  The file is
   meant to be shared (checked in with the project), so nothing personal of
   a session goes into it; writing keeps the keys TinyDev does not know,
   also those of the entries; `build.c` runs the default commands (Build in

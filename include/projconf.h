@@ -26,7 +26,8 @@
  *     "debug": [
  *       { "name": "Debugger", "command": "BDebug bin/TinyDev" }
  *     ],
- *     "include": [ "include", "NDK:Include_H" ]
+ *     "include": [ "include", "NDK:Include_H" ],
+ *     "languages": { "s/Startup-Sequence": "amigados", "notes": "" }
  *   }
  *
  * Each action has a list of commands:
@@ -44,6 +45,11 @@
  * "include" lists the drawers searched for included files (relative to the
  * project directory or absolute); TinyDev-Scout indexes the files found
  * there, so a definition in a system header can be found.
+ *
+ * "languages" holds the language a user chose for a file (path relative
+ * to the project directory, with "/"): the identifier of a language of
+ * TinyDev-Scout, or "" for plain text. Files without an entry get the
+ * language Scout detects.
  *
  * In command lines and "dir", {project} stands for the project directory,
  * {file} for the active document and {base} for the document without its
@@ -75,6 +81,9 @@ typedef struct ProjConf {
     long count[PROJ_ACTIONS];               /**< number of commands of each action */
     char **include;                         /**< the include drawers, as written (malloc()) */
     long include_count;                     /**< number of them */
+    char **lang_files;                      /**< files with a chosen language, relative to the project (malloc()) */
+    char **lang_ids;                        /**< the language of each, "" for plain text (malloc()) */
+    long lang_count;                        /**< number of them */
 } ProjConf;
 
 /**
@@ -170,8 +179,8 @@ char *projconf_command_text(const ProjCommand *cmd);
 /**
  * @brief Write settings as the JSON text of a project file.
  *
- * The lists of the actions (and the include drawers, when there are some or
- * the file had them) replace those of @p old_json; everything else in it
+ * The lists of the actions (and the include drawers and the languages,
+ * when there are some or the file had them) replace those of @p old_json; everything else in it
  * stays, in its place, and so do the other keys of the entries
  * (ProjCommand::extra). "name" is left out when it is the first line,
  * "dir" and "default" when they are not set. A new file starts with
@@ -220,6 +229,34 @@ long projconf_include_move(ProjConf *c, long index, int delta);
  * @return The path (free() it), or NULL if out of memory.
  */
 char *projconf_include_full(const ProjConf *c, long index, const char *project);
+
+/**
+ * @brief Set or remove the language chosen for a file.
+ * @param c The settings.
+ * @param file The file, relative to the project directory.
+ * @param id The language's identifier, "" for plain text, NULL to remove
+ *        the choice.
+ * @return 1 on success, -1 if out of memory (nothing changes).
+ */
+int projconf_language_set(ProjConf *c, const char *file, const char *id);
+
+/**
+ * @brief Return the language chosen for a file.
+ * @param c The settings.
+ * @param file The file, relative to the project directory (compared
+ *        without regard to case, as AmigaDOS does).
+ * @return Its identifier, "" for plain text, or NULL if none was chosen.
+ */
+const char *projconf_language(const ProjConf *c, const char *file);
+
+/**
+ * @brief Return the part of a path below the project directory.
+ * @param project The project directory (full name).
+ * @param path A full path.
+ * @return The rest of @p path after the project directory and its "/",
+ *         or NULL if @p path is not inside it.
+ */
+const char *projconf_relative(const char *project, const char *path);
 
 /**
  * @brief Return the command an action runs: the first marked as default,

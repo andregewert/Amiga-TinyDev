@@ -224,7 +224,14 @@ static void close_editor_colors(EditorApp *app)
     app->editor_colors_open = 0;
 }
 
-/** The menu; the texts are filled in from menu_texts[] (catalog). */
+/** Items of the File Type menu that exclude each other (bit 2 is its bar). */
+#define FT_ALL (((1L << (3 + FILETYPE_SLOTS)) - 1) & ~4L)
+/** The mutual exclusion of the File Type menu's item at a position. */
+#define FT_EXCLUDE(pos) (FT_ALL & ~(1L << (pos)))
+
+/** The menu; the texts are filled in from menu_texts[] (catalog). The
+ *  File Type menu has a slot per language (NM_IGNORE until Scout names
+ *  them, ui_update_file_types()). */
 static struct NewMenu menus[] = {
     {NM_TITLE, NULL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, "N", 0, 0, UD(MID_NEW)},
@@ -257,6 +264,22 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NULL, "T", 0, 0, UD(MID_DEFINITION)},
     {NM_ITEM, NULL, "U", 0, 0, UD(MID_GOBACK)},
     {NM_ITEM, NULL, "L", 0, 0, UD(MID_COMPLETE)},
+    {NM_TITLE, NULL, NULL, 0, 0, NULL},
+    {NM_ITEM, NULL, NULL, CHECKIT | CHECKED, FT_EXCLUDE(0), UD(MID_FT_AUTO)},
+    {NM_ITEM, NULL, NULL, CHECKIT, FT_EXCLUDE(1), UD(MID_FT_TEXT)},
+    {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
+    {NM_IGNORE, "", NULL, CHECKIT, FT_EXCLUDE(3), UD(MID_FT_FIRST + 0)},
+    {NM_IGNORE, "", NULL, CHECKIT, FT_EXCLUDE(4), UD(MID_FT_FIRST + 1)},
+    {NM_IGNORE, "", NULL, CHECKIT, FT_EXCLUDE(5), UD(MID_FT_FIRST + 2)},
+    {NM_IGNORE, "", NULL, CHECKIT, FT_EXCLUDE(6), UD(MID_FT_FIRST + 3)},
+    {NM_IGNORE, "", NULL, CHECKIT, FT_EXCLUDE(7), UD(MID_FT_FIRST + 4)},
+    {NM_IGNORE, "", NULL, CHECKIT, FT_EXCLUDE(8), UD(MID_FT_FIRST + 5)},
+    {NM_IGNORE, "", NULL, CHECKIT, FT_EXCLUDE(9), UD(MID_FT_FIRST + 6)},
+    {NM_IGNORE, "", NULL, CHECKIT, FT_EXCLUDE(10), UD(MID_FT_FIRST + 7)},
+    {NM_IGNORE, "", NULL, CHECKIT, FT_EXCLUDE(11), UD(MID_FT_FIRST + 8)},
+    {NM_IGNORE, "", NULL, CHECKIT, FT_EXCLUDE(12), UD(MID_FT_FIRST + 9)},
+    {NM_IGNORE, "", NULL, CHECKIT, FT_EXCLUDE(13), UD(MID_FT_FIRST + 10)},
+    {NM_IGNORE, "", NULL, CHECKIT, FT_EXCLUDE(14), UD(MID_FT_FIRST + 11)},
     {NM_TITLE, NULL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, "B", 0, 0, UD(MID_BM_TOGGLE)},
     {NM_ITEM, NULL, "J", 0, 0, UD(MID_BM_NEXT)},
@@ -317,6 +340,22 @@ static const LONG menu_texts[] = {
     MSG_MENU_DEFINITION,
     MSG_MENU_GOBACK,
     MSG_MENU_COMPLETE,
+    MSG_MENU_FILETYPE,
+    MSG_MENU_FT_AUTO,
+    MSG_MENU_FT_TEXT,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
+    -1,
     MSG_MENU_BOOKMARKS,
     MSG_MENU_BM_TOGGLE,
     MSG_MENU_BM_NEXT,
@@ -400,6 +439,82 @@ static int rect_selections(EditorApp *app)
     return on != 0;
 }
 
+/** File Type item checked for the active document (FT_SHOWN_), or a
+ *  language's index; FT_SHOWN_NONE makes ui_update_status() set it. */
+static int ft_shown = -3;
+#define FT_SHOWN_AUTO -1    /**< File Type/Automatic */
+#define FT_SHOWN_TEXT -2    /**< File Type/Plain Text */
+#define FT_SHOWN_NONE -3    /**< not known: to be set */
+
+/**
+ * @brief Return the File Type item of the active document.
+ * @param app The application state.
+ * @return FT_SHOWN_AUTO, FT_SHOWN_TEXT or the index of a language.
+ */
+static int file_type_of(EditorApp *app)
+{
+    const Document *doc = app->active;
+    int i;
+    if (doc == NULL || !doc->lang_chosen) return FT_SHOWN_AUTO;
+    if (doc->lang_choice[0] == '\0') return FT_SHOWN_TEXT;
+    for (i = 0; i < scoutlink_language_count() && i < FILETYPE_SLOTS; ++i)
+        if (strcmp(scoutlink_language_id(i), doc->lang_choice) == 0) return i;
+    return FT_SHOWN_AUTO;
+}
+
+/**
+ * @brief Return the MID_ of a File Type item.
+ * @param shown FT_SHOWN_AUTO, FT_SHOWN_TEXT or the index of a language.
+ * @return The MID_.
+ */
+static ULONG file_type_id(int shown)
+{
+    if (shown == FT_SHOWN_TEXT) return MID_FT_TEXT;
+    if (shown >= 0) return (ULONG)(MID_FT_FIRST + shown);
+    return MID_FT_AUTO;
+}
+
+/**
+ * @brief Check the File Type item of the active document (in the window's
+ *        menu and in menus[], which window.class builds it from).
+ * @param app The application state.
+ */
+static void sync_file_type(EditorApp *app)
+{
+    int shown = file_type_of(app), i;
+    ULONG id = file_type_id(shown);
+    if (shown == ft_shown) return;
+    for (i = 0; menus[i].nm_Type != NM_END; ++i) {
+        ULONG ud = (ULONG)menus[i].nm_UserData;
+        if (ud < MID_FT_AUTO || ud >= MID_FT_FIRST + FILETYPE_SLOTS) continue;
+        if (ud == id) menus[i].nm_Flags |= CHECKED;
+        else menus[i].nm_Flags &= (UWORD)~CHECKED;
+        if (ft_shown == FT_SHOWN_NONE || ud == id || ud == file_type_id(ft_shown))
+            ui_set_menu_check(app, ud, ud == id);
+    }
+    ft_shown = shown;
+}
+
+void ui_update_file_types(EditorApp *app)
+{
+    int i, n = scoutlink_language_count();
+    for (i = 0; menus[i].nm_Type != NM_END; ++i) {
+        ULONG ud = (ULONG)menus[i].nm_UserData;
+        int k = (int)ud - MID_FT_FIRST;
+        if (ud < MID_FT_FIRST || k >= FILETYPE_SLOTS || menus[i].nm_Type == NM_TITLE) continue;
+        if (k < n) {
+            menus[i].nm_Type = NM_ITEM;
+            menus[i].nm_Label = (STRPTR)scoutlink_language_name(k);
+        } else {
+            menus[i].nm_Type = NM_IGNORE;
+        }
+    }
+    ft_shown = FT_SHOWN_NONE;
+    sync_file_type(app);
+    /* window.class builds the menus anew from the table */
+    if (app->window_object != NULL) SetAttrs(app->window_object, WINDOW_NewMenu, (ULONG)menus, TAG_END);
+}
+
 /** The message of ui_status_message(). */
 static char status_message[200];
 /** When the message goes (CurrentTime() seconds), 0 if there is none. */
@@ -450,6 +565,7 @@ void ui_update_status(EditorApp *app)
         rect_shown = !rect_shown;
         ui_set_menu_check(app, MID_RECT, rect_shown);
     }
+    sync_file_type(app);
     if (rect_shown) {
         char rest[sizeof(status_text)];
         strcpy(rest, status_text);
@@ -1009,6 +1125,15 @@ static int ui_uniconify(EditorApp *app)
 static void menu_action(EditorApp *app, ULONG id)
 {
     Document *doc;
+    if (id >= MID_FT_AUTO && id < MID_FT_FIRST + FILETYPE_SLOTS) {
+        int k = (int)id - MID_FT_FIRST;
+        if (app->active == NULL) return;
+        if (id == MID_FT_AUTO) scoutlink_choose_language(app, app->active, NULL);
+        else if (id == MID_FT_TEXT) scoutlink_choose_language(app, app->active, "");
+        else if (k < scoutlink_language_count()) scoutlink_choose_language(app, app->active, scoutlink_language_id(k));
+        ui_update_status(app);
+        return;
+    }
     switch (id) {
         case MID_NEW: document_new(app); break;
         case MID_OPEN: file_request_open(app); break;

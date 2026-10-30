@@ -58,8 +58,9 @@ below the tree's root.
 - `src/projconf.c`, `include/projconf.h`: the portable reader and writer
   of a project's settings (`<project>/.tinydev/project.json`): the Shell
   commands of the actions Build, Run and Debug, the default of each, and
-  the placeholders `{project}`, `{file}`, `{base}`; writing keeps the keys
-  it does not know; no Amiga headers.
+  the placeholders `{project}`, `{file}`, `{base}`, the include drawers
+  and the languages chosen for files; writing keeps the keys it does not
+  know; no Amiga headers.
 - `src/projdata.c`: reading and writing the files of
   `<project>/.tinydev/` (whole files; writes through a temporary file,
   making the directory when needed), for bookmarks and project settings.
@@ -79,7 +80,9 @@ below the tree's root.
   messages answered to a port of the event loop): starts Scout when
   needed, a session per project (the tree's root), analyses documents
   when loaded or saved and, as a snapshot in the temporary drawer, after a
-  pause in typing; the counts go to the status line.
+  pause in typing; the counts go to the status line. A document's
+  language comes from Scout (LANGUAGE) or from the File Type menu
+  (`scoutlink_choose_language()`, kept in `project.json`).
 - `src/symlist.c`: the symbol list, a tool window (View/Symbol List):
   the symbols of the active document or of the project from Scout
   (through `scoutlink.c`), filter, Go to (`document_go_to()`).

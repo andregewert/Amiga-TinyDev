@@ -24,7 +24,10 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
 - Syntax highlighting with the rules of TinyDev-Scout's parsers (C:
   `.c`, `.h`; AmigaDOS scripts: `.script`, `.dos`), including the types,
   functions, macros, constants and parameters of the project. Without
-  Scout nothing is highlighted; other files are plain text.
+  Scout nothing is highlighted; other files are plain text. Scripts
+  without an extension are recognised by their script bit (or a `.KEY`
+  line); the File Type menu chooses the language of a file, and in a
+  project the choice is kept.
 - Folder tree of the project (the directory opened with Project/Open
   Directory): opens files with a double-click and follows changes on disk.
 - Minimap: a coloured overview of the document; click or drag in it to
@@ -236,7 +239,7 @@ Tool types of its icon (or Shell arguments of the same names):
 the commands with the sample sources of `tests/data/c_parser/` (it starts
 `bin/TinyDev-Scout` if needed).
 
-TinyDev starts Scout (from its own drawer) when it needs it, opens a
+TinyDev starts Scout (from its own drawer) at its own start, opens a
 session for the project and has the open documents analysed (status
 line, symbol list, problems). Scout notices files of the project that
 change on disk. Its window (Exchange's Show, or its hotkey) shows what

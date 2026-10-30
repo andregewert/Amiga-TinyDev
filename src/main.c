@@ -264,6 +264,7 @@ int main(int argc, char **argv)
     if (argc == 0) open_workbench_files(&app, (struct WBStartup *)argv);
     else open_cli_files(&app, argc, argv);
     if (IsListEmpty(&app.documents)) document_new(&app);
+    scoutlink_start(&app);
     ui_run(&app); status = 0;
 done:
     splash_close();

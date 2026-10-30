@@ -28,6 +28,7 @@ struct HintInfo;
 #define EDITOR_MAX_FILE (8UL * 1024UL * 1024UL) /**< largest file that is loaded (bytes) */
 #define EDITOR_PATH_MAX 1024                /**< size of path buffers */
 #define EDITOR_TITLE_MAX 128                /**< size of a document's title */
+#define FILETYPE_SLOTS 12                   /**< most languages in the File Type menu */
 #define EDITOR_COLOR_COUNT 11               /**< number of editor colours (enum EditorColor) */
 /** @} */
 
@@ -176,7 +177,10 @@ enum MenuId {
     MID_DEFINITION,     /**< Edit/Go to Definition */
     MID_GOBACK,         /**< Edit/Go Back */
     MID_COMPLETE,       /**< Edit/Complete */
-    MID_RECT            /**< Edit/Rectangular Selection (check item) */
+    MID_RECT,           /**< Edit/Rectangular Selection (check item) */
+    MID_FT_AUTO,        /**< File Type/Automatic: the language Scout detects */
+    MID_FT_TEXT,        /**< File Type/Plain Text: no highlighting, no analysis */
+    MID_FT_FIRST        /**< File Type: the first language (FILETYPE_SLOTS of them follow) */
 };
 
 /** Bookmarks of a document that TinyDev keeps track of. */
@@ -245,6 +249,12 @@ typedef struct Document {
     int bm_apply;               /**< the project's bookmarks are still to be set */
     long bm_goto;               /**< line to go to once they are set, -1 if none ... */
     char bm_goto_text[BOOKMARK_TEXT_MAX + 1];   /**< ... and its text (to find it again) */
+    char lang_choice[32];       /**< language chosen in the File Type menu, "" for plain text (when lang_chosen) */
+    int lang_chosen;            /**< a language was chosen (else Scout's is used) */
+    int lang_unset;             /**< the choice was taken back: Scout is to detect it again (AUTO) */
+    int lang_store;             /**< the choice is to be written into the project's settings */
+    int lang_state;             /**< Scout's language of the file: 0 to be asked, 1 asked, 2 known */
+    char lang_detected[32];     /**< that language, "" for none */
     int scout_pending;          /**< to be analysed by Scout (after a pause in typing) */
     int scout_now;              /**< ... at once (loaded or saved) */
     int scout_busy;             /**< an analysis is on its way */
@@ -647,6 +657,12 @@ void ui_gadget_set(EditorApp *app, Object *obj, ULONG tag1, ULONG data1,
  * @param on Non-zero to check it.
  */
 void ui_set_menu_check(EditorApp *app, ULONG id, int on);
+/**
+ * @brief Fill the File Type menu with Scout's languages (after LANGUAGES)
+ *        and have the window build its menus anew.
+ * @param app The application state.
+ */
+void ui_update_file_types(EditorApp *app);
 /**
  * @brief Start collecting relayouts and page redraws (nestable).
  *
@@ -1531,6 +1547,12 @@ int temp_name(EditorApp *app, const char *suffix, char *out, size_t size);
  */
 void scoutlink_project_opened(EditorApp *app);
 /**
+ * @brief Start Scout (asynchronously) if the setting is on and it does
+ *        not run; called when TinyDev's window is open.
+ * @param app The application state.
+ */
+void scoutlink_start(EditorApp *app);
+/**
  * @brief The settings changed: Scout turned on or off.
  * @param app The application state.
  */
@@ -1570,6 +1592,33 @@ void scoutlink_handle(EditorApp *app);
  */
 void scoutlink_cleanup(EditorApp *app);
 
+/**
+ * @brief Choose the language of a document (File Type menu): Scout
+ *        analyses it with that language, and in a project the choice is
+ *        written into the project's settings.
+ * @param app The application state.
+ * @param doc The document.
+ * @param id The language's identifier, "" for plain text, NULL for the
+ *        language Scout detects.
+ */
+void scoutlink_choose_language(EditorApp *app, Document *doc, const char *id);
+/**
+ * @brief Return the number of Scout's languages (LANGUAGES).
+ * @return The number (0 before the answer).
+ */
+int scoutlink_language_count(void);
+/**
+ * @brief Return the identifier of one of Scout's languages.
+ * @param index Its index (below scoutlink_language_count()).
+ * @return The identifier.
+ */
+const char *scoutlink_language_id(int index);
+/**
+ * @brief Return the name of one of Scout's languages, as shown in menus.
+ * @param index Its index (below scoutlink_language_count()).
+ * @return The name.
+ */
+const char *scoutlink_language_name(int index);
 /**
  * @brief Ask Scout for symbols: those of a document, or those of the
  *        project; the answer goes to symlist_symbols().

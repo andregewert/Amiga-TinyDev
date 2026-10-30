@@ -353,7 +353,12 @@
 #define MSG_PJ_CAT_INCLUDE           348
 #define MSG_PJ_COL_DRAWER            349
 #define MSG_PJ_ASL_INCLUDE           350
-#define MSG_COUNT                    351
+#define MSG_MENU_FILETYPE            351
+#define MSG_MENU_FT_AUTO             352
+#define MSG_MENU_FT_TEXT             353
+#define MSG_ERR_FT_READ              354
+#define MSG_ERR_FT_WRITE             355
+#define MSG_COUNT                    356
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -709,6 +714,11 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Include Drawers",
     "Drawer (relative to the project or absolute)",
     "Drawer searched for included files",
+    "File Type",
+    "Automatic",
+    "Plain Text",
+    "%s could not be read, so the file type is not saved in it.",
+    "The file type could not be saved in %s.",
 };
 #endif
 

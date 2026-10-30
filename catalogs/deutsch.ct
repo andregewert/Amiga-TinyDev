@@ -1416,3 +1416,23 @@ MSG_PJ_ASL_INCLUDE
 Verzeichnis für eingebundene Dateien
 ; Drawer searched for included files
 ;
+MSG_MENU_FILETYPE
+Dateityp
+; File Type
+;
+MSG_MENU_FT_AUTO
+Automatisch
+; Automatic
+;
+MSG_MENU_FT_TEXT
+Text
+; Plain Text
+;
+MSG_ERR_FT_READ
+%s konnte nicht gelesen werden, deshalb wird der Dateityp nicht darin gespeichert.
+; %s could not be read, so the file type is not saved in it.
+;
+MSG_ERR_FT_WRITE
+Der Dateityp konnte nicht in %s gespeichert werden.
+; The file type could not be saved in %s.
+;

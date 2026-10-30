@@ -29,6 +29,8 @@ void projconf_init(ProjConf *c)
     }
     c->include = NULL;
     c->include_count = 0;
+    c->lang_files = c->lang_ids = NULL;
+    c->lang_count = 0;
 }
 
 /**
@@ -55,6 +57,12 @@ void projconf_clear(ProjConf *c)
     }
     for (i = 0; i < c->include_count; ++i) free(c->include[i]);
     free(c->include);
+    for (i = 0; i < c->lang_count; ++i) {
+        free(c->lang_files[i]);
+        free(c->lang_ids[i]);
+    }
+    free(c->lang_files);
+    free(c->lang_ids);
     projconf_init(c);
 }
 
@@ -155,6 +163,14 @@ int projconf_parse(ProjConf *c, const char *json)
             const JsonValue *v = json_array_get(list, i);
             if (v != NULL && v->type == JSON_STRING && projconf_include_set(c, -1, v->u.str_val) < 0) goto nomem;
         }
+    }
+    {
+        const JsonValue *langs = json_obj_get_obj(root, "languages");
+        const JsonMember *m;
+        for (m = langs != NULL ? langs->u.obj_val.first : NULL; m != NULL; m = m->next)
+            if (m->value != NULL && m->value->type == JSON_STRING && m->key[0] != '\0' &&
+                projconf_language_set(c, m->key, m->value->u.str_val) < 0)
+                goto nomem;
     }
     json_value_free(root);
     return 1;
@@ -276,6 +292,8 @@ int projconf_copy(ProjConf *dst, const ProjConf *src)
     }
     for (i = 0; i < src->include_count && ok && a == PROJ_ACTIONS; ++i)
         if (projconf_include_set(dst, -1, src->include[i]) < 0) ok = 0;
+    for (i = 0; i < src->lang_count && ok && a == PROJ_ACTIONS; ++i)
+        if (projconf_language_set(dst, src->lang_files[i], src->lang_ids[i]) < 0) ok = 0;
     if (a < PROJ_ACTIONS || !ok) {
         projconf_clear(dst);
         return 0;
@@ -334,6 +352,89 @@ char *projconf_include_full(const ProjConf *c, long index, const char *project)
     if (project[np - 1] != ':' && project[np - 1] != '/') full[np++] = '/';
     memcpy(full + np, path, n + 1);
     return full;
+}
+
+/**
+ * @brief Compare two texts without regard to ASCII case.
+ * @param a A text.
+ * @param b Another text.
+ * @param n The number of characters to compare.
+ * @return Non-zero if they are equal.
+ */
+static int same_text(const char *a, const char *b, size_t n)
+{
+    size_t i;
+    for (i = 0; i < n; ++i) {
+        int x = (unsigned char)a[i], y = (unsigned char)b[i];
+        if (x >= 'A' && x <= 'Z') x += 'a' - 'A';
+        if (y >= 'A' && y <= 'Z') y += 'a' - 'A';
+        if (x != y) return 0;
+    }
+    return 1;
+}
+
+/**
+ * @brief Find the chosen language of a file.
+ * @param c The settings.
+ * @param file The file, relative to the project directory.
+ * @return Its index in ProjConf::lang_files, or -1.
+ */
+static long find_language(const ProjConf *c, const char *file)
+{
+    size_t n = strlen(file);
+    long i;
+    for (i = 0; i < c->lang_count; ++i)
+        if (strlen(c->lang_files[i]) == n && same_text(c->lang_files[i], file, n)) return i;
+    return -1;
+}
+
+int projconf_language_set(ProjConf *c, const char *file, const char *id)
+{
+    long i = find_language(c, file);
+    char *f, *v;
+    if (id == NULL) {
+        if (i < 0) return 1;
+        free(c->lang_files[i]);
+        free(c->lang_ids[i]);
+        --c->lang_count;
+        memmove(&c->lang_files[i], &c->lang_files[i + 1], (size_t)(c->lang_count - i) * sizeof(char *));
+        memmove(&c->lang_ids[i], &c->lang_ids[i + 1], (size_t)(c->lang_count - i) * sizeof(char *));
+        return 1;
+    }
+    if ((v = copy(id)) == NULL) return -1;
+    if (i >= 0) {
+        free(c->lang_ids[i]);
+        c->lang_ids[i] = v;
+        return 1;
+    }
+    {
+        char **files = realloc(c->lang_files, (size_t)(c->lang_count + 1) * sizeof(char *));
+        char **ids;
+        if (files != NULL) c->lang_files = files;
+        ids = files != NULL ? realloc(c->lang_ids, (size_t)(c->lang_count + 1) * sizeof(char *)) : NULL;
+        if (ids != NULL) c->lang_ids = ids;
+        if (ids == NULL || (f = copy(file)) == NULL) {
+            free(v);
+            return -1;
+        }
+        c->lang_files[c->lang_count] = f;
+        c->lang_ids[c->lang_count++] = v;
+    }
+    return 1;
+}
+
+const char *projconf_language(const ProjConf *c, const char *file)
+{
+    long i = find_language(c, file);
+    return i >= 0 ? c->lang_ids[i] : NULL;
+}
+
+const char *projconf_relative(const char *project, const char *path)
+{
+    size_t n = strlen(project);
+    if (n == 0 || strlen(path) <= n || !same_text(project, path, n)) return NULL;
+    if (project[n - 1] == ':' || project[n - 1] == '/') return path + n;
+    return path[n] == '/' ? path + n + 1 : NULL;
 }
 
 /**
@@ -542,6 +643,15 @@ char *projconf_format(const ProjConf *c, const char *old_json)
                 list = NULL;
             }
         ok = json_obj_set(root, "include", list);
+    }
+    if (ok && (c->lang_count > 0 || json_obj_get(root, "languages") != NULL)) {
+        JsonValue *langs = json_new_object();
+        for (i = 0; langs != NULL && i < c->lang_count; ++i)
+            if (!json_obj_set(langs, c->lang_files[i], json_new_string(c->lang_ids[i]))) {
+                json_value_free(langs);
+                langs = NULL;
+            }
+        ok = json_obj_set(root, "languages", langs);
     }
     if (ok) {
         json_writer_init_alloc(&w, 512);

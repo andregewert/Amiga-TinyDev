@@ -177,6 +177,47 @@ static void test_include(void)
 }
 
 /**
+ * @brief The chosen languages: read, set, change, remove, written only
+ *        when there are some or the file had them; paths below the project.
+ */
+static void test_languages(void)
+{
+    ProjConf c, d;
+    char *json;
+    projconf_init(&c);
+    assert(projconf_parse(&c, "{\"languages\": {\"s/Startup-Sequence\": \"amigados\", \"x\": 3, \"notes\": \"\"}}") == 1);
+    assert(c.lang_count == 2);
+    assert(strcmp(projconf_language(&c, "S/startup-sequence"), "amigados") == 0);
+    assert(strcmp(projconf_language(&c, "notes"), "") == 0 && projconf_language(&c, "x") == NULL);
+    assert(projconf_language_set(&c, "notes", "c") == 1 && c.lang_count == 2);
+    assert(strcmp(projconf_language(&c, "notes"), "c") == 0);
+    assert(projconf_language_set(&c, "build", "amigados") == 1 && c.lang_count == 3);
+    assert(projconf_copy(&d, &c) && d.lang_count == 3 && strcmp(projconf_language(&d, "build"), "amigados") == 0);
+    projconf_clear(&d);
+    json = projconf_format(&c, "{\"version\": 1}");
+    assert(json != NULL && strstr(json, "\"s/Startup-Sequence\": \"amigados\"") != NULL);
+    assert(strstr(json, "\"build\": \"amigados\"") != NULL);
+    free(json);
+    assert(projconf_language_set(&c, "nothing", NULL) == 1 && c.lang_count == 3);
+    assert(projconf_language_set(&c, "notes", NULL) == 1 && projconf_language_set(&c, "build", NULL) == 1);
+    assert(projconf_language_set(&c, "S/Startup-Sequence", NULL) == 1 && c.lang_count == 0);
+    json = projconf_format(&c, "{\"version\": 1}");
+    assert(json != NULL && strstr(json, "languages") == NULL);
+    free(json);
+    json = projconf_format(&c, "{\"version\": 1, \"languages\": {\"a\": \"c\"}}");
+    assert(json != NULL && strstr(json, "\"languages\": {}") != NULL);
+    free(json);
+    projconf_clear(&c);
+
+    assert(strcmp(projconf_relative("Work:Proj", "work:proj/s/x"), "s/x") == 0);
+    assert(strcmp(projconf_relative("Work:", "Work:s/x"), "s/x") == 0);
+    assert(strcmp(projconf_relative("Work:Proj/", "Work:Proj/a"), "a") == 0);
+    assert(projconf_relative("Work:Proj", "Work:Project/a") == NULL);
+    assert(projconf_relative("Work:Proj", "Work:Proj") == NULL);
+    assert(projconf_relative("", "Work:a") == NULL);
+}
+
+/**
  * @brief Host-native tests of the project settings: the three actions,
  *        names, drawers, command lines as string or array, the default
  *        command, skipped entries, refused files, and the placeholders.
@@ -264,6 +305,7 @@ int main(void)
 
     test_edit_and_format();
     test_include();
+    test_languages();
     puts("project settings tests passed");
     return 0;
 }

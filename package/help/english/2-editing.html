@@ -10,6 +10,12 @@
 The syntax highlighting depends on the file name; it comes from
 TinyDev-Scout's parsers (C, AmigaDOS scripts), without Scout nothing is
 highlighted.</p>
+<p>AmigaDOS scripts often have no extension; TinyDev-Scout recognises
+them by their script bit (<tt>Protect</tt> flag <tt>s</tt>) or a first
+<tt>.KEY</tt> line. The File Type menu chooses the language of the
+document by hand: Automatic leaves it to Scout, Plain Text switches the
+highlighting off. For a file of the project, the choice is kept in the
+project's settings.</p>
 <p>Ctrl+left Alt (or Edit/Rectangular Selection) switches the editor to
 rectangular selections: the mouse and the cursor keys select a block of
 columns. It works only with a fixed-width screen font. The status line
