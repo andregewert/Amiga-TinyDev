@@ -9,7 +9,9 @@
  * (tmplsym_draw() from the list's render hook) and enlarged next to it (an
  * image of this class). The symbols are 12 x 12 pixels in the screen's
  * pens, drawn scaled by a whole number; an unknown type gets the generic
- * one. Graphics only, so the drawing may run during input handling.
+ * one. The image shows a template's own icon instead when it is given one
+ * (#TMPLSYM_Icon, drawn with icon.library V44). Graphics only, so the
+ * drawing may run during input handling.
  */
 #include "editor.h"
 
@@ -18,8 +20,11 @@
 #include <intuition/classusr.h>
 #include <intuition/imageclass.h>
 #include <intuition/screens.h>
+#include <workbench/icon.h>
+#include <workbench/workbench.h>
 #include <proto/exec.h>
 #include <proto/graphics.h>
+#include <proto/icon.h>
 #include <proto/intuition.h>
 #include <proto/utility.h>
 #include <clib/alib_protos.h>
@@ -71,9 +76,24 @@ static const char *const type_names[TMPLSYM_COUNT] = {
 
 /** Instance data of a symbol image. */
 typedef struct SymData {
-    ULONG type;         /**< the TmplSymType shown */
-    UWORD scale;        /**< pixels per symbol pixel */
+    ULONG type;                 /**< the TmplSymType shown */
+    UWORD scale;                /**< pixels per symbol pixel */
+    struct DiskObject *icon;    /**< the icon shown instead, or NULL */
+    WORD iconw;                 /**< its width */
+    WORD iconh;                 /**< its height */
 } SymData;
+
+/**
+ * @brief Take an icon to show (or none) and measure it.
+ * @param d The instance data.
+ * @param icon The icon, or NULL.
+ */
+static void set_icon(SymData *d, struct DiskObject *icon)
+{
+    d->icon = icon;
+    d->iconw = d->iconh = 0;
+    if (icon != NULL && !tmplsym_icon_size(icon, &d->iconw, &d->iconh)) d->icon = NULL;
+}
 
 /**
  * The private image class of the enlarged symbol.
@@ -128,18 +148,22 @@ static ULONG sym_dispatch(Class *cl, Object *o, Msg msg)
             d->type = GetTagData(TMPLSYM_Type, TMPLSYM_GENERIC, ((struct opSet *)msg)->ops_AttrList);
             d->scale = (UWORD)GetTagData(TMPLSYM_Scale, 1, ((struct opSet *)msg)->ops_AttrList);
             if (d->scale == 0) d->scale = 1;
+            set_icon(d, (struct DiskObject *)GetTagData(TMPLSYM_Icon, 0, ((struct opSet *)msg)->ops_AttrList));
             return r;
         case OM_SET:
             d = (SymData *)INST_DATA(cl, o);
             if ((tag = FindTagItem(TMPLSYM_Type, ((struct opSet *)msg)->ops_AttrList)) != NULL)
                 d->type = tag->ti_Data < TMPLSYM_COUNT ? tag->ti_Data : TMPLSYM_GENERIC;
+            if ((tag = FindTagItem(TMPLSYM_Icon, ((struct opSet *)msg)->ops_AttrList)) != NULL)
+                set_icon(d, (struct DiskObject *)tag->ti_Data);
             return DoSuperMethodA(cl, o, msg);
         case IM_DOMAINFRAME: {
             /* layout.gadget asks for the size; the same for every domain */
             struct impDomainFrame *dom = (struct impDomainFrame *)msg;
-            d = (SymData *)INST_DATA(cl, o);
+            struct Image *im = (struct Image *)o;
             dom->imp_Domain.Left = dom->imp_Domain.Top = 0;
-            dom->imp_Domain.Width = dom->imp_Domain.Height = (WORD)(TMPLSYM_SIZE * d->scale);
+            dom->imp_Domain.Width = im->Width;
+            dom->imp_Domain.Height = im->Height;
             return 1;
         }
         case IM_DRAW:
@@ -148,6 +172,15 @@ static ULONG sym_dispatch(Class *cl, Object *o, Msg msg)
             struct Image *im = (struct Image *)o;
             d = (SymData *)INST_DATA(cl, o);
             /* centred in the image's box */
+            if (d->icon != NULL) {
+                DrawIconState(imp->imp_RPort, d->icon, NULL,
+                              (WORD)(im->LeftEdge + imp->imp_Offset.X + (im->Width - d->iconw) / 2),
+                              (WORD)(im->TopEdge + imp->imp_Offset.Y + (im->Height - d->iconh) / 2),
+                              IDS_NORMAL, ICONDRAWA_DrawInfo, (ULONG)imp->imp_DrInfo,
+                              ICONDRAWA_Frameless, TRUE, ICONDRAWA_Borderless, TRUE,
+                              ICONDRAWA_EraseBackground, FALSE, TAG_END);
+                return 0;
+            }
             tmplsym_draw(imp->imp_RPort,
                          (WORD)(im->LeftEdge + imp->imp_Offset.X + (im->Width - TMPLSYM_SIZE * d->scale) / 2),
                          (WORD)(im->TopEdge + imp->imp_Offset.Y + (im->Height - TMPLSYM_SIZE * d->scale) / 2),
@@ -158,7 +191,19 @@ static ULONG sym_dispatch(Class *cl, Object *o, Msg msg)
     return DoSuperMethodA(cl, o, msg);
 }
 
-Object *tmplsym_image_new(UWORD scale)
+int tmplsym_icon_size(struct DiskObject *icon, WORD *width, WORD *height)
+{
+    struct Rectangle rect;
+    if (IconBase == NULL || icon == NULL ||
+        !GetIconRectangle(NULL, icon, NULL, &rect, ICONDRAWA_Frameless, TRUE, ICONDRAWA_Borderless, TRUE,
+                          TAG_END))
+        return 0;
+    *width = (WORD)(rect.MaxX - rect.MinX + 1);
+    *height = (WORD)(rect.MaxY - rect.MinY + 1);
+    return 1;
+}
+
+Object *tmplsym_image_new(UWORD scale, UWORD width, UWORD height)
 {
     if (sym_class == NULL) {
         sym_class = MakeClass(NULL, (STRPTR)"imageclass", NULL, sizeof(SymData), 0);
@@ -166,8 +211,10 @@ Object *tmplsym_image_new(UWORD scale)
         sym_class->cl_Dispatcher.h_Entry = (ULONG (*)())HookEntry;
         sym_class->cl_Dispatcher.h_SubEntry = (ULONG (*)())sym_dispatch;
     }
-    return NewObject(sym_class, NULL, IA_Width, (ULONG)(TMPLSYM_SIZE * scale),
-                     IA_Height, (ULONG)(TMPLSYM_SIZE * scale), TMPLSYM_Scale, (ULONG)scale, TAG_END);
+    if (width < TMPLSYM_SIZE * scale) width = (UWORD)(TMPLSYM_SIZE * scale);
+    if (height < TMPLSYM_SIZE * scale) height = (UWORD)(TMPLSYM_SIZE * scale);
+    return NewObject(sym_class, NULL, IA_Width, (ULONG)width, IA_Height, (ULONG)height,
+                     TMPLSYM_Scale, (ULONG)scale, TAG_END);
 }
 
 void tmplsym_free_class(void)

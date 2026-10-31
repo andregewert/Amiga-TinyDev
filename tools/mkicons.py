@@ -13,9 +13,13 @@
 #   scout      a page of code under a magnifying glass
 #   parser_<x> a chip with the label of the parser's language (parser())
 #   helpviewer a blue handbook with a question mark on its cover
+#   hello      a Shell window that says "Hi!" in a speech bubble (the
+#              template HelloWorld)
 #
 # Run directly (or "make icons") to write sample icons of all styles to
-# icons/<Style>/ and a preview picture icons/preview.png.
+# icons/<Style>/ and a preview picture icons/preview.png, and the icon of
+# the template HelloWorld (templates/HelloWorld/template.info, GlowIcons
+# with the classic picture for older systems).
 
 import os, sys
 
@@ -37,11 +41,17 @@ GLYPHS = {
     'C': ('.###.', '#...#', '#....', '#....', '#....', '#...#', '.###.'),
     'S': ('.####', '#....', '#....', '.###.', '....#', '....#', '####.'),
     '?': ('.###.', '#...#', '....#', '...#.', '..#..', '.....', '..#..'),
+    'H': ('#...#', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'),
+    'i': ('.#.', '...', '##.', '.#.', '.#.', '.#.', '###'),
+    '!': ('#', '#', '#', '#', '#', '.', '#'),
 }
 SMALL = {
     'C': ('.##', '#..', '#..', '#..', '.##'),
     'S': ('###', '#..', '###', '..#', '###'),
     '?': ('##.', '..#', '.#.', '...', '.#.'),
+    'H': ('#.#', '#.#', '###', '#.#', '#.#'),
+    'i': ('#', '.', '#', '#', '#'),
+    '!': ('#', '#', '#', '.', '#'),
 }
 
 
@@ -150,6 +160,30 @@ def pic_helpviewer():
     return c
 
 
+def pic_hello():
+    c = ai.Canvas(38, 24)
+    c.rect(1, 1, 27, 19, 2)                   # the Shell window
+    c.frame(1, 1, 27, 19, 1, 1)
+    c.rect(2, 2, 26, 4, 3)                    # title bar
+    c.rect(4, 7, 5, 7, 1)                     # prompt "1>" and a command
+    c.rect(7, 7, 18, 7, 1)
+    c.rect(4, 10, 15, 10, 3)                  # its output
+    c.rect(4, 13, 5, 13, 1)                   # the next prompt, cursor
+    c.rect(7, 13, 8, 14, 3)
+    c.rect(20, 11, 36, 21, 2)                 # the speech bubble
+    c.frame(20, 11, 36, 21, 1, 1)
+    for i in range(3):                        # its tail, open to the bubble
+        y = 21 + i
+        c.rect(22, y, 22, y, 1)
+        c.rect(23, y, 24 - i, y, 2)
+        c.rect(25 - i, y, 25 - i, y, 1)
+    x = 24
+    for letter in 'Hi!':
+        glyph(c, x, 14, letter, 1, small=True)
+        x += len(SMALL[letter][0]) + 2
+    return c
+
+
 # --------------------------------------------- GlowIcons motifs ---
 
 def m_tinydev(s, c):
@@ -191,6 +225,34 @@ def m_helpviewer(s, c):
         for dx, p in enumerate(row):
             if p == '#':
                 c.rect(12 + 3 * dx, 7 + 3 * dy, 14 + 3 * dx, 9 + 3 * dy, WHITE)
+
+
+def m_hello(s, c):
+    frame = s.line(GREY[1])
+    c.rect(1, 2, 31, 28, frame)                               # the Shell window
+    c.rect(2, 3, 30, 7, s.ramp(*BLUE)(2, 3, 30, 7))           # title bar
+    c.rect(3, 4, 5, 6, WHITE)                                 # close gadget
+    c.rect(2, 8, 30, 27, s.ramp(WHITE, PAPER[1])(2, 8, 30, 27))
+    c.line(4, 11, 6, 11, TEXT)                                # 1> hello
+    c.line(8, 11, 20, 11, KEYWORD)
+    c.line(4, 15, 18, 15, TEXT)                               # its output
+    c.line(4, 19, 6, 19, TEXT)                                # 1> and the cursor
+    c.rect(8, 18, 10, 20, BLUE[1])
+    # the speech bubble with its tail, lower right
+    yellow = ((255, 244, 170), (240, 200, 70))
+    bubble = s.ramp(*yellow)(19, 17, 41, 33)
+    edge = s.line(yellow[1])
+    c.poly([(23, 32), (29, 32), (21, 37)], bubble, edge)
+    c.rect(19, 17, 41, 33, edge)
+    c.rect(20, 18, 40, 32, bubble)
+    for x, y in ((19, 17), (41, 17), (19, 33), (41, 33)):     # rounded corners
+        c.put(x, y, None)
+    c.line(24, 33, 28, 33, bubble(24, 32))                    # open towards the tail
+    x = 22
+    for letter in 'Hi!':                                      # bold letters
+        glyph(c, x, 21, letter, RED[1])
+        glyph(c, x + 1, 21, letter, RED[1])
+        x += len(GLYPHS[letter][0]) + 3
 
 
 def ring(c, cx, cy, r, colour):
@@ -311,6 +373,20 @@ def n_helpviewer(c, sel):
                     book.face_line(c, t, u, u + 1, mark)
 
 
+def n_hello(c, sel):
+    """ the monitor with a Shell: a prompt, the greeting in yellow, the
+        cursor; selected: the next line is typed                          """
+    def screen(c, box, u0, u1, t0, t1, sel):
+        box.face_line(c, t0 + 1, u0, u0 + 1, ai.N_G170)              # 1>
+        box.face_line(c, t0 + 1, u0 + 3, u1 - 4, WHITE)              # hello
+        box.face_line(c, t0 + 3, u0, u1 - 2, ai.N_YELLOW)            # Hi!
+        box.face_line(c, t0 + 5, u0, u0 + 1, ai.N_G170)              # 1>
+        if sel:
+            box.face_line(c, t0 + 5, u0 + 3, u0 + 8, WHITE)
+        box.face_line(c, t0 + 5, u0 + (9 if sel else 3), u0 + (10 if sel else 4), ai.N_LBLUE)
+    ai.n_monitor(c, screen, sel)
+
+
 def ni_parser(letter, colour):
     def n(c, sel):
         """ a chip on its platform, pins along its long side, the language
@@ -369,13 +445,14 @@ def parser(letter, colour=BLUE, ni_colour=ai.N_BLUE):
 ai.register('tinydev', pic_tinydev, m_tinydev, n_tinydev)
 ai.register('scout', pic_scout, m_scout, n_scout)
 ai.register('helpviewer', pic_helpviewer, m_helpviewer, n_helpviewer)
+ai.register('hello', pic_hello, m_hello, n_hello)
 PARSER_C = parser('C')
 PARSER_DOS = parser('S', GREEN, ai.N_GREEN)    # AmigaDOS scripts
 
 
 # ---------------------------------------------------------------- samples ---
 
-ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, PARSER_DOS, 'helpviewer', 'readme', 'license')
+ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, PARSER_DOS, 'helpviewer', 'hello', 'readme', 'license')
 
 SAMPLES = (('Drawer', 'drawer', WBDRAWER, {}),
            ('TinyDev', 'tinydev', WBTOOL, {'stack': 32768}),
@@ -383,9 +460,13 @@ SAMPLES = (('Drawer', 'drawer', WBDRAWER, {}),
            ('c_parser', PARSER_C, WBTOOL, {'stack': 16384}),
            ('dos_parser', PARSER_DOS, WBTOOL, {'stack': 16384}),
            ('HelpViewer', 'helpviewer', WBTOOL, {'stack': 32768}),
+           ('HelloWorld', 'hello', WBPROJECT, {}),
            ('ReadMe', 'readme', WBPROJECT, {'default_tool': 'SYS:Utilities/MultiView'}),
            ('License', 'license', WBPROJECT, {'default_tool': 'SYS:Utilities/MultiView'}))
 
 
 if __name__ == '__main__':
     ai.write_samples(os.path.join(ROOT, 'icons'), SAMPLES, ROLES)
+    # the template's icon, shown by TinyDev's wizard
+    write_icon(os.path.join(ROOT, 'templates', 'HelloWorld', 'template'), 'GlowIcons', 'hello', WBPROJECT)
+    print('template icon written to templates/HelloWorld/template.info')

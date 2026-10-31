@@ -1265,3 +1265,30 @@ Project %s created.
 MSG_NP_NEEDCLASS (//)
 The wizard needs %s.
 ;
+MSG_MENU_NEWFROMTEMPLATE (//)
+New File from Template...
+;
+MSG_NF_TITLE (//)
+New File from Template
+;
+MSG_NF_DRAWERNOTE (//)
+The files go into this drawer; existing files are not overwritten.
+;
+MSG_NF_ASL (//)
+Choose the drawer for the files
+;
+MSG_NF_NODRAWER (//)
+Please enter the drawer for the files.
+;
+MSG_NF_NOTEMPLATES (//)
+There are no file templates\nin the drawer Templates next to TinyDev.
+;
+MSG_NF_FAILED (//)
+The files could not be created:\n\n%s
+;
+MSG_NF_WARNINGS (//)
+The files were created with warnings:\n\n%s
+;
+MSG_NF_CREATED (//)
+Files of %s created.
+;

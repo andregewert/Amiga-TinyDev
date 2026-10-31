@@ -412,7 +412,16 @@
 #define MSG_NP_WARNINGS              407
 #define MSG_NP_CREATED               408
 #define MSG_NP_NEEDCLASS             409
-#define MSG_COUNT                    410
+#define MSG_MENU_NEWFROMTEMPLATE     410
+#define MSG_NF_TITLE                 411
+#define MSG_NF_DRAWERNOTE            412
+#define MSG_NF_ASL                   413
+#define MSG_NF_NODRAWER              414
+#define MSG_NF_NOTEMPLATES           415
+#define MSG_NF_FAILED                416
+#define MSG_NF_WARNINGS              417
+#define MSG_NF_CREATED               418
+#define MSG_COUNT                    419
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -827,6 +836,15 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "The project was created with warnings:\n\n%s",
     "Project %s created.",
     "The wizard needs %s.",
+    "New File from Template...",
+    "New File from Template",
+    "The files go into this drawer; existing files are not overwritten.",
+    "Choose the drawer for the files",
+    "Please enter the drawer for the files.",
+    "There are no file templates\nin the drawer Templates next to TinyDev.",
+    "The files could not be created:\n\n%s",
+    "The files were created with warnings:\n\n%s",
+    "Files of %s created.",
 };
 #endif
 

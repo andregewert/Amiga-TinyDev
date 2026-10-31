@@ -1652,3 +1652,39 @@ MSG_NP_NEEDCLASS
 Der Assistent braucht %s.
 ; The wizard needs %s.
 ;
+MSG_MENU_NEWFROMTEMPLATE
+Neue Datei aus Vorlage...
+; New File from Template...
+;
+MSG_NF_TITLE
+Neue Datei aus Vorlage
+; New File from Template
+;
+MSG_NF_DRAWERNOTE
+Die Dateien kommen in dieses Verzeichnis; vorhandene werden nicht überschrieben.
+; The files go into this drawer; existing files are not overwritten.
+;
+MSG_NF_ASL
+Verzeichnis für die Dateien wählen
+; Choose the drawer for the files
+;
+MSG_NF_NODRAWER
+Bitte das Verzeichnis für die Dateien angeben.
+; Please enter the drawer for the files.
+;
+MSG_NF_NOTEMPLATES
+Im Verzeichnis Templates neben TinyDev\ngibt es keine Dateivorlagen.
+; There are no file templates\nin the drawer Templates next to TinyDev.
+;
+MSG_NF_FAILED
+Die Dateien konnten nicht erstellt werden:\n\n%s
+; The files could not be created:\n\n%s
+;
+MSG_NF_WARNINGS
+Die Dateien wurden mit Warnungen erstellt:\n\n%s
+; The files were created with warnings:\n\n%s
+;
+MSG_NF_CREATED
+Dateien aus %s erstellt.
+; Files of %s created.
+;

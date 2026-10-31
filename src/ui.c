@@ -12,6 +12,7 @@
  * the Workbench background until a subclass draws it itself.
  */
 #include "editor.h"
+#include "sprout_tmpl.h"
 #include "projconf.h"
 
 #include <gadgets/clicktab.h>
@@ -238,6 +239,7 @@ static void close_editor_colors(EditorApp *app)
 static struct NewMenu menus[] = {
     {NM_TITLE, NULL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, "N", 0, 0, UD(MID_NEW)},
+    {NM_ITEM, NULL, NULL, 0, 0, UD(MID_NEW_FROM_TEMPLATE)},
     {NM_ITEM, NULL, "O", 0, 0, UD(MID_OPEN)},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_OPEN_DIRECTORY)},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_NEW_PROJECT)},
@@ -316,6 +318,7 @@ static struct NewMenu menus[] = {
 static const LONG menu_texts[] = {
     MSG_MENU_PROJECT,
     MSG_MENU_NEW,
+    MSG_MENU_NEWFROMTEMPLATE,
     MSG_MENU_OPEN,
     MSG_MENU_OPENDIR,
     MSG_MENU_NEWPROJECT,
@@ -1086,45 +1089,37 @@ void ui_apply_settings(EditorApp *app, const Settings *n)
     for (i = 0; i < SCOL_COUNT; ++i) ReleasePen(cm, (ULONG)pens[i]);
 }
 
-/**
- * @brief The title of the AppIcon: the project's name from project.json,
- *        else the name of the project directory, else "TinyDev".
- * @param app The application state.
- * @return The title (a static buffer, valid until the next call).
- */
-static const char *icon_title(EditorApp *app)
+int ui_project_name(EditorApp *app, char *out, size_t size)
 {
-    static char title[128];
     char root[512];
     char *text = NULL;
-    const char *name;
-    size_t n;
-    if (!tree_project_root(app, root, sizeof(root))) return APP_NAME;
+    if (size == 0 || !tree_project_root(app, root, sizeof(root))) return 0;
+    out[0] = '\0';
     if (projdata_read(root, "project.json", &text) > 0) {
         ProjConf conf;
         projconf_init(&conf);
         if (projconf_parse(&conf, text) > 0 && conf.name != NULL) {
-            strncpy(title, conf.name, sizeof(title) - 1);
-            title[sizeof(title) - 1] = '\0';
-            projconf_clear(&conf);
-            free(text);
-            return title;
+            strncpy(out, conf.name, size - 1);
+            out[size - 1] = '\0';
         }
         projconf_clear(&conf);
         free(text);
     }
     /* "Work:Projects/TinyDev" -> "TinyDev", "Work:" -> "Work" */
-    n = strlen(root);
-    while (n > 0 && root[n - 1] == '/') root[--n] = '\0';
-    name = (const char *)FilePart((STRPTR)root);
-    if (*name == '\0') {
-        if (n > 0 && root[n - 1] == ':') root[--n] = '\0';
-        name = root;
-    }
-    if (*name == '\0') return APP_NAME;
-    strncpy(title, name, sizeof(title) - 1);
-    title[sizeof(title) - 1] = '\0';
-    return title;
+    if (out[0] == '\0') sprout_drawer_name(root, out, size);
+    return out[0] != '\0';
+}
+
+/**
+ * @brief The title of the AppIcon: the project's name (ui_project_name()),
+ *        without a project TinyDev's.
+ * @param app The application state.
+ * @return The title (a static buffer or a constant).
+ */
+static const char *icon_title(EditorApp *app)
+{
+    static char title[128];
+    return ui_project_name(app, title, sizeof(title)) ? title : APP_NAME;
 }
 
 /**
@@ -1246,6 +1241,7 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_SETTINGS: edit_settings(app); break;
         case MID_PROJECT_SETTINGS: project_settings(app); break;
         case MID_NEW_PROJECT: new_project(app); break;
+        case MID_NEW_FROM_TEMPLATE: new_from_template(app); break;
         case MID_BUILD: case MID_RUN: case MID_DEBUG: case MID_STOP:
             build_action(app, id);
             break;

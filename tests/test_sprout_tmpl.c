@@ -473,6 +473,31 @@ static void test_shipped(void)
     sprout_values_free(&out);
     sprout_values_free(&given);
     sprout_template_free(&t);
+
+    /* the file template CModule */
+    f = fopen("templates/CModule/template.json", "rb");
+    assert(f != NULL);
+    n = fread(json, 1, sizeof(json) - 1, f);
+    fclose(f);
+    json[n] = '\0';
+    assert(sprout_template_parse(&t, json, report, NULL) == 1);
+    assert(strcmp(t.kind, "file") == 0);
+    sprout_values_init(&given);
+    assert(sprout_resolve(&t, &given, "src", 17835, &out, report, NULL) == 0);     /* NAME is required */
+    reset();
+    assert(sprout_values_parse_assign(&given, "NAME=list-view") == 1);
+    assert(sprout_values_parse_assign(&given, "PROJECT=TinyDev") == 1);
+    assert(sprout_resolve(&t, &given, "src", 17835, &out, report, NULL) == 1);
+    assert(errors == 0 && warnings == 0);
+    assert(strcmp(sprout_values_get(&out, "GUARD"), "list_view_H") == 0);
+    assert(strcmp(sprout_values_get(&out, "PROJECT"), "TinyDev") == 0);
+    assert(t.nopen == 2);
+    name = sprout_expand_path(t.open[1], &out, &bad);
+    assert(name != NULL && strcmp(name, "list-view.h") == 0);
+    free(name);
+    sprout_values_free(&out);
+    sprout_values_free(&given);
+    sprout_template_free(&t);
 }
 
 /**

@@ -1,23 +1,31 @@
 /**
  * @file newproj.c
- * @brief The wizard of Project/New Project...: choose a project template,
- *        fill in its values, and let Sprout create the project.
+ * @brief The wizard of Project/New Project... and Project/New File from
+ *        Template...: choose a template, fill in its values, and let
+ *        Sprout create the project or the files.
  *
- * The templates come from "Sprout LIST" (Sprout next to TinyDev) (run once per opening of
+ * The templates come from "Sprout LIST ICON <drawer>" (Sprout next to
+ * TinyDev) (run once per opening of
  * the window, its JSON read with sprout_template_from_json()); only those
- * of kind "project" are offered. The window is modal and built like the
+ * of the kind asked for ("project" or "file") are offered. The window is modal and built like the
  * project settings window (projwin.c). A page.gadget holds the pages:
  *
  * - page 0, the template: the categories (listbrowser), the templates of
  *   the chosen one (listbrowser, the symbol of the icon type drawn by a
- *   render hook, tmplsym.c), the chosen template's symbol enlarged with
- *   its name and description; below them the project's name and drawer
+ *   render hook, tmplsym.c), the chosen template's icon (or its symbol
+ *   enlarged) with its name and description; below them the project's name and drawer
  *   (string gadget, ASL button);
  * - then one page per template with a form generated from its
  *   placeholders: a string gadget per value, a chooser where the template
  *   gives choices, the description as help bubble. All forms are built
  *   with the window, so no gadget is added to a layout later; the page
  *   gadget is as large as the largest form.
+ *
+ * The icons of the templates come with the list: Sprout copies them to a
+ * drawer in the temporary drawer, TinyDev loads them (GetDiskObject(),
+ * LayoutIconA()) and deletes the files at once. The box of the icon is as
+ * large as the largest one; an icon larger than #ICON_MAX either way is
+ * left out (the symbol is shown).
  *
  * The fields are filled in with the defaults expanded like Sprout does
  * (sprout_builtins() and sprout_expand() of sprout_tmpl.c, PROJECT and
@@ -55,6 +63,8 @@
 #include <intuition/gadgetclass.h>
 #include <intuition/imageclass.h>
 #include <libraries/gadtools.h>
+#include <workbench/icon.h>
+#include <workbench/workbench.h>
 #include <libraries/asl.h>
 #include <proto/asl.h>
 #include <proto/button.h>
@@ -62,6 +72,7 @@
 #include <proto/dos.h>
 #include <proto/exec.h>
 #include <proto/graphics.h>
+#include <proto/icon.h>
 #include <proto/intuition.h>
 #include <proto/label.h>
 #include <proto/layout.h>
@@ -110,6 +121,7 @@ enum {
 #define TEXT_GAP 5                  /**< between symbol and name */
 #define BIG_SCALE 3                 /**< the enlarged symbol: pixels per symbol pixel */
 #define DESC_CHARS 34               /**< width of the description, in average characters */
+#define ICON_MAX 128                /**< the largest template icon shown, in pixels either way */
 
 /** the child just added keeps its height */
 #define FIXED CHILD_WeightedHeight, 0
@@ -124,6 +136,7 @@ typedef struct NpTemplate {
     char **labels;              /**< per placeholder: the label's text (malloc()ed) */
     STRPTR **choices;           /**< per placeholder: chooser labels (NULL-terminated, malloc()ed), or NULL */
     char *frame;                /**< the form's frame title (malloc()ed) */
+    struct DiskObject *icon;    /**< the template's own icon, or NULL */
 } NpTemplate;
 
 /** State of the open wizard (there is one at a time). */
@@ -136,7 +149,10 @@ static struct {
     int cat;                        /* the category shown */
     int cur;                        /* the template chosen, or -1 */
     int page;                       /* the page shown: 0, or 1 + template */
+    int files;                      /* file templates (else project templates) */
+    char project[128];              /* file templates: the open project's name, "" if none */
     long days;                      /* today, days since 1978 */
+    UWORD iconw, iconh;             /* the box of the icon: the largest icon */
     Object *winobj, *layout, *page_gad, *catlist_gad, *tmpllist_gad, *desc_gad;
     Object *icon, *title, *name, *drawer, *back, *next, *create;
     struct Window *win;
@@ -177,13 +193,38 @@ static char *dup(const char *s)
 }
 
 /**
+ * @brief Choose the text for the kind of the wizard.
+ * @param project The text for project templates (MSG_).
+ * @param file The text for file templates (MSG_).
+ * @return The text.
+ */
+static const char *text_for(LONG project, LONG file)
+{
+    return S(np.files ? file : project);
+}
+
+/**
+ * @brief The project's name for PROJECT: the one given on page 0, or for
+ *        file templates the open project's.
+ * @return The name, "" if none.
+ */
+static const char *project_name(void)
+{
+    const char *name;
+    if (np.files) return np.project;
+    name = (const char *)get(np.name, STRINGA_TextVal);
+    return name != NULL ? name : "";
+}
+
+/**
  * @brief Show a message over the wizard (or the main window); the text is
  *        not taken as a format.
  * @param text The message.
  */
 static void message(const char *text)
 {
-    struct EasyStruct es = {sizeof(es), 0, (STRPTR)S(MSG_NP_TITLE), (STRPTR)"%s", (STRPTR)S(MSG_OK)};
+    struct EasyStruct es = {sizeof(es), 0, (STRPTR)text_for(MSG_NP_TITLE, MSG_NF_TITLE), (STRPTR)"%s",
+                            (STRPTR)S(MSG_OK)};
     ULONG args[1];
     args[0] = (ULONG)text;
     EasyRequestArgs(np.win != NULL ? np.win : np.app->window, &es, NULL, args);
@@ -407,6 +448,7 @@ static void free_templates(void)
         free(p->choices);
         free(p->frame);
         free(p->id);
+        if (p->icon != NULL) FreeDiskObject(p->icon);
         sprout_template_free(&p->t);
     }
     free(np.tmpl);
@@ -439,7 +481,7 @@ static int take_templates(const JsonValue *root)
         if (id == NULL || json_obj_get(e, "error") != NULL) continue;
         r = sprout_template_from_json(&p->t, e, NULL, NULL);
         if (r < 0) return -1;
-        if (r == 0 || (p->t.kind != NULL && strcmp(p->t.kind, "project") != 0)) {
+        if (r == 0 || (p->t.kind != NULL && strcmp(p->t.kind, np.files ? "file" : "project") != 0)) {
             sprout_template_free(&p->t);
             continue;
         }
@@ -467,23 +509,82 @@ static int take_templates(const JsonValue *root)
 }
 
 /**
+ * @brief Load the icons Sprout copied to a drawer (\<id\>.info) and note
+ *        the largest size.
+ * @param dir The drawer.
+ */
+static void load_icons(const char *dir)
+{
+    char path[EDITOR_PATH_MAX];
+    int i;
+    WORD w, h;
+    if (IconBase == NULL) return;
+    for (i = 0; i < np.count; ++i) {
+        NpTemplate *p = &np.tmpl[i];
+        strcpy(path, dir);
+        if (p->t.icon_file == NULL || !AddPart((STRPTR)path, (STRPTR)p->id, sizeof(path)) ||
+            (p->icon = GetDiskObject((STRPTR)path)) == NULL)
+            continue;
+        LayoutIconA(p->icon, np.app->screen, NULL);
+        if (!tmplsym_icon_size(p->icon, &w, &h) || w > ICON_MAX || h > ICON_MAX) {
+            FreeDiskObject(p->icon);
+            p->icon = NULL;
+            continue;
+        }
+        if ((UWORD)w > np.iconw) np.iconw = (UWORD)w;
+        if ((UWORD)h > np.iconh) np.iconh = (UWORD)h;
+    }
+}
+
+/**
+ * @brief Delete the drawer of the icons: the icon of every template in
+ *        Sprout's list (also those the wizard leaves out), then the drawer.
+ * @param dir The drawer.
+ * @param root Sprout's list, may be NULL.
+ */
+static void delete_icons(const char *dir, const JsonValue *root)
+{
+    const JsonValue *arr = json_obj_get_array(root, "templates");
+    char path[EDITOR_PATH_MAX];
+    size_t i, n = json_array_length(arr);
+    for (i = 0; i < n; ++i) {
+        const char *id = json_obj_get_string(json_array_get(arr, i), "id", NULL);
+        strcpy(path, dir);
+        if (id != NULL && AddPart((STRPTR)path, (STRPTR)id, sizeof(path)) && strlen(path) + 5 < sizeof(path)) {
+            strcat(path, ".info");
+            DeleteFile((STRPTR)path);
+        }
+    }
+    DeleteFile((STRPTR)dir);
+}
+
+/**
  * @brief Read the templates with "Sprout LIST".
  * @return Non-zero if there is at least one (otherwise a message was
  *         shown).
  */
 static int load_templates(void)
 {
-    char out[EDITOR_PATH_MAX], err[EDITOR_PATH_MAX];
+    char out[EDITOR_PATH_MAX], err[EDITOR_PATH_MAX], icons[EDITOR_PATH_MAX];
+    char args[EDITOR_PATH_MAX + 16], quoted[EDITOR_PATH_MAX];
     char *text = NULL, *msgs;
     JsonValue *root = NULL;
+    BPTR lock;
     LONG rc;
     int ok = 0;
 
-    if (!temp_name(np.app, ".json", out, sizeof(out)) || !temp_name(np.app, ".txt", err, sizeof(err))) {
+    if (!temp_name(np.app, ".json", out, sizeof(out)) || !temp_name(np.app, ".txt", err, sizeof(err)) ||
+        !temp_name(np.app, "", icons, sizeof(icons))) {
         message(S(MSG_PJ_NOMEM));
         return 0;
     }
-    rc = run_sprout("LIST", out, err);
+    /* the icons into a drawer of their own; without it, no icons */
+    strcpy(args, "LIST");
+    if ((lock = CreateDir((STRPTR)icons)) != 0) {
+        UnLock(lock);
+        if (quote(quoted, sizeof(quoted), icons)) snprintf(args, sizeof(args), "LIST ICON %s", quoted);
+    } else icons[0] = '\0';
+    rc = run_sprout(args, out, err);
     if (rc < 0) {
         message(S(MSG_NP_NOSPROUT));
         goto out;
@@ -498,9 +599,13 @@ static int load_templates(void)
         goto out;
     }
     if (take_templates(root) < 0) message(S(MSG_PJ_NOMEM));
-    else if (np.count == 0) message(S(MSG_NP_NOTEMPLATES));
+    else if (np.count == 0) message(text_for(MSG_NP_NOTEMPLATES, MSG_NF_NOTEMPLATES));
     else ok = 1;
 out:
+    if (icons[0] != '\0') {
+        if (ok) load_icons(icons);
+        delete_icons(icons, root);
+    }
     json_value_free(root);
     free(text);
     DeleteFile((STRPTR)out);
@@ -612,7 +717,7 @@ static void show_details(void)
     struct Image *im = (struct Image *)np.icon;
 
     SetAttrs(np.icon, TMPLSYM_Type, (ULONG)(p != NULL ? tmplsym_type(p->t.icon_type) : TMPLSYM_GENERIC),
-             TAG_END);
+             TMPLSYM_Icon, (ULONG)(p != NULL ? p->icon : NULL), TAG_END);
     if (np.win != NULL && np.page == 0 && np.dri != NULL) {
         EraseRect(np.win->RPort, im->LeftEdge, im->TopEdge,
                   (WORD)(im->LeftEdge + im->Width - 1), (WORD)(im->TopEdge + im->Height - 1));
@@ -689,7 +794,8 @@ static void choose_drawer(void)
 {
     const char *cur = (const char *)get(np.drawer, STRINGA_TextVal);
     struct FileRequester *fr = AllocAslRequestTags(ASL_FileRequest,
-        ASLFR_TitleText, (ULONG)S(MSG_NP_ASL), ASLFR_DrawersOnly, TRUE, ASLFR_DoSaveMode, TRUE, TAG_END);
+        ASLFR_TitleText, (ULONG)text_for(MSG_NP_ASL, MSG_NF_ASL), ASLFR_DrawersOnly, TRUE,
+        ASLFR_DoSaveMode, (ULONG)!np.files, TAG_END);
     if (fr == NULL) return;
     if (AslRequestTags(fr, ASLFR_Window, (ULONG)np.win, ASLFR_SleepWindow, TRUE,
                        cur != NULL && cur[0] != '\0' ? ASLFR_InitialDrawer : TAG_IGNORE, (ULONG)cur,
@@ -733,7 +839,7 @@ static int form_values(NpTemplate *p, SproutValues *v, int fill)
 
     sprout_values_init(v);
     sprout_drawer_name((const char *)get(np.drawer, STRINGA_TextVal), drawer, sizeof(drawer));
-    if (sprout_builtins(v, (const char *)get(np.name, STRINGA_TextVal), drawer, np.days) < 0) goto nomem;
+    if (sprout_builtins(v, project_name(), drawer, np.days) < 0) goto nomem;
     for (k = 0; k < p->t.nph; ++k) {
         const SproutPlaceholder *ph = &p->t.ph[k];
         const char *cur = field_value(p, k);
@@ -948,7 +1054,7 @@ static Object *build(const char *drawer)
     struct TagItem *tags;
     int c, i;
 
-    if ((np.icon = tmplsym_image_new(BIG_SCALE)) == NULL) return NULL;
+    if ((np.icon = tmplsym_image_new(BIG_SCALE, np.iconw, np.iconh)) == NULL) return NULL;
     NewList(&np.catnodes);
     for (c = 0; c < np.ncats; ++c) {
         struct Node *n = AllocListBrowserNode(1, LBNCA_Text, (ULONG)np.cats[c], TAG_END);
@@ -980,7 +1086,8 @@ static Object *build(const char *drawer)
         LISTBROWSER_Selected, (ULONG)(np.cur >= 0 ? 0 : -1),
         TAG_END);
     if (np.cur >= 0)
-        SetAttrs(np.icon, TMPLSYM_Type, (ULONG)tmplsym_type(np.tmpl[np.cur].t.icon_type), TAG_END);
+        SetAttrs(np.icon, TMPLSYM_Type, (ULONG)tmplsym_type(np.tmpl[np.cur].t.icon_type),
+                 TMPLSYM_Icon, (ULONG)np.tmpl[np.cur].icon, TAG_END);
     np.title = NewObject(BUTTON_GetClass(), NULL,
         GA_ID, 0, GA_ReadOnly, TRUE, GA_Underscore, 0,
         GA_Text, (ULONG)(np.cur >= 0 ? np.tmpl[np.cur].t.name : ""),
@@ -993,7 +1100,7 @@ static Object *build(const char *drawer)
         LISTBROWSER_ShowSelected, FALSE,
         LISTBROWSER_Selected, (ULONG)-1,
         TAG_END);
-    np.name = string(NP_NAME, "", 80);
+    if (!np.files) np.name = string(NP_NAME, "", 80);
     np.drawer = string(NP_DRAWER, drawer, EDITOR_PATH_MAX);
 
     page0 = NewObject(LAYOUT_GetClass(), NULL,
@@ -1023,10 +1130,10 @@ static Object *build(const char *drawer)
                     LAYOUT_VertAlignment, LALIGN_CENTER,
                     LAYOUT_AddImage, (ULONG)np.icon,
                     CHILD_WeightedWidth, 0,
-                    CHILD_MinWidth, TMPLSYM_SIZE * BIG_SCALE,
-                    CHILD_MinHeight, TMPLSYM_SIZE * BIG_SCALE,
-                    CHILD_MaxWidth, TMPLSYM_SIZE * BIG_SCALE,
-                    CHILD_MaxHeight, TMPLSYM_SIZE * BIG_SCALE,
+                    CHILD_MinWidth, (ULONG)((struct Image *)np.icon)->Width,
+                    CHILD_MinHeight, (ULONG)((struct Image *)np.icon)->Height,
+                    CHILD_MaxWidth, (ULONG)((struct Image *)np.icon)->Width,
+                    CHILD_MaxHeight, (ULONG)((struct Image *)np.icon)->Height,
                     LAYOUT_AddChild, (ULONG)np.title,
                     TAG_END),
                 FIXED,
@@ -1038,8 +1145,10 @@ static Object *build(const char *drawer)
         LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
             LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
             LAYOUT_InnerSpacing, ROW_SPACING,
-            LAYOUT_AddChild, (ULONG)np.name, FIXED,
-            CHILD_Label, (ULONG)label(S(MSG_NP_NAME), 1),
+            /* file templates: no name, the files belong to the open project */
+            np.files ? TAG_IGNORE : LAYOUT_AddChild, (ULONG)np.name,
+            np.files ? TAG_IGNORE : CHILD_WeightedHeight, 0,
+            np.files ? TAG_IGNORE : CHILD_Label, np.files ? 0 : (ULONG)label(S(MSG_NP_NAME), 1),
             LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
                 LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
                 LAYOUT_AddChild, (ULONG)np.drawer,
@@ -1048,7 +1157,7 @@ static Object *build(const char *drawer)
                 TAG_END),
             FIXED,
             CHILD_Label, (ULONG)label(S(MSG_NP_DRAWER), 1),
-            LAYOUT_AddImage, (ULONG)label(S(MSG_NP_NAMENOTE), 1), FIXED,
+            LAYOUT_AddImage, (ULONG)label(text_for(MSG_NP_NAMENOTE, MSG_NF_DRAWERNOTE), 1), FIXED,
             TAG_END),
         FIXED,
         TAG_END);
@@ -1122,7 +1231,7 @@ static Object *build(const char *drawer)
 static int write_values(const SproutValues *v, const char *path)
 {
     const NpTemplate *p = &np.tmpl[np.cur];
-    const char *name = (const char *)get(np.name, STRINGA_TextVal);
+    const char *name = project_name();
     JsonValue *obj = json_new_object(), *s;
     JsonWriter w;
     int k, ok = obj != NULL;
@@ -1162,7 +1271,7 @@ static int create(SproutValues *v)
 
     sprout_values_init(v);
     if (drawer == NULL || drawer[0] == '\0') {
-        message(S(MSG_NP_NODRAWER));
+        message(text_for(MSG_NP_NODRAWER, MSG_NF_NODRAWER));
         if (np.page != 0) show_page(0);
         ActivateLayoutGadget((struct Gadget *)np.layout, np.win, NULL, (ULONG)np.drawer);
         return 0;
@@ -1198,16 +1307,17 @@ static int create(SproutValues *v)
     DeleteFile((STRPTR)values);
     DeleteFile((STRPTR)out);
     if (rc < 0) message(S(MSG_NP_NOSPROUT));
-    else if (rc >= 10) message_arg(MSG_NP_FAILED, msgs != NULL ? msgs : "");
-    else if (rc >= 5 && msgs != NULL) message_arg(MSG_NP_WARNINGS, msgs);
+    else if (rc >= 10) message_arg(np.files ? MSG_NF_FAILED : MSG_NP_FAILED, msgs != NULL ? msgs : "");
+    else if (rc >= 5 && msgs != NULL) message_arg(np.files ? MSG_NF_WARNINGS : MSG_NP_WARNINGS, msgs);
     free(msgs);
     return rc >= 0 && rc < 10;
 }
 
 /**
- * @brief Open the new project and the template's files to open.
+ * @brief Open the new project (not for file templates) and the template's
+ *        files to open.
  * @param p The template.
- * @param drawer The project drawer as given.
+ * @param drawer The project drawer (or the drawer of the files) as given.
  * @param v The values Sprout used.
  */
 static void open_project(const NpTemplate *p, const char *drawer, const SproutValues *v)
@@ -1219,7 +1329,7 @@ static void open_project(const NpTemplate *p, const char *drawer, const SproutVa
     if ((lock = Lock((STRPTR)drawer, ACCESS_READ)) == 0) return;
     k = NameFromLock(lock, (STRPTR)full, sizeof(full)) != 0;
     UnLock(lock);
-    if (!k || !tree_open_project(np.app, full)) return;
+    if (!k || (!np.files && !tree_open_project(np.app, full))) return;
     for (k = 0; k < p->t.nopen; ++k) {
         char *rel = sprout_expand_path(p->t.open[k], v, &bad);
         if (rel == NULL) continue;
@@ -1227,11 +1337,17 @@ static void open_project(const NpTemplate *p, const char *drawer, const SproutVa
         if (AddPart((STRPTR)path, (STRPTR)rel, sizeof(path))) document_open(np.app, path);
         free(rel);
     }
-    snprintf(text, sizeof(text), S(MSG_NP_CREATED), sprout_values_get(v, "PROJECT"));
+    snprintf(text, sizeof(text), text_for(MSG_NP_CREATED, MSG_NF_CREATED),
+             np.files ? p->t.name : sprout_values_get(v, "PROJECT"));
     ui_status_message(np.app, text);
 }
 
-void new_project(EditorApp *app)
+/**
+ * @brief The wizard for project or file templates.
+ * @param app The application state.
+ * @param files Non-zero for file templates.
+ */
+static void wizard(EditorApp *app, int files)
 {
     char drawer[EDITOR_PATH_MAX], root[EDITOR_PATH_MAX];
     struct DateStamp ds;
@@ -1244,6 +1360,8 @@ void new_project(EditorApp *app)
     memset(&np, 0, sizeof(np));
     np.app = app;
     np.cur = -1;
+    np.files = files;
+    if (files) ui_project_name(app, np.project, sizeof(np.project));
     sprout_values_init(&values);
     DateStamp(&ds);
     np.days = ds.ds_Days;
@@ -1254,7 +1372,7 @@ void new_project(EditorApp *app)
         snprintf(text, sizeof(text), S(MSG_NP_NEEDCLASS),
                  ListBrowserBase == NULL ? "gadgets/listbrowser.gadget" :
                  StringBase == NULL ? "gadgets/string.gadget" : "gadgets/chooser.gadget");
-        ui_error(app, S(MSG_NP_TITLE), text);
+        ui_error(app, text_for(MSG_NP_TITLE, MSG_NF_TITLE), text);
         return;
     }
     SetAttrs(app->window_object, WA_BusyPointer, TRUE, TAG_END);
@@ -1262,9 +1380,16 @@ void new_project(EditorApp *app)
     SetAttrs(app->window_object, WA_BusyPointer, FALSE, TAG_END);
     if (!c) goto out;
 
-    /* suggested drawer: the one holding the current project */
+    /* suggested drawer: for files the active document's, else the
+     * project's; for a project the one holding the current project */
     drawer[0] = '\0';
-    if (tree_project_root(app, root, sizeof(root))) {
+    if (files) {
+        if (app->active != NULL && app->active->path != NULL) {
+            strncpy(drawer, app->active->path, sizeof(drawer) - 1);
+            drawer[sizeof(drawer) - 1] = '\0';
+            *PathPart((STRPTR)drawer) = '\0';
+        } else if (!tree_project_root(app, drawer, sizeof(drawer))) drawer[0] = '\0';
+    } else if (tree_project_root(app, root, sizeof(root))) {
         size_t n;
         *PathPart((STRPTR)root) = '\0';
         strcpy(drawer, root);
@@ -1281,7 +1406,7 @@ void new_project(EditorApp *app)
         goto out;
     }
     np.winobj = NewObject(WINDOW_GetClass(), NULL,
-        WA_Title, (ULONG)S(MSG_NP_TITLE),
+        WA_Title, (ULONG)text_for(MSG_NP_TITLE, MSG_NF_TITLE),
         WA_PubScreen, (ULONG)app->screen,
         WA_Activate, TRUE,
         WA_DepthGadget, TRUE,
@@ -1360,4 +1485,14 @@ out:
     sprout_values_free(&values);
     free_templates();
     memset(&np, 0, sizeof(np));
+}
+
+void new_project(EditorApp *app)
+{
+    wizard(app, 0);
+}
+
+void new_from_template(EditorApp *app)
+{
+    wizard(app, 1);
 }

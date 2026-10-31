@@ -57,7 +57,9 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
   Debug (Amiga+D) start in a console window of their own; all three are
   also in the toolbar.
 - New projects from templates (Project/New Project...): choose a
-  template, fill in its values, and Sprout creates the project drawer.
+  template, fill in its values, and Sprout creates the project drawer;
+  likewise new files, e.g. a C module with its header (Project/New File
+  from Template...).
 - New Shell (Project menu, toolbar): a Shell window in the project
   drawer, with CON:, VNC: or another console; it stays open when TinyDev
   quits.
@@ -263,7 +265,8 @@ ARexx commands and the protocol for writing parsers are described in
 
 `Sprout` creates a project from a template: it makes the project drawer,
 copies the template's files and fills in placeholders (`{$NAME}`) in file
-names and texts. Templates are LhA archives (`<name>.lha`) or drawers in
+names and texts. A file template copies its files into an existing
+drawer instead. Templates are LhA archives (`<name>.lha`) or drawers in
 `Templates/`.
 
     Sprout <template> <project drawer> [KEY=value ...] [VALUES <file>] [DIR <drawer>] [FORCE] [QUIET]

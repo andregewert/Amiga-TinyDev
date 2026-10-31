@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="iso-8859-1">
-<title>New Projects</title>
+<title>New Projects and Files</title>
 </head>
 <body>
-<h1>New Projects</h1>
+<h1>New Projects and Files</h1>
 <p>Project/New Project... creates a project from a template and opens it.
 The templates are in the drawer <tt>Templates</tt> next to TinyDev; the
 tool Sprout, also next to TinyDev, does the work.</p>
@@ -24,6 +24,13 @@ description.</p>
 are shown, nothing is left behind, and the window stays open. Otherwise
 the new drawer becomes the project (the documents of the old project are
 closed first) and the template's main files are opened.</p>
+<p>If a template brings an icon of its own, the window shows it instead
+of the symbol.</p>
+<p>Project/New File from Template... works the same way with file
+templates, for example a C module with its header. Instead of the project
+name and drawer it asks for the drawer the files go into (suggested: the
+drawer of the current document, else the project drawer); files that
+exist are not overwritten. The new files are opened.</p>
 <p>A template is a drawer or an LhA archive with a file
 <tt>template.json</tt> (name, description, category, the values) and a
 drawer <tt>files</tt> with the files of the new project. In their names

@@ -6,10 +6,10 @@ the template's files into it and replaces placeholders in file names and
 in text files. TinyDev's wizard Project/New Project... is a front end to
 it; the command works just as well on its own.
 
-> **Status:** phases 1 to 3 are implemented: templates as drawers and
+> **Status:** phases 1 to 4 are implemented: templates as drawers and
 > LhA archives, the placeholders, creating a project, `LIST`, `INFO` and
-> `ICON`, and TinyDev's wizard. Conditional files are left until a
-> template needs them; icon files in the wizard follow (section 14).
+> `ICON`, TinyDev's wizard with the templates' icons, and file templates.
+> Conditional files are left until a template needs them (section 14).
 
 ## Contents
 
@@ -23,7 +23,7 @@ it; the command works just as well on its own.
 8. [Command line](#8-command-line)
 9. [LhA archives](#9-lha-archives)
 10. [TinyDev's wizard](#10-tinydevs-wizard)
-11. [File templates (later)](#11-file-templates-later)
+11. [File templates](#11-file-templates)
 12. [Limits and non-goals](#12-limits-and-non-goals)
 13. [Code layout](#13-code-layout)
 14. [Phases](#14-phases)
@@ -102,7 +102,7 @@ versions can add some.
 | Key | Meaning |
 |---|---|
 | `version` | format version, 1 |
-| `kind` | `"project"`; `"file"` is reserved for file templates (section 11) |
+| `kind` | `"project"` (default) or `"file"` for a file template (section 11) |
 | `name` | shown name (required) |
 | `description` | one or a few sentences |
 | `category` | the group in the wizard, e.g. `"C"`, `"Pascal"`, `"Scripts"`; without it `"Other"` |
@@ -244,13 +244,13 @@ Sprout TEMPLATE,TO,SET/M,VALUES/K,DIR/K,ICON/K,LIST/S,INFO/S,FORCE/S,QUIET/S
 | Argument | Meaning |
 |---|---|
 | `TEMPLATE` | an identifier (looked up as the drawer `<Id>/`, then as `<Id>.lha` in the templates drawer, so a template being worked on wins over its archive) or a path to an archive or drawer; not needed for `LIST` |
-| `TO` | the project drawer to create (not for `LIST` and `INFO`) |
+| `TO` | the project drawer to create; for a file template the existing drawer the files go into (not for `LIST` and `INFO`) |
 | `SET` | values as `KEY=value`, e.g. `NAME=Hello AUTHOR="André Gewert"` (ReadArgs splits them at the `=`; Sprout joins a key and the item after it again, so `AUTHOR "André Gewert"` works too); keys may be written in any case (`author=Me`); `PROJECT=...` gives the project a name other than its drawer's |
 | `VALUES` | a JSON file with values: `{ "NAME": "Hello", "AUTHOR": "..." }` (keys in upper case, as written by a program); `SET` wins over it |
 | `DIR` | another templates drawer |
 | `LIST` | write all templates of the drawer as JSON to standard output |
 | `INFO` | write the metadata of `TEMPLATE` as JSON |
-| `ICON` | with `INFO`: also extract the template's icon to this file (for the wizard) |
+| `ICON` | with `INFO`: also extract the template's icon to this file; with `LIST`: extract the icons of all templates to this (existing) drawer as `<Id>.info` (for the wizard) |
 | `FORCE` | write into an existing, non-empty `TO` |
 | `QUIET` | no progress lines |
 
@@ -261,6 +261,7 @@ Sprout ReAction Work:Projects/Hello NAME=Hello AUTHOR=Me
 Sprout ReAction Work:Projects/hello project="Hello World" author=Me
 Sprout LIST
 Sprout ReAction INFO ICON T:sprout.info
+Sprout LIST ICON T:icons
 ```
 
 `LIST` writes every template of the drawer (drawers with a
@@ -285,7 +286,9 @@ that cannot be read is listed with `"error": "<text>"` instead of its
 metadata, so the wizard can say why it is missing. `INFO` writes
 `{ "version": 1, "template": { ... } }` with one such entry; with `ICON`
 it also copies the file named by `"icon": { "file": ... }` (a warning if
-there is none).
+there is none). `LIST ICON <drawer>` does the same for every template
+that names an icon file, as `<drawer>/<Id>.info`; a missing icon is a
+warning (return code 5) and the list is complete all the same.
 
 Messages go to standard error, in English. Return codes: 0 done,
 5 (WARN) done with warnings, 10 (ERROR) failed (nothing left behind),
@@ -345,17 +348,29 @@ runs `Sprout <template> <drawer> VALUES <file>`, shows its messages if it
 fails, and on success opens the drawer as the project (the tree's root),
 then the files of `open`.
 
-The templates come from `Sprout LIST` once per opening of the window. The
-symbols per icon type are built into TinyDev; an icon file is shown with
-icon.library (phase 4).
+The templates come from `Sprout LIST ICON <drawer>` once per opening of
+the window, the icons into a drawer in the temporary drawer; TinyDev loads
+them with icon.library and deletes the files. The list shows the symbols
+per icon type, which are built into TinyDev; the details show the
+template's icon where there is one (the box is as large as the largest
+icon, at most 128 x 128 pixels; a larger icon gets the symbol), else the
+symbol enlarged.
 
-## 11. File templates (later)
+## 11. File templates
 
-`"kind": "file"` marks a template for a single file (or a few), e.g. a new
-C module with its header. Same archive layout, same placeholders; `TO` is
-then a drawer inside the project that the files are copied into, without
-making a project drawer. In TinyDev: File/New from Template..., with the
-same wizard. Nothing of this is in version 1 beyond the reserved `kind`.
+`"kind": "file"` marks a template for a single file or a few, e.g. a new
+C module with its header (`templates/CModule`). Same layout, same
+placeholders; `TO` is then an existing drawer, usually inside a project,
+that the files are copied into: Sprout makes no drawer of its own (only
+the drawers inside `files/`), refuses files that exist (unless `FORCE`),
+and on an error removes only what it made. `PROJECT` is the project's name
+when it is given (TinyDev gives the open project's), else the drawer's.
+
+In TinyDev: Project/New File from Template..., the same wizard with the
+file templates; instead of the project's name and drawer it asks for the
+drawer of the files (suggested: the active document's, else the
+project's). After creating, the files of `open` are opened; the project
+stays as it is.
 
 ## 12. Limits and non-goals
 
@@ -387,4 +402,4 @@ wizard's defaults; Sprout uses nothing of TinyDev.
 2. (done) LhA reading, `LIST`, `INFO` and `ICON`, archives in `make dist`;
    conditional files when a template needs them.
 3. (done) The wizard in TinyDev with the built-in symbols per icon type.
-4. Icon files from the template in the wizard; then file templates.
+4. (done) Icon files from the template in the wizard; then file templates.

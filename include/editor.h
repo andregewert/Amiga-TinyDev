@@ -182,6 +182,7 @@ enum MenuId {
     MID_SHELL,          /**< Project/New Shell: a Shell in the project drawer */
     MID_CLOSE_ALL,      /**< Project/Close All Files */
     MID_NEW_PROJECT,    /**< Project/New Project...: the wizard of Sprout's templates */
+    MID_NEW_FROM_TEMPLATE, /**< Project/New File from Template...: the wizard of file templates */
     /* the File Type entries stay last: menu_action() takes the IDs from
      * MID_FT_AUTO on as file types */
     MID_FT_AUTO,        /**< File Type/Automatic: the language Scout detects */
@@ -437,6 +438,14 @@ void project_settings(EditorApp *app);
  */
 void new_project(EditorApp *app);
 /**
+ * @brief Show the same wizard for file templates (Project/New File from
+ *        Template...): their files go into an existing drawer (suggested:
+ *        the active document's, else the project's), PROJECT is the open
+ *        project's name; then the template's files to open are opened.
+ * @param app The application state (main window and screen).
+ */
+void new_from_template(EditorApp *app);
+/**
  * @brief Take over edited settings.
  *
  * New highlighting colours take effect at once: the new pens are obtained,
@@ -469,6 +478,8 @@ void close_image_free_class(void);
 
 /* tmplsym.c */
 
+struct DiskObject;
+
 /** The size of a template symbol in symbol pixels (square). */
 #define TMPLSYM_SIZE 12
 
@@ -487,6 +498,10 @@ typedef enum TmplSymType {
 #define TMPLSYM_Type  (TAG_USER + 0x7A0001)
 /** Attribute of a symbol image: pixels per symbol pixel (I; see tmplsym_image_new()). */
 #define TMPLSYM_Scale (TAG_USER + 0x7A0002)
+/** Attribute of a symbol image: a struct DiskObject * shown instead of the
+ *  symbol, laid out for the screen (LayoutIconA()), or NULL (I S). The icon
+ *  stays the caller's and must outlive the image or be replaced first. */
+#define TMPLSYM_Icon  (TAG_USER + 0x7A0003)
 
 /**
  * @brief Find the icon type of a name from template.json.
@@ -505,12 +520,25 @@ TmplSymType tmplsym_type(const char *name);
  */
 void tmplsym_draw(struct RastPort *rp, WORD x, WORD y, struct DrawInfo *dri, TmplSymType type, UWORD scale);
 /**
- * @brief Create an image of a template symbol, #TMPLSYM_SIZE times @p scale
- *        pixels square; its type is set with #TMPLSYM_Type.
+ * @brief Measure an icon as a symbol image draws it (without frame and
+ *        border).
+ * @param icon The icon.
+ * @param[out] width Its width.
+ * @param[out] height Its height.
+ * @return Non-zero if it could be measured.
+ */
+int tmplsym_icon_size(struct DiskObject *icon, WORD *width, WORD *height);
+/**
+ * @brief Create an image of a template symbol: the symbol #TMPLSYM_SIZE
+ *        times @p scale pixels square, centred in a box of at least that
+ *        size; its type is set with #TMPLSYM_Type, an icon instead with
+ *        #TMPLSYM_Icon.
  * @param scale Pixels per symbol pixel.
+ * @param width The box's width (made at least the symbol's).
+ * @param height The box's height (likewise).
  * @return The image object (DisposeObject() it), or NULL.
  */
-Object *tmplsym_image_new(UWORD scale);
+Object *tmplsym_image_new(UWORD scale, UWORD width, UWORD height);
 /** @brief Free the symbol class once no symbol image exists any more. */
 void tmplsym_free_class(void);
 
@@ -757,6 +785,15 @@ void ui_end_update(EditorApp *app);
  * @param message The requester body text.
  */
 void ui_error(EditorApp *app, const char *title, const char *message);
+/**
+ * @brief The project's name: the name in its project.json, else the name of
+ *        its drawer.
+ * @param app The application state.
+ * @param[out] out The name.
+ * @param size The size of @p out.
+ * @return Non-zero if there is a project (and a name).
+ */
+int ui_project_name(EditorApp *app, char *out, size_t size);
 /**
  * @brief Show the About window (as in Kickdown), with a requester as fallback.
  *

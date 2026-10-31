@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "kind": "file",
+  "name": "C module",
+  "description": "A C source file with its header: include guard, the header included by the source, and a comment at the top of both.",
+  "category": "C",
+  "icon": { "type": "document" },
+  "placeholders": [
+    { "key": "NAME", "label": "Module name", "required": true,
+      "description": "The name of the files without .c and .h" },
+    { "key": "GUARD", "label": "Include guard", "default": "{$NAME:ident}_H",
+      "description": "The macro that keeps the header from being read twice" },
+    { "key": "PURPOSE", "label": "Description", "default": "",
+      "description": "One line about what the module does" },
+    { "key": "AUTHOR", "label": "Author" }
+  ],
+  "open": ["{$NAME}.c", "{$NAME}.h"]
+}

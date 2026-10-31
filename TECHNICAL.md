@@ -88,7 +88,9 @@ The directory opened in the folder tree is the project. What refers to it:
   drawer from a template, then `tree_open_project()` makes it the project
   (closing the old project's documents) and the template's files of
   `open` are opened; the wizard links Sprout's portable core
-  (`sprout_tmpl.c`) only to show the defaults Sprout will use;
+  (`sprout_tmpl.c`) only to show the defaults Sprout will use; file
+  templates (Project/New File from Template...) go into a drawer of the
+  open project, whose name (`ui_project_name()`) is their PROJECT;
 - the start drawer of the file requesters (`fileio.c`);
 - Scout's session (`scoutlink.c`): `tree.c` reports a new root
   (`scoutlink_project_opened()`), which closes the old session and opens

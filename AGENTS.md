@@ -78,15 +78,17 @@ below the tree's root.
   action with a listbrowser of its commands (checkbox = default), buttons
   beside the page, and a modal window to edit one command; "Save" writes
   `project.json` with `projconf_format()`.
-- `src/newproj.c`: the modal wizard Project/New Project...: the
-  templates from `PROGDIR:Sprout LIST`, a page gadget with the template
+- `src/newproj.c`: the modal wizard Project/New Project... (and, for
+  file templates, Project/New File from Template...): the templates and
+  their icons from `Sprout LIST ICON`, a page gadget with the template
   page (categories, templates, details, project name and drawer) and a
   form page per template (fields from the placeholders, defaults from
   `sprout_tmpl.c`, linked into TinyDev); Create writes the values to
   TEMPDIR, runs Sprout synchronously, shows its messages, and opens the
   new drawer as the project with the template's files of `open`.
 - `src/tmplsym.c`: the built-in symbols of the template icon types
-  (`tmplsym_draw()` and a small private image class).
+  (`tmplsym_draw()` and a small private image class, which also shows a
+  template's own icon).
 - `src/build.c`: the Build menu's actions: the default command of Build,
   Run or Debug from `project.json`, written as a script to `T:`
   (placeholders replaced, "Stack 65536" first). Build runs in a process
@@ -208,7 +210,8 @@ below the tree's root.
   -lh0-/-lh4- to -lh7-, CRCs; host-tested in `tests/test_sprout_lha.c`).
   Its design is `src/sprout/docs/Sprout.md`. Like Scout it must not
   depend on TinyDev.
-- `templates/`: the templates that come with TinyDev (`templates/<Id>/`
+- `templates/`: the templates that come with TinyDev (HelloWorld, a
+  project; CModule, a file template) (`templates/<Id>/`
   with `template.json` and `files/`, ISO-8859-1); `make` copies them to
   `bin/Templates/` with `cp` and checks them with `charcheck-templates`,
   as their names may contain `{$...}`, which make and the Shell would
@@ -275,9 +278,10 @@ below the tree's root.
   unchanged and without our warning flags. Do not edit it; its licence
   requires the credit in `README.md`.
 - `tools/mkicons.py`: motifs of the Workbench icons (TinyDev, Scout, parsers,
-  HelpViewer)
-  for `amiga-devkit/tools/amigaicons.py`; `make icons` writes `icons/`. The
-  files in `icons/` are generated, never edited by hand.
+  HelpViewer, the template HelloWorld)
+  for `amiga-devkit/tools/amigaicons.py`; `make icons` writes `icons/` and
+  `templates/HelloWorld/template.info`. These files are generated, never
+  edited by hand.
 - `package/`: what the Aminet archive needs besides the build:
   `TinyDev.readme` (the Aminet readme, ISO-8859-1, at most 78 columns) and
   `help/<language>/` (TinyDev's help pages, HTML in ISO-8859-1 with

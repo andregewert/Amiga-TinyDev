@@ -1,6 +1,7 @@
 /**
  * @file sprout_main.c
- * @brief Sprout, the Shell command that creates a project from a template:
+ * @brief Sprout, the Shell command that creates a project (or files of a
+ *        file template) from a template:
  *        arguments, finding the template, copying its files with the
  *        placeholders replaced, and removing what it made on an error.
  *
@@ -55,7 +56,7 @@ enum {
     ARG_SET,        /**< values as KEY=value */
     ARG_VALUES,     /**< a JSON file with values */
     ARG_DIR,        /**< the templates drawer */
-    ARG_ICON,       /**< with INFO: where the template's icon goes */
+    ARG_ICON,       /**< with INFO: where the template's icon goes; with LIST: the drawer for all icons */
     ARG_LIST,       /**< list the templates */
     ARG_INFO,       /**< describe a template */
     ARG_FORCE,      /**< write into an existing drawer */
@@ -1044,6 +1045,22 @@ static int make_project_drawer(void)
 }
 
 /**
+ * @brief Check the drawer a file template writes into: it must exist (a
+ *        file template makes no drawer of its own; files that exist are
+ *        errors unless FORCE).
+ * @return Non-zero if it is a drawer, zero otherwise (reported).
+ */
+static int check_file_drawer(void)
+{
+    int is_dir;
+    if (!exists(sp.to, &is_dir) || !is_dir) {
+        msg("not a drawer: ", sp.to, NULL);
+        return 0;
+    }
+    return 1;
+}
+
+/**
  * @brief Read the values given with VALUES and SET.
  * @param args The ReadArgs results.
  * @param[out] given The values (initialised here; sprout_values_free() it).
@@ -1086,7 +1103,8 @@ static int given_values(LONG *args, SproutValues *given)
 
 /**
  * @brief Create the project: check the template, work out the values, make
- *        the drawer and copy the files.
+ *        the drawer and copy the files. A file template ("kind": "file")
+ *        copies its files into the existing drawer TO instead.
  * @param args The ReadArgs results.
  * @return The return code (RETURN_OK, _WARN, _ERROR or _FAIL).
  */
@@ -1117,10 +1135,6 @@ static LONG create(LONG *args)
         sprout_values_free(&given);
         return RETURN_FAIL;
     }
-    if (strcmp(t.kind, "project") != 0) {
-        msg("file templates are not supported yet: ", (const char *)args[ARG_TMPL], NULL);
-        goto out;
-    }
 
     /* the values of all placeholders */
     sprout_drawer_name(sp.to, name, PATHMAX);
@@ -1136,7 +1150,7 @@ static LONG create(LONG *args)
     sp.values = &values;
 
     /* the drawer and the files */
-    if (parse_patterns(&t) && make_project_drawer()) {
+    if (parse_patterns(&t) && (strcmp(t.kind, "file") == 0 ? check_file_drawer() : make_project_drawer())) {
         int ok = 1;
         if (src.archive) {
             ok = copy_archive(&src);
@@ -1314,12 +1328,44 @@ static int collect_templates(const char *dir, Found **found, int *count)
 }
 
 /**
+ * @brief Copy a template's icon file (from "icon") to a file. A template
+ *        without one writes nothing; a missing or unsafe one is a warning.
+ * @param s The template's source.
+ * @param t Its metadata.
+ * @param icon Where the icon goes.
+ * @return Non-zero unless reading or writing failed (reported).
+ */
+static int write_icon(Source *s, const SproutTemplate *t, const char *icon)
+{
+    char *data;
+    LONG len;
+    int r, ok = 1;
+    if (t->icon_file == NULL) return 1;
+    if (!sprout_path_safe(t->icon_file)) {
+        ++sp.warnings;
+        msg("warning: icon file not allowed: ", t->icon_file, NULL);
+    } else if ((r = template_file(s, t->icon_file, 0, JSONMAX, &data, &len)) == 0) {
+        ++sp.warnings;
+        msg("warning: icon file missing in the template: ", t->icon_file, NULL);
+    } else if (r < 0) {
+        ok = 0;
+    } else {
+        ok = write_file(icon, data, len);
+        free(data);
+    }
+    return ok;
+}
+
+/**
  * @brief LIST: write all templates of a drawer as JSON. A template that
- *        cannot be read is listed with the reason.
+ *        cannot be read is listed with the reason. With ICON, the icons of
+ *        the templates that have one are copied to that drawer as
+ *        \<id\>.info; a failure there is only a warning.
  * @param dir The templates drawer (DIR), or NULL for PROGDIR:Templates.
+ * @param icons The drawer for the icons (ICON), or NULL.
  * @return The return code.
  */
-static LONG list_templates(const char *dir)
+static LONG list_templates(const char *dir, const char *icons)
 {
     JsonValue *root, *list;
     Found *found;
@@ -1350,6 +1396,16 @@ static LONG list_templates(const char *dir)
         sp.capture = NULL;
         if (r < 0) ok = 0;
         else ok = json_array_append(list, template_entry(found[i].id, s.path, r > 0 ? &t : NULL, error));
+        if (ok && r > 0 && icons != NULL && t.icon_file != NULL) {
+            char icon[PATHMAX];
+            if (!join(icon, icons, found[i].id) || strlen(icon) + 5 >= PATHMAX) {
+                ++sp.warnings;
+                msg("warning: path too long for the icon of ", found[i].id, NULL);
+            } else {
+                strcat(icon, ".info");
+                if (!write_icon(&s, &t, icon)) ++sp.warnings;
+            }
+        }
         if (r > 0) sprout_template_free(&t);
     }
     free(found);
@@ -1361,7 +1417,7 @@ static LONG list_templates(const char *dir)
     if (!ok) msg("out of memory", NULL, NULL);
     else ok = print_json(root);
     json_value_free(root);
-    return ok ? RETURN_OK : RETURN_FAIL;
+    return !ok ? RETURN_FAIL : sp.warnings > 0 ? RETURN_WARN : RETURN_OK;
 }
 
 /**
@@ -1399,22 +1455,7 @@ static LONG info_template(const char *arg, const char *dir, const char *icon)
     if (!print_json(root)) rc = RETURN_FAIL;
     json_value_free(root);
 
-    if (rc == RETURN_OK && icon != NULL && t.icon_file != NULL) {
-        char *data;
-        LONG len;
-        if (!sprout_path_safe(t.icon_file)) {
-            ++sp.warnings;
-            msg("warning: icon file not allowed: ", t.icon_file, NULL);
-        } else if ((r = template_file(&s, t.icon_file, 0, JSONMAX, &data, &len)) == 0) {
-            ++sp.warnings;
-            msg("warning: icon file missing in the template: ", t.icon_file, NULL);
-        } else if (r < 0) {
-            rc = RETURN_ERROR;
-        } else {
-            if (!write_file(icon, data, len)) rc = RETURN_ERROR;
-            free(data);
-        }
-    }
+    if (rc == RETURN_OK && icon != NULL && !write_icon(&s, &t, icon)) rc = RETURN_ERROR;
     sprout_template_free(&t);
     if (rc == RETURN_OK && sp.warnings > 0) rc = RETURN_WARN;
     return rc;
@@ -1439,7 +1480,7 @@ int main(void)
         return RETURN_FAIL;
     }
     if (args[ARG_LIST]) {
-        rc = list_templates((const char *)args[ARG_DIR]);
+        rc = list_templates((const char *)args[ARG_DIR], (const char *)args[ARG_ICON]);
     } else if (args[ARG_INFO]) {
         if (args[ARG_TMPL] == 0) {
             msg("INFO needs a TEMPLATE", NULL, NULL);
