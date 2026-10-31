@@ -58,6 +58,8 @@ static void check_expand(const SproutValues *v, const char *text, const char *ex
     free(s);
 }
 
+static void check_path_bad(const SproutValues *v, const char *path, const char *expected, int why);
+
 /**
  * @brief Expand a path and compare the result.
  * @param v The values.
@@ -66,10 +68,22 @@ static void check_expand(const SproutValues *v, const char *text, const char *ex
  */
 static void check_path(const SproutValues *v, const char *path, const char *expected)
 {
+    check_path_bad(v, path, expected, SPROUT_PATH_UNSAFE);
+}
+
+/**
+ * @brief Expand a path and compare the result or the reason of a refusal.
+ * @param v The values.
+ * @param path The path.
+ * @param expected The expected result, or NULL if it must be refused.
+ * @param why The expected reason of a refusal (SPROUT_PATH_...).
+ */
+static void check_path_bad(const SproutValues *v, const char *path, const char *expected, int why)
+{
     int bad = -1;
     char *s = sprout_expand_path(path, v, &bad);
     if (expected == NULL) {
-        assert(s == NULL && bad == 1);
+        assert(s == NULL && bad == why);
         return;
     }
     assert(s != NULL && bad == 0);
@@ -427,6 +441,28 @@ static void test_paths(void)
     check_path(&v, "a//x", NULL);
     check_path(&v, "{$OTHER:upper}", NULL);
     check_path(&v, "{$NAME:upper}", "HELLO");
+
+    /* conditions */
+    assert(sprout_values_set(&v, "CC", "gcc") == 1);
+    check_path(&v, "Makefile{?CC=gcc}", "Makefile");
+    check_path(&v, "Makefile{?CC=vbcc|gcc}", "Makefile");
+    check_path(&v, "{?CC=gcc}{$NAME}.c", "Hello.c");
+    check_path(&v, "src{?CC!=vbcc}/a{?NAME=Hello}.c", "src/a.c");
+    check_path_bad(&v, "Makefile{?CC=vbcc}", NULL, SPROUT_PATH_LEFTOUT);
+    check_path_bad(&v, "Makefile{?CC!=gcc|sasc}", NULL, SPROUT_PATH_LEFTOUT);
+    check_path_bad(&v, "gcc{?CC=vbcc}/Makefile", NULL, SPROUT_PATH_LEFTOUT);
+    check_path_bad(&v, "a{?CC=gcc}{?NAME=x}", NULL, SPROUT_PATH_LEFTOUT);
+    check_path_bad(&v, "a{?OTHER=x}", NULL, SPROUT_PATH_LEFTOUT);
+    check_path(&v, "a{?OTHER=}", "a");
+    check_path(&v, "a{?OTHER=x|}", "a");
+    check_path(&v, "a{?OTHER!=x}", "a");
+    check_path_bad(&v, "a{?CC}", NULL, SPROUT_PATH_BADCOND);
+    check_path_bad(&v, "a{?CC=gcc", NULL, SPROUT_PATH_BADCOND);
+    check_path_bad(&v, "a{?=gcc}", NULL, SPROUT_PATH_BADCOND);
+    check_path_bad(&v, "a{?cc=gcc}", NULL, SPROUT_PATH_BADCOND);
+    check_path_bad(&v, "a{?CC!gcc}", NULL, SPROUT_PATH_BADCOND);
+    check_path_bad(&v, "{?CC=gcc}", NULL, SPROUT_PATH_UNSAFE);          /* nothing left of the name */
+    check_path_bad(&v, "{?CC=gcc}/x", NULL, SPROUT_PATH_UNSAFE);
     sprout_values_free(&v);
 }
 
@@ -470,7 +506,18 @@ static void test_shipped(void)
     name = sprout_expand_path(t.open[0], &out, &bad);
     assert(name != NULL && strcmp(name, "My_Tool.c") == 0);
     free(name);
+    assert(strcmp(sprout_values_get(&out, "CC"), "vbcc") == 0);
+    check_path(&out, "Makefile{?CC=vbcc}", "Makefile");
+    check_path_bad(&out, "smakefile{?CC=sasc}", NULL, SPROUT_PATH_LEFTOUT);
     sprout_values_free(&out);
+    assert(sprout_values_parse_assign(&given, "CC=sasc") == 1);
+    assert(sprout_resolve(&t, &given, "My Tool", 17835, &out, report, NULL) == 1);
+    check_path(&out, "smakefile{?CC=sasc}", "smakefile");
+    check_path_bad(&out, ".tinydev/project.json{?CC=gcc}", NULL, SPROUT_PATH_LEFTOUT);
+    sprout_values_free(&out);
+    assert(sprout_values_parse_assign(&given, "CC=icc") == 1);
+    assert(sprout_resolve(&t, &given, "My Tool", 17835, &out, report, NULL) == 0);    /* not a choice */
+    reset();
     sprout_values_free(&given);
     sprout_template_free(&t);
 

@@ -6,10 +6,10 @@ the template's files into it and replaces placeholders in file names and
 in text files. TinyDev's wizard Project/New Project... is a front end to
 it; the command works just as well on its own.
 
-> **Status:** phases 1 to 4 are implemented: templates as drawers and
+> **Status:** phases 1 to 5 are implemented: templates as drawers and
 > LhA archives, the placeholders, creating a project, `LIST`, `INFO` and
-> `ICON`, TinyDev's wizard with the templates' icons, and file templates.
-> Conditional files are left until a template needs them (section 14).
+> `ICON`, TinyDev's wizard with the templates' icons, file templates and
+> conditional files.
 
 ## Contents
 
@@ -172,6 +172,25 @@ identifiers. (Chaining may come later if templates need it.)
 
 Contents stay 8-bit; line endings are kept as they are.
 
+**Conditions:** a part of a path below `files/` may hold conditions that
+decide whether the file (or the drawer with all below it) is copied:
+
+| Condition | Holds if the value of `KEY` |
+|---|---|
+| `{?KEY=a}` | is `a` |
+| `{?KEY=a\|b}` | is one of `a`, `b` |
+| `{?KEY!=a\|b}` | is none of them |
+
+Values are compared exactly (case matters); an undefined key counts as
+empty (`{?KEY=}` holds then). Several conditions in a name must all hold.
+They are taken out of the name before the placeholders are replaced:
+`Makefile{?CC=gcc}` becomes `Makefile` if `CC` is `gcc` and is left out
+otherwise. A malformed condition (no `=`, no `}`, a key that is not
+valid) is an error; so is a name that is empty without its conditions.
+The `verbatim` patterns are matched against the name as it is in the
+template, conditions included. Only one variant of a file should hold for
+a given value; if two do, the later one copied replaces the earlier.
+
 ## 6. Creating a project
 
 1. Read `template.json`; check the values: every `required` one given,
@@ -232,6 +251,11 @@ project's name use `PROJECT`. With
   `verbatim`.
 - A placeholder that must stay in the new project as it is is written
   with one more `$` (`{$$NAME}`).
+- Files for different choices (a compiler, a GUI toolkit) get
+  conditions in their names: `templates/HelloWorld/` has a placeholder
+  `CC` with the choices `vbcc`, `gcc` and `sasc` and the files
+  `Makefile{?CC=vbcc}`, `Makefile{?CC=gcc}`, `smakefile{?CC=sasc}` and a
+  `.tinydev/project.json` for each.
 - Try a template in the Shell before packing it:
   `Sprout <drawer of the template> RAM:Test AUTHOR=x`.
 
@@ -376,8 +400,8 @@ stays as it is.
 
 - No writing of archives: templates are packed with LhA.
 - No scripts or programs run by a template (no hooks after creation).
-- Conditional files (e.g. only for `CC=vbcc`) are planned for phase 2 if
-  templates need them; not part of format version 1 yet.
+- Conditions compare values only: no `and`/`or` across keys beyond
+  several conditions in one name, no patterns.
 - 8-bit text only; no conversion of character sets or line endings.
 
 ## 13. Code layout
@@ -399,7 +423,8 @@ wizard's defaults; Sprout uses nothing of TinyDev.
 1. (done) Sprout's core: metadata, placeholders, copying from template
    drawers, rollback; host tests; a first template made from
    `examples/HelloWorld`.
-2. (done) LhA reading, `LIST`, `INFO` and `ICON`, archives in `make dist`;
-   conditional files when a template needs them.
+2. (done) LhA reading, `LIST`, `INFO` and `ICON`, archives in `make dist`.
 3. (done) The wizard in TinyDev with the built-in symbols per icon type.
 4. (done) Icon files from the template in the wizard; then file templates.
+5. (done) Conditional files (`{?KEY=value}` in names), used by
+   `templates/HelloWorld/` for its compilers.

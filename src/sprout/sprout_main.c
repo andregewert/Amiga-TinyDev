@@ -557,6 +557,18 @@ static void finish_file(const char *dst, int has_prot, LONG prot, const char *co
 }
 
 /**
+ * @brief Report why a path of the template could not be expanded.
+ * @param bad The reason from sprout_expand_path().
+ * @param rel The path below files/.
+ */
+static void path_error(int bad, const char *rel)
+{
+    if (bad == SPROUT_PATH_UNSAFE) msg("name not allowed in the project: ", rel, NULL);
+    else if (bad == SPROUT_PATH_BADCOND) msg("malformed condition in ", rel, NULL);
+    else msg("out of memory", NULL, NULL);
+}
+
+/**
  * @brief Copy one file of a template drawer, replacing placeholders in a
  *        text file, and take over its protection bits and file note.
  * @param src The source.
@@ -636,7 +648,8 @@ static int copy_drawer(const char *src, const char *rel, int depth)
             break;
         }
         if ((dest = sprout_expand_path(lv->rel, sp.values, &bad)) == NULL) {
-            msg(bad ? "name not allowed in the project: " : "out of memory", bad ? lv->rel : NULL, NULL);
+            if (bad == SPROUT_PATH_LEFTOUT) continue;       /* a condition does not hold */
+            path_error(bad, lv->rel);
             ok = 0;
             break;
         }
@@ -999,7 +1012,8 @@ static int copy_archive(const Source *s)
         /* only what is below files/ ("files" itself is shorter) */
         if (strlen(e->path) <= n || name_order(e->path, files, n) != 0) continue;
         if ((dest = sprout_expand_path(rel, sp.values, &bad)) == NULL) {
-            msg(bad ? "name not allowed in the project: " : "out of memory", bad ? rel : NULL, NULL);
+            if (bad == SPROUT_PATH_LEFTOUT) continue;       /* a condition does not hold */
+            path_error(bad, rel);
             ok = 0;
             break;
         }

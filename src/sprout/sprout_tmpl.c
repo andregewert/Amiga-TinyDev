@@ -783,33 +783,109 @@ int sprout_path_safe(const char *path)
     return parts_safe(path, 0);
 }
 
+/**
+ * @brief Tell whether a condition {?KEY=a|b} or {?KEY!=a|b} holds.
+ * @param c The text between "{?" and "}".
+ * @param n Its length.
+ * @param v The values (an undefined key counts as "").
+ * @return 1 if it holds, 0 if not, -1 if it is malformed.
+ */
+static int condition(const char *c, size_t n, const SproutValues *v)
+{
+    char key[64];
+    const char *val, *p, *end = c + n;
+    size_t k = 0, len;
+    int neg, match = 0;
+    while (k < n && c[k] != '=' && c[k] != '!') ++k;
+    if (k == 0 || k >= sizeof(key) || k == n || !sprout_key_valid(c, k)) return -1;
+    memcpy(key, c, k);
+    key[k] = '\0';
+    neg = c[k] == '!';
+    p = c + k + (neg ? 2 : 1);
+    if (neg && (k + 1 >= n || c[k + 1] != '=')) return -1;
+    if ((val = sprout_values_get(v, key)) == NULL) val = "";
+    len = strlen(val);
+    for (;;) {
+        const char *bar = p;
+        while (bar < end && *bar != '|') ++bar;
+        if ((size_t)(bar - p) == len && memcmp(p, val, len) == 0) match = 1;
+        if (bar == end) break;
+        p = bar + 1;
+    }
+    return match != neg;
+}
+
+/**
+ * @brief Take the conditions out of a part of a path.
+ * @param part The part (need not be terminated).
+ * @param n Its length.
+ * @param v The values.
+ * @param[out] out The part without them (appended).
+ * @return 1 if all hold, 0 if one does not, -1 if one is malformed.
+ */
+static int strip_conditions(const char *part, size_t n, const SproutValues *v, Buf *out)
+{
+    size_t i = 0, start = 0;
+    int all = 1;
+    while (i + 1 < n) {
+        if (part[i] == '{' && part[i + 1] == '?') {
+            const char *close = memchr(part + i, '}', n - i);
+            int r;
+            if (close == NULL) return -1;
+            if ((r = condition(part + i + 2, (size_t)(close - part) - i - 2, v)) < 0) return -1;
+            if (r == 0) all = 0;
+            put(out, part + start, i - start);
+            i = start = (size_t)(close - part) + 1;
+        } else {
+            ++i;
+        }
+    }
+    put(out, part + start, n - start);
+    return all;
+}
+
 char *sprout_expand_path(const char *path, const SproutValues *v, int *bad)
 {
-    Buf b;
+    Buf b, plain;
     const char *p = path;
 
-    *bad = 0;
+    *bad = SPROUT_PATH_OK;
     /* ':' is checked after the replacement ({$NAME:lower}) */
     if (!parts_safe(path, 1)) {
-        *bad = 1;
+        *bad = SPROUT_PATH_UNSAFE;
         return NULL;
     }
-    b.cap = strlen(path) + 1;
-    b.len = 0;
-    b.failed = 0;
+    b.cap = plain.cap = strlen(path) + 1;
+    b.len = plain.len = 0;
+    b.failed = plain.failed = 0;
     if ((b.data = (char *)malloc(b.cap)) == NULL) return NULL;
+    if ((plain.data = (char *)malloc(plain.cap)) == NULL) {
+        free(b.data);
+        return NULL;
+    }
     for (;;) {
         const char *slash = strchr(p, '/');
         size_t n = slash != NULL ? (size_t)(slash - p) : strlen(p), m;
-        char *part = sprout_expand(p, n, v, &m);
-        if (part == NULL) {
+        char *part;
+        int r;
+        plain.len = 0;
+        r = strip_conditions(p, n, v, &plain);
+        if (r <= 0 || plain.failed) {
+            *bad = r < 0 ? SPROUT_PATH_BADCOND : r == 0 ? SPROUT_PATH_LEFTOUT : SPROUT_PATH_OK;
+            free(plain.data);
+            free(b.data);
+            return NULL;
+        }
+        if ((part = sprout_expand(plain.data, plain.len, v, &m)) == NULL) {
+            free(plain.data);
             free(b.data);
             return NULL;
         }
         if (!part_safe(part, m, 0)) {
             free(part);
+            free(plain.data);
             free(b.data);
-            *bad = 1;
+            *bad = SPROUT_PATH_UNSAFE;
             return NULL;
         }
         if (b.len > 0) put(&b, "/", 1);
@@ -818,6 +894,7 @@ char *sprout_expand_path(const char *path, const SproutValues *v, int *bad)
         if (slash == NULL) break;
         p = slash + 1;
     }
+    free(plain.data);
     if (b.failed) {
         free(b.data);
         return NULL;

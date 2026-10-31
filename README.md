@@ -265,7 +265,8 @@ ARexx commands and the protocol for writing parsers are described in
 
 `Sprout` creates a project from a template: it makes the project drawer,
 copies the template's files and fills in placeholders (`{$NAME}`) in file
-names and texts. A file template copies its files into an existing
+names and texts; files can depend on a value (e.g. a Makefile per
+compiler). A file template copies its files into an existing
 drawer instead. Templates are LhA archives (`<name>.lha`) or drawers in
 `Templates/`.
 

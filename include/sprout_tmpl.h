@@ -11,7 +11,8 @@
  * A placeholder is written {$KEY} or {$KEY:modifier} (modifiers upper,
  * lower, ident); keys are A-Z, 0-9 and _, starting with a letter. Only
  * defined keys are replaced; a placeholder with one more $ ({$$KEY}) is
- * written without that $ instead.
+ * written without that $ instead. Names of files may also hold conditions
+ * ({?KEY=value}, see sprout_expand_path()).
  */
 #ifndef SPROUT_TMPL_H
 #define SPROUT_TMPL_H
@@ -251,17 +252,32 @@ char *sprout_expand(const char *text, size_t len, const SproutValues *v, size_t 
  */
 int sprout_path_safe(const char *path);
 
+/** @name Results of sprout_expand_path() (its @p bad) */
+/** @{ */
+#define SPROUT_PATH_OK      0   /**< expanded (or out of memory if NULL is returned) */
+#define SPROUT_PATH_UNSAFE  1   /**< the path, or an expanded part, is not safe */
+#define SPROUT_PATH_LEFTOUT 2   /**< a condition does not hold: the file is left out */
+#define SPROUT_PATH_BADCOND 3   /**< a condition is malformed */
+/** @} */
+
 /**
- * @brief Replace the placeholders in a relative path, part by part.
+ * @brief Replace the placeholders in a relative path, part by part, and
+ *        take out its conditions.
  *
+ * A part may hold conditions {?KEY=value}, {?KEY=a|b} (one of the values)
+ * or {?KEY!=a|b} (none of them); values are compared exactly, an undefined
+ * key counts as "". The conditions are removed from the name; if one does
+ * not hold, the path is left out (a condition on a drawer leaves out all
+ * below it, as their paths contain it).
  * Fails if the path or an expanded part is not safe, e.g. because a value
  * contains '/' or ':'. A ':' before the replacement is allowed (it may
  * belong to a modifier); one left after it is not.
- *
  * @param path The path ('/' separated).
  * @param v The values.
- * @param[out] bad Set to 1 if the path is not safe, else 0.
- * @return The result (free() it); NULL if not safe or out of memory.
+ * @param[out] bad Why NULL was returned: #SPROUT_PATH_UNSAFE,
+ *                 #SPROUT_PATH_LEFTOUT, #SPROUT_PATH_BADCOND, or
+ *                 #SPROUT_PATH_OK when out of memory.
+ * @return The result (free() it); NULL otherwise.
  */
 char *sprout_expand_path(const char *path, const SproutValues *v, int *bad);
 
