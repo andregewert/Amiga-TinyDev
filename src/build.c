@@ -30,6 +30,10 @@
  * and are independent of TinyDev; their scripts stay until TinyDev quits
  * (a script may still be running then and is left).
  *
+ * The Shells get TinyDev's command path (cmdpath_copy()), so commands
+ * added with "Path ... ADD" are found also when TinyDev was started from
+ * the Workbench.
+ *
  * Untested assumption: the Shell started by SystemTags() keeps SYS_Output
  * as cli_StandardOutput (Stop relies on it).
  *
@@ -76,6 +80,7 @@ static struct {
     struct Message msg;
     LONG rc;                            /* return code (set by the build process) */
     BPTR in, out_w;                     /* NIL:, the output file for writing */
+    BPTR path;                          /* command path for the Shell (cmdpath_copy()) */
     LONG out_read;                      /* bytes of the output file read so far */
     struct MsgPort *timer_port;
     struct timerequest *timer;
@@ -264,7 +269,11 @@ static BPTR prepare(EditorApp *app, ProjAction action, const char *script, char 
 static void build_process(void)
 {
     bj.rc = SystemTags((STRPTR)bj.command, SYS_Input, (ULONG)bj.in, SYS_Output, (ULONG)bj.out_w,
-                       SYS_UserShell, TRUE, TAG_DONE);
+                       SYS_UserShell, TRUE, bj.path != 0 ? NP_Path : TAG_IGNORE, (ULONG)bj.path,
+                       TAG_DONE);
+    /* the Shell frees the path, unless it could not be started */
+    if (bj.rc == -1) cmdpath_free(bj.path);
+    bj.path = 0;
     Forbid();
     PutMsg(bj.port, &bj.msg);
 }
@@ -436,11 +445,14 @@ static void start_build(EditorApp *app)
     outwin_open(app);
     ui_set_menu_check(app, MID_OUTPUT, outwin_is_open());
 
-    /* the lock goes to the process, which unlocks it when it ends */
+    /* the lock and the path go to the process, which frees them */
+    bj.path = cmdpath_copy();
     proc = CreateNewProcTags(NP_Entry, (ULONG)build_process, NP_Name, (ULONG)"TinyDev Build",
                              NP_StackSize, 8192, NP_CurrentDir, (ULONG)lock, TAG_DONE);
     if (proc == NULL) {
         UnLock(lock);
+        cmdpath_free(bj.path);
+        bj.path = 0;
         snprintf(text, sizeof(text), S(MSG_BUILD_NOSTART), bj.name);
         outwin_set_status(text, 0);
         release();
@@ -544,7 +556,7 @@ static void start_detached(EditorApp *app, ProjAction action)
 {
     char command[EDITOR_PATH_MAX + 16], name[128], console[200];
     RunScript *script = AllocVec(sizeof(RunScript), MEMF_ANY);
-    BPTR lock, old, con;
+    BPTR lock, old, con, path;
     LONG rc = -1;
 
     if (script == NULL || !temp_name(app, ".script", script->name, sizeof(script->name))) {
@@ -564,11 +576,17 @@ static void start_detached(EditorApp *app, ProjAction action)
     if ((con = Open((STRPTR)console, MODE_NEWFILE)) != 0) {
         /* the Shell takes over the current directory of the caller */
         old = CurrentDir(lock);
+        path = cmdpath_copy();
         rc = SystemTags((STRPTR)command, SYS_Input, (ULONG)con, SYS_Output, 0,
-                        SYS_Asynch, TRUE, SYS_UserShell, TRUE, TAG_DONE);
+                        SYS_Asynch, TRUE, SYS_UserShell, TRUE,
+                        path != 0 ? NP_Path : TAG_IGNORE, (ULONG)path, TAG_DONE);
         CurrentDir(old);
-        /* asynchronous: the system closes the console when the command ends */
-        if (rc == -1) Close(con);
+        /* asynchronous: the system closes the console and frees the path
+           when the command ends */
+        if (rc == -1) {
+            Close(con);
+            cmdpath_free(path);
+        }
     }
     UnLock(lock);
     if (rc == -1) {

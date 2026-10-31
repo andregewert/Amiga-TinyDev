@@ -120,6 +120,10 @@ below the tree's root.
 - `src/tempfile.c`: unique names of temporary files in the drawer of the
   setting TEMPDIR (`temp_name()`), used by the Build menu and Scout's
   snapshots.
+- `src/cmdpath.c`: the command path for the Shells TinyDev starts
+  (Build, Run, Debug, New Shell), passed with `NP_Path`: a copy of
+  TinyDev's CLI path or, started from the Workbench, of the Workbench's
+  (so commands added with `Path ... ADD` are found).
 - `src/outwin.c`: the output window, a tool window (View/Output Window,
   first placed below the main window, as wide as it): the build's lines
   (kept also while it is closed, at most 2000), status line, Stop, Clear.

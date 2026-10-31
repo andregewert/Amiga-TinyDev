@@ -109,7 +109,7 @@ void shell_open(EditorApp *app)
     const char *con = app->settings.shellwindow;
     char screen[MAXPUBSCREENNAME + 1], msg[200];
     WORD box[4];
-    BPTR lock, old, in;
+    BPTR lock, old, in, path;
     LONG rc = -1;
 
     if (con[0] == '\0') con = "CON:";
@@ -133,14 +133,20 @@ void shell_open(EditorApp *app)
     if ((in = Open((STRPTR)"NIL:", MODE_OLDFILE)) != 0) {
         lock = start_drawer(app);
         old = lock != 0 ? CurrentDir(lock) : 0;
+        /* NewShell takes over the path of the Shell that runs it */
+        path = cmdpath_copy();
         rc = SystemTags((STRPTR)command, SYS_Input, (ULONG)in, SYS_Output, 0,
-                        SYS_Asynch, TRUE, TAG_DONE);
+                        SYS_Asynch, TRUE, path != 0 ? NP_Path : TAG_IGNORE, (ULONG)path, TAG_DONE);
         if (lock != 0) {
             CurrentDir(old);
             UnLock(lock);
         }
-        /* asynchronous: the system closes the input when NewShell ends */
-        if (rc == -1) Close(in);
+        /* asynchronous: the system closes the input and frees the path when
+           NewShell ends */
+        if (rc == -1) {
+            Close(in);
+            cmdpath_free(path);
+        }
     }
     if (rc == -1) ui_error(app, APP_NAME, S(MSG_SHELL_FAILED));
 }

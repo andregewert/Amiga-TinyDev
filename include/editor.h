@@ -1712,6 +1712,22 @@ void tree_set_visible(EditorApp *app, int visible);
 int temp_name(EditorApp *app, const char *suffix, char *out, size_t size);
 
 /**
+ * @brief Copy the command path for a Shell that TinyDev starts: the path
+ *        of TinyDev's CLI, or that of the Workbench if it has none.
+ *
+ * Pass it with NP_Path to SystemTags(); the Shell then owns it. If the
+ * Shell cannot be started, free it with cmdpath_free().
+ * @return The path list (BPTR), 0 if there is none.
+ */
+BPTR cmdpath_copy(void);
+
+/**
+ * @brief Free a path list from cmdpath_copy().
+ * @param path The list (BPTR); 0 is allowed.
+ */
+void cmdpath_free(BPTR path);
+
+/**
  * @brief The project (the folder tree's root) changed: close Scout's
  *        session of the old one and open one for the new (starting Scout
  *        if needed).
