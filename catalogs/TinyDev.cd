@@ -1292,3 +1292,21 @@ The files were created with warnings:\n\n%s
 MSG_NF_CREATED (//)
 Files of %s created.
 ;
+MSG_CAT_PROJECT (//)
+Project Defaults
+;
+MSG_PREFS_PROJECTDIR (//)
+Project drawer 
+;
+MSG_PREFS_ASL_PROJECTDIR (//)
+Drawer for new projects
+;
+MSG_PREFS_AUTHOR (//)
+Author 
+;
+MSG_PREFS_AUTHORMAIL (//)
+E-mail 
+;
+MSG_PREFS_PROJNOTE (//)
+All take effect at once. Project/New Project... suggests\nthe project drawer (if empty, the drawer that holds the\ncurrent project) and fills author and e-mail address into\nthe templates, where they can still be changed.
+;

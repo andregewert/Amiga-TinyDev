@@ -30,7 +30,11 @@
  * The fields are filled in with the defaults expanded like Sprout does
  * (sprout_builtins() and sprout_expand() of sprout_tmpl.c, PROJECT and
  * DRAWER from page 0) whenever a form is shown; a field the user changed
- * keeps its value (it no longer equals the value filled in last).
+ * keeps its value (it no longer equals the value filled in last). The
+ * settings AUTHOR and AUTHORMAIL (Project Defaults) count as given
+ * values: they fill fields of these keys before the template's defaults
+ * and go to Sprout also when the template does not ask for them. A new
+ * project's drawer is suggested in the setting PROJECTDIR, if there is one.
  *
  * Create writes all values (and PROJECT if a name was given) as a JSON
  * object to a file in the drawer of the temporary files and runs
@@ -839,7 +843,10 @@ static int form_values(NpTemplate *p, SproutValues *v, int fill)
 
     sprout_values_init(v);
     sprout_drawer_name((const char *)get(np.drawer, STRINGA_TextVal), drawer, sizeof(drawer));
-    if (sprout_builtins(v, project_name(), drawer, np.days) < 0) goto nomem;
+    if (sprout_builtins(v, project_name(), drawer, np.days) < 0 ||
+        sprout_values_set(v, "AUTHOR", np.app->settings.author) < 0 ||
+        sprout_values_set(v, "AUTHORMAIL", np.app->settings.authormail) < 0)
+        goto nomem;
     for (k = 0; k < p->t.nph; ++k) {
         const SproutPlaceholder *ph = &p->t.ph[k];
         const char *cur = field_value(p, k);
@@ -851,7 +858,10 @@ static int form_values(NpTemplate *p, SproutValues *v, int fill)
             /* unchanged: the default, else the first choice, else empty */
             const char *val = ph->nchoices > 0 ? ph->choices[0] : "";
             size_t n;
-            if (ph->def != NULL) {
+            if (sprout_key_standard(ph->key) && sprout_values_get(v, ph->key)[0] != '\0') {
+                /* AUTHOR, AUTHORMAIL from the settings: like a given value */
+                val = sprout_values_get(v, ph->key);
+            } else if (ph->def != NULL) {
                 if ((expanded = sprout_expand(ph->def, strlen(ph->def), v, &n)) == NULL) goto nomem;
                 val = expanded;
             }
@@ -1222,8 +1232,8 @@ static Object *build(const char *drawer)
 
 /**
  * @brief Write the values of the chosen template's form to a file, as
- *        Sprout's VALUES file: PROJECT (if a name was given) and every
- *        placeholder.
+ *        Sprout's VALUES file: PROJECT (if a name was given), every
+ *        placeholder, and AUTHOR and AUTHORMAIL from the settings.
  * @param v The form's values.
  * @param path The file.
  * @return Non-zero on success.
@@ -1241,6 +1251,13 @@ static int write_values(const SproutValues *v, const char *path)
     for (k = 0; ok && k < p->t.nph; ++k)
         ok = (s = json_new_string(sprout_values_get(v, p->t.ph[k].key))) != NULL &&
              json_obj_set(obj, p->t.ph[k].key, s);
+    /* the standard keys from the settings, if the template does not ask for them */
+    for (k = 0; ok && k < 2; ++k) {
+        static const char *const keys[2] = { "AUTHOR", "AUTHORMAIL" };
+        const char *val = sprout_values_get(v, keys[k]);
+        if (json_obj_get(obj, keys[k]) == NULL && val != NULL && val[0] != '\0')
+            ok = (s = json_new_string(val)) != NULL && json_obj_set(obj, keys[k], s);
+    }
     if (ok) {
         json_writer_init_alloc(&w, 256);
         json_write_value(&w, obj, 0);
@@ -1381,9 +1398,16 @@ static void wizard(EditorApp *app, int files)
     if (!c) goto out;
 
     /* suggested drawer: for files the active document's, else the
-     * project's; for a project the one holding the current project */
+     * project's; for a project the setting PROJECTDIR, else the one
+     * holding the current project */
     drawer[0] = '\0';
-    if (files) {
+    if (!files && app->settings.projectdir[0] != '\0') {
+        size_t n;
+        strncpy(drawer, app->settings.projectdir, sizeof(drawer) - 2);
+        drawer[sizeof(drawer) - 2] = '\0';
+        n = strlen(drawer);
+        if (drawer[n - 1] != ':' && drawer[n - 1] != '/') strcpy(drawer + n, "/");
+    } else if (files) {
         if (app->active != NULL && app->active->path != NULL) {
             strncpy(drawer, app->active->path, sizeof(drawer) - 1);
             drawer[sizeof(drawer) - 1] = '\0';

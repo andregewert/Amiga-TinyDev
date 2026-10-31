@@ -1688,3 +1688,27 @@ MSG_NF_CREATED
 Dateien aus %s erstellt.
 ; Files of %s created.
 ;
+MSG_CAT_PROJECT
+Projektvorgaben
+; Project Defaults
+;
+MSG_PREFS_PROJECTDIR
+Projektverzeichnis 
+; Project drawer 
+;
+MSG_PREFS_ASL_PROJECTDIR
+Verzeichnis für neue Projekte
+; Drawer for new projects
+;
+MSG_PREFS_AUTHOR
+Autor 
+; Author 
+;
+MSG_PREFS_AUTHORMAIL
+E-Mail 
+; E-mail 
+;
+MSG_PREFS_PROJNOTE
+Alles wirkt sofort. Projekt/Neues Projekt... schlägt das\nProjektverzeichnis vor (wenn leer, das Verzeichnis, in dem\ndas aktuelle Projekt liegt) und trägt Autor und E-Mail-Adresse\nin die Vorlagen ein, wo sie sich noch ändern lassen.
+; All take effect at once. Project/New Project... suggests\nthe project drawer (if empty, the drawer that holds the\ncurrent project) and fills author and e-mail address into\nthe templates, where they can still be changed.
+;

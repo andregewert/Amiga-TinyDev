@@ -1,6 +1,6 @@
 /**
  * @file prefswin.c
- * @brief The settings window (categories General, Colours, Toolbar, Advanced and the file types), built like Kickdown's.
+ * @brief The settings window (categories General, Colours, Toolbar, Project Defaults, Advanced and the file types), built like Kickdown's.
  *
  * Built after the ReAction style guide of amiga-devkit (section 4.2): a
  * list of categories on the left, the options of the selected one on the
@@ -84,6 +84,7 @@ enum {
     PG_FOLDERTREE, PG_MINIMAP,
     PG_COLOUR, PG_DEFCOLOURS = PG_COLOUR + SCOL_COUNT,
     PG_TBMODE, PG_TBFRAMES,
+    PG_PROJECTDIR, PG_CHOOSEPROJECT, PG_AUTHOR, PG_AUTHORMAIL,
     PG_SCOUT, PG_TEMPDIR, PG_CHOOSETEMP, PG_SHELLWINDOW,
     PG_FT_NAME, PG_FT_STANDARD, PG_FT_TABSIZE, PG_FT_INDENTWITH, PG_FT_INDENT, PG_FT_AUTO,
     PG_FT_TABKEY, PG_FT_NUMBERS, PG_FT_CUTCOPY,
@@ -93,11 +94,13 @@ enum {
 /**
  * Names of the categories (MSG_), in the order of the pages.
  */
-static const LONG categories[] = { MSG_CAT_GENERAL, MSG_CAT_COLOURS, MSG_CAT_TOOLBAR, MSG_CAT_ADVANCED };
+static const LONG categories[] = {
+    MSG_CAT_GENERAL, MSG_CAT_COLOURS, MSG_CAT_TOOLBAR, MSG_CAT_PROJECT, MSG_CAT_ADVANCED
+};
 /**
  * Number of categories (pages) before the file types.
  */
-#define NUMCATEGORIES 4
+#define NUMCATEGORIES 5
 /** The page of the file types (after the categories). */
 #define PAGE_FILETYPES NUMCATEGORIES
 /** LBNA_UserData of the list's nodes: the categories are their page numbers. */
@@ -162,6 +165,7 @@ static struct {
     Object *width, *height, *left, *top, *splash, *foldertree, *minimap;
     Object *colours[SCOL_COUNT];
     Object *tbmode, *tbframes;
+    Object *projectdir, *author, *authormail;
     Object *scout, *tempdir, *shellwindow;
     Object *ft_name, *ft_standard, *ft_tabsize, *ft_indentwith, *ft_indent, *ft_auto,
            *ft_tabkey, *ft_numbers, *ft_cutcopy;
@@ -261,6 +265,20 @@ static Object *button(ULONG id, const char *text)
         BUTTON_TextPadding, TRUE, TAG_END);
 }
 
+/**
+ * @brief Make a string gadget.
+ * @param id Its ID.
+ * @param text Its text.
+ * @param max The size of the setting it edits (with the terminator).
+ * @return The gadget.
+ */
+static Object *string(ULONG id, const char *text, ULONG max)
+{
+    return NewObject(STRING_GetClass(), NULL,
+        GA_ID, id, GA_RelVerify, TRUE, GA_TabCycle, TRUE,
+        STRINGA_MaxChars, max, STRINGA_TextVal, (ULONG)text, TAG_END);
+}
+
 /** @brief An empty group that takes the remaining space. @return It. */
 static Object *filler(void)
 {
@@ -336,7 +354,7 @@ static Object *popup(ULONG id, STRPTR *labels)
  */
 static Object *build(EditorApp *app, const Settings *s)
 {
-    Object *general, *colours, *toolbar, *advanced, *filetypes;
+    Object *general, *colours, *toolbar, *project, *advanced, *filetypes;
     ULONG i;
     int k;
 
@@ -449,15 +467,33 @@ static Object *build(EditorApp *app, const Settings *s)
         LAYOUT_AddChild, (ULONG)filler(),
         TAG_END);
 
+    /* Project Defaults: the drawer of new projects, author, e-mail address */
+    pw.projectdir = string(PG_PROJECTDIR, s->projectdir, sizeof(s->projectdir));
+    pw.author = string(PG_AUTHOR, s->author, sizeof(s->author));
+    pw.authormail = string(PG_AUTHORMAIL, s->authormail, sizeof(s->authormail));
+    project = NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(categories[3])),
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+            LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+            LAYOUT_AddChild, (ULONG)pw.projectdir,
+            LAYOUT_AddChild, (ULONG)button(PG_CHOOSEPROJECT, S(MSG_PREFS_CHOOSE)),
+            CHILD_WeightedWidth, 0,
+            TAG_END),
+        FIXED,
+        CHILD_Label, (ULONG)label(S(MSG_PREFS_PROJECTDIR)),
+        LAYOUT_AddChild, (ULONG)pw.author, FIXED,
+        CHILD_Label, (ULONG)label(S(MSG_PREFS_AUTHOR)),
+        LAYOUT_AddChild, (ULONG)pw.authormail, FIXED,
+        CHILD_Label, (ULONG)label(S(MSG_PREFS_AUTHORMAIL)),
+        LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_PROJNOTE)),
+        FIXED,
+        LAYOUT_AddChild, (ULONG)filler(),
+        TAG_END);
+
     /* Advanced: Scout, the drawer of the temporary files, the Shell window */
     pw.scout = checkbox(PG_SCOUT, S(MSG_PREFS_SCOUT), s->scout);
-    pw.tempdir = NewObject(STRING_GetClass(), NULL,
-        GA_ID, PG_TEMPDIR, GA_RelVerify, TRUE, GA_TabCycle, TRUE,
-        STRINGA_MaxChars, sizeof(s->tempdir), STRINGA_TextVal, (ULONG)s->tempdir, TAG_END);
-    pw.shellwindow = NewObject(STRING_GetClass(), NULL,
-        GA_ID, PG_SHELLWINDOW, GA_RelVerify, TRUE, GA_TabCycle, TRUE,
-        STRINGA_MaxChars, sizeof(s->shellwindow), STRINGA_TextVal, (ULONG)s->shellwindow, TAG_END);
-    advanced = NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(categories[3])),
+    pw.tempdir = string(PG_TEMPDIR, s->tempdir, sizeof(s->tempdir));
+    pw.shellwindow = string(PG_SHELLWINDOW, s->shellwindow, sizeof(s->shellwindow));
+    advanced = NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(categories[4])),
         LAYOUT_AddChild, (ULONG)pw.scout, FIXED,
         LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
             LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
@@ -516,6 +552,7 @@ static Object *build(EditorApp *app, const Settings *s)
         PAGE_Add, (ULONG)general,
         PAGE_Add, (ULONG)colours,
         PAGE_Add, (ULONG)toolbar,
+        PAGE_Add, (ULONG)project,
         PAGE_Add, (ULONG)advanced,
         PAGE_Add, (ULONG)filetypes,
         PAGE_Current, 0,
@@ -570,12 +607,28 @@ static ULONG get(Object *o, ULONG attr)
 }
 
 /**
+ * @brief Copy the text of a string gadget into a setting.
+ * @param o The gadget.
+ * @param[out] out The setting.
+ * @param size Its size.
+ */
+static void copy_text(Object *o, char *out, size_t size)
+{
+    const char *text = (const char *)get(o, STRINGA_TextVal);
+    strncpy(out, text != NULL ? text : "", size - 1);
+    out[size - 1] = '\0';
+}
+
+/**
  * @brief Take the gadgets' values into the settings.
  * @param s The settings.
  */
 static void read_gadgets(Settings *s)
 {
     ULONG i;
+    copy_text(pw.projectdir, s->projectdir, sizeof(s->projectdir));
+    copy_text(pw.author, s->author, sizeof(s->author));
+    copy_text(pw.authormail, s->authormail, sizeof(s->authormail));
     s->winwidth = (long)(LONG)get(pw.width, INTEGER_Number);
     s->winheight = (long)(LONG)get(pw.height, INTEGER_Number);
     s->winleft = (long)(LONG)get(pw.left, INTEGER_Number);
@@ -601,19 +654,23 @@ static void read_gadgets(Settings *s)
 }
 
 /**
- * @brief Let the user choose the drawer of the temporary files with the
- *        ASL requester.
+ * @brief Let the user choose a drawer with the ASL requester and put it
+ *        into a string gadget.
+ * @param o The string gadget.
+ * @param title The requester's title.
+ * @param initial The drawer to show if the gadget is empty.
  */
-static void choose_tempdir(void)
+static void choose_drawer(Object *o, const char *title, const char *initial)
 {
-    const char *dir = (const char *)get(pw.tempdir, STRINGA_TextVal);
+    const char *dir = (const char *)get(o, STRINGA_TextVal);
     struct FileRequester *fr = AllocAslRequestTags(ASL_FileRequest,
-        ASLFR_TitleText, (ULONG)S(MSG_PREFS_ASL_TEMPDIR), ASLFR_DrawersOnly, TRUE, TAG_END);
+        ASLFR_TitleText, (ULONG)title, ASLFR_DrawersOnly, TRUE, TAG_END);
     if (fr == NULL) return;
     if (AslRequestTags(fr, ASLFR_Window, (ULONG)pw.win, ASLFR_SleepWindow, TRUE,
-                       ASLFR_InitialDrawer, (ULONG)(dir != NULL ? dir : "T:"), TAG_END) &&
+                       ASLFR_InitialDrawer, (ULONG)(dir != NULL && dir[0] != '\0' ? dir : initial),
+                       TAG_END) &&
         fr->fr_Drawer != NULL && fr->fr_Drawer[0] != '\0')
-        SetPageGadgetAttrs((struct Gadget *)pw.tempdir, pw.page, pw.win, NULL,
+        SetPageGadgetAttrs((struct Gadget *)o, pw.page, pw.win, NULL,
                            STRINGA_TextVal, (ULONG)fr->fr_Drawer, TAG_END);
     FreeAslRequest(fr);
 }
@@ -799,7 +856,10 @@ int prefs_dialog(EditorApp *app, Settings *s, FileTypes *ft)
                     set_page_gadget(pw.top, INTEGER_Number, (ULONG)-1);
                     break;
                 case PG_CHOOSETEMP:
-                    choose_tempdir();
+                    choose_drawer(pw.tempdir, S(MSG_PREFS_ASL_TEMPDIR), "T:");
+                    break;
+                case PG_CHOOSEPROJECT:
+                    choose_drawer(pw.projectdir, S(MSG_PREFS_ASL_PROJECTDIR), "SYS:");
                     break;
                 case PG_SAVE:
                 case PG_USE:

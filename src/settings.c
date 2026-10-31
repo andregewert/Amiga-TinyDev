@@ -34,6 +34,10 @@
  *   TEMPDIR=drawer             drawer of the temporary files (default T:)
  *   SHELLWINDOW=console        console of Project/New Shell: a handler
  *                              (default CON:) or a whole window
+ *   PROJECTDIR=drawer          drawer suggested for new projects
+ *                              (otherwise the current project's parent)
+ *   AUTHOR=name                the author filled into templates (AUTHOR)
+ *   AUTHORMAIL=address         the author's e-mail address (AUTHORMAIL)
  *   COLOR_TEXT=RRGGBB ...      colours of the syntax highlighting:
  *                              COLOR_KEYWORD, COLOR_STRING, COLOR_COMMENT,
  *                              COLOR_PREPROCESSOR, COLOR_TYPE,
@@ -182,6 +186,22 @@ static void parse_box(CONST_STRPTR v, long box[4])
 }
 
 /**
+ * @brief Copy the value of a tool type, if it is there (an empty value
+ *        clears the setting).
+ * @param t The tool type array.
+ * @param key The tool type's name.
+ * @param[out] out The setting.
+ * @param size Its size.
+ */
+static void copy_value(CONST_STRPTR *t, const char *key, char *out, size_t size)
+{
+    STRPTR value = FindToolType(t, (CONST_STRPTR)key);
+    if (value == NULL) return;
+    strncpy(out, (const char *)value, size - 1);
+    out[size - 1] = '\0';
+}
+
+/**
  * @brief Apply the tool types of one icon.
  * @param s The settings.
  * @param tt The icon's tool type array (may be NULL).
@@ -220,6 +240,9 @@ static void from_tooltypes(Settings *s, STRPTR *tt)
         strncpy(s->shellwindow, (const char *)value, sizeof(s->shellwindow) - 1);
         s->shellwindow[sizeof(s->shellwindow) - 1] = '\0';
     }
+    copy_value(t, "PROJECTDIR", s->projectdir, sizeof(s->projectdir));
+    copy_value(t, "AUTHOR", s->author, sizeof(s->author));
+    copy_value(t, "AUTHORMAIL", s->authormail, sizeof(s->authormail));
     for (i = 0; i < SCOL_COUNT; ++i)
         if ((value = FindToolType(t, (CONST_STRPTR)colour_names[i])) != NULL)
             parse_colour(value, &s->colours[i]);
@@ -294,7 +317,7 @@ int settings_save_toolwindows(const Settings *cur)
     return settings_save(&s);
 }
 
-#define NUMKEYS (20 + SCOL_COUNT)    /**< number of TinyDev's tool types */
+#define NUMKEYS (23 + SCOL_COUNT)    /**< number of TinyDev's tool types */
 #define ENTRYLEN 280                /**< longest tool type TinyDev writes (TEMPDIR=...) */
 
 /** One of our tool types while writing. */
@@ -384,6 +407,9 @@ int settings_save(const Settings *s)
     entry(&e[k++], "NOSCOUT", !s->scout, NULL);
     entry(&e[k++], "TEMPDIR", Stricmp((STRPTR)s->tempdir, (STRPTR)"T:") != 0, s->tempdir);
     entry(&e[k++], "SHELLWINDOW", Stricmp((STRPTR)s->shellwindow, (STRPTR)"CON:") != 0, s->shellwindow);
+    entry(&e[k++], "PROJECTDIR", s->projectdir[0] != '\0', s->projectdir);
+    entry(&e[k++], "AUTHOR", s->author[0] != '\0', s->author);
+    entry(&e[k++], "AUTHORMAIL", s->authormail[0] != '\0', s->authormail);
     for (i = 0; i < SCOL_COUNT; ++i) {
         snprintf(buf[i], sizeof(buf[i]), "%06lX", s->colours[i] & 0xFFFFFFUL);
         entry(&e[k++], colour_names[i], s->colours[i] != settings_default_colours[i], buf[i]);

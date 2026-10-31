@@ -174,6 +174,9 @@ the icon, "Use" keeps them for this session.
 | `NOSCOUT` | No source analysis with TinyDev-Scout |
 | `TEMPDIR=drawer` | Drawer for temporary files (default `T:`) |
 | `SHELLWINDOW=console` | Console of Project/New Shell: a handler such as `CON:` (default) or `VNC:`, or a whole window such as `CON:0/20/640/200/Shell/CLOSE` |
+| `PROJECTDIR=drawer` | Drawer suggested for new projects (default: the one holding the current project) |
+| `AUTHOR=name` | Author filled into templates |
+| `AUTHORMAIL=address` | The author's e-mail address for templates |
 | `COLOR_TEXT`, `COLOR_KEYWORD`, `COLOR_STRING`, `COLOR_COMMENT`, `COLOR_PREPROCESSOR`, `COLOR_TYPE`, `COLOR_FUNCTION`, `COLOR_MACRO`, `COLOR_CONSTANT`, `COLOR_VARIABLE` | Colours of the syntax highlighting as `RRGGBB` |
 
 View/Snapshot Tool Windows writes `BOOKMARKLIST`, `BOOKMARKWINDOW`,

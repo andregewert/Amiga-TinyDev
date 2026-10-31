@@ -123,6 +123,9 @@ typedef struct Settings {
     int scout;          /**< analyse the sources with TinyDev-Scout (NOSCOUT turns it off) */
     char tempdir[256];  /**< drawer of the temporary files (TEMPDIR, default T:) */
     char shellwindow[256]; /**< console of Project/New Shell: a handler (CON:) or a whole window (SHELLWINDOW) */
+    char projectdir[256];  /**< drawer suggested for new projects (PROJECTDIR); "" = the current project's parent */
+    char author[128];      /**< the author for templates, Sprout's AUTHOR (AUTHOR) */
+    char authormail[128];  /**< the author's e-mail address, Sprout's AUTHORMAIL (AUTHORMAIL) */
     char icon_name[300];/**< program icon without .info, for splash and About */
 } Settings;
 

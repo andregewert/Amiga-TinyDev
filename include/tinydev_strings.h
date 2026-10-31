@@ -421,7 +421,13 @@
 #define MSG_NF_FAILED                416
 #define MSG_NF_WARNINGS              417
 #define MSG_NF_CREATED               418
-#define MSG_COUNT                    419
+#define MSG_CAT_PROJECT              419
+#define MSG_PREFS_PROJECTDIR         420
+#define MSG_PREFS_ASL_PROJECTDIR     421
+#define MSG_PREFS_AUTHOR             422
+#define MSG_PREFS_AUTHORMAIL         423
+#define MSG_PREFS_PROJNOTE           424
+#define MSG_COUNT                    425
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -845,6 +851,12 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "The files could not be created:\n\n%s",
     "The files were created with warnings:\n\n%s",
     "Files of %s created.",
+    "Project Defaults",
+    "Project drawer ",
+    "Drawer for new projects",
+    "Author ",
+    "E-mail ",
+    "All take effect at once. Project/New Project... suggests\nthe project drawer (if empty, the drawer that holds the\ncurrent project) and fills author and e-mail address into\nthe templates, where they can still be changed.",
 };
 #endif
 

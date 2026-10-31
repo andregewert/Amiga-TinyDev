@@ -32,7 +32,8 @@ below the tree's root.
 - `src/settings.c`: settings from the tool types of the program icon (and of
   project icons on a Workbench start); writes them back into the program icon.
 - `src/prefswin.c`: the settings window (categories General with the groups
-  Window and View, Colours, Toolbar, Advanced with Scout, the drawer of
+  Window and View, Colours, Toolbar, Project Defaults (drawer of new
+  projects, author and e-mail address for the templates), Advanced with Scout, the drawer of
   the temporary files and the Shell window, and File Types: Standard and
   Scout's languages in a hierarchical list sharing one page),
   built like Kickdown's.
