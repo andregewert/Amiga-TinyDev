@@ -168,6 +168,7 @@ enum MenuId {
     MID_TREE_REFRESH,   /**< Project/Refresh Folder Tree */
     MID_BM_LIST,        /**< View/Bookmarks: the bookmark list (check item) */
     MID_SNAPSHOT_TOOLS, /**< View/Snapshot Tool Windows */
+    MID_UNSNAPSHOT_TOOLS, /**< View/Unsnapshot Tool Windows: back to the defaults */
     MID_HELP,           /**< Project/Help...: starts the HelpViewer */
     MID_ICONIFY,        /**< Project/Iconify: the main window becomes an icon */
     MID_PROJECT_SETTINGS, /**< Project/Project Settings...: the project's commands */
@@ -400,8 +401,9 @@ void settings_default(Settings *s);
 int settings_save(const Settings *s);
 /**
  * @brief Write the tool windows' boxes and open state (Snapshot Tool
- *        Windows) into the program icon; its other settings stay as they
- *        are in the icon.
+ *        Windows, Unsnapshot Tool Windows) into the program icon; its other
+ *        settings stay as they are in the icon. Default values become
+ *        disabled entries "(KEY=...)".
  * @param cur The settings with the tool windows' values.
  * @return Non-zero on success.
  */

@@ -182,7 +182,9 @@ the icon, "Use" keeps them for this session.
 
 View/Snapshot Tool Windows writes `BOOKMARKLIST`, `BOOKMARKWINDOW`,
 `SYMBOLLIST`, `SYMBOLWINDOW`, `PROBLEMLIST`, `PROBLEMWINDOW`, `OUTPUT` and
-`OUTPUTWINDOW`.
+`OUTPUTWINDOW`; View/Unsnapshot Tool Windows sets them back to their
+defaults, so the tool windows open in their default places at the next
+start.
 
 ### Limits
 

@@ -8,8 +8,8 @@
  * writes them back into the program icon (settings_save()). The view at
  * the start (folder tree, line numbers, minimap) is only set there: the
  * View menu changes the view of the session, not the settings. The tool
- * windows are written by View/Snapshot Tool Windows only
- * (settings_save_toolwindows()).
+ * windows are written by View/Snapshot Tool Windows and View/Unsnapshot
+ * Tool Windows only (settings_save_toolwindows()).
  *
  *   TOOLBAR=IMAGES|BOTH|TEXT   what the toolbar buttons show
  *   TOOLBARFRAMES              frames around the toolbar buttons

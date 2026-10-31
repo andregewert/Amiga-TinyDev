@@ -132,7 +132,8 @@ below the tree's root.
   the screen, otherwise docked right of the main window or over its right
   edge). Their boxes are kept for the session (`EditorApp`); only
   View/Snapshot Tool Windows writes them, with the open state, into the
-  program icon (`settings_save_toolwindows()`), not the settings window.
+  program icon (`settings_save_toolwindows()`), not the settings window;
+  View/Unsnapshot Tool Windows writes the defaults back.
 - `src/bmlist.c`: the bookmark list, a tool window (scope chooser,
   listbrowser with a render hook drawing a document or ribbon symbol per
   row); rebuilt when `bookmarks_generation()` changes.

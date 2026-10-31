@@ -121,6 +121,14 @@ MSG_MENU_SNAPSHOT_TOOLS
 Werkzeugfenster fixieren
 ; Snapshot Tool Windows
 ;
+MSG_MENU_UNSNAPSHOT_TOOLS
+Werkzeugfenster freigeben
+; Unsnapshot Tool Windows
+;
+MSG_TOOLS_UNSNAPSHOT
+Werkzeugfenster freigegeben: Beim nächsten Start öffnen sie an ihren Standardplätzen.
+; Tool windows reset: they open in their default places at the next start.
+;
 MSG_MENU_VIEW
 Ansicht
 ; View

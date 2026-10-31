@@ -311,6 +311,7 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_OUTPUT)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_SNAPSHOT_TOOLS)},
+    {NM_ITEM, NULL, NULL, 0, 0, UD(MID_UNSNAPSHOT_TOOLS)},
     {NM_END, NULL, NULL, 0, 0, NULL}
 };
 
@@ -390,6 +391,7 @@ static const LONG menu_texts[] = {
     MSG_MENU_OUTPUT,
     -1,
     MSG_MENU_SNAPSHOT_TOOLS,
+    MSG_MENU_UNSNAPSHOT_TOOLS,
     -1,
 };
 
@@ -1325,6 +1327,25 @@ static void menu_action(EditorApp *app, ULONG id)
             app->settings.diaglist = diaglist_is_open();
             if (!settings_save_toolwindows(&app->settings))
                 ui_error(app, APP_NAME, S(MSG_ERR_SAVESETTINGS));
+            break;
+        case MID_UNSNAPSHOT_TOOLS:
+            /* back to the defaults: closed at the start, placed next to
+               or below the main window; windows open now stay where they
+               are, closed ones reopen in their default places */
+            memset(app->settings.bmwin, 0, sizeof(app->settings.bmwin));
+            memset(app->settings.outwin, 0, sizeof(app->settings.outwin));
+            memset(app->settings.symwin, 0, sizeof(app->settings.symwin));
+            memset(app->settings.diagwin, 0, sizeof(app->settings.diagwin));
+            app->settings.bmlist = app->settings.outlist = 0;
+            app->settings.symlist = app->settings.diaglist = 0;
+            memset(app->bm_box, 0, sizeof(app->bm_box));
+            memset(app->out_box, 0, sizeof(app->out_box));
+            memset(app->sym_box, 0, sizeof(app->sym_box));
+            memset(app->diag_box, 0, sizeof(app->diag_box));
+            if (!settings_save_toolwindows(&app->settings))
+                ui_error(app, APP_NAME, S(MSG_ERR_SAVESETTINGS));
+            else
+                ui_status_message(app, S(MSG_TOOLS_UNSNAPSHOT));
             break;
         case MID_MINIMAP:
             minimap_set_visible(app, !app->minimap_visible);
