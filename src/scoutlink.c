@@ -93,7 +93,7 @@ struct RxsLib *RexxSysBase = NULL;
 #define PAUSE_TICKS 4
 /** Timer ticks Scout may take to show its port after being started (10 s). */
 #define START_TICKS 40
-/** Most extensions remembered from LANGUAGES. */
+/** Most extensions and file names remembered from LANGUAGES. */
 #define MAX_EXTENSIONS 48
 /** Most languages remembered from LANGUAGES. */
 #define MAX_LANGUAGES 16
@@ -158,7 +158,7 @@ static struct {
     char *include;              /**< its include drawers as OPEN's arguments, quoted (malloc()), NULL */
     int languages;              /**< LANGUAGES was answered */
     int asked_languages;        /**< LANGUAGES is on its way */
-    char *extensions[MAX_EXTENSIONS];   /**< extensions with a parser (malloc()) */
+    char *extensions[MAX_EXTENSIONS];   /**< extensions (".c") and whole file names ("makefile") with a parser (malloc()) */
     int ext_language[MAX_EXTENSIONS];   /**< the language of each (index in languages) */
     int extension_count;        /**< number of them */
     char lang_ids[MAX_LANGUAGES][32];   /**< identifiers of the languages */
@@ -353,7 +353,7 @@ static int language_index(const char *id)
 
 /**
  * @brief Return the language of a document: the one chosen, else Scout's,
- *        else (until Scout answered) the one of its extension.
+ *        else (until Scout answered) the one of its name or extension.
  * @param doc The document.
  * @return The language's index, or -1 for none.
  */
@@ -363,7 +363,11 @@ static int doc_language(const Document *doc)
     int i;
     if (doc->lang_chosen) return language_index(doc->lang_choice);
     if (doc->lang_state == 2) return language_index(doc->lang_detected);
-    dot = doc->path != NULL ? strrchr(doc->path, '.') : NULL;
+    if (doc->path == NULL) return -1;
+    for (i = 0; i < sl.extension_count; ++i)
+        if (sl.extensions[i][0] != '.' && Stricmp((STRPTR)sl.extensions[i], FilePart((STRPTR)doc->path)) == 0)
+            return sl.ext_language[i];
+    dot = strrchr(doc->path, '.');
     if (dot == NULL || strchr(dot, '/') != NULL || strchr(dot, ':') != NULL) return -1;
     for (i = 0; i < sl.extension_count; ++i)
         if (Stricmp((STRPTR)sl.extensions[i], (STRPTR)dot) == 0) return sl.ext_language[i];
@@ -691,7 +695,8 @@ static long result_int(const char *result, const char *key, long fallback)
 }
 
 /**
- * @brief Remember the extensions of LANGUAGES' answer.
+ * @brief Remember the extensions and file names of LANGUAGES' answer
+ *        (a file name has no leading dot in sl.extensions).
  * @param result The answer.
  */
 static void read_languages(const char *result)
@@ -703,8 +708,9 @@ static void read_languages(const char *result)
     for (i = 0; langs != NULL && i < json_array_length(langs); ++i) {
         const JsonValue *lang = json_array_get(langs, i);
         const JsonValue *exts = json_obj_get_array(lang, "extensions");
+        const JsonValue *names = json_obj_get_array(lang, "filenames");
         const char *id = json_obj_get_string(lang, "id", "");
-        int k;
+        int k, pass;
         /* a language known before keeps its rules (a hook may use them) */
         for (k = 0; k < sl.language_count && strcmp(sl.lang_ids[k], id) != 0; ++k) ;
         if (k == sl.language_count) {
@@ -715,14 +721,16 @@ static void read_languages(const char *result)
         }
         strncpy(sl.lang_names[k], json_obj_get_string(lang, "name", id), sizeof(sl.lang_names[k]) - 1);
         sl.lang_names[k][sizeof(sl.lang_names[k]) - 1] = '\0';
-        for (j = 0; exts != NULL && j < json_array_length(exts); ++j) {
-            const JsonValue *e = json_array_get(exts, j);
-            char *copy;
-            if (e == NULL || e->type != JSON_STRING || sl.extension_count >= MAX_EXTENSIONS) continue;
-            if ((copy = malloc(strlen(e->u.str_val) + 1)) == NULL) continue;
-            strcpy(copy, e->u.str_val);
-            sl.ext_language[sl.extension_count] = k;
-            sl.extensions[sl.extension_count++] = copy;
+        for (pass = 0; pass < 2; ++pass, exts = names) {
+            for (j = 0; exts != NULL && j < json_array_length(exts); ++j) {
+                const JsonValue *e = json_array_get(exts, j);
+                char *copy;
+                if (e == NULL || e->type != JSON_STRING || sl.extension_count >= MAX_EXTENSIONS) continue;
+                if ((copy = malloc(strlen(e->u.str_val) + 1)) == NULL) continue;
+                strcpy(copy, e->u.str_val);
+                sl.ext_language[sl.extension_count] = k;
+                sl.extensions[sl.extension_count++] = copy;
+            }
         }
         if (sl.rules[k] == NULL) {
             char command[64];

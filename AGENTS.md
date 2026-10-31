@@ -249,7 +249,10 @@ below the tree's root.
   lines, declarations, highlighting tokens) and `c_parser_rpc.c`
   (`scout/describe`, `scout/analyze`, the program); the AmigaDOS script
   parser is `dos_parser.c` (labels, variables, .KEY parameters, aliases,
-  IF/SKIP checks, tokens) and `dos_parser_rpc.c`;
+  IF/SKIP checks, tokens) and `dos_parser_rpc.c`; the Makefile parser
+  is `make_parser.c` (logical lines, variables, targets, define blocks,
+  conditionals, includes, recipe checks, tokens; GNU make syntax, BSD
+  directives left alone) and `make_parser_rpc.c`;
   `include/scout_protocol.h` holds the protocol's numbers (kinds,
   severities, error codes) for Scout and all parsers.
 - `include/editor.h`: shared application types and cross-module declarations.
@@ -272,6 +275,8 @@ below the tree's root.
   parser (with the sample sources in `tests/data/c_parser/`, ISO-8859-1).
 - `tests/test_dos_parser.c`: host-native tests of the AmigaDOS script
   parser (sample in `tests/data/dos_parser/`, ISO-8859-1).
+- `tests/test_make_parser.c`: host-native tests of the Makefile parser
+  (sample in `tests/data/make_parser/`, ISO-8859-1).
 - `amiga-devkit/`: git submodule (pinned tag) with shared Amiga tools and AI
   guidelines; see `CLAUDE.md`. Do not edit files inside the submodule.
 - `external/html_gadget/`: git submodule (tag `v1.2`), html.gadget, for
@@ -328,7 +333,8 @@ make test
 - Do not claim target-build verification if the cross-toolchain or SDK is
   unavailable; report that limitation explicitly.
 - Finished Amiga binaries go to `bin/` (`bin/TinyDev`, `bin/TinyDev-Scout`,
-  `bin/parsers/c_parser`, `bin/parsers/dos_parser`, `bin/Classes/Gadgets/<name>.gadget`,
+  `bin/parsers/c_parser`, `bin/parsers/dos_parser`,
+  `bin/parsers/make_parser`, `bin/Classes/Gadgets/<name>.gadget`,
   `bin/Catalogs/<language>/TinyDev.catalog`, `bin/HelpViewer`,
   `bin/Sprout`, `bin/Templates/`,
   `bin/Help/<language>/`), laid out as on

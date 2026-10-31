@@ -40,6 +40,7 @@ KEYWORD, STRING, PREPRO = BLUE[1], GREEN[1], RED[1]
 GLYPHS = {
     'C': ('.###.', '#...#', '#....', '#....', '#....', '#...#', '.###.'),
     'S': ('.####', '#....', '#....', '.###.', '....#', '....#', '####.'),
+    'M': ('#...#', '##.##', '#.#.#', '#.#.#', '#...#', '#...#', '#...#'),
     '?': ('.###.', '#...#', '....#', '...#.', '..#..', '.....', '..#..'),
     'H': ('#...#', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'),
     'i': ('.#.', '...', '##.', '.#.', '.#.', '.#.', '###'),
@@ -48,6 +49,7 @@ GLYPHS = {
 SMALL = {
     'C': ('.##', '#..', '#..', '#..', '.##'),
     'S': ('###', '#..', '###', '..#', '###'),
+    'M': ('#.#', '###', '###', '#.#', '#.#'),
     '?': ('##.', '..#', '.#.', '...', '.#.'),
     'H': ('#.#', '#.#', '###', '#.#', '#.#'),
     'i': ('#', '.', '#', '#', '#'),
@@ -448,17 +450,19 @@ ai.register('helpviewer', pic_helpviewer, m_helpviewer, n_helpviewer)
 ai.register('hello', pic_hello, m_hello, n_hello)
 PARSER_C = parser('C')
 PARSER_DOS = parser('S', GREEN, ai.N_GREEN)    # AmigaDOS scripts
+PARSER_MAKE = parser('M', RED, ai.N_RED)       # Makefiles
 
 
 # ---------------------------------------------------------------- samples ---
 
-ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, PARSER_DOS, 'helpviewer', 'hello', 'readme', 'license')
+ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, PARSER_DOS, PARSER_MAKE, 'helpviewer', 'hello', 'readme', 'license')
 
 SAMPLES = (('Drawer', 'drawer', WBDRAWER, {}),
            ('TinyDev', 'tinydev', WBTOOL, {'stack': 32768}),
            ('TinyDev-Scout', 'scout', WBTOOL, {'stack': 16384}),
            ('c_parser', PARSER_C, WBTOOL, {'stack': 16384}),
            ('dos_parser', PARSER_DOS, WBTOOL, {'stack': 16384}),
+           ('make_parser', PARSER_MAKE, WBTOOL, {'stack': 16384}),
            ('HelpViewer', 'helpviewer', WBTOOL, {'stack': 32768}),
            ('HelloWorld', 'hello', WBPROJECT, {}),
            ('ReadMe', 'readme', WBPROJECT, {'default_tool': 'SYS:Utilities/MultiView'}),

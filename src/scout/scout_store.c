@@ -151,6 +151,7 @@ static void free_language(ScoutLanguage *l)
     free(l->id);
     free(l->name);
     free_strings(l->extensions, l->extension_count);
+    free_strings(l->filenames, l->filename_count);
     free(l->syntax);
     free_strings(l->keywords, l->keyword_count);
 }
@@ -310,6 +311,23 @@ static long find_extension(const ScoutStore *st, const char *ext, long *index)
 }
 
 /**
+ * @brief Find the language that claims a whole file name.
+ * @param st The store.
+ * @param name The name (without a path).
+ * @return The language's index, or -1.
+ */
+static long find_filename(const ScoutStore *st, const char *name)
+{
+    long i, j;
+    for (i = 0; i < st->language_count; i++) {
+        for (j = 0; j < st->languages[i].filename_count; j++) {
+            if (scout_path_equal(st->languages[i].filenames[j], name)) return i;
+        }
+    }
+    return -1;
+}
+
+/**
  * @brief Make a lower case copy of an extension.
  * @param ext The extension.
  * @param[out] out The copy.
@@ -349,6 +367,7 @@ static int add_language(ScoutStore *st, long parser, const JsonValue *l, const c
 {
     const char *id = json_obj_get_string(l, "id", NULL);
     const JsonValue *exts = json_obj_get_array(l, "extensions");
+    const JsonValue *names = json_obj_get_array(l, "filenames");
     const JsonValue *syntax = json_obj_get_obj(l, "syntax");
     ScoutLanguage *lang, *bigger;
     size_t i;
@@ -381,6 +400,22 @@ static int add_language(ScoutStore *st, long parser, const JsonValue *l, const c
             continue;
         }
         if (!add_string(&lang->extensions, &lang->extension_count, ext)) {
+            free_language(lang);
+            return -1;
+        }
+    }
+    for (i = 0; names && i < json_array_length(names); i++) {
+        const JsonValue *e = json_array_get(names, i);
+        char name[32];
+        if (!e || e->type != JSON_STRING || !e->u.str_val[0] || strchr(e->u.str_val, '/') ||
+            strchr(e->u.str_val, ':'))
+            continue;
+        lower_ext(e->u.str_val, name, sizeof(name));
+        if (find_filename(st, name) >= 0) {
+            scout_store_add_problem(st, "file name already handled by another parser: ", path);
+            continue;
+        }
+        if (!add_string(&lang->filenames, &lang->filename_count, name)) {
             free_language(lang);
             return -1;
         }
@@ -498,8 +533,12 @@ const ScoutLanguage *scout_store_language(const ScoutStore *st, const char *id)
 
 const ScoutLanguage *scout_store_language_for(const ScoutStore *st, const char *path)
 {
-    const char *dot = strrchr(path, '.');
+    const char *dot = strrchr(path, '.'), *name = path, *p;
     long i;
+    for (p = path; *p; p++) {
+        if (*p == '/' || *p == ':') name = p + 1;
+    }
+    if (*name && (i = find_filename(st, name)) >= 0) return &st->languages[i];
     if (!dot || strchr(dot, '/') || strchr(dot, ':')) return NULL;
     i = find_extension(st, dot, NULL);
     return i >= 0 ? &st->languages[i] : NULL;
@@ -1512,6 +1551,11 @@ void scout_write_languages(JsonWriter *w, const ScoutStore *st)
         for (j = 0; j < l->extension_count; j++) {
             if (j > 0) json_write_raw(w, ",");
             json_write_string(w, l->extensions[j]);
+        }
+        json_write_raw(w, "],\"filenames\":[");
+        for (j = 0; j < l->filename_count; j++) {
+            if (j > 0) json_write_raw(w, ",");
+            json_write_string(w, l->filenames[j]);
         }
         json_write_raw(w, "],\"parser\":");
         json_write_string(w, st->parsers[l->parser].name);

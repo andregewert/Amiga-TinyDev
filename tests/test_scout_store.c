@@ -206,6 +206,16 @@ static void test_parsers(ScoutStore *st)
         ".H") == 1);
     TEST_ASSERT(scout_store_language_for(st, "x.h") == scout_store_language(st, "mine"));
     TEST_ASSERT(scout_store_language(st, "c")->extension_count == 1);
+    /* languages known by the whole file name */
+    TEST_ASSERT(scout_store_add_parser(st, "Scout:Parsers/make_parser",
+        "{\"protocol\":1,\"name\":\"make_parser\",\"languages\":[{\"id\":\"make\",\"extensions\":[\".mk\"],"
+        "\"filenames\":[\"Makefile\",\"smakefile\"]}]}", NULL) == 1);
+    TEST_ASSERT(scout_store_language(st, "make") && scout_store_language(st, "make")->filename_count == 2);
+    TEST_ASSERT(scout_store_language_for(st, "Work:x/Makefile") == scout_store_language(st, "make"));
+    TEST_ASSERT(scout_store_language_for(st, "SMAKEFILE") == scout_store_language(st, "make"));
+    TEST_ASSERT(scout_store_language_for(st, "Work:x/rules.mk") == scout_store_language(st, "make"));
+    TEST_ASSERT(scout_store_language_for(st, "Work:Makefile/x.c") == scout_store_language(st, "c"));
+    TEST_ASSERT(scout_store_language_for(st, "Work:x/Makefile.bak") == NULL);
     /* unusable descriptions */
     TEST_ASSERT(scout_store_add_parser(st, "bad1", "not json", NULL) == 0);
     TEST_ASSERT(scout_store_add_parser(st, "bad2", "{\"protocol\":2,\"languages\":[{\"id\":\"x\"}]}", NULL) == 0);

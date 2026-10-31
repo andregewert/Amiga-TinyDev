@@ -92,6 +92,8 @@ typedef struct ScoutLanguage {
     char *name;             /**< name shown (allocated) */
     char **extensions;      /**< extensions with their dot, lower case (allocated) */
     long extension_count;   /**< number of extensions */
+    char **filenames;       /**< whole file names (Makefile), lower case (allocated) */
+    long filename_count;    /**< number of file names */
     char *syntax;           /**< the lexical rules as JSON on one line (allocated, NULL for none) */
     char **keywords;        /**< all words of the rules' keyword lists, for completion (allocated) */
     long keyword_count;     /**< number of them */
@@ -203,7 +205,8 @@ int scout_store_add_parser(ScoutStore *st, const char *path, const char *describ
 const ScoutLanguage *scout_store_language(const ScoutStore *st, const char *id);
 
 /**
- * @brief Find the language of a file by its extension.
+ * @brief Find the language of a file by its name (a language's
+ *        "filenames", e.g. Makefile) or else its extension.
  * @param st The store.
  * @param path The file.
  * @return The language, or NULL.

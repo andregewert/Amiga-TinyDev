@@ -5,9 +5,9 @@ anyone who writes a parser: it describes everything a parser has to know,
 and a parser needs nothing else from Scout or from an editor. What Scout
 does with the results is described in [Scout.md](Scout.md).
 
-> **Status: draft.** The C parser (`src/parsers/c_parser.c`) and the
-> AmigaDOS script parser (`src/parsers/dos_parser.c`) speak
-> version 1; Scout itself does not yet (see [Scout.md](Scout.md)).
+> **Status: draft.** The C parser (`src/parsers/c_parser.c`), the
+> AmigaDOS script parser (`src/parsers/dos_parser.c`) and the Makefile
+> parser (`src/parsers/make_parser.c`) speak version 1; Scout itself does not yet (see [Scout.md](Scout.md)).
 
 ## Contents
 
@@ -124,6 +124,7 @@ Result:
 | `languages[].id` | identifier of the language: lower case letters, digits, `-`; shared by all parsers and clients (`c`, `amigados`, `pascal`, `e`, `basic`, `arexx`, ...) |
 | `languages[].name` | name shown to users |
 | `languages[].extensions` | file extensions with their dot, lower case; matched without regard to case |
+| `languages[].filenames` | optional: whole file names, lower case, for files known by their name rather than an extension (`makefile`, `smakefile`); matched without regard to case and before the extensions |
 | `languages[].syntax` | the lexical rules (next section); optional, without them editors do not highlight the language |
 | `capabilities` | what `scout/analyze` can deliver; a missing entry means `false` |
 
