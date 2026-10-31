@@ -6,7 +6,7 @@ HOST_CC ?= cc
 BUILD_DIR := build
 BIN_DIR := bin
 TARGET := $(BIN_DIR)/TinyDev
-SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/splash.c src/prefswin.c src/closeimage.c src/search.c src/find.c src/filescan.c src/locale.c src/bookmarks.c src/bmstore.c src/projconf.c src/projdata.c src/projwin.c src/build.c src/outwin.c src/json.c src/toolwin.c src/bmlist.c src/help.c src/shell.c src/tempfile.c src/scoutlink.c src/symlist.c src/diag.c src/diaglist.c src/navigate.c src/rules.c src/tokenmap.c src/complete.c
+SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/splash.c src/prefswin.c src/closeimage.c src/search.c src/find.c src/filescan.c src/locale.c src/bookmarks.c src/bmstore.c src/projconf.c src/projdata.c src/projwin.c src/build.c src/outwin.c src/json.c src/toolwin.c src/bmlist.c src/help.c src/shell.c src/filetypes.c src/ftprefs.c src/tempfile.c src/scoutlink.c src/symlist.c src/diag.c src/diaglist.c src/navigate.c src/rules.c src/tokenmap.c src/complete.c
 OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
 DEPS := $(OBJECTS:.o=.d)
 CPPFLAGS := -Iinclude
@@ -204,7 +204,7 @@ $(BUILD_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)
 	$(TARGET_CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_projconf $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_json $(BUILD_DIR)/test_scout_rpc $(BUILD_DIR)/test_c_parser $(BUILD_DIR)/test_dos_parser $(BUILD_DIR)/test_scout_store $(BUILD_DIR)/test_rules
+test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_projconf $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_json $(BUILD_DIR)/test_scout_rpc $(BUILD_DIR)/test_c_parser $(BUILD_DIR)/test_dos_parser $(BUILD_DIR)/test_scout_store $(BUILD_DIR)/test_rules $(BUILD_DIR)/test_filetypes
 	./$(BUILD_DIR)/test_syntax
 	./$(BUILD_DIR)/test_search
 	./$(BUILD_DIR)/test_bmstore
@@ -217,6 +217,7 @@ test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstor
 	./$(BUILD_DIR)/test_dos_parser
 	./$(BUILD_DIR)/test_scout_store
 	./$(BUILD_DIR)/test_rules
+	./$(BUILD_DIR)/test_filetypes
 
 $(BUILD_DIR)/test_syntax: src/syntax.c src/rules.c src/tokenmap.c src/json.c tests/test_syntax.c include/syntax.h include/rules.h include/tokenmap.h
 	@mkdir -p $(BUILD_DIR)
@@ -237,6 +238,10 @@ $(BUILD_DIR)/test_htmltitle: src/helpviewer/htmltitle.c tests/test_htmltitle.c s
 $(BUILD_DIR)/test_projconf: src/projconf.c src/json.c tests/test_projconf.c include/projconf.h include/json.h
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/projconf.c src/json.c tests/test_projconf.c
+
+$(BUILD_DIR)/test_filetypes: src/filetypes.c src/json.c tests/test_filetypes.c include/filetypes.h include/json.h
+	@mkdir -p $(BUILD_DIR)
+	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/filetypes.c src/json.c tests/test_filetypes.c
 
 $(BUILD_DIR)/test_dirtree_sort: src/classes/dirtree/dirtree_sort.c tests/test_dirtree_sort.c src/classes/dirtree/dirtree_sort.h
 	@mkdir -p $(BUILD_DIR)

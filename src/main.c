@@ -237,18 +237,19 @@ static void open_workbench_files(EditorApp *app, struct WBStartup *startup)
  */
 int main(int argc, char **argv)
 {
-    EditorApp app; int status = 20;
+    EditorApp app; int status = 20, ft_ok = 1;
     memset(&app, 0, sizeof(app));
     app.scroll_signal = -1;
     NewList(&app.documents); NewList(&app.tab_nodes);
     settings_default(&app.settings);
+    filetypes_init(&app.filetypes);
     if (!app_open_core(argc == 0)) goto done;
     locale_open();
     settings_load(&app.settings, argc, argv);
     /* the view at the start; the View menu changes it for the session */
     app.tree_visible = app.settings.foldertree;
-    app.line_numbers = app.settings.linenumbers;
     app.minimap_visible = app.settings.minimap;
+    ft_ok = ftprefs_load(&app);
     /* steps of the progress bar: the classes, the toolbar buttons, the window */
     if (app.settings.splash)
         splash_open(app.settings.icon_name, 1 + toolbar_tool_count() + 1);
@@ -264,6 +265,7 @@ int main(int argc, char **argv)
     if (argc == 0) open_workbench_files(&app, (struct WBStartup *)argv);
     else open_cli_files(&app, argc, argv);
     if (IsListEmpty(&app.documents)) document_new(&app);
+    if (!ft_ok) ui_error(&app, APP_NAME, S(MSG_ERR_FTPREFS_READ));
     scoutlink_start(&app);
     ui_run(&app); status = 0;
 done:
@@ -271,5 +273,6 @@ done:
     ui_destroy(&app);
     if (app.scroll_signal >= 0) FreeSignal((BYTE)app.scroll_signal);
     app_close_libraries();
+    filetypes_clear(&app.filetypes);
     return status;
 }

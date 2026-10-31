@@ -441,6 +441,9 @@ static int rect_selections(EditorApp *app)
     return on != 0;
 }
 
+/** View/Line Numbers is checked: the active document shows line numbers. */
+static int ln_shown = 1;
+
 /** File Type item checked for the active document (FT_SHOWN_), or a
  *  language's index; FT_SHOWN_NONE makes ui_update_status() set it. */
 static int ft_shown = -3;
@@ -567,6 +570,10 @@ void ui_update_status(EditorApp *app)
         rect_shown = !rect_shown;
         ui_set_menu_check(app, MID_RECT, rect_shown);
     }
+    if (app->active != NULL && app->active->line_numbers != ln_shown) {
+        ln_shown = app->active->line_numbers;
+        ui_set_menu_check(app, MID_LINE_NUMBERS, ln_shown);
+    }
     sync_file_type(app);
     if (rect_shown) {
         char rest[sizeof(status_text)];
@@ -678,7 +685,7 @@ static void set_menu_checks(EditorApp *app, int bm_open)
         int on;
         if (ud == UD(MID_BM_LIST)) on = bm_open;
         else if (ud == UD(MID_FOLDER_TREE)) on = app->tree_visible;
-        else if (ud == UD(MID_LINE_NUMBERS)) on = app->line_numbers;
+        else if (ud == UD(MID_LINE_NUMBERS)) on = ln_shown;
         else if (ud == UD(MID_MINIMAP)) on = app->minimap_visible;
         else if (ud == UD(MID_OUTPUT)) on = app->outwin_was_open;
         else if (ud == UD(MID_SYMLIST)) on = app->symlist_was_open;
@@ -973,17 +980,32 @@ static void menu_action(EditorApp *app, ULONG id);
 
 /**
  * @brief Show the settings window and take over its result; "Save" also
- *        writes the settings into the program icon.
+ *        writes the settings into the program icon and those of the file
+ *        types into PROGDIR:TinyDev.json.
  * @param app The application state.
  */
 static void edit_settings(EditorApp *app)
 {
     Settings n = app->settings;
-    int r = prefs_dialog(app, &n);
-    if (r == PREFS_CANCEL) return;
+    FileTypes ft;
+    Document *doc;
+    int r;
+    if (!filetypes_copy(&ft, &app->filetypes)) return;
+    r = prefs_dialog(app, &n, &ft);
+    if (r == PREFS_CANCEL) {
+        filetypes_clear(&ft);
+        return;
+    }
     ui_apply_settings(app, &n);
+    filetypes_clear(&app->filetypes);
+    app->filetypes = ft;                    /* taken over */
+    for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ;
+         doc = (Document *)doc->node.ln_Succ)
+        ftprefs_apply(app, doc, 1);
     if (r == PREFS_SAVE && !settings_save(&app->settings))
         ui_error(app, APP_NAME, S(MSG_ERR_SAVESETTINGS));
+    if (r == PREFS_SAVE && !ftprefs_save(&app->filetypes))
+        ui_error(app, APP_NAME, S(MSG_ERR_FTPREFS_WRITE));
 }
 
 void ui_apply_settings(EditorApp *app, const Settings *n)
@@ -1126,7 +1148,6 @@ static int ui_uniconify(EditorApp *app)
 
 static void menu_action(EditorApp *app, ULONG id)
 {
-    Document *doc;
     if (id >= MID_FT_AUTO && id < MID_FT_FIRST + FILETYPE_SLOTS) {
         int k = (int)id - MID_FT_FIRST;
         if (app->active == NULL) return;
@@ -1244,12 +1265,11 @@ static void menu_action(EditorApp *app, ULONG id)
             if (app->minimap_visible) minimap_request(app);
             break;
         case MID_LINE_NUMBERS:
-            app->line_numbers = !app->line_numbers;
-            for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ;
-                 doc = (Document *)doc->node.ln_Succ) {
-                SetAttrs(doc->editor, GA_TEXTEDITOR_ShowLineNumbers,
-                         (ULONG)app->line_numbers, TAG_END);
-            }
+            /* the active document only, until its file type or the settings change */
+            if (app->active == NULL) break;
+            app->active->line_numbers = !app->active->line_numbers;
+            SetAttrs(app->active->editor, GA_TEXTEDITOR_ShowLineNumbers,
+                     (ULONG)app->active->line_numbers, TAG_END);
             ui_relayout(app);
             if (app->window != NULL && app->active != NULL)
                 RefreshPageGadget((struct Gadget *)app->active->page,

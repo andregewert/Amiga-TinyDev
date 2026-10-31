@@ -408,6 +408,8 @@ static void apply_rules(EditorApp *app, Document *doc)
 {
     int k = app->settings.scout ? doc_language(doc) : -1;
     const SyntaxRules *r = k >= 0 ? sl.rules[k] : NULL;
+    /* the editor settings of the file type follow the language too */
+    ftprefs_apply(app, doc, 0);
     if (r == doc->highlight.rules) return;
     Forbid();
     doc->highlight.rules = r;
@@ -1082,6 +1084,12 @@ const char *scoutlink_language_id(int index)
 const char *scoutlink_language_name(int index)
 {
     return sl.lang_names[index];
+}
+
+const char *scoutlink_document_language(const Document *doc)
+{
+    int k = doc_language(doc);
+    return k >= 0 ? sl.lang_ids[k] : "";
 }
 
 void scoutlink_document_closing(EditorApp *app, Document *doc)

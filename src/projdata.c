@@ -1,7 +1,8 @@
 /**
  * @file projdata.c
  * @brief The files of a project in its directory \<project\>/.tinydev/
- *        (bookmarks, project settings).
+ *        (bookmarks, project settings), and reading and writing whole
+ *        files for TinyDev's own settings.
  *
  * The directory is visible and made when a file is first written. Files
  * are read whole and written through a temporary file (\<name\>.tmp, then
@@ -32,13 +33,19 @@ int projdata_path(const char *root, const char *name, char *out, LONG size)
 int projdata_read(const char *root, const char *name, char **text)
 {
     char path[EDITOR_PATH_MAX];
+    *text = NULL;
+    if (!projdata_path(root, name, path, sizeof(path))) return -1;
+    return datafile_read(path, text);
+}
+
+int datafile_read(const char *path, char **text)
+{
     struct FileInfoBlock *fib;
     BPTR fh;
     char *data = NULL;
     int rc = -1;
 
     *text = NULL;
-    if (!projdata_path(root, name, path, sizeof(path))) return -1;
     if ((fh = Open((STRPTR)path, MODE_OLDFILE)) == 0) {
         LONG err = IoErr();
         /* no .tinydev yet may also give "directory not found" */
@@ -71,16 +78,24 @@ int projdata_exists(const char *root, const char *name)
 
 int projdata_write(const char *root, const char *name, const char *text)
 {
-    char dir[EDITOR_PATH_MAX], path[EDITOR_PATH_MAX], temp[EDITOR_PATH_MAX + 8];
-    LONG length = (LONG)strlen(text);
-    BPTR lock, fh;
-    int ok;
+    char dir[EDITOR_PATH_MAX], path[EDITOR_PATH_MAX];
+    BPTR lock;
 
     if (!projdata_path(root, NULL, dir, sizeof(dir)) ||
         !projdata_path(root, name, path, sizeof(path))) return 0;
     if ((lock = Lock((STRPTR)dir, ACCESS_READ)) == 0) lock = CreateDir((STRPTR)dir);
     if (lock == 0) return 0;
     UnLock(lock);
+    return datafile_write(path, text);
+}
+
+int datafile_write(const char *path, const char *text)
+{
+    char temp[EDITOR_PATH_MAX + 8];
+    LONG length = (LONG)strlen(text);
+    BPTR fh;
+    int ok;
+
     snprintf(temp, sizeof(temp), "%s.tmp", path);
     if ((fh = Open((STRPTR)temp, MODE_NEWFILE)) == 0) return 0;
     ok = Write(fh, (APTR)text, length) == length;

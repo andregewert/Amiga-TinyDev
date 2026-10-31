@@ -273,7 +273,7 @@ static void cursor_box(EditorApp *app, Document *doc, WORD *x, WORD *y)
     char *text = (char *)DoMethod(doc->editor, GM_TEXTEDITOR_ExportText, NULL);
     GetAttr(GA_TEXTEDITOR_Prop_First, doc->editor, &first);
     GetAttr(GA_TEXTEDITOR_HProp_First, doc->editor, &hfirst);
-    if (app->line_numbers) left = (WORD)(left + TextLength(rp, (STRPTR)"00000 ", 6));
+    if (doc->line_numbers) left = (WORD)(left + TextLength(rp, (STRPTR)"00000 ", 6));
     if (text != NULL) {
         const char *p = text;
         long n = 0;

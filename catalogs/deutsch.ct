@@ -510,10 +510,6 @@ MSG_PREFS_FOLDERTREE
 _Verzeichnisbaum
 ; Folder tr_ee
 ;
-MSG_PREFS_LINENUMBERS
-_Zeilennummern
-; Line num_bers
-;
 MSG_PREFS_MINIMAP
 M_inimap
 ; _Minimap
@@ -1463,4 +1459,76 @@ Die Shell ließ sich nicht starten.
 MSG_PREFS_SHELLWINDOW
 Shell-Fenster 
 ; Shell window 
+;
+MSG_CAT_FILETYPES
+Dateitypen
+; File Types
+;
+MSG_PREFS_FT_STANDARDNAME
+Standard (Text)
+; Standard (plain text)
+;
+MSG_PREFS_FT_NAME
+Dateityp 
+; File type 
+;
+MSG_PREFS_FT_USESTANDARD
+Standardeinstellun_gen verwenden
+; Use the standard settings
+;
+MSG_PREFS_FT_TABSIZE
+Tab-Breite 
+; Ta_b width 
+;
+MSG_PREFS_FT_INDENTWITH
+Einrücken mit 
+; Indent with 
+;
+MSG_PREFS_FT_SPACES
+Leerzeichen
+; Spaces
+;
+MSG_PREFS_FT_TABS
+Tabulatoren
+; Tab characters
+;
+MSG_PREFS_FT_INDENT
+Leerzeichen je Stufe 
+; Spaces per level 
+;
+MSG_PREFS_FT_AUTOINDENT
+Neue Zeilen wie die vorige einrücken
+; Indent new lines like the line abo_ve
+;
+MSG_PREFS_FT_TABKEY
+Tab im Text 
+; Tab within the text 
+;
+MSG_PREFS_FT_TABLINE
+Rückt die Zeile ein
+; Indents the line
+;
+MSG_PREFS_FT_TABAFTER
+Rückt den Text nach dem Cursor ein
+; Indents the text after the cursor
+;
+MSG_PREFS_FT_LINENUMBERS
+_Zeilennummern
+; Line numbers
+;
+MSG_PREFS_FT_CUTCOPY
+Ohne Auswahl die Zeile ausschneiden oder kopieren
+; Cut and co_py the line when nothing is selected
+;
+MSG_PREFS_FT_NOTE
+Umschalt+Tab rückt immer ein, Tab eine Auswahl.\nAlles wirkt sofort. Ansicht/Zeilennummern ändert\nnur die Zeilennummern des aktuellen Dokuments.
+; Shift+Tab always indents, Tab indents a selection.\nAll take effect at once. View/Line Numbers changes\nthe line numbers of the current document only.
+;
+MSG_ERR_FTPREFS_READ
+TinyDev.json in der Schublade von TinyDev konnte nicht\ngelesen werden. Es gelten die eingebauten\nDateityp-Einstellungen, die Datei bleibt unverändert.
+; TinyDev.json in the drawer of TinyDev could not be read.\nThe built-in file type settings are used,\nand the file is not changed.
+;
+MSG_ERR_FTPREFS_WRITE
+Die Dateityp-Einstellungen konnten nicht in TinyDev.json\nin der Schublade von TinyDev gespeichert werden.
+; The file type settings could not be saved\nin TinyDev.json in the drawer of TinyDev.
 ;

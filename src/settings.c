@@ -15,7 +15,6 @@
  *   TOOLBARFRAMES              frames around the toolbar buttons
  *   NOSPLASH                   no splash window while starting
  *   NOFOLDERTREE               no folder tree at the start
- *   NOLINENUMBERS              no line numbers at the start
  *   MINIMAP                    the minimap at the start
  *   WIDTH=n, HEIGHT=n          size of the main window at the start
  *   LEFT=n, TOP=n              its position (otherwise centred)
@@ -89,7 +88,6 @@ void settings_default(Settings *s)
     s->tbframes = 0;
     s->splash = 1;
     s->foldertree = 1;
-    s->linenumbers = 1;
     s->minimap = 0;
     s->winwidth = s->winheight = 0;
     s->winleft = s->wintop = -1;
@@ -200,7 +198,6 @@ static void from_tooltypes(Settings *s, STRPTR *tt)
     if (FindToolType(t, (CONST_STRPTR)"TOOLBARFRAMES") != NULL) s->tbframes = 1;
     if (FindToolType(t, (CONST_STRPTR)"NOSPLASH") != NULL) s->splash = 0;
     if (FindToolType(t, (CONST_STRPTR)"NOFOLDERTREE") != NULL) s->foldertree = 0;
-    if (FindToolType(t, (CONST_STRPTR)"NOLINENUMBERS") != NULL) s->linenumbers = 0;
     if (FindToolType(t, (CONST_STRPTR)"MINIMAP") != NULL) s->minimap = 1;
     if ((value = FindToolType(t, (CONST_STRPTR)"WIDTH")) != NULL) parse_number(value, 0, &s->winwidth);
     if ((value = FindToolType(t, (CONST_STRPTR)"HEIGHT")) != NULL) parse_number(value, 0, &s->winheight);
@@ -297,7 +294,7 @@ int settings_save_toolwindows(const Settings *cur)
     return settings_save(&s);
 }
 
-#define NUMKEYS (21 + SCOL_COUNT)    /**< number of TinyDev's tool types */
+#define NUMKEYS (20 + SCOL_COUNT)    /**< number of TinyDev's tool types */
 #define ENTRYLEN 280                /**< longest tool type TinyDev writes (TEMPDIR=...) */
 
 /** One of our tool types while writing. */
@@ -363,7 +360,6 @@ int settings_save(const Settings *s)
     entry(&e[k++], "TOOLBARFRAMES", s->tbframes, NULL);
     entry(&e[k++], "NOSPLASH", !s->splash, NULL);
     entry(&e[k++], "NOFOLDERTREE", !s->foldertree, NULL);
-    entry(&e[k++], "NOLINENUMBERS", !s->linenumbers, NULL);
     entry(&e[k++], "MINIMAP", s->minimap, NULL);
     snprintf(wnum, sizeof(wnum), "%ld", s->winwidth);
     snprintf(hnum, sizeof(hnum), "%ld", s->winheight);

@@ -97,7 +97,10 @@ static Object *create_editor(EditorApp *app, Document *doc,
         GA_TEXTEDITOR_FixedFont, TRUE,
         GA_TEXTEDITOR_WrapBorder, 0,
         GA_TEXTEDITOR_HorizontalScroll, TRUE,
-        GA_TEXTEDITOR_ShowLineNumbers, (ULONG)app->line_numbers,
+        /* the default file type until the language is known (ftprefs_apply()) */
+        GA_TEXTEDITOR_TabSize, (ULONG)app->filetypes.standard.tab_size,
+        GA_TEXTEDITOR_IndentWidth, (ULONG)app->filetypes.standard.indent,
+        GA_TEXTEDITOR_ShowLineNumbers, (ULONG)app->filetypes.standard.line_numbers,
         GA_TEXTEDITOR_HighlighterHook, (ULONG)&doc->highlight.hook,
         GA_TEXTEDITOR_LeftBarHook, (ULONG)&doc->leftbar_hook,
         GA_TEXTEDITOR_LineEndingExport, LINEENDING_ASIMPORT,
@@ -192,6 +195,7 @@ static Document *new_document(EditorApp *app)
     minimap_init_document(doc);
     bookmarks_init_document(doc);
     doc->scout_symbols = -1;
+    doc->line_numbers = app->filetypes.standard.line_numbers;
     document_set_pens(app, doc);
     doc->editor = create_editor(app, doc, "");
     if (doc->editor == NULL) { FreeVec(doc); ui_error(app, APP_NAME, S(MSG_ERR_EDITOR)); return NULL; }

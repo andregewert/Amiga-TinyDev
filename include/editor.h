@@ -12,6 +12,7 @@
 #include <intuition/intuition.h>
 #include <workbench/startup.h>
 
+#include "filetypes.h"
 #include "syntax.h"
 #include "tinydev_strings.h"
 
@@ -105,7 +106,6 @@ typedef struct Settings {
     int tbframes;       /**< frames around the toolbar buttons (TOOLBARFRAMES) */
     int splash;         /**< splash window while starting (NOSPLASH turns it off) */
     int foldertree;     /**< folder tree shown at the start (NOFOLDERTREE turns it off) */
-    int linenumbers;    /**< line numbers shown at the start (NOLINENUMBERS turns them off) */
     int minimap;        /**< minimap shown at the start (MINIMAP) */
     long winwidth;      /**< width of the main window at the start: 0 = automatic */
     long winheight;     /**< its height: 0 = automatic */
@@ -276,6 +276,9 @@ typedef struct Document {
     struct TokenMap *old_tokens;    /**< the tokens before the highlighter's (freed at the next change: a hook may still read them) */
     long goto_line;             /**< line to put the cursor on once the document is shown (1-based), 0 */
     long goto_col;              /**< its column (1-based) */
+    char ft_language[32];       /**< language whose file type settings the editor has, "" for plain text */
+    int ft_applied;             /**< the editor has the settings of ft_language */
+    int line_numbers;           /**< the editor shows line numbers (file type, View/Line Numbers) */
 } Document;
 
 /** The state of TinyDev: settings, documents, the main window and its gadgets. */
@@ -308,7 +311,7 @@ typedef struct EditorApp {
     int editor_colors_open;     /**< the editor pens are obtained */
     unsigned long next_document;    /**< number of the last document created */
     long scroll_signal;         /**< signal of the scrollers while they are dragged, -1 if none */
-    int line_numbers;           /**< View/Line Numbers is on */
+    FileTypes filetypes;        /**< the settings per file type (PROGDIR:TinyDev.json) */
     int tree_visible;           /**< View/Folder Tree is on */
     int minimap_visible;        /**< View/Minimap is on */
     int minimap_attached;       /**< the minimap is in the content layout */
@@ -396,13 +399,15 @@ int settings_save(const Settings *s);
  */
 int settings_save_toolwindows(const Settings *cur);
 /**
- * @brief Show the modal settings window (categories Window, Colours,
- *        Toolbar).
+ * @brief Show the modal settings window (categories General, Colours,
+ *        Toolbar, Advanced and the file types).
  * @param app The application state (main window and screen).
  * @param s In: the current settings; out: the edited ones (not on cancel).
+ * @param ft In: the current settings per file type; out: the edited ones
+ *        (not on cancel).
  * @return PREFS_CANCEL, PREFS_USE or PREFS_SAVE.
  */
-int prefs_dialog(EditorApp *app, Settings *s);
+int prefs_dialog(EditorApp *app, Settings *s, FileTypes *ft);
 /** @brief Close the classes opened for the settings window. */
 void prefs_cleanup(void);
 /**
@@ -1261,6 +1266,51 @@ int projdata_exists(const char *root, const char *name);
  * @return Non-zero on success (a failed write leaves the old file).
  */
 int projdata_write(const char *root, const char *name, const char *text);
+/**
+ * @brief Read a file whole (for projdata_read() and TinyDev's own files).
+ * @param path The file.
+ * @param[out] text The contents, NUL-terminated (free() it); NULL unless
+ *                  1 is returned.
+ * @return 1 if read; 0 if there is no such file; -1 if it cannot be read
+ *         (also when too large or out of memory).
+ */
+int datafile_read(const char *path, char **text);
+/**
+ * @brief Write a file through a temporary file (\<name\>.tmp, then renamed).
+ * @param path The file.
+ * @param text The contents.
+ * @return Non-zero on success (a failed write leaves the old file).
+ */
+int datafile_write(const char *path, const char *text);
+
+/* ftprefs.c */
+
+/**
+ * @brief Read the settings per file type from PROGDIR:TinyDev.json into
+ *        EditorApp::filetypes (the built-in ones if there is no file).
+ * @param app The application state.
+ * @return 1 on success or without a file; 0 if the file cannot be read
+ *         (the built-in settings are used, and the file is never written).
+ */
+int ftprefs_load(EditorApp *app);
+/**
+ * @brief Write settings per file type into PROGDIR:TinyDev.json, keeping
+ *        what else the file holds.
+ * @param ft The settings.
+ * @return Non-zero on success; zero if the file could not be read when
+ *         TinyDev started or cannot be written.
+ */
+int ftprefs_save(const FileTypes *ft);
+/**
+ * @brief Give a document's editor the settings of its file type (tab size,
+ *        indentation, Tab key, line numbers, cutting lines), if its
+ *        language changed since they were set or @p force is set.
+ * @param app The application state.
+ * @param doc The document.
+ * @param force Set them even if the language is the same (the settings
+ *        changed).
+ */
+void ftprefs_apply(EditorApp *app, Document *doc, int force);
 
 /** A bookmark as the bookmark list shows it (bookmarks_collect()). */
 typedef struct BookmarkItem {
@@ -1634,6 +1684,14 @@ const char *scoutlink_language_id(int index);
  * @return The name.
  */
 const char *scoutlink_language_name(int index);
+/**
+ * @brief Return the language of a document: the one chosen in the File
+ *        Type menu, else Scout's, else (until Scout answered) the one of
+ *        its extension.
+ * @param doc The document.
+ * @return The language's identifier, "" for none (plain text).
+ */
+const char *scoutlink_document_language(const Document *doc);
 /**
  * @brief Ask Scout for symbols: those of a document, or those of the
  *        project; the answer goes to symlist_symbols().

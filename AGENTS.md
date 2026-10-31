@@ -32,9 +32,17 @@ below the tree's root.
 - `src/settings.c`: settings from the tool types of the program icon (and of
   project icons on a Workbench start); writes them back into the program icon.
 - `src/prefswin.c`: the settings window (categories General with the groups
-  Window and View, Colours, Toolbar, Advanced with Scout and the drawer of
-  the temporary files),
+  Window and View, Colours, Toolbar, Advanced with Scout, the drawer of
+  the temporary files and the Shell window, and File Types: Standard and
+  Scout's languages in a hierarchical list sharing one page),
   built like Kickdown's.
+- `src/filetypes.c`, `include/filetypes.h`: the portable settings per
+  file type (tab size, indentation, automatic indentation, Tab key, line
+  numbers, cutting lines): reading and writing the "filetypes" of
+  `PROGDIR:TinyDev.json`, keeping keys it does not know; no Amiga headers.
+- `src/ftprefs.c`: loads and saves `PROGDIR:TinyDev.json` and gives each
+  editor the settings of its document's language (`ftprefs_apply()`,
+  called with the highlighting rules from `scoutlink.c`).
 - `src/find.c`: the find and replace window (non-modal, built like
   Kickdown's; scope: current document or all open documents); it searches
   the text exported from the editor with `src/search.c` and marks/replaces
@@ -63,7 +71,8 @@ below the tree's root.
   know; no Amiga headers.
 - `src/projdata.c`: reading and writing the files of
   `<project>/.tinydev/` (whole files; writes through a temporary file,
-  making the directory when needed), for bookmarks and project settings.
+  making the directory when needed), for bookmarks and project settings;
+  `datafile_read()`/`datafile_write()` do the same for any file.
 - `src/projwin.c`: the modal project settings window
   (Build/Project Settings...), built like the settings window: a page per
   action with a listbrowser of its commands (checkbox = default), buttons
@@ -215,6 +224,7 @@ below the tree's root.
 - `tests/test_search.c`: host-native tests of the search engine.
 - `tests/test_bmstore.c`: host-native tests of the bookmark store.
 - `tests/test_projconf.c`: host-native tests of the project settings.
+- `tests/test_filetypes.c`: host-native tests of the settings per file type.
 - `tests/test_dirtree_sort.c`: host-native tests of dirtree.gadget's natural order.
 - `tests/test_htmltitle.c`: host-native tests of the HelpViewer's title and link helpers.
 - `tests/test_json.c`, `tests/test_scout_rpc.c`, `tests/test_c_parser.c`:

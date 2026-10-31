@@ -1,6 +1,6 @@
 /**
  * @file prefswin.c
- * @brief The settings window (categories General, Colours, Toolbar, Advanced), built like Kickdown's.
+ * @brief The settings window (categories General, Colours, Toolbar, Advanced and the file types), built like Kickdown's.
  *
  * Built after the ReAction style guide of amiga-devkit (section 4.2): a
  * list of categories on the left, the options of the selected one on the
@@ -9,6 +9,15 @@
  * General is divided into two framed groups, Window (size and position)
  * and View (what is shown at the start); the other pages are one framed
  * group each.
+ *
+ * Below the categories, the list holds File Types with Standard (plain
+ * text and every language without settings of its own) and the languages
+ * TinyDev-Scout knows (a hierarchical listbrowser; the nodes carry their
+ * meaning as LBNA_UserData). All file types share one page: selecting
+ * another one first takes the page's values into the copy of the settings
+ * being edited, then shows those of the new one. A language may use the
+ * standard settings ("Use the standard settings" ghosts the rest); it
+ * then has no entry of its own.
  *
  * The groups are built with complete tag lists (CHILD_Label applies to the
  * child of the same tag list). The gadgets of a page keep their height; an
@@ -72,10 +81,12 @@ extern struct Library *StringBase;         /* shared with the find window */
 enum {
     PG_LIST = 100,
     PG_WIDTH, PG_HEIGHT, PG_LEFT, PG_TOP, PG_CURSIZE, PG_AUTOSIZE, PG_SPLASH,
-    PG_FOLDERTREE, PG_LINENUMBERS, PG_MINIMAP,
+    PG_FOLDERTREE, PG_MINIMAP,
     PG_COLOUR, PG_DEFCOLOURS = PG_COLOUR + SCOL_COUNT,
     PG_TBMODE, PG_TBFRAMES,
     PG_SCOUT, PG_TEMPDIR, PG_CHOOSETEMP, PG_SHELLWINDOW,
+    PG_FT_NAME, PG_FT_STANDARD, PG_FT_TABSIZE, PG_FT_INDENTWITH, PG_FT_INDENT, PG_FT_AUTO,
+    PG_FT_TABKEY, PG_FT_NUMBERS, PG_FT_CUTCOPY,
     PG_SAVE, PG_USE, PG_CANCEL
 };
 
@@ -84,9 +95,22 @@ enum {
  */
 static const LONG categories[] = { MSG_CAT_GENERAL, MSG_CAT_COLOURS, MSG_CAT_TOOLBAR, MSG_CAT_ADVANCED };
 /**
- * Number of categories (pages).
+ * Number of categories (pages) before the file types.
  */
 #define NUMCATEGORIES 4
+/** The page of the file types (after the categories). */
+#define PAGE_FILETYPES NUMCATEGORIES
+/** LBNA_UserData of the list's nodes: the categories are their page numbers. */
+#define UD_FILETYPES 100        /**< "File Types" (shows Standard) */
+#define UD_STANDARD 101         /**< Standard */
+#define UD_LANGUAGE 102         /**< the first of Scout's languages (in their order) */
+
+/** Labels of the chooser "Indent with" (indent with spaces, with tabs). */
+static const LONG indentwith_texts[2] = { MSG_PREFS_FT_SPACES, MSG_PREFS_FT_TABS };
+static STRPTR indentwith[3];        /**< its labels, filled from indentwith_texts[] */
+/** Labels of the chooser "Tab inside the text" (indents the line, the text after the cursor). */
+static const LONG tabkey_texts[2] = { MSG_PREFS_FT_TABLINE, MSG_PREFS_FT_TABAFTER };
+static STRPTR tabkey[3];            /**< its labels, filled from tabkey_texts[] */
 
 /** Chooser labels, in the order of enum ToolbarMode. */
 static const LONG tbmode_texts[TBMODE_COUNT] = {
@@ -135,10 +159,14 @@ static const LONG colour_titles[SCOL_COUNT] = {
 /** Objects of the open settings window. */
 static struct {
     Object *winobj, *root, *list, *page;
-    Object *width, *height, *left, *top, *splash, *foldertree, *linenumbers, *minimap;
+    Object *width, *height, *left, *top, *splash, *foldertree, *minimap;
     Object *colours[SCOL_COUNT];
     Object *tbmode, *tbframes;
     Object *scout, *tempdir, *shellwindow;
+    Object *ft_name, *ft_standard, *ft_tabsize, *ft_indentwith, *ft_indent, *ft_auto,
+           *ft_tabkey, *ft_numbers, *ft_cutcopy;
+    FileTypes *ft;          /**< the settings per file type being edited */
+    int ft_current;         /**< the file type on the page: -1 Standard, else a language's index */
     struct Window *win;
     struct List catlist;
 } pw;
@@ -247,13 +275,57 @@ static Object *filler(void)
 static LONG list_width(EditorApp *app)
 {
     LONG w = 0, t;
-    ULONG i;
-    for (i = 0; i < NUMCATEGORIES; ++i) {
-        t = TextLength(&app->screen->RastPort, (STRPTR)S(categories[i]),
-                       (UWORD)strlen(S(categories[i])));
+    struct Node *n;
+    for (n = pw.catlist.lh_Head; n->ln_Succ != NULL; n = n->ln_Succ) {
+        STRPTR text = NULL;
+        ULONG gen = 1;
+        GetListBrowserNodeAttrs(n, LBNCA_Text, (ULONG)&text, LBNA_Generation, (ULONG)&gen, TAG_END);
+        if (text == NULL) continue;
+        /* a generation is indented about as much as a tree's knob */
+        t = TextLength(&app->screen->RastPort, text, (UWORD)strlen((const char *)text)) + (LONG)gen * 16;
         if (t > w) w = t;
     }
     return w + 24;
+}
+
+/**
+ * @brief Add a node to the category list.
+ * @param text Its text.
+ * @param generation 1 for a category, 2 for a file type.
+ * @param flags LBNA_Flags.
+ * @param ud Its meaning (a page number or UD_...).
+ */
+static void add_category(const char *text, ULONG generation, ULONG flags, ULONG ud)
+{
+    struct Node *n = AllocListBrowserNode(1, LBNCA_Text, (ULONG)text, LBNA_Generation, generation,
+                                          LBNA_Flags, flags, LBNA_UserData, ud, TAG_END);
+    if (n != NULL) AddTail(&pw.catlist, n);
+}
+
+/**
+ * @brief An integer gadget for a width of the file type page (1 to
+ *        FILETYPES_MAX_WIDTH, with arrows).
+ * @param id Gadget ID.
+ * @return The gadget.
+ */
+static Object *width_gadget(ULONG id)
+{
+    return NewObject(INTEGER_GetClass(), NULL,
+        GA_ID, id, GA_RelVerify, TRUE, INTEGER_Number, 1, INTEGER_Arrows, TRUE,
+        INTEGER_Minimum, 1, INTEGER_Maximum, FILETYPES_MAX_WIDTH, INTEGER_MaxChars, 2, TAG_END);
+}
+
+/**
+ * @brief A pop-up chooser.
+ * @param id Gadget ID.
+ * @param labels Its labels (NULL-terminated).
+ * @return The gadget.
+ */
+static Object *popup(ULONG id, STRPTR *labels)
+{
+    return NewObject(CHOOSER_GetClass(), NULL,
+        GA_ID, id, GA_RelVerify, TRUE, CHOOSER_PopUp, TRUE,
+        CHOOSER_LabelArray, (ULONG)labels, CHOOSER_Selected, 0, TAG_END);
 }
 
 /**
@@ -264,18 +336,21 @@ static LONG list_width(EditorApp *app)
  */
 static Object *build(EditorApp *app, const Settings *s)
 {
-    Object *general, *colours, *toolbar, *advanced;
+    Object *general, *colours, *toolbar, *advanced, *filetypes;
     ULONG i;
+    int k;
 
     NewList(&pw.catlist);
-    for (i = 0; i < NUMCATEGORIES; ++i) {
-        struct Node *n = AllocListBrowserNode(1, LBNCA_Text, (ULONG)S(categories[i]), TAG_END);
-        if (n != NULL) AddTail(&pw.catlist, n);
-    }
+    for (i = 0; i < NUMCATEGORIES; ++i) add_category(S(categories[i]), 1, 0, i);
+    add_category(S(MSG_CAT_FILETYPES), 1, LBFLG_HASCHILDREN | LBFLG_SHOWCHILDREN, UD_FILETYPES);
+    add_category(S(MSG_PREFS_FT_STANDARDNAME), 2, 0, UD_STANDARD);
+    for (k = 0; k < scoutlink_language_count(); ++k)
+        add_category(scoutlink_language_name(k), 2, 0, (ULONG)(UD_LANGUAGE + k));
     pw.list = NewObject(LISTBROWSER_GetClass(), NULL,
         GA_ID, PG_LIST,
         GA_RelVerify, TRUE,
         LISTBROWSER_Labels, (ULONG)&pw.catlist,
+        LISTBROWSER_Hierarchical, TRUE,
         LISTBROWSER_ShowSelected, TRUE,
         LISTBROWSER_Selected, 0,
         LISTBROWSER_AutoFit, TRUE,
@@ -289,7 +364,6 @@ static Object *build(EditorApp *app, const Settings *s)
     pw.top = integer(PG_TOP, s->wintop, -1);
     pw.splash = checkbox(PG_SPLASH, S(MSG_PREFS_SPLASH), s->splash);
     pw.foldertree = checkbox(PG_FOLDERTREE, S(MSG_PREFS_FOLDERTREE), s->foldertree);
-    pw.linenumbers = checkbox(PG_LINENUMBERS, S(MSG_PREFS_LINENUMBERS), s->linenumbers);
     pw.minimap = checkbox(PG_MINIMAP, S(MSG_PREFS_MINIMAP), s->minimap);
     general = NewObject(LAYOUT_GetClass(), NULL,
         LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
@@ -321,7 +395,6 @@ static Object *build(EditorApp *app, const Settings *s)
             LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_ATSTART)), FIXED,
             LAYOUT_AddChild, (ULONG)pw.splash, FIXED,
             LAYOUT_AddChild, (ULONG)pw.foldertree, FIXED,
-            LAYOUT_AddChild, (ULONG)pw.linenumbers, FIXED,
             LAYOUT_AddChild, (ULONG)pw.minimap, FIXED,
             LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_VIEWNOTE)), FIXED,
             TAG_END),
@@ -401,11 +474,50 @@ static Object *build(EditorApp *app, const Settings *s)
         LAYOUT_AddChild, (ULONG)filler(),
         TAG_END);
 
+    /* File types: one page for all, filled by ft_show() */
+    for (i = 0; i < 2; ++i) {
+        indentwith[i] = (STRPTR)S(indentwith_texts[i]);
+        tabkey[i] = (STRPTR)S(tabkey_texts[i]);
+    }
+    /* the name of the file type shown; it may hold a '_' */
+    pw.ft_name = NewObject(BUTTON_GetClass(), NULL,
+        GA_ID, PG_FT_NAME, GA_ReadOnly, TRUE, GA_Underscore, 0, GA_Text, (ULONG)"",
+        BUTTON_BevelStyle, BVS_NONE, BUTTON_Transparent, TRUE, BUTTON_Justification, BCJ_LEFT,
+        TAG_END);
+    pw.ft_standard = checkbox(PG_FT_STANDARD, S(MSG_PREFS_FT_USESTANDARD), 0);
+    pw.ft_tabsize = width_gadget(PG_FT_TABSIZE);
+    pw.ft_indentwith = popup(PG_FT_INDENTWITH, indentwith);
+    pw.ft_indent = width_gadget(PG_FT_INDENT);
+    pw.ft_auto = checkbox(PG_FT_AUTO, S(MSG_PREFS_FT_AUTOINDENT), 0);
+    pw.ft_tabkey = popup(PG_FT_TABKEY, tabkey);
+    pw.ft_numbers = checkbox(PG_FT_NUMBERS, S(MSG_PREFS_FT_LINENUMBERS), 0);
+    pw.ft_cutcopy = checkbox(PG_FT_CUTCOPY, S(MSG_PREFS_FT_CUTCOPY), 0);
+    filetypes = NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(MSG_CAT_FILETYPES)),
+        LAYOUT_AddChild, (ULONG)pw.ft_name, FIXED,
+        CHILD_Label, (ULONG)label(S(MSG_PREFS_FT_NAME)),
+        LAYOUT_AddChild, (ULONG)pw.ft_standard, FIXED,
+        LAYOUT_AddChild, (ULONG)pw.ft_tabsize, FIXED, CHILD_WeightedWidth, 0,
+        CHILD_Label, (ULONG)label(S(MSG_PREFS_FT_TABSIZE)),
+        LAYOUT_AddChild, (ULONG)pw.ft_indentwith, FIXED,
+        CHILD_Label, (ULONG)label(S(MSG_PREFS_FT_INDENTWITH)),
+        LAYOUT_AddChild, (ULONG)pw.ft_indent, FIXED, CHILD_WeightedWidth, 0,
+        CHILD_Label, (ULONG)label(S(MSG_PREFS_FT_INDENT)),
+        LAYOUT_AddChild, (ULONG)pw.ft_auto, FIXED,
+        LAYOUT_AddChild, (ULONG)pw.ft_tabkey, FIXED,
+        CHILD_Label, (ULONG)label(S(MSG_PREFS_FT_TABKEY)),
+        LAYOUT_AddChild, (ULONG)pw.ft_numbers, FIXED,
+        LAYOUT_AddChild, (ULONG)pw.ft_cutcopy, FIXED,
+        LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_FT_NOTE)),
+        FIXED,
+        LAYOUT_AddChild, (ULONG)filler(),
+        TAG_END);
+
     pw.page = NewObject(PAGE_GetClass(), NULL,
         PAGE_Add, (ULONG)general,
         PAGE_Add, (ULONG)colours,
         PAGE_Add, (ULONG)toolbar,
         PAGE_Add, (ULONG)advanced,
+        PAGE_Add, (ULONG)filetypes,
         PAGE_Current, 0,
         TAG_END);
 
@@ -470,7 +582,6 @@ static void read_gadgets(Settings *s)
     s->wintop = (long)(LONG)get(pw.top, INTEGER_Number);
     s->splash = get(pw.splash, CHECKBOX_Checked) != 0;
     s->foldertree = get(pw.foldertree, CHECKBOX_Checked) != 0;
-    s->linenumbers = get(pw.linenumbers, CHECKBOX_Checked) != 0;
     s->minimap = get(pw.minimap, CHECKBOX_Checked) != 0;
     for (i = 0; i < SCOL_COUNT; ++i)
         s->colours[i] = get(pw.colours[i], GETCOLOR_Color) & 0xFFFFFFUL;
@@ -518,7 +629,105 @@ static void set_page_gadget(Object *o, ULONG tag, ULONG value)
     SetPageGadgetAttrs((struct Gadget *)o, pw.page, pw.win, NULL, tag, value, TAG_END);
 }
 
-int prefs_dialog(EditorApp *app, Settings *s)
+/**
+ * @brief Ghost the gadgets of the file type page that do not apply: all
+ *        for a language that uses the standard settings, the number of
+ *        spaces when indenting with tabs.
+ *
+ * checkbox.gadget does not draw itself again when only GA_Disabled
+ * changes (seen on OS 3.2: a checkbox stayed ghosted), so every gadget of
+ * the page is refreshed while the window is open.
+ */
+static void ft_ghost(void)
+{
+    int standard = pw.ft_current >= 0 && get(pw.ft_standard, CHECKBOX_Checked) != 0;
+    Object *const all[] = { pw.ft_tabsize, pw.ft_indentwith, pw.ft_indent, pw.ft_auto, pw.ft_tabkey,
+                            pw.ft_numbers, pw.ft_cutcopy };
+    ULONG i;
+    for (i = 0; i < sizeof(all) / sizeof(all[0]); ++i) {
+        int off = standard || (all[i] == pw.ft_indent && get(pw.ft_indentwith, CHOOSER_Selected) == 1);
+        set_page_gadget(all[i], GA_Disabled, (ULONG)off);
+        if (pw.win != NULL) RefreshPageGadget((struct Gadget *)all[i], pw.page, pw.win, NULL);
+    }
+}
+
+/**
+ * @brief Show settings on the file type page.
+ * @param o The settings.
+ */
+static void ft_values(const FileTypeOptions *o)
+{
+    set_page_gadget(pw.ft_tabsize, INTEGER_Number, (ULONG)o->tab_size);
+    set_page_gadget(pw.ft_indentwith, CHOOSER_Selected, o->indent > 0 ? 0 : 1);
+    /* indenting with tabs keeps a number for switching back */
+    set_page_gadget(pw.ft_indent, INTEGER_Number, (ULONG)(o->indent > 0 ? o->indent : 4));
+    set_page_gadget(pw.ft_auto, CHECKBOX_Checked, (ULONG)o->auto_indent);
+    set_page_gadget(pw.ft_tabkey, CHOOSER_Selected, (ULONG)o->tab_after);
+    set_page_gadget(pw.ft_numbers, CHECKBOX_Checked, (ULONG)o->line_numbers);
+    set_page_gadget(pw.ft_cutcopy, CHECKBOX_Checked, (ULONG)o->cut_copy_line);
+}
+
+/**
+ * @brief Show the settings of the current file type (pw.ft_current) on
+ *        the file type page.
+ */
+static void ft_show(void)
+{
+    const FileTypeOptions *o = NULL;
+    if (pw.ft_current >= 0) o = filetypes_find(pw.ft, scoutlink_language_id(pw.ft_current));
+    set_page_gadget(pw.ft_name, GA_Text, (ULONG)(pw.ft_current >= 0 ? scoutlink_language_name(pw.ft_current)
+                                                                    : S(MSG_PREFS_FT_STANDARDNAME)));
+    /* Standard is always its own */
+    set_page_gadget(pw.ft_standard, GA_Disabled, (ULONG)(pw.ft_current < 0));
+    set_page_gadget(pw.ft_standard, CHECKBOX_Checked, (ULONG)(pw.ft_current >= 0 && o == NULL));
+    ft_values(o != NULL ? o : &pw.ft->standard);
+    ft_ghost();
+}
+
+/**
+ * @brief Take the values of the file type page into the settings being
+ *        edited.
+ * @return 1 on success, 0 if out of memory.
+ */
+static int ft_store(void)
+{
+    const char *id = pw.ft_current >= 0 ? scoutlink_language_id(pw.ft_current) : NULL;
+    FileTypeOptions o;
+    if (id != NULL && get(pw.ft_standard, CHECKBOX_Checked)) return filetypes_set(pw.ft, id, NULL) > 0;
+    o.tab_size = (int)(LONG)get(pw.ft_tabsize, INTEGER_Number);
+    o.indent = get(pw.ft_indentwith, CHOOSER_Selected) == 1 ? 0 : (int)(LONG)get(pw.ft_indent, INTEGER_Number);
+    o.auto_indent = get(pw.ft_auto, CHECKBOX_Checked) != 0;
+    o.tab_after = get(pw.ft_tabkey, CHOOSER_Selected) == 1;
+    o.line_numbers = get(pw.ft_numbers, CHECKBOX_Checked) != 0;
+    o.cut_copy_line = get(pw.ft_cutcopy, CHECKBOX_Checked) != 0;
+    return filetypes_set(pw.ft, id, &o) > 0;
+}
+
+/**
+ * @brief Show the page of the category selected in the list.
+ */
+static void select_category(void)
+{
+    struct Node *n = (struct Node *)get(pw.list, LISTBROWSER_SelectedNode);
+    ULONG ud = 0, page;
+    if (n == NULL) return;
+    GetListBrowserNodeAttrs(n, LBNA_UserData, (ULONG)&ud, TAG_END);
+    if (ud < NUMCATEGORIES) {
+        page = ud;
+    } else {
+        int current = ud >= UD_LANGUAGE ? (int)(ud - UD_LANGUAGE) : -1;
+        page = PAGE_FILETYPES;
+        if (current != pw.ft_current) {
+            ft_store();
+            pw.ft_current = current;
+            ft_show();
+        }
+    }
+    SetGadgetAttrs((struct Gadget *)pw.page, pw.win, NULL, PAGE_Current, page, TAG_END);
+    RethinkLayout((struct Gadget *)pw.root, pw.win, NULL, TRUE);
+}
+
+int prefs_dialog(EditorApp *app, Settings *s, FileTypes *ft)
 {
     ULONG sig = 0, mainsig = 0, result, i;
     WORD code = 0;
@@ -526,7 +735,10 @@ int prefs_dialog(EditorApp *app, Settings *s)
 
     if (app->window == NULL || !open_classes(app)) return PREFS_CANCEL;
     memset(&pw, 0, sizeof(pw));
+    pw.ft = ft;
+    pw.ft_current = -1;
     if ((pw.root = build(app, s)) == NULL) goto out;
+    ft_show();
 
     pw.winobj = NewObject(WINDOW_GetClass(), NULL,
         WA_Title, (ULONG)S(MSG_PREFS_TITLE),
@@ -560,9 +772,15 @@ int prefs_dialog(EditorApp *app, Settings *s)
             if ((result & WMHI_CLASSMASK) != WMHI_GADGETUP) continue;
             switch (id) {
                 case PG_LIST:
-                    SetGadgetAttrs((struct Gadget *)pw.page, pw.win, NULL,
-                                   PAGE_Current, get(pw.list, LISTBROWSER_Selected), TAG_END);
-                    RethinkLayout((struct Gadget *)pw.root, pw.win, NULL, TRUE);
+                    select_category();
+                    break;
+                case PG_FT_STANDARD:
+                    /* back to the standard settings: show them */
+                    if (get(pw.ft_standard, CHECKBOX_Checked)) ft_values(&pw.ft->standard);
+                    ft_ghost();
+                    break;
+                case PG_FT_INDENTWITH:
+                    ft_ghost();
                     break;
                 case PG_DEFCOLOURS:
                     for (i = 0; i < SCOL_COUNT; ++i)
@@ -586,6 +804,7 @@ int prefs_dialog(EditorApp *app, Settings *s)
                 case PG_SAVE:
                 case PG_USE:
                     read_gadgets(s);
+                    ft_store();
                     rc = id == PG_SAVE ? PREFS_SAVE : PREFS_USE;
                     done = 1;
                     break;
