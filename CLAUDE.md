@@ -40,6 +40,10 @@ Wo `AGENTS.md` und die Devkit-Dokumente sich widersprechen, gilt Folgendes:
 - **Noch nicht vorhanden** (nur nach Absprache einführen): `README.de.md` und ein
   Installer-Skript (`package/Install`). `package/` enthält die Aminet-Readme und die
   Hilfeseiten (`package/help/<Sprache>/`), `make dist` baut das Archiv.
+- **Hilfeseiten:** Die Texte unter `package/help/` schreibt der Benutzer selbst. Claude
+  ändert sie nicht von sich aus, auch nicht für neue Funktionen: die deutschen gar nicht,
+  die englischen nur, wenn der Benutzer um eine Übersetzung bittet. Im Bericht darf Claude
+  darauf hinweisen, dass eine Funktion in der Hilfe noch fehlt.
 - **Versionen:** Das erste Release von TinyDev und seinen Gadget-Klassen wird 1.0. Bis dahin
   lädt TinyDev die Klassen aus `bin/` (`PROGDIR:Classes/Gadgets/`).
 - **Schrift:** Der Editor nutzt immer die Standard-Bildschirmschrift, eine Schriftwahl gibt es
