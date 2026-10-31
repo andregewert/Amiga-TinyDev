@@ -520,6 +520,23 @@ void ui_update_file_types(EditorApp *app)
     if (app->window_object != NULL) SetAttrs(app->window_object, WINDOW_NewMenu, (ULONG)menus, TAG_END);
 }
 
+/**
+ * @brief Append the indentation of the active document's file type to a
+ *        status text: the spaces per level, or tabs with their width.
+ * @param app The application state.
+ * @param text The status text.
+ * @param size Size of @p text.
+ */
+static void append_indent(EditorApp *app, char *text, size_t size)
+{
+    const FileTypeOptions *o;
+    size_t n = strlen(text);
+    if (app->active == NULL) return;
+    o = filetypes_get(&app->filetypes, app->active->ft_language);
+    if (o->indent > 0) snprintf(text + n, size - n, S(MSG_STATUS_SPACES), (long)o->indent);
+    else snprintf(text + n, size - n, S(MSG_STATUS_TABS), (long)o->tab_size);
+}
+
 /** The message of ui_status_message(). */
 static char status_message[200];
 /** When the message goes (CurrentTime() seconds), 0 if there is none. */
@@ -542,7 +559,7 @@ void ui_status_message(EditorApp *app, const char *text)
 
 void ui_update_status(EditorApp *app)
 {
-    static char status_text[200], shown_text[200];
+    static char status_text[256], shown_text[256];
     unsigned long doc_count = 0;
     ULONG lines = 0;
     Document *doc;
@@ -557,15 +574,17 @@ void ui_update_status(EditorApp *app)
         GetAttr(GA_TEXTEDITOR_CursorY, app->active->editor, &y);
         snprintf(status_text, sizeof(status_text), S(MSG_STATUS_SCOUT), doc_count,
                  (unsigned long)lines, app->active->scout_symbols, app->active->scout_problems);
+        append_indent(app, status_text, sizeof(status_text));
         /* the problem of the cursor's line */
         if ((d = diag_at_line(app->active, (long)y + 1)) != NULL) {
             size_t n = strlen(status_text);
             snprintf(status_text + n, sizeof(status_text) - n, " - %s", d->message);
         }
-    }
-    else
+    } else {
         snprintf(status_text, sizeof(status_text),
                  S(MSG_STATUS), doc_count, (unsigned long)lines);
+        append_indent(app, status_text, sizeof(status_text));
+    }
     if (rect_selections(app) != rect_shown) {
         rect_shown = !rect_shown;
         ui_set_menu_check(app, MID_RECT, rect_shown);
@@ -780,6 +799,8 @@ int ui_create(EditorApp *app)
     app->minimap_attached = 1;
     app->statusbar = NewObject(BUTTON_GetClass(), NULL,
         GA_ReadOnly, TRUE,
+        /* names (symbols, files) may hold a '_'; before GA_Text, see the style guide */
+        GA_Underscore, 0,
         GA_Text, (ULONG)"",
         BUTTON_BevelStyle, BVS_DISPLAY,
         BUTTON_Justification, BCJ_LEFT,

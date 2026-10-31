@@ -1175,3 +1175,9 @@ TinyDev.json in the drawer of TinyDev could not be read.\nThe built-in file type
 MSG_ERR_FTPREFS_WRITE (//)
 The file type settings could not be saved\nin TinyDev.json in the drawer of TinyDev.
 ;
+MSG_STATUS_SPACES (//)
+  Indent: %ld spaces
+;
+MSG_STATUS_TABS (//)
+  Indent: tab (%ld)
+;

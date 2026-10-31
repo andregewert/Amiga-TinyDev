@@ -382,7 +382,9 @@
 #define MSG_PREFS_FT_NOTE            377
 #define MSG_ERR_FTPREFS_READ         378
 #define MSG_ERR_FTPREFS_WRITE        379
-#define MSG_COUNT                    380
+#define MSG_STATUS_SPACES            380
+#define MSG_STATUS_TABS              381
+#define MSG_COUNT                    382
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -767,6 +769,8 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Shift+Tab always indents, Tab indents a selection.\nAll take effect at once. View/Line Numbers changes\nthe line numbers of the current document only.",
     "TinyDev.json in the drawer of TinyDev could not be read.\nThe built-in file type settings are used,\nand the file is not changed.",
     "The file type settings could not be saved\nin TinyDev.json in the drawer of TinyDev.",
+    "  Indent: %ld spaces",
+    "  Indent: tab (%ld)",
 };
 #endif
 

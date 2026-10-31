@@ -1532,3 +1532,11 @@ MSG_ERR_FTPREFS_WRITE
 Die Dateityp-Einstellungen konnten nicht in TinyDev.json\nin der Schublade von TinyDev gespeichert werden.
 ; The file type settings could not be saved\nin TinyDev.json in the drawer of TinyDev.
 ;
+MSG_STATUS_SPACES
+  Einrückung: %ld Leerzeichen
+;   Indent: %ld spaces
+;
+MSG_STATUS_TABS
+  Einrückung: Tab (%ld)
+;   Indent: tab (%ld)
+;
