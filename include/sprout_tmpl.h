@@ -18,6 +18,8 @@
 
 #include <stddef.h>
 
+struct JsonValue;
+
 /** The largest file whose contents placeholders are replaced in (1 MB). */
 #define SPROUT_TEXT_MAX (1024L * 1024L)
 
@@ -73,6 +75,25 @@ typedef struct SproutValues {
  * @return 1 on success; 0 if not valid (reported); -1 if out of memory.
  */
 int sprout_template_parse(SproutTemplate *t, const char *json, SproutReport report, void *user);
+
+/**
+ * @brief Read a template's metadata from a JSON tree (an object as in
+ *        template.json, or an entry of Sprout's LIST output).
+ * @param[out] t The metadata (always initialised; sprout_template_free() it).
+ * @param root The object.
+ * @param report Receives the reason when the metadata is not valid.
+ * @param user Passed to @p report.
+ * @return 1 on success; 0 if not valid (reported); -1 if out of memory.
+ */
+int sprout_template_from_json(SproutTemplate *t, const struct JsonValue *root, SproutReport report, void *user);
+
+/**
+ * @brief Write a template's metadata as a JSON tree, in the form of
+ *        template.json (keys without a value left out).
+ * @param t The metadata.
+ * @return The object (json_value_free() it), or NULL if out of memory.
+ */
+struct JsonValue *sprout_template_to_json(const SproutTemplate *t);
 
 /**
  * @brief Free a template's metadata (it stays valid and empty).

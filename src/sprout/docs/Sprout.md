@@ -6,10 +6,10 @@ the template's files into it and replaces placeholders in file names and
 in text files. TinyDev's wizard Project/New Project... is a front end to
 it; the command works just as well on its own.
 
-> **Status:** phase 1 is implemented: templates that are drawers, the
-> placeholders, creating a project with `TEMPLATE`, `TO`, `SET`, `VALUES`,
-> `DIR`, `FORCE` and `QUIET`. Archives, `LIST`, `INFO` and `ICON` follow
-> (section 14).
+> **Status:** phases 1 and 2 are implemented: templates as drawers and
+> LhA archives, the placeholders, creating a project, `LIST`, `INFO` and
+> `ICON`. Conditional files are left until a template needs them; the
+> wizard follows (section 14).
 
 ## Contents
 
@@ -243,8 +243,8 @@ Sprout TEMPLATE,TO,SET/M,VALUES/K,DIR/K,ICON/K,LIST/S,INFO/S,FORCE/S,QUIET/S
 
 | Argument | Meaning |
 |---|---|
-| `TEMPLATE` | an identifier (looked up as `<Id>.lha`, then `<Id>/` in the templates drawer) or a path to an archive or drawer |
-| `TO` | the project drawer to create |
+| `TEMPLATE` | an identifier (looked up as the drawer `<Id>/`, then as `<Id>.lha` in the templates drawer, so a template being worked on wins over its archive) or a path to an archive or drawer; not needed for `LIST` |
+| `TO` | the project drawer to create (not for `LIST` and `INFO`) |
 | `SET` | values as `KEY=value`, e.g. `NAME=Hello AUTHOR="André Gewert"` (ReadArgs splits them at the `=`; Sprout joins a key and the item after it again, so `AUTHOR "André Gewert"` works too); keys may be written in any case (`author=Me`); `PROJECT=...` gives the project a name other than its drawer's |
 | `VALUES` | a JSON file with values: `{ "NAME": "Hello", "AUTHOR": "..." }` (keys in upper case, as written by a program); `SET` wins over it |
 | `DIR` | another templates drawer |
@@ -263,18 +263,29 @@ Sprout LIST
 Sprout ReAction INFO ICON T:sprout.info
 ```
 
-`LIST` writes
+`LIST` writes every template of the drawer (drawers with a
+`template.json` and `*.lha`; a drawer wins over an archive of the same
+identifier), sorted by identifier, indented:
 
 ```json
-{ "version": 1, "templates": [
-  { "id": "ReAction", "path": "PROGDIR:Templates/ReAction.lha",
-    "kind": "project", "name": "...", "description": "...",
-    "category": "C", "icon": { "type": "program" }, "placeholders": [ ... ] }
-] }
+{
+  "version": 1,
+  "templates": [
+    { "version": 1, "kind": "project", "name": "...", "description": "...",
+      "category": "C", "icon": { "type": "program" }, "placeholders": [ ... ],
+      "id": "ReAction", "path": "PROGDIR:Templates/ReAction.lha" }
+  ]
+}
 ```
 
-A template that cannot be read is listed with `"error": "<text>"` instead
-of its metadata, so the wizard can say why it is missing.
+Each entry is the template's metadata in the form of `template.json`
+(checked, with the defaults filled in: `kind`, `category`), plus `id` and
+`path`; a program reads it with `sprout_template_from_json()`. A template
+that cannot be read is listed with `"error": "<text>"` instead of its
+metadata, so the wizard can say why it is missing. `INFO` writes
+`{ "version": 1, "template": { ... } }` with one such entry; with `ICON`
+it also copies the file named by `"icon": { "file": ... }` (a warning if
+there is none).
 
 Messages go to standard error, in English. Return codes: 0 done,
 5 (WARN) done with warnings, 10 (ERROR) failed (nothing left behind),
@@ -286,17 +297,22 @@ Sprout reads LhA archives itself, sequentially (no seeking back), with a
 portable decoder that has no Amiga headers and is host-tested.
 
 - **Header levels** 0, 1 and 2; level 3 is reported as unsupported.
-- **Methods** `-lh0-` (stored), `-lh5-` (8 KB dictionary), `-lh6-`
-  (32 KB), `-lh7-` (64 KB), `-lhd-` (drawer entry). Other methods are an
-  error naming the method.
+- **Methods** `-lh0-` and `-lz4-` (stored), `-lh4-` (4 KB dictionary),
+  `-lh5-` (8 KB), `-lh6-` (32 KB), `-lh7-` (64 KB), `-lhd-` (drawer
+  entry). Other methods are an error naming the method.
 - **Checks:** the header checksum (levels 0/1), the header CRC where
   present and the CRC-16 of every file's data.
 - **Paths:** level 0/1 names separate drawers with `\`, `/` or 0xFF;
   level 2 has the drawer name in extended header 2 (0xFF separated).
   All become `/`.
 - **Amiga extras:** a file note stored after a NUL in the name (as Amiga
-  LhA does) is taken over; so are the protection bits when the archive
-  was made on an Amiga (OS id `A`); otherwise files get the default bits.
+  LhA does) is taken over; so are the protection bits from the attribute
+  byte when the archive was made on an Amiga (OS id `A`, header level 0
+  or 1); otherwise files get the default bits.
+- **Two passes:** `template.json` may come after the files, so an archive
+  is read once for it (finding the drawer that holds it) and once for
+  `files/`. Drawers above a file are made even if the archive has no
+  entries for them.
 - **Memory:** the dictionary (at most 64 KB) plus small tables; a text
   file to be changed is held whole (at most 1 MB), binary files are
   written as they are decoded.
@@ -353,16 +369,18 @@ same wizard. Nothing of this is in version 1 beyond the reserved `kind`.
 | `src/sprout/sprout_tmpl.c`, `include/sprout_tmpl.h` | portable: metadata, values, placeholder expansion, safe paths, text detection |
 | `src/sprout/sprout_lha.c`, `include/sprout_lha.h` | portable: LhA headers and decoding over read/write callbacks |
 | `src/sprout/docs/Sprout.md` | this document |
-| `tests/test_sprout_tmpl.c`, `tests/test_sprout_lha.c` | host tests (archives made with the host's `lha` as test data in `tests/data/sprout/`, left out of `charcheck` as they are binary) |
-| `templates/<Id>/` | the templates that come with TinyDev: `make` copies them as drawers to `bin/Templates/<Id>/` (with `cp`, as names with `{$...}` cannot go through make), `make dist` packs them into `Templates/<Id>.lha` of the archive (with the host's `lha`, which `make dist` needs anyway; phase 2) |
+| `tests/test_sprout_tmpl.c`, `tests/test_sprout_lha.c` | host tests; the archives in `tests/data/sprout/` (every header level and method jlha writes) are made by `tools/mksprouttests.py` and left out of `charcheck` as they are binary |
+| `templates/<Id>/` | the templates that come with TinyDev: `make` copies them as drawers to `bin/Templates/<Id>/` (with `cp`, as names with `{$...}` cannot go through make), `make dist` packs them into `Templates/<Id>.lha` of the archive (with jlha, which `make dist` needs anyway) |
 
 `json.c` is shared as with Scout. TinyDev links `sprout_tmpl.c` for the
 wizard's defaults; Sprout uses nothing of TinyDev.
 
 ## 14. Phases
 
-1. Sprout's core: metadata, placeholders, copying from template drawers,
-   rollback; host tests; a first template made from `examples/HelloWorld`.
-2. LhA reading, `LIST` and `INFO`; conditional files if needed.
+1. (done) Sprout's core: metadata, placeholders, copying from template
+   drawers, rollback; host tests; a first template made from
+   `examples/HelloWorld`.
+2. (done) LhA reading, `LIST`, `INFO` and `ICON`, archives in `make dist`;
+   conditional files when a template needs them.
 3. The wizard in TinyDev with the built-in symbols per icon type.
 4. Icon files from the template in the wizard; then file templates.

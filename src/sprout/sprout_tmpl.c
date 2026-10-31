@@ -203,17 +203,29 @@ static void free_placeholder(SproutPlaceholder *p)
 
 int sprout_template_parse(SproutTemplate *t, const char *json, SproutReport report, void *user)
 {
-    JsonValue *root;
+    JsonValue *root = json_parse(json, NULL);
+    int r;
+    if (root == NULL || root->type != JSON_OBJECT) {
+        memset(t, 0, sizeof(*t));
+        say(report, user, 1, "template.json is not a JSON object", NULL, NULL);
+        json_value_free(root);
+        return 0;
+    }
+    r = sprout_template_from_json(t, root, report, user);
+    json_value_free(root);
+    return r;
+}
+
+int sprout_template_from_json(SproutTemplate *t, const struct JsonValue *root, SproutReport report, void *user)
+{
     const JsonValue *icon, *phs;
     const char *kind, *name;
     int r = 1;
     long version;
 
     memset(t, 0, sizeof(*t));
-    root = json_parse(json, NULL);
     if (root == NULL || root->type != JSON_OBJECT) {
         say(report, user, 1, "template.json is not a JSON object", NULL, NULL);
-        json_value_free(root);
         return 0;
     }
     version = json_obj_get_int(root, "version", 1);
@@ -258,9 +270,79 @@ int sprout_template_parse(SproutTemplate *t, const char *json, SproutReport repo
             }
         }
     }
-    json_value_free(root);
     if (r <= 0) sprout_template_free(t);
     return r;
+}
+
+/**
+ * @brief Set a string member if the string is there.
+ * @param obj The object.
+ * @param key The key.
+ * @param s The string (NULL: nothing is set).
+ * @return 1 on success, 0 if out of memory.
+ */
+static int set_string(JsonValue *obj, const char *key, const char *s)
+{
+    return s == NULL || json_obj_set(obj, key, json_new_string(s));
+}
+
+/**
+ * @brief Set a member that is a list of strings, if there are any.
+ * @param obj The object.
+ * @param key The key.
+ * @param list The strings.
+ * @param n Their number (0: nothing is set).
+ * @return 1 on success, 0 if out of memory.
+ */
+static int set_list(JsonValue *obj, const char *key, char *const *list, int n)
+{
+    JsonValue *arr;
+    int i;
+    if (n == 0) return 1;
+    if ((arr = json_new_array()) == NULL) return 0;
+    for (i = 0; i < n; ++i)
+        if (!json_array_append(arr, json_new_string(list[i]))) {
+            json_value_free(arr);
+            return 0;
+        }
+    return json_obj_set(obj, key, arr);
+}
+
+struct JsonValue *sprout_template_to_json(const SproutTemplate *t)
+{
+    JsonValue *root = json_new_object(), *icon = NULL, *phs = NULL;
+    int ok, i;
+    if (root == NULL) return NULL;
+    ok = json_obj_set(root, "version", json_new_int(1)) && set_string(root, "kind", t->kind) &&
+         set_string(root, "name", t->name) && set_string(root, "description", t->description) &&
+         set_string(root, "category", t->category);
+    if (ok && (t->icon_type != NULL || t->icon_file != NULL)) {
+        ok = (icon = json_new_object()) != NULL && set_string(icon, "type", t->icon_type) &&
+             set_string(icon, "file", t->icon_file);
+        if (ok) ok = json_obj_set(root, "icon", icon);
+        else json_value_free(icon);
+    }
+    if (ok && t->nph > 0) {
+        ok = (phs = json_new_array()) != NULL;
+        for (i = 0; ok && i < t->nph; ++i) {
+            const SproutPlaceholder *p = &t->ph[i];
+            JsonValue *o = json_new_object();
+            ok = o != NULL && set_string(o, "key", p->key) && set_string(o, "label", p->label) &&
+                 set_string(o, "description", p->description) && set_string(o, "default", p->def) &&
+                 (!p->required || json_obj_set(o, "required", json_new_bool(1))) &&
+                 set_list(o, "choices", p->choices, p->nchoices);
+            if (ok) ok = json_array_append(phs, o);
+            else json_value_free(o);
+        }
+        if (ok) ok = json_obj_set(root, "placeholders", phs);
+        else json_value_free(phs);
+    }
+    if (ok) ok = set_list(root, "open", t->open, t->nopen) && set_list(root, "verbatim", t->verbatim, t->nverbatim);
+    if (!ok) {
+        json_value_free(root);
+        return NULL;
+    }
+    return root;
 }
 
 void sprout_template_free(SproutTemplate *t)

@@ -5,8 +5,11 @@
  *        placeholders replaced, and removing what it made on an error.
  *
  * The format and the command line are described in
- * src/sprout/docs/Sprout.md; the portable part is sprout_tmpl.c. This
- * version reads templates that are drawers; archives (.lha) follow.
+ * src/sprout/docs/Sprout.md; the portable parts are sprout_tmpl.c
+ * (metadata, placeholders) and sprout_lha.c (archives). A template is a
+ * drawer or an LhA archive; an archive is read twice, once for
+ * template.json (which may come after the files), once for the files.
+ * LIST and INFO write JSON to the standard output, built with json.c.
  *
  * Messages go to the error stream of the Shell (pr_CES, else Output()),
  * in English, prefixed "Sprout: ". The created drawers and files are kept
@@ -14,6 +17,8 @@
  * reverse order; files that existed before (FORCE) stay as written.
  */
 #include "sprout_tmpl.h"
+#include "sprout_lha.h"
+#include "json.h"
 
 #include <exec/memory.h>
 #include <dos/dos.h>
@@ -26,7 +31,7 @@
 #include <string.h>
 
 /** libnix swaps to a stack of this size at the start (-Wl,-u,___stkinit). */
-unsigned long __stack = 16384;
+unsigned long __stack = 32768;
 
 /** The version string for the Version command. */
 static const char version[] __attribute__((used)) = "$VER: Sprout 1.0 (31.10.2026)";
@@ -41,7 +46,7 @@ static const char version[] __attribute__((used)) = "$VER: Sprout 1.0 (31.10.202
 #define JSONMAX (256L * 1024L)
 
 /** The ReadArgs template. */
-#define ARG_TEMPLATE "TEMPLATE/A,TO/A,SET/M,VALUES/K,DIR/K,FORCE/S,QUIET/S"
+#define ARG_TEMPLATE "TEMPLATE,TO,SET/M,VALUES/K,DIR/K,ICON/K,LIST/S,INFO/S,FORCE/S,QUIET/S"
 
 /** The arguments, in the order of #ARG_TEMPLATE. */
 enum {
@@ -50,6 +55,9 @@ enum {
     ARG_SET,        /**< values as KEY=value */
     ARG_VALUES,     /**< a JSON file with values */
     ARG_DIR,        /**< the templates drawer */
+    ARG_ICON,       /**< with INFO: where the template's icon goes */
+    ARG_LIST,       /**< list the templates */
+    ARG_INFO,       /**< describe a template */
     ARG_FORCE,      /**< write into an existing drawer */
     ARG_QUIET,      /**< no progress lines */
     ARG_COUNT       /**< number of arguments */
@@ -71,8 +79,20 @@ static struct {
     const SproutValues *values;     /**< the values of the placeholders */
     char **patterns;                /**< the parsed "verbatim" patterns */
     int npatterns;                  /**< their number */
+    char *capture;                  /**< if set, the first message goes here instead (LIST) */
+    size_t capsize;                 /**< its size */
     char to[PATHMAX];               /**< the project drawer */
 } sp;
+
+/** The default templates drawer. */
+#define TEMPLATES_DIR "PROGDIR:Templates"
+
+/** Where a template is: a drawer or an LhA archive. */
+typedef struct Source {
+    char path[PATHMAX];     /**< the drawer or the archive */
+    int archive;            /**< non-zero for an archive */
+    char prefix[PATHMAX];   /**< archive: "" or the drawer (with '/') that holds template.json */
+} Source;
 
 /**
  * @brief Write a message of up to three parts to the error stream.
@@ -82,6 +102,22 @@ static struct {
  */
 static void msg(const char *a, const char *b, const char *c)
 {
+    if (sp.capture != NULL) {
+        if (sp.capture[0] == '\0') {
+            const char *parts[3];
+            size_t n = 0;
+            int i;
+            parts[0] = a;
+            parts[1] = b;
+            parts[2] = c;
+            for (i = 0; i < 3; ++i) {
+                const char *q = parts[i];
+                while (q != NULL && *q != '\0' && n + 1 < sp.capsize) sp.capture[n++] = *q++;
+            }
+            sp.capture[n] = '\0';
+        }
+        return;
+    }
     FPuts(sp.err, (STRPTR)"Sprout: ");
     FPuts(sp.err, (STRPTR)a);
     if (b != NULL) FPuts(sp.err, (STRPTR)b);
@@ -155,21 +191,34 @@ static int note_created(const char *path)
 }
 
 /**
- * @brief Compare two names without case, as AmigaDOS does (ASCII and
- *        ISO-8859-1 letters).
+ * @brief Compare the starts of two names without case, as AmigaDOS does
+ *        (ASCII and ISO-8859-1 letters).
+ * @param a First name.
+ * @param b Second name.
+ * @param n The most characters compared.
+ * @return Less than, equal to or greater than zero, like strncmp().
+ */
+static int name_order(const char *a, const char *b, size_t n)
+{
+    for (; n > 0; ++a, ++b, --n) {
+        unsigned char x = (unsigned char)*a, y = (unsigned char)*b;
+        if ((x >= 'a' && x <= 'z') || (x >= 0xE0 && x <= 0xFE && x != 0xF7)) x = (unsigned char)(x - 0x20);
+        if ((y >= 'a' && y <= 'z') || (y >= 0xE0 && y <= 0xFE && y != 0xF7)) y = (unsigned char)(y - 0x20);
+        if (x != y) return (int)x - (int)y;
+        if (x == '\0') return 0;
+    }
+    return 0;
+}
+
+/**
+ * @brief Compare two names without case.
  * @param a First name.
  * @param b Second name.
  * @return Non-zero if they are the same.
  */
 static int same_name(const char *a, const char *b)
 {
-    for (;; ++a, ++b) {
-        unsigned char x = (unsigned char)*a, y = (unsigned char)*b;
-        if ((x >= 'a' && x <= 'z') || (x >= 0xE0 && x <= 0xFE && x != 0xF7)) x = (unsigned char)(x - 0x20);
-        if ((y >= 'a' && y <= 'z') || (y >= 0xE0 && y <= 0xFE && y != 0xF7)) y = (unsigned char)(y - 0x20);
-        if (x != y) return 0;
-        if (x == '\0') return 1;
-    }
+    return name_order(a, b, (size_t)-1) == 0;
 }
 
 /**
@@ -442,17 +491,14 @@ static int make_drawer(const char *path)
 }
 
 /**
- * @brief Copy one file of the template, replacing placeholders in a text
- *        file, and take over its protection bits and file note.
- * @param src The source.
- * @param rel Its path below files/ (for the "verbatim" patterns).
+ * @brief Check the destination of a file and note it as created (before
+ *        writing, so a half written file is removed too).
  * @param dst The destination.
- * @param fib The source's FileInfoBlock.
- * @return Non-zero on success, zero on an error (reported).
+ * @return Non-zero if it may be written, zero otherwise (reported).
  */
-static int copy_file(const char *src, const char *rel, const char *dst, const struct FileInfoBlock *fib)
+static int prepare_file(const char *dst)
 {
-    int is_dir, existed, ok;
+    int is_dir, existed;
     if ((existed = exists(dst, &is_dir)) != 0) {
         if (is_dir) {
             msg("a drawer is in the way of file ", dst, NULL);
@@ -467,31 +513,72 @@ static int copy_file(const char *src, const char *rel, const char *dst, const st
             return 0;
         }
     }
-    /* noted before writing, so a half written file is removed too */
-    if (!existed && !note_created(dst)) return 0;
+    return existed || note_created(dst);
+}
+
+/**
+ * @brief Write the contents of a file, with the placeholders replaced in a
+ *        text file.
+ * @param rel Its path below files/ (for the "verbatim" patterns).
+ * @param dst The destination.
+ * @param data The contents from the template.
+ * @param len Their length.
+ * @return Non-zero on success, zero on an error (reported).
+ */
+static int put_contents(const char *rel, const char *dst, const char *data, LONG len)
+{
+    char *expanded;
+    size_t n = 0;
+    int ok;
+    if (is_verbatim(rel) || !sprout_is_text(data, (size_t)len)) return write_file(dst, data, len);
+    if ((expanded = sprout_expand(data, (size_t)len, sp.values, &n)) == NULL) {
+        msg("out of memory", NULL, NULL);
+        return 0;
+    }
+    ok = write_file(dst, expanded, (LONG)n);
+    free(expanded);
+    return ok;
+}
+
+/**
+ * @brief Give a written file its protection bits and file note.
+ * @param dst The file.
+ * @param has_prot Non-zero if @p prot is known.
+ * @param prot The protection bits (the archive bit is cleared: the file
+ *        is new).
+ * @param comment The file note ("" for none).
+ */
+static void finish_file(const char *dst, int has_prot, LONG prot, const char *comment)
+{
+    if (has_prot) SetProtection((STRPTR)dst, prot & ~FIBF_ARCHIVE);
+    if (comment[0] != '\0') SetComment((STRPTR)dst, (STRPTR)comment);
+    progress(dst);
+}
+
+/**
+ * @brief Copy one file of a template drawer, replacing placeholders in a
+ *        text file, and take over its protection bits and file note.
+ * @param src The source.
+ * @param rel Its path below files/ (for the "verbatim" patterns).
+ * @param dst The destination.
+ * @param fib The source's FileInfoBlock.
+ * @return Non-zero on success, zero on an error (reported).
+ */
+static int copy_file(const char *src, const char *rel, const char *dst, const struct FileInfoBlock *fib)
+{
+    int ok;
+    if (!prepare_file(dst)) return 0;
     if (fib->fib_Size > SPROUT_TEXT_MAX) {
         ok = stream_copy(src, dst);
     } else {
-        char *data, *expanded = NULL;
+        char *data;
         LONG len;
-        size_t n = 0;
         if (!read_file(src, SPROUT_TEXT_MAX, &data, &len)) return 0;
-        if (!is_verbatim(rel) && sprout_is_text(data, (size_t)len)) {
-            if ((expanded = sprout_expand(data, (size_t)len, sp.values, &n)) == NULL) {
-                free(data);
-                msg("out of memory", NULL, NULL);
-                return 0;
-            }
-        }
-        ok = expanded != NULL ? write_file(dst, expanded, (LONG)n) : write_file(dst, data, len);
-        free(expanded);
+        ok = put_contents(rel, dst, data, len);
         free(data);
     }
     if (!ok) return 0;
-    /* a new file is not archived yet */
-    SetProtection((STRPTR)dst, fib->fib_Protection & ~FIBF_ARCHIVE);
-    if (fib->fib_Comment[0] != '\0') SetComment((STRPTR)dst, (STRPTR)fib->fib_Comment);
-    progress(dst);
+    finish_file(dst, 1, fib->fib_Protection, (const char *)fib->fib_Comment);
     return 1;
 }
 
@@ -571,34 +658,358 @@ static int copy_drawer(const char *src, const char *rel, int depth)
 }
 
 /**
- * @brief Find a template: a path, or an identifier in the templates drawer.
+ * @brief Find a template: a path, or an identifier in the templates
+ *        drawer (a drawer of that name first, then the archive
+ *        \<Id\>.lha).
  * @param arg The TEMPLATE argument.
  * @param dir The templates drawer (DIR), or NULL for PROGDIR:Templates.
- * @param[out] path The template's drawer (#PATHMAX bytes).
+ * @param[out] s Where the template is.
  * @return Non-zero if found, zero otherwise (reported).
  */
-static int find_template(const char *arg, const char *dir, char *path)
+static int find_template(const char *arg, const char *dir, Source *s)
 {
-    char lha[PATHMAX];
     int is_dir;
     size_t n;
+    memset(s, 0, sizeof(*s));
     if (strchr(arg, ':') != NULL || strchr(arg, '/') != NULL) {
-        strncpy(path, arg, PATHMAX - 1);
-        path[PATHMAX - 1] = '\0';
-    } else if (!join(path, dir != NULL ? dir : "PROGDIR:Templates", arg)) {
+        strncpy(s->path, arg, PATHMAX - 1);
+    } else if (!join(s->path, dir != NULL ? dir : TEMPLATES_DIR, arg)) {
         return 0;
     }
-    if (exists(path, &is_dir) && is_dir) return 1;
-    n = strlen(path);
-    strcpy(lha, path);
-    if (n + 4 < PATHMAX) strcpy(lha + n, ".lha");
-    if ((n > 4 && same_name(path + n - 4, ".lha") && exists(path, &is_dir)) ||
-        exists(lha, &is_dir)) {
-        msg("template archives (.lha) are not supported yet: ", arg, NULL);
-        return 0;
+    if (exists(s->path, &is_dir)) {
+        s->archive = !is_dir;
+        return 1;
+    }
+    n = strlen(s->path);
+    if (n + 4 < PATHMAX) {
+        strcpy(s->path + n, ".lha");
+        if (exists(s->path, &is_dir) && !is_dir) {
+            s->archive = 1;
+            return 1;
+        }
     }
     msg("template not found: ", arg, NULL);
     return 0;
+}
+
+/** An open archive. */
+typedef struct Archive {
+    BPTR fh;            /**< the file */
+    SproutLha lha;      /**< the reader */
+} Archive;
+
+/**
+ * @brief Read callback of the LhA reader: reads the archive file.
+ * @param user Points to the file handle.
+ * @param buf Where the bytes go.
+ * @param len How many are wanted.
+ * @return The number read, 0 at the end, -1 on an error.
+ */
+static long fh_read(void *user, void *buf, long len)
+{
+    return Read(*(BPTR *)user, buf, len);
+}
+
+/**
+ * @brief Write callback of the LhA reader: writes to a file, stops on
+ *        Ctrl-C.
+ * @param user Points to the file handle.
+ * @param buf The bytes.
+ * @param len Their number.
+ * @return Non-zero on success.
+ */
+static int fh_write(void *user, const void *buf, long len)
+{
+    if (Write(*(BPTR *)user, (APTR)buf, len) != len) return 0;
+    return !break_pressed();
+}
+
+/** Bytes collected in memory by mem_write(). */
+typedef struct MemOut {
+    char *data;         /**< the buffer */
+    LONG len;           /**< bytes in it */
+    LONG cap;           /**< its size */
+} MemOut;
+
+/**
+ * @brief Write callback of the LhA reader: collects into a MemOut.
+ * @param user The MemOut.
+ * @param buf The bytes.
+ * @param len Their number.
+ * @return Non-zero on success, zero if they do not fit.
+ */
+static int mem_write(void *user, const void *buf, long len)
+{
+    MemOut *m = (MemOut *)user;
+    if (len > m->cap - m->len) return 0;
+    memcpy(m->data + m->len, buf, (size_t)len);
+    m->len += len;
+    return 1;
+}
+
+/**
+ * @brief Open an archive.
+ * @param path The archive.
+ * @return The archive (archive_close() it), or NULL on an error (reported).
+ */
+static Archive *archive_open(const char *path)
+{
+    Archive *a = (Archive *)malloc(sizeof(Archive));
+    if (a == NULL) {
+        msg("out of memory", NULL, NULL);
+        return NULL;
+    }
+    if ((a->fh = Open((STRPTR)path, MODE_OLDFILE)) == 0) {
+        dos_error("cannot open ", path);
+        free(a);
+        return NULL;
+    }
+    sprout_lha_init(&a->lha, fh_read, &a->fh);
+    return a;
+}
+
+/**
+ * @brief Close an archive.
+ * @param a The archive.
+ */
+static void archive_close(Archive *a)
+{
+    Close(a->fh);
+    free(a);
+}
+
+/**
+ * @brief Report an error of the LhA reader.
+ * @param a The archive.
+ * @param path Its path.
+ */
+static void archive_error(const Archive *a, const char *path)
+{
+    msg(path, ": ", a->lha.error);
+}
+
+/**
+ * @brief Extract an entry into memory.
+ * @param a The archive.
+ * @param e The entry.
+ * @param path The archive's path (for messages).
+ * @param max The largest size accepted.
+ * @param[out] data The contents, NUL-terminated (free() them).
+ * @param[out] len Their length.
+ * @return Non-zero on success, zero on an error (reported).
+ */
+static int extract_memory(Archive *a, const SproutLhaEntry *e, const char *path, LONG max, char **data, LONG *len)
+{
+    MemOut m;
+    if (e->size > (unsigned long)max) {
+        msg("file too large: ", e->path, NULL);
+        return 0;
+    }
+    m.cap = (LONG)e->size;
+    m.len = 0;
+    if ((m.data = (char *)malloc((size_t)m.cap + 1)) == NULL) {
+        msg("out of memory", NULL, NULL);
+        return 0;
+    }
+    if (sprout_lha_extract(&a->lha, e, mem_write, &m) < 0) {
+        archive_error(a, path);
+        free(m.data);
+        return 0;
+    }
+    m.data[m.len] = '\0';
+    *data = m.data;
+    *len = m.len;
+    return 1;
+}
+
+/**
+ * @brief Read a file of a template whole: template.json, its icon.
+ *
+ * For an archive, looking for template.json also finds the drawer that
+ * holds it (Source::prefix): the top of the archive or a single drawer.
+ *
+ * @param s The template.
+ * @param name The file, relative to the template (for an archive, below
+ *        Source::prefix).
+ * @param find_prefix Non-zero to look for template.json and set
+ *        Source::prefix (@p name is then ignored).
+ * @param max The largest size accepted.
+ * @param[out] data The contents, NUL-terminated (free() them).
+ * @param[out] len Their length.
+ * @return 1 if read; 0 if there is no such file (not reported); -1 on an
+ *         error (reported).
+ */
+static int template_file(Source *s, const char *name, int find_prefix, LONG max, char **data, LONG *len)
+{
+    SproutLhaEntry e;
+    Archive *a;
+    int r;
+    *data = NULL;
+    *len = 0;
+    if (!s->archive) {
+        char path[PATHMAX];
+        int is_dir;
+        if (!join(path, s->path, find_prefix ? "template.json" : name)) return -1;
+        if (!exists(path, &is_dir) || is_dir) return 0;
+        return read_file(path, max, data, len) ? 1 : -1;
+    }
+    if ((a = archive_open(s->path)) == NULL) return -1;
+    while ((r = sprout_lha_next(&a->lha, &e)) == 1) {
+        int match;
+        if (e.is_dir) continue;
+        if (find_prefix) {
+            const char *slash = strchr(e.path, '/');
+            match = same_name(e.path, "template.json") ||
+                    (slash != NULL && slash > e.path && same_name(slash + 1, "template.json") && (size_t)(slash - e.path) + 1 < PATHMAX);
+            if (match) {
+                size_t n = slash != NULL && !same_name(e.path, "template.json") ? (size_t)(slash - e.path) + 1 : 0;
+                memcpy(s->prefix, e.path, n);
+                s->prefix[n] = '\0';
+            }
+        } else {
+            size_t n = strlen(s->prefix);
+            match = name_order(e.path, s->prefix, n) == 0 && same_name(e.path + n, name);
+        }
+        if (match) {
+            r = extract_memory(a, &e, s->path, max, data, len) ? 1 : -1;
+            archive_close(a);
+            return r;
+        }
+    }
+    if (r < 0) archive_error(a, s->path);
+    archive_close(a);
+    return r < 0 ? -1 : 0;
+}
+
+/**
+ * @brief Read and check a template's metadata.
+ * @param s The template (for an archive, Source::prefix is set).
+ * @param[out] t The metadata (sprout_template_free() it).
+ * @return 1 on success; 0 on an error (reported); -1 if out of memory.
+ */
+static int load_meta(Source *s, SproutTemplate *t)
+{
+    char *text;
+    LONG len;
+    int r;
+    memset(t, 0, sizeof(*t));
+    r = template_file(s, NULL, 1, JSONMAX, &text, &len);
+    if (r == 0) msg("no template.json in ", s->path, NULL);
+    if (r <= 0) return 0;
+    r = sprout_template_parse(t, text, report, NULL);
+    free(text);
+    if (r < 0) msg("out of memory", NULL, NULL);
+    return r;
+}
+
+/**
+ * @brief Make the drawers above a file or drawer of the project (an
+ *        archive need not have entries for them).
+ * @param dest Its path in the project ('/' separated).
+ * @return Non-zero on success, zero on an error (reported).
+ */
+static int make_parents(const char *dest)
+{
+    char part[PATHMAX], path[PATHMAX];
+    size_t i;
+    strncpy(part, dest, PATHMAX - 1);
+    part[PATHMAX - 1] = '\0';
+    for (i = 0; part[i] != '\0'; ++i) {
+        if (part[i] != '/') continue;
+        part[i] = '\0';
+        if (!join(path, sp.to, part) || !make_drawer(path)) return 0;
+        part[i] = '/';
+    }
+    return 1;
+}
+
+/**
+ * @brief Write one file of an archive into the project.
+ * @param a The archive.
+ * @param e The entry.
+ * @param apath The archive's path (for messages).
+ * @param rel Its path below files/ (for the "verbatim" patterns).
+ * @param dst The destination.
+ * @return Non-zero on success, zero on an error (reported).
+ */
+static int archive_file(Archive *a, const SproutLhaEntry *e, const char *apath, const char *rel, const char *dst)
+{
+    int ok;
+    if (!prepare_file(dst)) return 0;
+    if (e->size > (unsigned long)SPROUT_TEXT_MAX) {
+        BPTR fh = Open((STRPTR)dst, MODE_NEWFILE);
+        if (fh == 0) {
+            dos_error("cannot create ", dst);
+            return 0;
+        }
+        ok = sprout_lha_extract(&a->lha, e, fh_write, &fh) > 0;
+        if (!ok) archive_error(a, apath);
+        if (!Close(fh) && ok) {
+            dos_error("cannot write ", dst);
+            ok = 0;
+        }
+    } else {
+        char *data;
+        LONG len;
+        if (!extract_memory(a, e, apath, SPROUT_TEXT_MAX, &data, &len)) return 0;
+        ok = put_contents(rel, dst, data, len);
+        free(data);
+    }
+    if (!ok) return 0;
+    /* Amiga LhA keeps the protection bits in the attribute byte */
+    finish_file(dst, e->os_id == 'A' && e->level < 2, (LONG)e->attribute, e->comment);
+    return 1;
+}
+
+/**
+ * @brief Copy the files/ of an archive into the project.
+ * @param s The template (Source::prefix set by load_meta()).
+ * @return Non-zero on success, zero on an error (reported).
+ */
+static int copy_archive(const Source *s)
+{
+    char files[PATHMAX], dst[PATHMAX];
+    SproutLhaEntry *e;
+    Archive *a;
+    size_t n;
+    int r, ok = 1;
+
+    if (strlen(s->prefix) + 7 > PATHMAX) return 0;
+    strcpy(files, s->prefix);
+    strcat(files, "files/");
+    n = strlen(files);
+    if ((e = (SproutLhaEntry *)malloc(sizeof(SproutLhaEntry))) == NULL) {
+        msg("out of memory", NULL, NULL);
+        return 0;
+    }
+    if ((a = archive_open(s->path)) == NULL) {
+        free(e);
+        return 0;
+    }
+    while (ok && (r = sprout_lha_next(&a->lha, e)) != 0) {
+        const char *rel = e->path + n;
+        char *dest;
+        int bad;
+        if (r < 0) {
+            archive_error(a, s->path);
+            ok = 0;
+            break;
+        }
+        /* only what is below files/ ("files" itself is shorter) */
+        if (strlen(e->path) <= n || name_order(e->path, files, n) != 0) continue;
+        if ((dest = sprout_expand_path(rel, sp.values, &bad)) == NULL) {
+            msg(bad ? "name not allowed in the project: " : "out of memory", bad ? rel : NULL, NULL);
+            ok = 0;
+            break;
+        }
+        ok = join(dst, sp.to, dest) && make_parents(dest);
+        free(dest);
+        if (ok) ok = e->is_dir ? make_drawer(dst) : archive_file(a, e, s->path, rel, dst);
+        if (ok && break_pressed()) ok = 0;
+    }
+    archive_close(a);
+    free(e);
+    return ok;
 }
 
 /**
@@ -655,35 +1066,24 @@ static int make_project_drawer(void)
 }
 
 /**
- * @brief Create the project: check the template, work out the values, make
- *        the drawer and copy the files.
+ * @brief Read the values given with VALUES and SET.
  * @param args The ReadArgs results.
- * @return The return code (RETURN_OK, _WARN, _ERROR or _FAIL).
+ * @param[out] given The values (initialised here; sprout_values_free() it).
+ * @return Non-zero on success, zero on an error (reported).
  */
-static LONG run(LONG *args)
+static int given_values(LONG *args, SproutValues *given)
 {
-    SproutTemplate t;
-    SproutValues given, values;
-    struct DateStamp now;
-    char tmpl[PATHMAX], path[PATHMAX], name[PATHMAX];
     char *text;
-    LONG len, rc = RETURN_ERROR;
-    int r, is_dir;
-
-    strncpy(sp.to, (const char *)args[ARG_TO], PATHMAX - 1);
-    sp.force = args[ARG_FORCE] != 0;
-    sp.quiet = args[ARG_QUIET] != 0;
-
-    /* the values given */
-    sprout_values_init(&given);
+    LONG len;
+    int r;
+    sprout_values_init(given);
     if (args[ARG_VALUES]) {
-        if (!read_file((const char *)args[ARG_VALUES], JSONMAX, &text, &len)) return RETURN_FAIL;
-        r = sprout_values_parse_json(&given, text);
+        if (!read_file((const char *)args[ARG_VALUES], JSONMAX, &text, &len)) return 0;
+        r = sprout_values_parse_json(given, text);
         free(text);
         if (r <= 0) {
             msg(r < 0 ? "out of memory" : "not a JSON object: ", r < 0 ? NULL : (const char *)args[ARG_VALUES], NULL);
-            sprout_values_free(&given);
-            return RETURN_FAIL;
+            return 0;
         }
     }
     if (args[ARG_SET]) {
@@ -694,34 +1094,50 @@ static LONG run(LONG *args)
         for (set = (STRPTR *)args[ARG_SET]; *set != NULL; ++set) {
             const char *item = (const char *)*set;
             if (strchr(item, '=') == NULL && set[1] != NULL)
-                r = sprout_values_set_arg(&given, item, strlen(item), (const char *)*++set);
+                r = sprout_values_set_arg(given, item, strlen(item), (const char *)*++set);
             else
-                r = sprout_values_parse_assign(&given, item);
-            if (r == 0) {
-                msg("not KEY=value: ", item, NULL);
-                sprout_values_free(&given);
-                return RETURN_FAIL;
-            }
-            if (r < 0) {
-                msg("out of memory", NULL, NULL);
-                sprout_values_free(&given);
-                return RETURN_FAIL;
+                r = sprout_values_parse_assign(given, item);
+            if (r <= 0) {
+                msg(r < 0 ? "out of memory" : "not KEY=value: ", r < 0 ? NULL : item, NULL);
+                return 0;
             }
         }
     }
+    return 1;
+}
 
-    /* the template */
-    if (!find_template((const char *)args[ARG_TMPL], (const char *)args[ARG_DIR], tmpl) ||
-        !join(path, tmpl, "template.json") || !read_file(path, JSONMAX, &text, &len)) {
+/**
+ * @brief Create the project: check the template, work out the values, make
+ *        the drawer and copy the files.
+ * @param args The ReadArgs results.
+ * @return The return code (RETURN_OK, _WARN, _ERROR or _FAIL).
+ */
+static LONG create(LONG *args)
+{
+    SproutTemplate t;
+    SproutValues given, values;
+    struct DateStamp now;
+    Source src;
+    char path[PATHMAX], name[PATHMAX];
+    LONG rc = RETURN_ERROR;
+    int r, is_dir;
+
+    strncpy(sp.to, (const char *)args[ARG_TO], PATHMAX - 1);
+    sp.force = args[ARG_FORCE] != 0;
+    sp.quiet = args[ARG_QUIET] != 0;
+
+    if (!given_values(args, &given)) {
+        sprout_values_free(&given);
+        return RETURN_FAIL;
+    }
+    if (!find_template((const char *)args[ARG_TMPL], (const char *)args[ARG_DIR], &src) ||
+        (r = load_meta(&src, &t)) == 0) {
         sprout_values_free(&given);
         return RETURN_ERROR;
     }
-    r = sprout_template_parse(&t, text, report, NULL);
-    free(text);
-    if (r <= 0) {
-        if (r < 0) msg("out of memory", NULL, NULL);
+    if (r < 0) {
         sprout_values_free(&given);
-        return r < 0 ? RETURN_FAIL : RETURN_ERROR;
+        return RETURN_FAIL;
     }
     if (strcmp(t.kind, "project") != 0) {
         msg("file templates are not supported yet: ", (const char *)args[ARG_TMPL], NULL);
@@ -742,14 +1158,20 @@ static LONG run(LONG *args)
     sp.values = &values;
 
     /* the drawer and the files */
-    if (parse_patterns(&t) && make_project_drawer() && join(path, tmpl, "files")) {
+    if (parse_patterns(&t) && make_project_drawer()) {
         int ok = 1;
-        if (exists(path, &is_dir)) {
-            if (is_dir) ok = copy_drawer(path, "", 0);
-            else {
-                msg("not a drawer: ", path, NULL);
-                ok = 0;
+        if (src.archive) {
+            ok = copy_archive(&src);
+        } else if (join(path, src.path, "files")) {
+            if (exists(path, &is_dir)) {
+                if (is_dir) ok = copy_drawer(path, "", 0);
+                else {
+                    msg("not a drawer: ", path, NULL);
+                    ok = 0;
+                }
             }
+        } else {
+            ok = 0;
         }
         if (ok) rc = sp.warnings > 0 ? RETURN_WARN : RETURN_OK;
     }
@@ -763,7 +1185,265 @@ out:
 }
 
 /**
- * @brief Read the arguments and create the project.
+ * @brief Write a JSON tree to the standard output, indented.
+ * @param root The tree.
+ * @return Non-zero on success, zero if out of memory (reported).
+ */
+static int print_json(const JsonValue *root)
+{
+    JsonWriter w;
+    int ok;
+    json_writer_init_alloc(&w, 4096);
+    json_write_value(&w, root, 0);
+    ok = !w.error;
+    if (ok) {
+        FPuts(Output(), (STRPTR)json_writer_get(&w));
+        FPuts(Output(), (STRPTR)"\n");
+    } else {
+        msg("out of memory", NULL, NULL);
+    }
+    json_writer_free(&w);
+    return ok;
+}
+
+/**
+ * @brief Describe a template as an entry of LIST or INFO: its metadata
+ *        (as in template.json) with "id" and "path", or "id", "path" and
+ *        "error".
+ * @param id Its identifier.
+ * @param path Its drawer or archive.
+ * @param t Its metadata, or NULL if it could not be read.
+ * @param error Why not (with @p t NULL).
+ * @return The object, or NULL if out of memory.
+ */
+static JsonValue *template_entry(const char *id, const char *path, const SproutTemplate *t, const char *error)
+{
+    JsonValue *o = t != NULL ? sprout_template_to_json(t) : json_new_object();
+    if (o == NULL) return NULL;
+    if (!json_obj_set(o, "id", json_new_string(id)) || !json_obj_set(o, "path", json_new_string(path)) ||
+        (t == NULL && !json_obj_set(o, "error", json_new_string(error)))) {
+        json_value_free(o);
+        return NULL;
+    }
+    return o;
+}
+
+/**
+ * @brief The identifier of a template: its drawer's or archive's name
+ *        without ".lha".
+ * @param path The drawer or archive.
+ * @param[out] id The identifier (#PATHMAX bytes).
+ */
+static void template_id(const char *path, char *id)
+{
+    size_t n;
+    drawer_name(path, id);
+    n = strlen(id);
+    if (n > 4 && same_name(id + n - 4, ".lha")) id[n - 4] = '\0';
+}
+
+/** A template found by LIST. */
+typedef struct Found {
+    char id[108];           /**< its identifier */
+    int archive;            /**< an archive (a drawer otherwise) */
+} Found;
+
+/**
+ * @brief Collect the templates of a drawer: drawers with a template.json
+ *        and archives *.lha; a drawer wins over an archive of the same
+ *        identifier. Sorted by identifier.
+ * @param dir The templates drawer.
+ * @param[out] found The templates (free() them).
+ * @param[out] count Their number.
+ * @return Non-zero on success, zero on an error (reported).
+ */
+static int collect_templates(const char *dir, Found **found, int *count)
+{
+    struct FileInfoBlock *fib;
+    char sub[PATHMAX], path[PATHMAX];
+    BPTR lock;
+    int cap = 0, ok = 1;
+
+    *found = NULL;
+    *count = 0;
+    if ((lock = Lock((STRPTR)dir, SHARED_LOCK)) == 0) {
+        dos_error("cannot read ", dir);
+        return 0;
+    }
+    if ((fib = (struct FileInfoBlock *)AllocDosObject(DOS_FIB, NULL)) == NULL) {
+        UnLock(lock);
+        msg("out of memory", NULL, NULL);
+        return 0;
+    }
+    if (!Examine(lock, fib)) {
+        dos_error("cannot read ", dir);
+        ok = 0;
+    }
+    while (ok && ExNext(lock, fib)) {
+        const char *name = (const char *)fib->fib_FileName;
+        size_t n = strlen(name);
+        LONG type = fib->fib_DirEntryType;
+        int archive, i, is_dir;
+        Found f;
+        if (type == ST_USERDIR) {
+            if (!join(sub, dir, name) || !join(path, sub, "template.json") || !exists(path, &is_dir) || is_dir)
+                continue;
+            archive = 0;
+            strncpy(f.id, name, sizeof(f.id) - 1);
+            f.id[sizeof(f.id) - 1] = '\0';
+        } else if (type == ST_FILE && n > 4 && same_name(name + n - 4, ".lha")) {
+            archive = 1;
+            memcpy(f.id, name, n - 4);
+            f.id[n - 4] = '\0';
+        } else {
+            continue;
+        }
+        f.archive = archive;
+        for (i = 0; i < *count && !same_name((*found)[i].id, f.id); ++i)
+            ;
+        if (i < *count) {           /* the same identifier: the drawer wins */
+            if (!archive) (*found)[i] = f;
+            continue;
+        }
+        if (*count == cap) {
+            Found *bigger = (Found *)realloc(*found, (size_t)(cap + 16) * sizeof(Found));
+            if (bigger == NULL) {
+                msg("out of memory", NULL, NULL);
+                ok = 0;
+                break;
+            }
+            *found = bigger;
+            cap += 16;
+        }
+        /* sorted by identifier */
+        for (i = *count; i > 0 && name_order((*found)[i - 1].id, f.id, (size_t)-1) > 0; --i)
+            (*found)[i] = (*found)[i - 1];
+        (*found)[i] = f;
+        ++*count;
+    }
+    if (ok && IoErr() != ERROR_NO_MORE_ENTRIES) {
+        dos_error("cannot read ", dir);
+        ok = 0;
+    }
+    FreeDosObject(DOS_FIB, fib);
+    UnLock(lock);
+    if (!ok) {
+        free(*found);
+        *found = NULL;
+        *count = 0;
+    }
+    return ok;
+}
+
+/**
+ * @brief LIST: write all templates of a drawer as JSON. A template that
+ *        cannot be read is listed with the reason.
+ * @param dir The templates drawer (DIR), or NULL for PROGDIR:Templates.
+ * @return The return code.
+ */
+static LONG list_templates(const char *dir)
+{
+    JsonValue *root, *list;
+    Found *found;
+    char error[160];
+    int count, i, ok;
+
+    if (dir == NULL) dir = TEMPLATES_DIR;
+    if (!collect_templates(dir, &found, &count)) return RETURN_ERROR;
+    root = json_new_object();
+    list = json_new_array();
+    ok = root != NULL && list != NULL && json_obj_set(root, "version", json_new_int(1));
+    for (i = 0; ok && i < count; ++i) {
+        SproutTemplate t;
+        Source s;
+        int r;
+        memset(&s, 0, sizeof(s));
+        s.archive = found[i].archive;
+        ok = join(s.path, dir, found[i].id);
+        if (ok && s.archive) {
+            if (strlen(s.path) + 4 >= PATHMAX) continue;
+            strcat(s.path, ".lha");
+        }
+        if (!ok) break;
+        error[0] = '\0';
+        sp.capture = error;
+        sp.capsize = sizeof(error);
+        r = load_meta(&s, &t);
+        sp.capture = NULL;
+        if (r < 0) ok = 0;
+        else ok = json_array_append(list, template_entry(found[i].id, s.path, r > 0 ? &t : NULL, error));
+        if (r > 0) sprout_template_free(&t);
+    }
+    free(found);
+    if (ok) {
+        ok = json_obj_set(root, "templates", list);
+        list = NULL;
+    }
+    json_value_free(list);
+    if (!ok) msg("out of memory", NULL, NULL);
+    else ok = print_json(root);
+    json_value_free(root);
+    return ok ? RETURN_OK : RETURN_FAIL;
+}
+
+/**
+ * @brief INFO: write a template's metadata as JSON; with ICON also write
+ *        its icon file (from "icon") to a file.
+ * @param arg The TEMPLATE argument.
+ * @param dir The templates drawer (DIR), or NULL.
+ * @param icon Where the icon goes, or NULL.
+ * @return The return code.
+ */
+static LONG info_template(const char *arg, const char *dir, const char *icon)
+{
+    SproutTemplate t;
+    JsonValue *root, *entry;
+    Source s;
+    char id[PATHMAX];
+    LONG rc = RETURN_OK;
+    int r;
+
+    if (!find_template(arg, dir, &s) || (r = load_meta(&s, &t)) == 0) return RETURN_ERROR;
+    if (r < 0) return RETURN_FAIL;
+    template_id(s.path, id);
+    root = json_new_object();
+    entry = template_entry(id, s.path, &t, NULL);
+    if (root == NULL || entry == NULL || !json_obj_set(root, "version", json_new_int(1))) {
+        json_value_free(entry);
+        entry = NULL;
+    }
+    if (entry == NULL || !json_obj_set(root, "template", entry)) {   /* takes entry over */
+        json_value_free(root);
+        sprout_template_free(&t);
+        msg("out of memory", NULL, NULL);
+        return RETURN_FAIL;
+    }
+    if (!print_json(root)) rc = RETURN_FAIL;
+    json_value_free(root);
+
+    if (rc == RETURN_OK && icon != NULL && t.icon_file != NULL) {
+        char *data;
+        LONG len;
+        if (!sprout_path_safe(t.icon_file)) {
+            ++sp.warnings;
+            msg("warning: icon file not allowed: ", t.icon_file, NULL);
+        } else if ((r = template_file(&s, t.icon_file, 0, JSONMAX, &data, &len)) == 0) {
+            ++sp.warnings;
+            msg("warning: icon file missing in the template: ", t.icon_file, NULL);
+        } else if (r < 0) {
+            rc = RETURN_ERROR;
+        } else {
+            if (!write_file(icon, data, len)) rc = RETURN_ERROR;
+            free(data);
+        }
+    }
+    sprout_template_free(&t);
+    if (rc == RETURN_OK && sp.warnings > 0) rc = RETURN_WARN;
+    return rc;
+}
+
+/**
+ * @brief Read the arguments and list, describe or create.
  * @return The return code for the Shell.
  */
 int main(void)
@@ -780,7 +1460,22 @@ int main(void)
         PrintFault(IoErr(), (STRPTR)"Sprout");
         return RETURN_FAIL;
     }
-    rc = run(args);
+    if (args[ARG_LIST]) {
+        rc = list_templates((const char *)args[ARG_DIR]);
+    } else if (args[ARG_INFO]) {
+        if (args[ARG_TMPL] == 0) {
+            msg("INFO needs a TEMPLATE", NULL, NULL);
+            rc = RETURN_FAIL;
+        } else {
+            rc = info_template((const char *)args[ARG_TMPL], (const char *)args[ARG_DIR],
+                               (const char *)args[ARG_ICON]);
+        }
+    } else if (args[ARG_TMPL] == 0 || args[ARG_TO] == 0) {
+        msg("TEMPLATE and TO are needed (or LIST, or INFO with TEMPLATE)", NULL, NULL);
+        rc = RETURN_FAIL;
+    } else {
+        rc = create(args);
+    }
     FreeArgs(rda);
     return (int)rc;
 }

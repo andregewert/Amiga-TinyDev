@@ -4,6 +4,7 @@
  *        and paths.
  */
 #include "sprout_tmpl.h"
+#include "json.h"
 
 #include <assert.h>
 #include <stdio.h>
@@ -103,8 +104,35 @@ static void test_parse(void)
     assert(t.ph[2].nchoices == 2 && strcmp(t.ph[2].choices[1], "vbcc") == 0);
     assert(t.nopen == 2 && strcmp(t.open[0], "src/{$NAME}.c") == 0);
     assert(t.nverbatim == 1 && strcmp(t.verbatim[0], "#?.iff") == 0);
+    {   /* written as a tree and read back: the same */
+        SproutTemplate u;
+        JsonValue *tree = sprout_template_to_json(&t);
+        assert(tree != NULL);
+        assert(json_obj_get_int(tree, "version", 0) == 1);
+        assert(sprout_template_from_json(&u, tree, report, NULL) == 1);
+        assert(strcmp(u.kind, t.kind) == 0 && strcmp(u.name, t.name) == 0);
+        assert(strcmp(u.description, t.description) == 0 && strcmp(u.category, t.category) == 0);
+        assert(strcmp(u.icon_type, "program") == 0 && strcmp(u.icon_file, "template.info") == 0);
+        assert(u.nph == 3 && strcmp(u.ph[0].def, "{$PROJECT}") == 0 && strcmp(u.ph[0].label, "Program name") == 0);
+        assert(u.ph[1].required && u.ph[1].label == NULL && strcmp(u.ph[1].description, "Who") == 0);
+        assert(!u.ph[0].required && u.ph[2].nchoices == 2 && strcmp(u.ph[2].choices[0], "gcc") == 0);
+        assert(u.nopen == 2 && strcmp(u.open[1], "Makefile") == 0);
+        assert(u.nverbatim == 1 && strcmp(u.verbatim[0], "#?.iff") == 0);
+        sprout_template_free(&u);
+        json_value_free(tree);
+    }
     sprout_template_free(&t);
     assert(t.name == NULL && t.nph == 0);
+    {   /* a minimal one: only what is there is written */
+        JsonValue *tree;
+        assert(sprout_template_parse(&t, "{ \"name\": \"X\" }", report, NULL) == 1);
+        tree = sprout_template_to_json(&t);
+        assert(tree != NULL && json_obj_get(tree, "icon") == NULL && json_obj_get(tree, "placeholders") == NULL);
+        assert(json_obj_get(tree, "open") == NULL && strcmp(json_obj_get_string(tree, "category", ""), "Other") == 0);
+        json_value_free(tree);
+        sprout_template_free(&t);
+        assert(sprout_template_from_json(&t, NULL, report, NULL) == 0);
+    }
 
     /* only a name: kind project, category Other */
     assert(sprout_template_parse(&t, "{ \"name\": \"X\" }", report, NULL) == 1);

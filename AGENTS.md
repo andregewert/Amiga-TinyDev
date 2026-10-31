@@ -187,18 +187,23 @@ below the tree's root.
   `src/scout/docs/Scout-Protocol.md`. Scout and the parsers must not
   depend on TinyDev, so they can move to a repository of their own.
 - `src/sprout/`: Sprout (`bin/Sprout`), the Shell command that creates a
-  project from a template (a drawer in `PROGDIR:Templates/`; LhA
-  archives follow): `sprout_main.c` (arguments, copying, protection bits
-  and file notes, removing what it made on an error) and
-  `sprout_tmpl.c` with `include/sprout_tmpl.h` (the portable core:
-  `template.json`, values, placeholders `{$KEY}`, safe paths;
-  host-tested in `tests/test_sprout_tmpl.c`). Its design is
-  `src/sprout/docs/Sprout.md`. Like Scout it must not depend on TinyDev.
+  project from a template (an LhA archive or a drawer in
+  `PROGDIR:Templates/`) and lists or describes templates as JSON (`LIST`,
+  `INFO`): `sprout_main.c` (arguments, templates as drawers or archives,
+  copying, protection bits and file notes, removing what it made on an
+  error, the JSON output), `sprout_tmpl.c` with `include/sprout_tmpl.h`
+  (the portable core: `template.json` as text or tree, values,
+  placeholders `{$KEY}`, safe paths; host-tested in
+  `tests/test_sprout_tmpl.c`) and `sprout_lha.c` with
+  `include/sprout_lha.h` (the portable LhA reader: header levels 0-2,
+  -lh0-/-lh4- to -lh7-, CRCs; host-tested in `tests/test_sprout_lha.c`).
+  Its design is `src/sprout/docs/Sprout.md`. Like Scout it must not
+  depend on TinyDev.
 - `templates/`: the templates that come with TinyDev (`templates/<Id>/`
   with `template.json` and `files/`, ISO-8859-1); `make` copies them to
   `bin/Templates/` with `cp` and checks them with `charcheck-templates`,
   as their names may contain `{$...}`, which make and the Shell would
-  expand.
+  expand; `make dist` packs each into `Templates/<Id>.lha`.
 - `src/json.c`, `include/json.h`: the portable JSON code (values, reader,
   accessors, building and changing trees, writer, indented output of a
   tree) of TinyDev, Scout and the parsers; strings stay 8-bit as read
@@ -240,6 +245,9 @@ below the tree's root.
 - `tests/test_filetypes.c`: host-native tests of the settings per file type.
 - `tests/test_sprout_tmpl.c`: host-native tests of Sprout's core (also
   reads `templates/HelloWorld/template.json`).
+- `tests/test_sprout_lha.c`: host-native tests of the LhA reader with the
+  archives of `tests/data/sprout/` (binary, left out of `charcheck`),
+  made by `tools/mksprouttests.py` with jlha.
 - `tests/test_dirtree_sort.c`: host-native tests of dirtree.gadget's natural order.
 - `tests/test_htmltitle.c`: host-native tests of the HelpViewer's title and link helpers.
 - `tests/test_json.c`, `tests/test_scout_rpc.c`, `tests/test_c_parser.c`:
@@ -266,6 +274,8 @@ below the tree's root.
   `help/<language>/` (TinyDev's help pages, HTML in ISO-8859-1 with
   entities; language drawers named like the Amiga locales, the same file
   names in every language; `make` copies them to `bin/Help/`).
+- `tools/mksprouttests.py`: makes the LhA archives of
+  `tests/test_sprout_lha.c` (`tests/data/sprout/`) with jlha.
 - `tools/mkdist.py`: `make dist` builds `dist/TinyDev.lha` from `bin/`,
   the README, the sources (built without git) and icons, with
   `amiga-devkit/tools/distlib.py`.

@@ -21,7 +21,7 @@ SCOUT_DEPS := $(SCOUT_OBJECTS:.o=.d)
 # Sprout (src/sprout/): the Shell command that creates a project from a
 # template (src/sprout/docs/Sprout.md).
 SPROUT_TARGET := $(BIN_DIR)/Sprout
-SPROUT_SOURCES := src/sprout/sprout_main.c src/sprout/sprout_tmpl.c src/json.c
+SPROUT_SOURCES := src/sprout/sprout_main.c src/sprout/sprout_tmpl.c src/sprout/sprout_lha.c src/json.c
 SPROUT_OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SPROUT_SOURCES))
 SPROUT_DEPS := $(SPROUT_OBJECTS:.o=.d)
 
@@ -101,7 +101,8 @@ REGEX_HEADERS := $(REGEX_GEN)/regex.h $(REGEX_GEN)/regcomp.ih $(REGEX_GEN)/engin
 REGEX_CFLAGS := -DPOSIX_MISTAKE -I$(REGEX_GEN) -I$(REGEX_DIR) -w
 REGEX_OBJECTS := $(foreach n,$(REGEX_NAMES),$(REGEX_GEN)/$(n).o)
 REGEX_HOST_OBJECTS := $(foreach n,$(REGEX_NAMES),$(REGEX_GEN)/host/$(n).o)
-LATIN1 := $(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h src/helpviewer/*.h src/helpviewer/catalogs/* src/scout/*.h src/scout/catalogs/* sfd/*.sfd tests/*.c scripts/* tests-host/* catalogs/* package/*.readme $(HELP_SOURCES) examples/*/*.c examples/*/Makefile examples/*/*.txt examples/*/.tinydev/*.json tests/data/*/* LICENSE Makefile)
+# (the LhA archives of tests/data/sprout/ are binary)
+LATIN1 := $(filter-out tests/data/sprout/%,$(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h src/helpviewer/*.h src/helpviewer/catalogs/* src/scout/*.h src/scout/catalogs/* sfd/*.sfd tests/*.c scripts/* tests-host/* catalogs/* package/*.readme $(HELP_SOURCES) examples/*/*.c examples/*/Makefile examples/*/*.txt examples/*/.tinydev/*.json tests/data/*/* LICENSE Makefile))
 
 # Translations: catalogs/TinyDev.cd holds the built-in English strings,
 # catalogs/<language>.ct the translations. include/tinydev_strings.h is in
@@ -232,7 +233,7 @@ $(BUILD_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)
 	$(TARGET_CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_projconf $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_json $(BUILD_DIR)/test_scout_rpc $(BUILD_DIR)/test_c_parser $(BUILD_DIR)/test_dos_parser $(BUILD_DIR)/test_scout_store $(BUILD_DIR)/test_rules $(BUILD_DIR)/test_filetypes $(BUILD_DIR)/test_sprout_tmpl
+test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_projconf $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_json $(BUILD_DIR)/test_scout_rpc $(BUILD_DIR)/test_c_parser $(BUILD_DIR)/test_dos_parser $(BUILD_DIR)/test_scout_store $(BUILD_DIR)/test_rules $(BUILD_DIR)/test_filetypes $(BUILD_DIR)/test_sprout_tmpl $(BUILD_DIR)/test_sprout_lha
 	./$(BUILD_DIR)/test_syntax
 	./$(BUILD_DIR)/test_search
 	./$(BUILD_DIR)/test_bmstore
@@ -247,6 +248,7 @@ test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstor
 	./$(BUILD_DIR)/test_rules
 	./$(BUILD_DIR)/test_filetypes
 	./$(BUILD_DIR)/test_sprout_tmpl
+	./$(BUILD_DIR)/test_sprout_lha
 
 $(BUILD_DIR)/test_syntax: src/syntax.c src/rules.c src/tokenmap.c src/json.c tests/test_syntax.c include/syntax.h include/rules.h include/tokenmap.h
 	@mkdir -p $(BUILD_DIR)
@@ -263,6 +265,10 @@ $(BUILD_DIR)/test_bmstore: src/bmstore.c src/json.c tests/test_bmstore.c include
 $(BUILD_DIR)/test_htmltitle: src/helpviewer/htmltitle.c tests/test_htmltitle.c src/helpviewer/htmltitle.h
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Isrc/helpviewer -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/helpviewer/htmltitle.c tests/test_htmltitle.c
+
+$(BUILD_DIR)/test_sprout_lha: src/sprout/sprout_lha.c tests/test_sprout_lha.c include/sprout_lha.h $(wildcard tests/data/sprout/*)
+	@mkdir -p $(BUILD_DIR)
+	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/sprout/sprout_lha.c tests/test_sprout_lha.c
 
 $(BUILD_DIR)/test_sprout_tmpl: src/sprout/sprout_tmpl.c src/json.c tests/test_sprout_tmpl.c include/sprout_tmpl.h include/json.h
 	@mkdir -p $(BUILD_DIR)

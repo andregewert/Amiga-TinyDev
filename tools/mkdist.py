@@ -5,12 +5,13 @@
 #
 # Creates dist/TinyDev/ with the programs, classes, catalogs and help
 # pages from bin/ (laid out as on the Amiga, so it runs from the archive),
+# the templates packed as LhA archives (Templates/<Id>.lha, for Sprout),
 # the documentation (README.md converted to ISO-8859-1), the sources and
 # icons (classic icons next to the files, complete GlowIcons and NewIcons
 # sets in Icons/, see mkicons.py), then packs it with lha. The common parts
 # come from amiga-devkit/tools/distlib.py. Run "make dist".
 
-import os, shutil, sys
+import os, shutil, subprocess, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from mkicons import ROOT, PARSER_C, PARSER_DOS, WBDRAWER, WBTOOL, WBPROJECT  # noqa: E402  (registers the motifs)
@@ -21,6 +22,21 @@ DRAWER_ICON = NAME + '-Drawer'      # Icons/<Style>/: icon of the package drawer
 DIST = os.path.join(ROOT, 'dist')
 PKG = os.path.join(DIST, NAME)
 MULTIVIEW = 'SYS:Utilities/MultiView'
+
+
+def pack_templates(dest):
+    """ templates/<Id>/ (drawers in the repository and in bin/) as archives
+        dest/<Id>.lha, as Sprout reads them: template.json and files/ at
+        the top                                                          """
+    tool = shutil.which('jlha') or 'lha'
+    top = os.path.join(ROOT, 'templates')
+    os.makedirs(dest, exist_ok=True)
+    for tid in sorted(os.listdir(top)):
+        tdir = os.path.join(top, tid)
+        if not os.path.isfile(os.path.join(tdir, 'template.json')):
+            continue
+        parts = ['template.json'] + [p for p in ('template.info', 'files') if os.path.exists(os.path.join(tdir, p))]
+        subprocess.run([tool, 'ao5q', os.path.join(dest, tid + '.lha')] + parts, cwd=tdir, check=True)
 
 
 def drawers(top):
@@ -40,11 +56,12 @@ def main():
     copy(b('package', NAME + '.readme'), os.path.join(PKG, NAME + '.readme'))
     copy(b('LICENSE'), os.path.join(PKG, 'LICENSE'))
     # bin/ is laid out as on the Amiga: programs, classes, catalogs, help
-    for f in ('TinyDev', 'TinyDev-Scout', 'HelpViewer', os.path.join('parsers', 'c_parser'),
+    for f in ('TinyDev', 'TinyDev-Scout', 'HelpViewer', 'Sprout', os.path.join('parsers', 'c_parser'),
               os.path.join('parsers', 'dos_parser')):
         copy(b('bin', f), os.path.join(PKG, f))
     for d in ('Classes', 'Catalogs', 'Help'):
         copytree(b('bin', d), os.path.join(PKG, d))
+    pack_templates(os.path.join(PKG, 'Templates'))
 
     docs = os.path.join(PKG, 'Docs')
     latin1_copy(b('README.md'), os.path.join(docs, 'README.md'))
@@ -55,7 +72,7 @@ def main():
 
     # sources in the same layout as the repository, so "make" works there
     src = os.path.join(PKG, 'Source')
-    for d in ('src', 'include', 'sfd', 'catalogs', 'tests', 'tests-host', 'scripts', 'tools', 'package'):
+    for d in ('src', 'include', 'sfd', 'catalogs', 'tests', 'scripts', 'tools', 'package', 'templates'):
         copytree(b(d), os.path.join(src, d), ignore=('__pycache__',))
     for f in ('Makefile', 'README.md', 'LICENSE', 'AGENTS.md', 'CLAUDE.md', 'TECHNICAL.md', 'FUTURE.md',
               'screenshot.png'):
@@ -77,7 +94,7 @@ def main():
              (NAME + '.readme', 'readme', WBPROJECT, dict(default_tool=MULTIVIEW)),
              ('LICENSE', 'license', WBPROJECT, dict(default_tool=MULTIVIEW)),
              ('Docs/README.md', 'readme', WBPROJECT, dict(default_tool=MULTIVIEW))]
-    shown = ['Docs', 'Icons', 'Source', 'parsers', 'Classes', 'Catalogs', 'Help']
+    shown = ['Docs', 'Icons', 'Source', 'parsers', 'Classes', 'Catalogs', 'Help', 'Templates']
     for top in ('Classes', 'Catalogs', 'Help'):
         shown += drawers(os.path.join(PKG, top))
     for d in shown:
