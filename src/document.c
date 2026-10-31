@@ -553,6 +553,9 @@ void document_set_path(EditorApp *app, Document *doc, const char *path)
     doc->path = copy;
     strncpy(doc->title, base_name(path), sizeof(doc->title) - 1);
     doc->title[sizeof(doc->title) - 1] = '\0';
+    /* the full name as the tab's help bubble (clicktab.gadget V47 copies
+     * it; document_set_dirty() below hands the labels over again) */
+    SetClickTabNodeAttrs(doc->tab, TNA_HelpText, (ULONG)doc->path, TAG_END);
     /* The callers mark the document clean right after this; show the new
      * title now (without toggling the dirty flag, which redrew twice). */
     doc->dirty = 1;
