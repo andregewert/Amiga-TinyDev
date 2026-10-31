@@ -186,6 +186,19 @@ below the tree's root.
   design is `src/scout/docs/Scout.md`, the parser protocol
   `src/scout/docs/Scout-Protocol.md`. Scout and the parsers must not
   depend on TinyDev, so they can move to a repository of their own.
+- `src/sprout/`: Sprout (`bin/Sprout`), the Shell command that creates a
+  project from a template (a drawer in `PROGDIR:Templates/`; LhA
+  archives follow): `sprout_main.c` (arguments, copying, protection bits
+  and file notes, removing what it made on an error) and
+  `sprout_tmpl.c` with `include/sprout_tmpl.h` (the portable core:
+  `template.json`, values, placeholders `{$KEY}`, safe paths;
+  host-tested in `tests/test_sprout_tmpl.c`). Its design is
+  `src/sprout/docs/Sprout.md`. Like Scout it must not depend on TinyDev.
+- `templates/`: the templates that come with TinyDev (`templates/<Id>/`
+  with `template.json` and `files/`, ISO-8859-1); `make` copies them to
+  `bin/Templates/` with `cp` and checks them with `charcheck-templates`,
+  as their names may contain `{$...}`, which make and the Shell would
+  expand.
 - `src/json.c`, `include/json.h`: the portable JSON code (values, reader,
   accessors, building and changing trees, writer, indented output of a
   tree) of TinyDev, Scout and the parsers; strings stay 8-bit as read
@@ -225,6 +238,8 @@ below the tree's root.
 - `tests/test_bmstore.c`: host-native tests of the bookmark store.
 - `tests/test_projconf.c`: host-native tests of the project settings.
 - `tests/test_filetypes.c`: host-native tests of the settings per file type.
+- `tests/test_sprout_tmpl.c`: host-native tests of Sprout's core (also
+  reads `templates/HelloWorld/template.json`).
 - `tests/test_dirtree_sort.c`: host-native tests of dirtree.gadget's natural order.
 - `tests/test_htmltitle.c`: host-native tests of the HelpViewer's title and link helpers.
 - `tests/test_json.c`, `tests/test_scout_rpc.c`, `tests/test_c_parser.c`:
@@ -287,6 +302,7 @@ make test
 - Finished Amiga binaries go to `bin/` (`bin/TinyDev`, `bin/TinyDev-Scout`,
   `bin/parsers/c_parser`, `bin/parsers/dos_parser`, `bin/Classes/Gadgets/<name>.gadget`,
   `bin/Catalogs/<language>/TinyDev.catalog`, `bin/HelpViewer`,
+  `bin/Sprout`, `bin/Templates/`,
   `bin/Help/<language>/`), laid out as on
   the Amiga; nothing else goes there. All intermediate files (objects,
   dependency files, `.debug` files, host test binaries) go to `build/`; gadget

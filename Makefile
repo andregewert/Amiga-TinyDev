@@ -18,6 +18,18 @@ SCOUT_SOURCES := src/scout/scout_main.c src/scout/scout_broker.c src/scout/scout
 SCOUT_OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SCOUT_SOURCES))
 SCOUT_DEPS := $(SCOUT_OBJECTS:.o=.d)
 
+# Sprout (src/sprout/): the Shell command that creates a project from a
+# template (src/sprout/docs/Sprout.md).
+SPROUT_TARGET := $(BIN_DIR)/Sprout
+SPROUT_SOURCES := src/sprout/sprout_main.c src/sprout/sprout_tmpl.c src/json.c
+SPROUT_OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SPROUT_SOURCES))
+SPROUT_DEPS := $(SPROUT_OBJECTS:.o=.d)
+
+# The templates that come with TinyDev (templates/<Id>/): copied whole to
+# bin/Templates/ (PROGDIR:Templates/). Their file names may contain
+# placeholders ({$NAME}), which make and the Shell would take for
+# variables, so they are handled with find and cp, never listed here.
+
 PARSER_C_TARGET := $(BIN_DIR)/parsers/c_parser
 PARSER_DOS_TARGET := $(BIN_DIR)/parsers/dos_parser
 
@@ -103,9 +115,9 @@ HV_CATALOGS := $(foreach l,$(HV_LANGUAGES),$(BIN_DIR)/Catalogs/$(l)/HelpViewer.c
 SCOUT_LANGUAGES := $(basename $(notdir $(wildcard src/scout/catalogs/*.ct)))
 SCOUT_CATALOGS := $(foreach l,$(SCOUT_LANGUAGES),$(BIN_DIR)/Catalogs/$(l)/TinyDev-Scout.catalog)
 
-.PHONY: all clean test icons dist
-all: charcheck $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(SCOUT_CATALOGS) $(PARSER_C_TARGET) $(PARSER_DOS_TARGET) $(CATALOGS) \
-     $(HV_TARGET) $(HV_CATALOGS) $(HELP_FILES)
+.PHONY: all clean test icons dist templates charcheck-templates
+all: charcheck charcheck-templates $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(SCOUT_CATALOGS) $(PARSER_C_TARGET) $(PARSER_DOS_TARGET) $(CATALOGS) \
+     $(HV_TARGET) $(HV_CATALOGS) $(HELP_FILES) $(SPROUT_TARGET) templates
 
 # Included after "all" so that charcheck does not become the default goal.
 include $(DEVKIT)/make/charcheck.mk
@@ -119,7 +131,7 @@ $(foreach c,$(CLASS_NAMES),$(eval $(call CLASS_RULES,$(c))))
 # (catalog strings, sfdc output) are left out.
 include $(DEVKIT)/make/docs.mk
 DOC_SOURCES := $(filter-out include/tinydev_strings.h src/helpviewer/helpviewer_strings.h src/scout/scout_strings.h, \
-    $(wildcard src/*.c src/scout/*.c src/parsers/*.c src/classes/*/*.c src/classes/*/*.h \
+    $(wildcard src/*.c src/scout/*.c src/sprout/*.c src/parsers/*.c src/classes/*/*.c src/classes/*/*.h \
                src/helpviewer/*.c src/helpviewer/*.h \
                include/*.h include/gadgets/*.h tests/*.c))
 $(eval $(call DOXYGEN_DOCS,docs,TinyDev,$(firstword $(subst ", ,$(shell sed -n 's/^.define APP_VERSION "\([^ ]*\).*/\1/p' include/editor.h))),$(DOC_SOURCES),$(BUILD_DIR)/docs))
@@ -186,6 +198,22 @@ $(REGEX_GEN)/host/%.o: $(REGEX_DIR)/%.c $(REGEX_HEADERS)
 $(BUILD_DIR)/search.o: CPPFLAGS += -I$(REGEX_GEN)
 $(BUILD_DIR)/search.o: | $(REGEX_GEN)/regex.h
 
+$(SPROUT_TARGET): $(SPROUT_OBJECTS)
+	@mkdir -p $(BIN_DIR)
+	$(TARGET_CC) $(LDFLAGS) -Wl,-u,___stkinit -o $@ $(SPROUT_OBJECTS)
+
+# copied again every time (cheap), so removed files go too
+templates:
+	@rm -rf $(BIN_DIR)/Templates
+	@mkdir -p $(BIN_DIR)/Templates
+	@if [ -d templates ]; then cp -a templates/. $(BIN_DIR)/Templates/; fi
+
+# charcheck for the templates' text files (see "templates" above for why
+# not through LATIN1); icons are binary
+charcheck-templates:
+	@if [ -d templates ] && find templates -type f ! -name '*.info' -exec env LC_ALL=C grep -lP '[\xC2-\xF4][\x80-\xBF]' {} + ; then \
+		echo "*** The files above contain UTF-8, please convert them to ISO-8859-1"; exit 1; fi
+
 $(SCOUT_TARGET): $(SCOUT_OBJECTS)
 	@mkdir -p $(BIN_DIR)
 	$(TARGET_CC) $(LDFLAGS) -Wl,-u,___stkinit -o $@ $(SCOUT_OBJECTS) -lamiga
@@ -204,7 +232,7 @@ $(BUILD_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)
 	$(TARGET_CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_projconf $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_json $(BUILD_DIR)/test_scout_rpc $(BUILD_DIR)/test_c_parser $(BUILD_DIR)/test_dos_parser $(BUILD_DIR)/test_scout_store $(BUILD_DIR)/test_rules $(BUILD_DIR)/test_filetypes
+test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_projconf $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_json $(BUILD_DIR)/test_scout_rpc $(BUILD_DIR)/test_c_parser $(BUILD_DIR)/test_dos_parser $(BUILD_DIR)/test_scout_store $(BUILD_DIR)/test_rules $(BUILD_DIR)/test_filetypes $(BUILD_DIR)/test_sprout_tmpl
 	./$(BUILD_DIR)/test_syntax
 	./$(BUILD_DIR)/test_search
 	./$(BUILD_DIR)/test_bmstore
@@ -218,6 +246,7 @@ test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstor
 	./$(BUILD_DIR)/test_scout_store
 	./$(BUILD_DIR)/test_rules
 	./$(BUILD_DIR)/test_filetypes
+	./$(BUILD_DIR)/test_sprout_tmpl
 
 $(BUILD_DIR)/test_syntax: src/syntax.c src/rules.c src/tokenmap.c src/json.c tests/test_syntax.c include/syntax.h include/rules.h include/tokenmap.h
 	@mkdir -p $(BUILD_DIR)
@@ -234,6 +263,10 @@ $(BUILD_DIR)/test_bmstore: src/bmstore.c src/json.c tests/test_bmstore.c include
 $(BUILD_DIR)/test_htmltitle: src/helpviewer/htmltitle.c tests/test_htmltitle.c src/helpviewer/htmltitle.h
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Isrc/helpviewer -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/helpviewer/htmltitle.c tests/test_htmltitle.c
+
+$(BUILD_DIR)/test_sprout_tmpl: src/sprout/sprout_tmpl.c src/json.c tests/test_sprout_tmpl.c include/sprout_tmpl.h include/json.h
+	@mkdir -p $(BUILD_DIR)
+	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/sprout/sprout_tmpl.c src/json.c tests/test_sprout_tmpl.c
 
 $(BUILD_DIR)/test_projconf: src/projconf.c src/json.c tests/test_projconf.c include/projconf.h include/json.h
 	@mkdir -p $(BUILD_DIR)
@@ -283,4 +316,4 @@ dist: all
 clean:
 	rm -rf $(BUILD_DIR) $(BIN_DIR) dist
 
--include $(DEPS) $(SCOUT_DEPS) $(CLASS_DEPS) $(HV_DEPS)
+-include $(DEPS) $(SCOUT_DEPS) $(CLASS_DEPS) $(HV_DEPS) $(SPROUT_DEPS)

@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "kind": "project",
+  "name": "Hello World (vbcc)",
+  "description": "A small C program for the Shell, with a Makefile for vbcc and the commands of the Build menu.",
+  "category": "C",
+  "icon": { "type": "program" },
+  "placeholders": [
+    { "key": "NAME", "label": "Program name", "default": "{$PROJECT:ident}",
+      "description": "The name of the program and of its source file" },
+    { "key": "AUTHOR", "label": "Author", "required": true },
+    { "key": "PURPOSE", "label": "Description", "default": "A program that greets the world" }
+  ],
+  "open": ["{$NAME}.c"]
+}

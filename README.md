@@ -257,6 +257,20 @@ ARexx commands and the protocol for writing parsers are described in
 [src/scout/docs/Scout.md](src/scout/docs/Scout.md) and
 [src/scout/docs/Scout-Protocol.md](src/scout/docs/Scout-Protocol.md).
 
+## Sprout
+
+`Sprout` creates a project from a template: it makes the project drawer,
+copies the template's files and fills in placeholders (`{$NAME}`) in file
+names and texts. Templates are drawers in `Templates/` (LhA archives
+follow).
+
+    Sprout <template> <project drawer> [KEY=value ...] [VALUES <file>] [DIR <drawer>] [FORCE] [QUIET]
+
+For example `Sprout HelloWorld Work:Hello AUTHOR=Me`; keys may be written
+in any case, and `PROJECT=<name>` names the project (otherwise it is named
+after its drawer). The template format
+is described in [src/sprout/docs/Sprout.md](src/sprout/docs/Sprout.md).
+
 ## Building
 
 The shared tools in `amiga-devkit/` are a git submodule

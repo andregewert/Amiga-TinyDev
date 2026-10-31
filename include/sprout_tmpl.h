@@ -1,0 +1,236 @@
+/**
+ * @file sprout_tmpl.h
+ * @brief Portable core of Sprout: a template's metadata (template.json),
+ *        the values of its placeholders and their replacement in names
+ *        and text.
+ *
+ * No Amiga headers, so the host tests can use it; TinyDev's wizard links
+ * it too, to show the defaults Sprout would use. The format is described
+ * in src/sprout/docs/Sprout.md.
+ *
+ * A placeholder is written {$KEY} or {$KEY:modifier} (modifiers upper,
+ * lower, ident); keys are A-Z, 0-9 and _, starting with a letter. Only
+ * defined keys are replaced; a placeholder with one more $ ({$$KEY}) is
+ * written without that $ instead.
+ */
+#ifndef SPROUT_TMPL_H
+#define SPROUT_TMPL_H
+
+#include <stddef.h>
+
+/** The largest file whose contents placeholders are replaced in (1 MB). */
+#define SPROUT_TEXT_MAX (1024L * 1024L)
+
+/**
+ * @brief Receives a message of the core.
+ * @param user The pointer given with the callback.
+ * @param error Non-zero for an error, zero for a warning.
+ * @param text The message (English, without line end).
+ */
+typedef void (*SproutReport)(void *user, int error, const char *text);
+
+/** A placeholder of a template. All strings are malloc()ed. */
+typedef struct SproutPlaceholder {
+    char *key;          /**< its key */
+    char *label;        /**< label in the wizard; NULL: the key */
+    char *description;  /**< help text; NULL if none */
+    char *def;          /**< default (may contain placeholders); NULL if none */
+    int required;       /**< non-zero: the value must not be empty */
+    char **choices;     /**< the allowed values; NULL if any value is */
+    int nchoices;       /**< number of choices */
+} SproutPlaceholder;
+
+/** A template's metadata. All strings are malloc()ed. */
+typedef struct SproutTemplate {
+    char *kind;                 /**< "project" or "file" */
+    char *name;                 /**< shown name */
+    char *description;          /**< description; NULL if none */
+    char *category;             /**< category; "Other" if none was given */
+    char *icon_type;            /**< icon type; NULL if none */
+    char *icon_file;            /**< icon file in the template; NULL if none */
+    SproutPlaceholder *ph;      /**< the placeholders, in their order */
+    int nph;                    /**< number of placeholders */
+    char **open;                /**< files to open after creating */
+    int nopen;                  /**< number of files to open */
+    char **verbatim;            /**< AmigaDOS patterns of files copied unchanged */
+    int nverbatim;              /**< number of patterns */
+} SproutTemplate;
+
+/** Values of placeholders: keys with their strings (malloc()ed). */
+typedef struct SproutValues {
+    char **keys;        /**< the keys */
+    char **vals;        /**< the values, parallel to keys */
+    int count;          /**< number of values */
+    int cap;            /**< allocated entries */
+} SproutValues;
+
+/**
+ * @brief Read a template's metadata.
+ * @param[out] t The metadata (always initialised; sprout_template_free() it).
+ * @param json The text of template.json.
+ * @param report Receives the reason when the metadata is not valid.
+ * @param user Passed to @p report.
+ * @return 1 on success; 0 if not valid (reported); -1 if out of memory.
+ */
+int sprout_template_parse(SproutTemplate *t, const char *json, SproutReport report, void *user);
+
+/**
+ * @brief Free a template's metadata (it stays valid and empty).
+ * @param t The metadata.
+ */
+void sprout_template_free(SproutTemplate *t);
+
+/**
+ * @brief Tell whether a key is valid: A-Z, 0-9, _, starting with a letter.
+ * @param key The key.
+ * @param len Its length.
+ * @return Non-zero if valid.
+ */
+int sprout_key_valid(const char *key, size_t len);
+
+/**
+ * @brief Tell whether a key is a built-in one (PROJECT, DRAWER, DATE,
+ *        YEAR).
+ * @param key The key.
+ * @return Non-zero if built-in.
+ */
+int sprout_key_builtin(const char *key);
+
+/**
+ * @brief Initialise an empty set of values.
+ * @param[out] v The values.
+ */
+void sprout_values_init(SproutValues *v);
+
+/**
+ * @brief Free a set of values (it stays valid and empty).
+ * @param v The values.
+ */
+void sprout_values_free(SproutValues *v);
+
+/**
+ * @brief Set a value, replacing one of the same key.
+ * @param v The values.
+ * @param key The key (copied).
+ * @param val The value (copied).
+ * @return 1 on success; -1 if out of memory.
+ */
+int sprout_values_set(SproutValues *v, const char *key, const char *val);
+
+/**
+ * @brief Look up a value.
+ * @param v The values.
+ * @param key The key.
+ * @return The value, or NULL if it is not set.
+ */
+const char *sprout_values_get(const SproutValues *v, const char *key);
+
+/**
+ * @brief Add the values of a JSON object ({ "KEY": "value", ... }).
+ *
+ * Members whose value is not a string are left out.
+ *
+ * @param v The values.
+ * @param json The text.
+ * @return 1 on success; 0 if the text is not a JSON object; -1 if out of
+ *         memory.
+ */
+int sprout_values_parse_json(SproutValues *v, const char *json);
+
+/**
+ * @brief Add a value given on the command line: the key may be written in
+ *        any case (it is stored in upper case).
+ * @param v The values.
+ * @param key The key (need not be terminated).
+ * @param keylen Its length.
+ * @param val The value.
+ * @return 1 on success; 0 if the key is not valid; -1 if out of memory.
+ */
+int sprout_values_set_arg(SproutValues *v, const char *key, size_t keylen, const char *val);
+
+/**
+ * @brief Add a value given as KEY=value (the first '=' separates them),
+ *        with sprout_values_set_arg().
+ * @param v The values.
+ * @param arg The argument.
+ * @return 1 on success; 0 if there is no '=' or the key is not valid;
+ *         -1 if out of memory.
+ */
+int sprout_values_parse_assign(SproutValues *v, const char *arg);
+
+/**
+ * @brief Turn a number of days since 1 January 1978 (the Amiga's epoch)
+ *        into a date.
+ * @param days The days (not negative).
+ * @param[out] year The year.
+ * @param[out] month The month, 1-12.
+ * @param[out] day The day, 1-31.
+ */
+void sprout_date(long days, int *year, int *month, int *day);
+
+/**
+ * @brief Work out the values of all placeholders of a template.
+ *
+ * The built-in keys come first: PROJECT (the given one, else the drawer's
+ * name), DRAWER (the drawer's name), DATE as YYYY-MM-DD and YEAR; then
+ * each placeholder in its order: the given value, else its default
+ * (expanded with the values so far), else the first choice, else empty.
+ * Errors: a required value empty, a value not among the choices. Given
+ * values for unknown keys or for DRAWER, DATE and YEAR are warnings and
+ * left out.
+ *
+ * @param t The template.
+ * @param given The values given (VALUES file, SET).
+ * @param drawer The name of the project drawer.
+ * @param days Today, as days since 1 January 1978.
+ * @param[out] out The values (initialised here; sprout_values_free() it).
+ * @param report Receives errors and warnings.
+ * @param user Passed to @p report.
+ * @return 1 on success (possibly with warnings); 0 on an error (reported);
+ *         -1 if out of memory.
+ */
+int sprout_resolve(const SproutTemplate *t, const SproutValues *given, const char *drawer, long days,
+                   SproutValues *out, SproutReport report, void *user);
+
+/**
+ * @brief Replace the placeholders in a text.
+ * @param text The text (need not be terminated; may contain NUL bytes).
+ * @param len Its length.
+ * @param v The values.
+ * @param[out] outlen The length of the result (without its terminator).
+ * @return The result, NUL-terminated (free() it); NULL if out of memory.
+ */
+char *sprout_expand(const char *text, size_t len, const SproutValues *v, size_t *outlen);
+
+/**
+ * @brief Tell whether a relative path from a template is safe: not empty,
+ *        no ':', no leading '/', no empty part, no part "." or "..".
+ * @param path The path ('/' separated).
+ * @return Non-zero if safe.
+ */
+int sprout_path_safe(const char *path);
+
+/**
+ * @brief Replace the placeholders in a relative path, part by part.
+ *
+ * Fails if the path or an expanded part is not safe, e.g. because a value
+ * contains '/' or ':'. A ':' before the replacement is allowed (it may
+ * belong to a modifier); one left after it is not.
+ *
+ * @param path The path ('/' separated).
+ * @param v The values.
+ * @param[out] bad Set to 1 if the path is not safe, else 0.
+ * @return The result (free() it); NULL if not safe or out of memory.
+ */
+char *sprout_expand_path(const char *path, const SproutValues *v, int *bad);
+
+/**
+ * @brief Tell whether a file's contents get their placeholders replaced:
+ *        at most #SPROUT_TEXT_MAX bytes and no NUL byte.
+ * @param data The contents.
+ * @param len Their length.
+ * @return Non-zero if it is a text file.
+ */
+int sprout_is_text(const char *data, size_t len);
+
+#endif /* SPROUT_TMPL_H */
