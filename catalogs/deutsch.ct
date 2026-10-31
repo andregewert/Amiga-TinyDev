@@ -147,8 +147,8 @@ Neu
 ; New
 ;
 MSG_TBH_NEW
-Neues Dokument (Amiga+N)
-; New document (Amiga+N)
+Neue Datei (Amiga+N)
+; New file (Amiga+N)
 ;
 MSG_TB_OPEN
 Öffnen
@@ -171,8 +171,8 @@ Speichern
 ; Save
 ;
 MSG_TBH_SAVE
-Dokument speichern (Amiga+S)
-; Save the document (Amiga+S)
+Datei speichern (Amiga+S)
+; Save the file (Amiga+S)
 ;
 MSG_TB_UNDO
 Zurück
@@ -334,12 +334,12 @@ Verzeichnis öffnen fehlgeschlagen
 ; Open directory failed
 ;
 MSG_ASL_OPEN
-Dokument öffnen
-; Open document
+Datei öffnen
+; Open file
 ;
 MSG_ASL_SAVE
-Dokument speichern
-; Save document
+Datei speichern
+; Save file
 ;
 MSG_ASL_DIR
 Verzeichnis öffnen
@@ -1539,4 +1539,8 @@ MSG_STATUS_SPACES
 MSG_STATUS_TABS
   Einrückung: Tab (%ld)
 ;   Indent: tab (%ld)
+;
+MSG_MENU_CLOSEALL
+Alle Dateien schließen
+; Close All Files
 ;

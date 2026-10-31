@@ -180,6 +180,7 @@ enum MenuId {
     MID_COMPLETE,       /**< Edit/Complete */
     MID_RECT,           /**< Edit/Rectangular Selection (check item) */
     MID_SHELL,          /**< Project/New Shell: a Shell in the project drawer */
+    MID_CLOSE_ALL,      /**< Project/Close All Files */
     MID_FT_AUTO,        /**< File Type/Automatic: the language Scout detects */
     MID_FT_TEXT,        /**< File Type/Plain Text: no highlighting, no analysis */
     MID_FT_FIRST        /**< File Type: the first language (FILETYPE_SLOTS of them follow) */

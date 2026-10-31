@@ -384,7 +384,8 @@
 #define MSG_ERR_FTPREFS_WRITE        379
 #define MSG_STATUS_SPACES            380
 #define MSG_STATUS_TABS              381
-#define MSG_COUNT                    382
+#define MSG_MENU_CLOSEALL            382
+#define MSG_COUNT                    383
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -424,13 +425,13 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Line Numbers",
     "Minimap",
     "New",
-    "New document (Amiga+N)",
+    "New file (Amiga+N)",
     "Open",
     "Open a file (Amiga+O)",
     "Directory",
     "Open a directory as the project",
     "Save",
-    "Save the document (Amiga+S)",
+    "Save the file (Amiga+S)",
     "Undo",
     "Undo (Amiga+Z)",
     "Redo",
@@ -470,8 +471,8 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Save failed",
     "Folder tree",
     "Open directory failed",
-    "Open document",
-    "Save document",
+    "Open file",
+    "Save file",
     "Open directory",
     "The full file name is too long.",
     "Cannot open this regular file (or it exceeds 8 MiB).",
@@ -771,6 +772,7 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "The file type settings could not be saved\nin TinyDev.json in the drawer of TinyDev.",
     "  Indent: %ld spaces",
     "  Indent: tab (%ld)",
+    "Close All Files",
 };
 #endif
 

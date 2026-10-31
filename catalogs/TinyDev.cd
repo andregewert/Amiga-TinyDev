@@ -114,7 +114,7 @@ MSG_TB_NEW (//)
 New
 ;
 MSG_TBH_NEW (//)
-New document (Amiga+N)
+New file (Amiga+N)
 ;
 MSG_TB_OPEN (//)
 Open
@@ -132,7 +132,7 @@ MSG_TB_SAVE (//)
 Save
 ;
 MSG_TBH_SAVE (//)
-Save the document (Amiga+S)
+Save the file (Amiga+S)
 ;
 MSG_TB_UNDO (//)
 Undo
@@ -255,10 +255,10 @@ MSG_OPENDIR_FAILED (//)
 Open directory failed
 ;
 MSG_ASL_OPEN (//)
-Open document
+Open file
 ;
 MSG_ASL_SAVE (//)
-Save document
+Save file
 ;
 MSG_ASL_DIR (//)
 Open directory
@@ -1180,4 +1180,7 @@ MSG_STATUS_SPACES (//)
 ;
 MSG_STATUS_TABS (//)
   Indent: tab (%ld)
+;
+MSG_MENU_CLOSEALL (//)
+Close All Files
 ;
