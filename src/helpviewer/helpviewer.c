@@ -1111,7 +1111,8 @@ static int open_window(void)
         GA_ID, GID_HTML,
         GA_RelVerify, TRUE,
         HTML_AutoAnchors, TRUE,
-        HTML_Text, (ULONG)S(MSG_WELCOME),
+        /* a directory to open: no welcome text that a page replaces at once */
+        opt.dir[0] == '\0' ? HTML_Text : TAG_IGNORE, (ULONG)S(MSG_WELCOME),
         opt.fontset[0] ? HTMLTTF_FontSet : TAG_IGNORE, (ULONG)opt.fontset,
         opt.size > 0 ? HTMLTTF_Size : TAG_IGNORE, (ULONG)opt.size,
         TAG_DONE);
@@ -1439,8 +1440,10 @@ int main(void)
         message(S(MSG_ERR_WINDOW));
         goto out;
     }
-    /* without a directory it shows the welcome text (no default) */
-    if (opt.dir[0] != '\0') open_location(opt.dir);
+    /* without a directory it shows the welcome text (no default); so it
+     * does when the directory cannot be opened or no page is shown */
+    if (opt.dir[0] != '\0' && (!open_location(opt.dir) || hv.cur < 0))
+        SetGadgetAttrs((struct Gadget *)hv.html, hv.win, NULL, HTML_Text, (ULONG)S(MSG_WELCOME), TAG_DONE);
 
     GetAttr(DIRTREE_SignalMask, hv.tree, &treesig);
     if (hv.port != NULL) portsig = 1UL << hv.port->mp_SigBit;
