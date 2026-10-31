@@ -1548,3 +1548,107 @@ MSG_PJ_NAME
 Projekt_name 
 ; Project _name 
 ;
+MSG_MENU_NEWPROJECT
+Neues Projekt...
+; New Project...
+;
+MSG_NP_TITLE
+Neues Projekt
+; New Project
+;
+MSG_NP_COL_CATEGORY
+Kategorie
+; Category
+;
+MSG_NP_COL_TEMPLATE
+Vorlage
+; Template
+;
+MSG_NP_NAME
+Projekt_name 
+; Project na_me 
+;
+MSG_NP_DRAWER
+_Verzeichnis 
+; _Drawer 
+;
+MSG_NP_CHOOSE
+Wäh_len...
+; C_hoose...
+;
+MSG_NP_NAMENOTE
+Ohne Namen heißt das Projekt wie sein Verzeichnis.
+; Without a name, the project is named after its drawer.
+;
+MSG_NP_BACK
+< _Zurück
+; < _Back
+;
+MSG_NP_NEXT
+_Weiter >
+; _Next >
+;
+MSG_NP_CREATE
+_Erstellen
+; C_reate
+;
+MSG_NP_CANCEL
+_Abbrechen
+; _Cancel
+;
+MSG_NP_VALUES
+Werte für %s
+; Values for %s
+;
+MSG_NP_NOVALUES
+Diese Vorlage braucht keine Werte.
+; This template needs no values.
+;
+MSG_NP_REQUIREDNOTE
+Mit * markierte Werte müssen ausgefüllt sein.
+; Values marked * must be filled in.
+;
+MSG_NP_ASL
+Projektverzeichnis wählen oder benennen
+; Choose or name the project drawer
+;
+MSG_NP_NODRAWER
+Bitte das Projektverzeichnis angeben.\nSprout legt es an, wenn es noch nicht existiert.
+; Please enter the project drawer.\nSprout creates it if it does not exist.
+;
+MSG_NP_REQUIRED
+Bitte "%s" ausfüllen.
+; Please fill in "%s".
+;
+MSG_NP_NOSPROUT
+Sprout (im Verzeichnis von TinyDev) konnte nicht gestartet werden.
+; Sprout (in the drawer of TinyDev) could not be started.
+;
+MSG_NP_LISTFAILED
+Sprout konnte die Vorlagen nicht auflisten:\n\n%s
+; Sprout could not list the templates:\n\n%s
+;
+MSG_NP_NOTEMPLATES
+Im Verzeichnis Templates neben TinyDev\ngibt es keine Projektvorlagen.
+; There are no project templates\nin the drawer Templates next to TinyDev.
+;
+MSG_NP_NOVALUESFILE
+Die Werte konnten nicht ins Verzeichnis\nder temporären Dateien geschrieben werden.
+; The values could not be written\nto the drawer of the temporary files.
+;
+MSG_NP_FAILED
+Das Projekt konnte nicht erstellt werden:\n\n%s
+; The project could not be created:\n\n%s
+;
+MSG_NP_WARNINGS
+Das Projekt wurde mit Warnungen erstellt:\n\n%s
+; The project was created with warnings:\n\n%s
+;
+MSG_NP_CREATED
+Projekt %s erstellt.
+; Project %s created.
+;
+MSG_NP_NEEDCLASS
+Der Assistent braucht %s.
+; The wizard needs %s.
+;

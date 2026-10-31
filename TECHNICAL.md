@@ -84,6 +84,11 @@ The directory opened in the folder tree is the project. What refers to it:
   also those of the entries; `build.c` runs the default commands (Build in
   a process of its own with its output in the output window of
   `outwin.c`, Run and Debug detached; details in its file comment);
+- new projects (`newproj.c`, Project/New Project...): Sprout creates the
+  drawer from a template, then `tree_open_project()` makes it the project
+  (closing the old project's documents) and the template's files of
+  `open` are opened; the wizard links Sprout's portable core
+  (`sprout_tmpl.c`) only to show the defaults Sprout will use;
 - the start drawer of the file requesters (`fileio.c`);
 - Scout's session (`scoutlink.c`): `tree.c` reports a new root
   (`scoutlink_project_opened()`), which closes the old session and opens

@@ -386,7 +386,33 @@
 #define MSG_STATUS_TABS              381
 #define MSG_MENU_CLOSEALL            382
 #define MSG_PJ_NAME                  383
-#define MSG_COUNT                    384
+#define MSG_MENU_NEWPROJECT          384
+#define MSG_NP_TITLE                 385
+#define MSG_NP_COL_CATEGORY          386
+#define MSG_NP_COL_TEMPLATE          387
+#define MSG_NP_NAME                  388
+#define MSG_NP_DRAWER                389
+#define MSG_NP_CHOOSE                390
+#define MSG_NP_NAMENOTE              391
+#define MSG_NP_BACK                  392
+#define MSG_NP_NEXT                  393
+#define MSG_NP_CREATE                394
+#define MSG_NP_CANCEL                395
+#define MSG_NP_VALUES                396
+#define MSG_NP_NOVALUES              397
+#define MSG_NP_REQUIREDNOTE          398
+#define MSG_NP_ASL                   399
+#define MSG_NP_NODRAWER              400
+#define MSG_NP_REQUIRED              401
+#define MSG_NP_NOSPROUT              402
+#define MSG_NP_LISTFAILED            403
+#define MSG_NP_NOTEMPLATES           404
+#define MSG_NP_NOVALUESFILE          405
+#define MSG_NP_FAILED                406
+#define MSG_NP_WARNINGS              407
+#define MSG_NP_CREATED               408
+#define MSG_NP_NEEDCLASS             409
+#define MSG_COUNT                    410
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -775,6 +801,32 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "  Indent: tab (%ld)",
     "Close All Files",
     "Project _name ",
+    "New Project...",
+    "New Project",
+    "Category",
+    "Template",
+    "Project na_me ",
+    "_Drawer ",
+    "C_hoose...",
+    "Without a name, the project is named after its drawer.",
+    "< _Back",
+    "_Next >",
+    "C_reate",
+    "_Cancel",
+    "Values for %s",
+    "This template needs no values.",
+    "Values marked * must be filled in.",
+    "Choose or name the project drawer",
+    "Please enter the project drawer.\nSprout creates it if it does not exist.",
+    "Please fill in \"%s\".",
+    "Sprout (in the drawer of TinyDev) could not be started.",
+    "Sprout could not list the templates:\n\n%s",
+    "There are no project templates\nin the drawer Templates next to TinyDev.",
+    "The values could not be written\nto the drawer of the temporary files.",
+    "The project could not be created:\n\n%s",
+    "The project was created with warnings:\n\n%s",
+    "Project %s created.",
+    "The wizard needs %s.",
 };
 #endif
 

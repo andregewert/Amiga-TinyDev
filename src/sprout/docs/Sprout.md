@@ -6,10 +6,10 @@ the template's files into it and replaces placeholders in file names and
 in text files. TinyDev's wizard Project/New Project... is a front end to
 it; the command works just as well on its own.
 
-> **Status:** phases 1 and 2 are implemented: templates as drawers and
+> **Status:** phases 1 to 3 are implemented: templates as drawers and
 > LhA archives, the placeholders, creating a project, `LIST`, `INFO` and
-> `ICON`. Conditional files are left until a template needs them; the
-> wizard follows (section 14).
+> `ICON`, and TinyDev's wizard. Conditional files are left until a
+> template needs them; icon files in the wizard follow (section 14).
 
 ## Contents
 
@@ -331,9 +331,13 @@ and description. Below: the project's name and the project drawer
 (string with an ASL button); an empty name means the drawer's.
 
 **Page 2, values:** a form generated from the placeholders: a label and a
-string gadget per value, a chooser where `choices` are given, defaults
-filled in (expanded with the shared placeholder code; `PROJECT` and
-`DRAWER` from page 1). `required` values must be filled in before Create.
+string gadget per value, a chooser where `choices` are given, the
+description as help bubble, defaults filled in (expanded with the shared
+placeholder code; `PROJECT` and `DRAWER` from page 1; a field keeps a
+value the user typed). `required` values are marked with `*` and must be
+filled in before Create. Back, Next and Create switch the pages; Create
+also works from page 1. The forms of all templates are built with the
+window, as pages of one page gadget.
 
 **Create:** TinyDev writes the values (with `PROJECT` if a name was
 given) to a file in the temporary drawer,
@@ -382,5 +386,5 @@ wizard's defaults; Sprout uses nothing of TinyDev.
    `examples/HelloWorld`.
 2. (done) LhA reading, `LIST`, `INFO` and `ICON`, archives in `make dist`;
    conditional files when a template needs them.
-3. The wizard in TinyDev with the built-in symbols per icon type.
+3. (done) The wizard in TinyDev with the built-in symbols per icon type.
 4. Icon files from the template in the wizard; then file templates.

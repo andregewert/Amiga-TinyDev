@@ -234,6 +234,34 @@ static void test_values(void)
     assert(y == 2100 && m == 3 && d == 1);
 }
 
+/** @brief Test the drawer name and the built-in values. */
+static void test_builtins(void)
+{
+    char name[16];
+    SproutValues v;
+    static const char *const cases[][2] = {
+        { "Work:Projects/Hello", "Hello" }, { "Work:Projects/Hello/", "Hello" },
+        { "Work:Hello", "Hello" }, { "Work:", "Work" }, { "Hello", "Hello" },
+        { "/Hello//", "Hello" }, { "", "" }, { "Work:Projects/AVeryLongDrawerName", "AVeryLongDrawer" },
+    };
+    size_t i;
+    for (i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+        sprout_drawer_name(cases[i][0], name, sizeof(name));
+        assert(strcmp(name, cases[i][1]) == 0);
+    }
+    sprout_values_init(&v);
+    assert(sprout_builtins(&v, NULL, "Hello", 17835) == 1);
+    assert(strcmp(sprout_values_get(&v, "PROJECT"), "Hello") == 0);
+    assert(strcmp(sprout_values_get(&v, "DATE"), "2026-10-31") == 0);
+    assert(sprout_builtins(&v, "My Project", "Hello", 0) == 1);
+    assert(strcmp(sprout_values_get(&v, "PROJECT"), "My Project") == 0);
+    assert(strcmp(sprout_values_get(&v, "DRAWER"), "Hello") == 0);
+    assert(strcmp(sprout_values_get(&v, "DATE"), "1978-01-01") == 0);
+    assert(strcmp(sprout_values_get(&v, "YEAR"), "1978") == 0);
+    assert(v.count == 4);
+    sprout_values_free(&v);
+}
+
 /** @brief Working out the values: built-ins, defaults, choices, errors. */
 static void test_resolve(void)
 {
@@ -455,6 +483,7 @@ int main(void)
 {
     test_parse();
     test_values();
+    test_builtins();
     test_resolve();
     test_expand();
     test_paths();

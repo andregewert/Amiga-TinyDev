@@ -190,6 +190,26 @@ int sprout_values_parse_assign(SproutValues *v, const char *arg);
 void sprout_date(long days, int *year, int *month, int *day);
 
 /**
+ * @brief The name of a project drawer (DRAWER, and PROJECT unless one is
+ *        given): the last part of its path, "Work:" giving "Work".
+ * @param path The drawer's path (trailing '/' ignored).
+ * @param[out] name The name.
+ * @param size The size of @p name.
+ */
+void sprout_drawer_name(const char *path, char *name, size_t size);
+
+/**
+ * @brief Set the built-in values: PROJECT (the given one, else the
+ *        drawer's name), DRAWER, DATE as YYYY-MM-DD and YEAR.
+ * @param v The values (replacing ones of the same keys).
+ * @param project The project's name; NULL or "" for the drawer's name.
+ * @param drawer The name of the project drawer.
+ * @param days Today, as days since 1 January 1978.
+ * @return 1 on success; -1 if out of memory.
+ */
+int sprout_builtins(SproutValues *v, const char *project, const char *drawer, long days);
+
+/**
  * @brief Work out the values of all placeholders of a template.
  *
  * The built-in keys come first: PROJECT (the given one, else the drawer's

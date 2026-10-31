@@ -486,14 +486,24 @@ static void put_digits(char *out, int n, int digits)
     }
 }
 
-int sprout_resolve(const SproutTemplate *t, const SproutValues *given, const char *drawer, long days,
-                   SproutValues *out, SproutReport report, void *user)
+void sprout_drawer_name(const char *path, char *name, size_t size)
+{
+    size_t n = strlen(path), i, start = 0;
+    if (size == 0) return;
+    while (n > 0 && path[n - 1] == '/') --n;
+    if (n > 0 && path[n - 1] == ':') --n;       /* "Work:" -> "Work" */
+    for (i = 0; i < n; ++i)
+        if (path[i] == '/' || path[i] == ':') start = i + 1;
+    n -= start;
+    if (n > size - 1) n = size - 1;
+    memcpy(name, path + start, n);
+    name[n] = '\0';
+}
+
+int sprout_builtins(SproutValues *v, const char *project, const char *drawer, long days)
 {
     char date[12], year[6];
-    const char *project = sprout_values_get(given, "PROJECT");
-    int y, m, d, i, j;
-
-    sprout_values_init(out);
+    int y, m, d;
     sprout_date(days, &y, &m, &d);
     put_digits(year, y, 4);
     put_digits(date, y, 4);
@@ -502,10 +512,19 @@ int sprout_resolve(const SproutTemplate *t, const SproutValues *given, const cha
     date[7] = '-';
     put_digits(date + 8, d, 2);
     if (project == NULL || project[0] == '\0') project = drawer;
-    if (sprout_values_set(out, "PROJECT", project) < 0 || sprout_values_set(out, "DRAWER", drawer) < 0 ||
-        sprout_values_set(out, "DATE", date) < 0 ||
-        sprout_values_set(out, "YEAR", year) < 0)
-        goto nomem;
+    if (sprout_values_set(v, "PROJECT", project) < 0 || sprout_values_set(v, "DRAWER", drawer) < 0 ||
+        sprout_values_set(v, "DATE", date) < 0 || sprout_values_set(v, "YEAR", year) < 0)
+        return -1;
+    return 1;
+}
+
+int sprout_resolve(const SproutTemplate *t, const SproutValues *given, const char *drawer, long days,
+                   SproutValues *out, SproutReport report, void *user)
+{
+    int i, j;
+
+    sprout_values_init(out);
+    if (sprout_builtins(out, sprout_values_get(given, "PROJECT"), drawer, days) < 0) goto nomem;
 
     for (j = 0; j < given->count; ++j) {
         const char *key = given->keys[j];

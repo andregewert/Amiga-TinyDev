@@ -1013,28 +1013,6 @@ static int copy_archive(const Source *s)
 }
 
 /**
- * @brief The name of the project drawer (DRAWER, and PROJECT unless one
- *        is given): the last part of its path.
- * @param to The project drawer.
- * @param[out] name The name (#PATHMAX bytes).
- */
-static void drawer_name(const char *to, char *name)
-{
-    size_t n;
-    const char *part;
-    strncpy(name, to, PATHMAX - 1);
-    name[PATHMAX - 1] = '\0';
-    n = strlen(name);
-    while (n > 0 && name[n - 1] == '/') name[--n] = '\0';
-    part = (const char *)FilePart((STRPTR)name);
-    if (*part == '\0') {            /* "Work:" -> "Work" */
-        if (n > 0 && name[n - 1] == ':') name[--n] = '\0';
-        return;
-    }
-    memmove(name, part, strlen(part) + 1);
-}
-
-/**
  * @brief Make the project drawer, or check an existing one.
  * @return Non-zero on success, zero on an error (reported).
  */
@@ -1145,7 +1123,7 @@ static LONG create(LONG *args)
     }
 
     /* the values of all placeholders */
-    drawer_name(sp.to, name);
+    sprout_drawer_name(sp.to, name, PATHMAX);
     DateStamp(&now);
     r = sprout_resolve(&t, &given, name, now.ds_Days, &values, report, NULL);
     if (r <= 0) {
@@ -1237,7 +1215,7 @@ static JsonValue *template_entry(const char *id, const char *path, const SproutT
 static void template_id(const char *path, char *id)
 {
     size_t n;
-    drawer_name(path, id);
+    sprout_drawer_name(path, id, PATHMAX);
     n = strlen(id);
     if (n > 4 && same_name(id + n - 4, ".lha")) id[n - 4] = '\0';
 }

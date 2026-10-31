@@ -1187,3 +1187,81 @@ Close All Files
 MSG_PJ_NAME (//)
 Project _name 
 ;
+MSG_MENU_NEWPROJECT (//)
+New Project...
+;
+MSG_NP_TITLE (//)
+New Project
+;
+MSG_NP_COL_CATEGORY (//)
+Category
+;
+MSG_NP_COL_TEMPLATE (//)
+Template
+;
+MSG_NP_NAME (//)
+Project na_me 
+;
+MSG_NP_DRAWER (//)
+_Drawer 
+;
+MSG_NP_CHOOSE (//)
+C_hoose...
+;
+MSG_NP_NAMENOTE (//)
+Without a name, the project is named after its drawer.
+;
+MSG_NP_BACK (//)
+< _Back
+;
+MSG_NP_NEXT (//)
+_Next >
+;
+MSG_NP_CREATE (//)
+C_reate
+;
+MSG_NP_CANCEL (//)
+_Cancel
+;
+MSG_NP_VALUES (//)
+Values for %s
+;
+MSG_NP_NOVALUES (//)
+This template needs no values.
+;
+MSG_NP_REQUIREDNOTE (//)
+Values marked * must be filled in.
+;
+MSG_NP_ASL (//)
+Choose or name the project drawer
+;
+MSG_NP_NODRAWER (//)
+Please enter the project drawer.\nSprout creates it if it does not exist.
+;
+MSG_NP_REQUIRED (//)
+Please fill in "%s".
+;
+MSG_NP_NOSPROUT (//)
+Sprout (in the drawer of TinyDev) could not be started.
+;
+MSG_NP_LISTFAILED (//)
+Sprout could not list the templates:\n\n%s
+;
+MSG_NP_NOTEMPLATES (//)
+There are no project templates\nin the drawer Templates next to TinyDev.
+;
+MSG_NP_NOVALUESFILE (//)
+The values could not be written\nto the drawer of the temporary files.
+;
+MSG_NP_FAILED (//)
+The project could not be created:\n\n%s
+;
+MSG_NP_WARNINGS (//)
+The project was created with warnings:\n\n%s
+;
+MSG_NP_CREATED (//)
+Project %s created.
+;
+MSG_NP_NEEDCLASS (//)
+The wizard needs %s.
+;

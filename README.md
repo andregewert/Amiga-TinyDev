@@ -56,6 +56,8 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
   Run (Amiga+R) and
   Debug (Amiga+D) start in a console window of their own; all three are
   also in the toolbar.
+- New projects from templates (Project/New Project...): choose a
+  template, fill in its values, and Sprout creates the project drawer.
 - New Shell (Project menu, toolbar): a Shell window in the project
   drawer, with CON:, VNC: or another console; it stays open when TinyDev
   quits.

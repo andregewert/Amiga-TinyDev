@@ -134,6 +134,12 @@ int tree_request_directory(EditorApp *app)
     FreeAslRequest(fr); return result;
 }
 
+int tree_open_project(EditorApp *app, const char *path)
+{
+    if (same_project(app, path)) return 1;
+    return document_close_all(app) && load_directory(app, path);
+}
+
 void tree_handle_event(EditorApp *app)
 {
     ULONG event = DIRTREE_EV_NONE, status = DIRTREE_ST_OK;

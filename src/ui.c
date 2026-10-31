@@ -240,6 +240,7 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NULL, "N", 0, 0, UD(MID_NEW)},
     {NM_ITEM, NULL, "O", 0, 0, UD(MID_OPEN)},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_OPEN_DIRECTORY)},
+    {NM_ITEM, NULL, NULL, 0, 0, UD(MID_NEW_PROJECT)},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_TREE_REFRESH)},
     {NM_ITEM, NULL, "S", 0, 0, UD(MID_SAVE)},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_SAVE_AS)},
@@ -317,6 +318,7 @@ static const LONG menu_texts[] = {
     MSG_MENU_NEW,
     MSG_MENU_OPEN,
     MSG_MENU_OPENDIR,
+    MSG_MENU_NEWPROJECT,
     MSG_MENU_TREE_REFRESH,
     MSG_MENU_SAVE,
     MSG_MENU_SAVEAS,
@@ -1243,6 +1245,7 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_SHELL: shell_open(app); break;
         case MID_SETTINGS: edit_settings(app); break;
         case MID_PROJECT_SETTINGS: project_settings(app); break;
+        case MID_NEW_PROJECT: new_project(app); break;
         case MID_BUILD: case MID_RUN: case MID_DEBUG: case MID_STOP:
             build_action(app, id);
             break;
@@ -1567,6 +1570,7 @@ void ui_destroy(EditorApp *app)
     toolbar_dispose(app);
     if (app->tab_close_image != NULL) { DisposeObject(app->tab_close_image); app->tab_close_image = NULL; }
     close_image_free_class();
+    tmplsym_free_class();
     close_editor_colors(app);
     diag_close(app);
     if (app->screen != NULL) UnlockPubScreen(NULL, app->screen);

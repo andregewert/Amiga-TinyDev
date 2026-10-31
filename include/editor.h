@@ -181,6 +181,9 @@ enum MenuId {
     MID_RECT,           /**< Edit/Rectangular Selection (check item) */
     MID_SHELL,          /**< Project/New Shell: a Shell in the project drawer */
     MID_CLOSE_ALL,      /**< Project/Close All Files */
+    MID_NEW_PROJECT,    /**< Project/New Project...: the wizard of Sprout's templates */
+    /* the File Type entries stay last: menu_action() takes the IDs from
+     * MID_FT_AUTO on as file types */
     MID_FT_AUTO,        /**< File Type/Automatic: the language Scout detects */
     MID_FT_TEXT,        /**< File Type/Plain Text: no highlighting, no analysis */
     MID_FT_FIRST        /**< File Type: the first language (FILETYPE_SLOTS of them follow) */
@@ -422,6 +425,17 @@ void prefs_cleanup(void);
  * @param app The application state (main window and screen).
  */
 void project_settings(EditorApp *app);
+
+/* newproj.c */
+
+/**
+ * @brief Show the modal wizard of Project/New Project...: choose a
+ *        template, fill in its values, and create the project with Sprout
+ *        (PROGDIR:Sprout); on success the new drawer becomes the project
+ *        and the template's files to open are opened.
+ * @param app The application state (main window and screen).
+ */
+void new_project(EditorApp *app);
 /**
  * @brief Take over edited settings.
  *
@@ -452,6 +466,53 @@ void settings_load(Settings *s, int argc, char **argv);
 Object *close_image_new(void);
 /** @brief Free its class once no close symbol exists any more. */
 void close_image_free_class(void);
+
+/* tmplsym.c */
+
+/** The size of a template symbol in symbol pixels (square). */
+#define TMPLSYM_SIZE 12
+
+/** The icon types of templates (template.json "icon": { "type" }). */
+typedef enum TmplSymType {
+    TMPLSYM_GENERIC = 0,        /**< "generic", also for unknown types */
+    TMPLSYM_PROGRAM,            /**< "program" */
+    TMPLSYM_LIBRARY,            /**< "library" */
+    TMPLSYM_CLASS,              /**< "class" */
+    TMPLSYM_SCRIPT,             /**< "script" */
+    TMPLSYM_DOCUMENT,           /**< "document" */
+    TMPLSYM_COUNT               /**< number of types */
+} TmplSymType;
+
+/** Attribute of a symbol image: the TmplSymType shown (I S). */
+#define TMPLSYM_Type  (TAG_USER + 0x7A0001)
+/** Attribute of a symbol image: pixels per symbol pixel (I; see tmplsym_image_new()). */
+#define TMPLSYM_Scale (TAG_USER + 0x7A0002)
+
+/**
+ * @brief Find the icon type of a name from template.json.
+ * @param name The name (any case), may be NULL.
+ * @return The type; #TMPLSYM_GENERIC for NULL or an unknown name.
+ */
+TmplSymType tmplsym_type(const char *name);
+/**
+ * @brief Draw a template symbol (graphics only).
+ * @param rp The RastPort.
+ * @param x Left edge.
+ * @param y Top edge.
+ * @param dri DrawInfo for the pens, may be NULL.
+ * @param type The icon type.
+ * @param scale Pixels per symbol pixel (0 counts as 1).
+ */
+void tmplsym_draw(struct RastPort *rp, WORD x, WORD y, struct DrawInfo *dri, TmplSymType type, UWORD scale);
+/**
+ * @brief Create an image of a template symbol, #TMPLSYM_SIZE times @p scale
+ *        pixels square; its type is set with #TMPLSYM_Type.
+ * @param scale Pixels per symbol pixel.
+ * @return The image object (DisposeObject() it), or NULL.
+ */
+Object *tmplsym_image_new(UWORD scale);
+/** @brief Free the symbol class once no symbol image exists any more. */
+void tmplsym_free_class(void);
 
 /**
  * @brief Open the splash window (Intuition and graphics only).
@@ -1564,6 +1625,14 @@ void tree_handle_event(EditorApp *app);
  * @return Non-zero if there is a project.
  */
 int tree_project_root(EditorApp *app, char *out, LONG size);
+/**
+ * @brief Open a directory as the project (the tree's root); the documents
+ *        of another project are closed first, each asked about if changed.
+ * @param app The application state.
+ * @param path The directory.
+ * @return Non-zero if it is the project now.
+ */
+int tree_open_project(EditorApp *app, const char *path);
 /**
  * @brief Return the signal mask of the folder tree's directory
  *        notifications (0 if it does not watch).

@@ -78,6 +78,15 @@ below the tree's root.
   action with a listbrowser of its commands (checkbox = default), buttons
   beside the page, and a modal window to edit one command; "Save" writes
   `project.json` with `projconf_format()`.
+- `src/newproj.c`: the modal wizard Project/New Project...: the
+  templates from `PROGDIR:Sprout LIST`, a page gadget with the template
+  page (categories, templates, details, project name and drawer) and a
+  form page per template (fields from the placeholders, defaults from
+  `sprout_tmpl.c`, linked into TinyDev); Create writes the values to
+  TEMPDIR, runs Sprout synchronously, shows its messages, and opens the
+  new drawer as the project with the template's files of `open`.
+- `src/tmplsym.c`: the built-in symbols of the template icon types
+  (`tmplsym_draw()` and a small private image class).
 - `src/build.c`: the Build menu's actions: the default command of Build,
   Run or Debug from `project.json`, written as a script to `T:`
   (placeholders replaced, "Stack 65536" first). Build runs in a process
