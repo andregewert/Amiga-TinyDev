@@ -60,6 +60,37 @@ static void check_expand(const SproutValues *v, const char *text, const char *ex
 
 static void check_path_bad(const SproutValues *v, const char *path, const char *expected, int why);
 
+/** @brief The standard keys AUTHOR and AUTHORMAIL, declared or not. */
+static void test_standard(void)
+{
+    SproutTemplate t;
+    SproutValues given, out;
+    const char *json =
+        "{ \"name\": \"T\", \"placeholders\": [\n"
+        "  { \"key\": \"AUTHOR\", \"default\": \"Nobody\" },\n"
+        "  { \"key\": \"LINE\", \"default\": \"{$AUTHOR} <{$AUTHORMAIL}>\" } ] }";
+    assert(sprout_key_standard("AUTHOR") && sprout_key_standard("AUTHORMAIL"));
+    assert(!sprout_key_standard("PROJECT") && !sprout_key_builtin("AUTHOR"));
+    assert(sprout_template_parse(&t, json, report, NULL) == 1);
+    sprout_values_init(&given);
+    reset();
+    assert(sprout_resolve(&t, &given, "x", 0, &out, report, NULL) == 1);
+    assert(errors == 0 && warnings == 0);
+    assert(strcmp(sprout_values_get(&out, "AUTHOR"), "Nobody") == 0);
+    assert(strcmp(sprout_values_get(&out, "AUTHORMAIL"), "") == 0);
+    assert(strcmp(sprout_values_get(&out, "LINE"), "Nobody <>") == 0);
+    sprout_values_free(&out);
+    /* given ones win and are no warning, declared or not */
+    assert(sprout_values_parse_assign(&given, "AUTHOR=Me") == 1);
+    assert(sprout_values_parse_assign(&given, "authormail=me@example.org") == 1);
+    assert(sprout_resolve(&t, &given, "x", 0, &out, report, NULL) == 1);
+    assert(errors == 0 && warnings == 0);
+    assert(strcmp(sprout_values_get(&out, "LINE"), "Me <me@example.org>") == 0);
+    sprout_values_free(&out);
+    sprout_values_free(&given);
+    sprout_template_free(&t);
+}
+
 /**
  * @brief Expand a path and compare the result.
  * @param v The values.
@@ -304,6 +335,7 @@ static void test_resolve(void)
     assert(strcmp(sprout_values_get(&out, "AUTHOR"), "Me") == 0);
     assert(strcmp(sprout_values_get(&out, "CC"), "gcc") == 0);
     assert(strcmp(sprout_values_get(&out, "NOTE"), "") == 0);
+    assert(strcmp(sprout_values_get(&out, "AUTHORMAIL"), "") == 0);   /* standard, not declared */
     sprout_values_free(&out);
 
     /* a project name of its own: the default of NAME follows it */
@@ -557,6 +589,7 @@ int main(void)
     test_values();
     test_builtins();
     test_resolve();
+    test_standard();
     test_expand();
     test_paths();
     test_text();

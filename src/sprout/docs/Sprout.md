@@ -151,6 +151,14 @@ many such texts, `verbatim` copies it unchanged instead.
 | `DATE` | today, `YYYY-MM-DD` |
 | `YEAR` | the year, `YYYY` |
 
+**Standard keys:** `AUTHOR` and `AUTHORMAIL` (the author's e-mail
+address) are always defined: given with `AUTHOR=...` (`SET` or
+`VALUES`), else empty, so a template may use them without asking. A
+template declares them as placeholders to ask for them in the wizard
+(with a label, `required`, a default); then they work like its other
+placeholders. A given value of a standard key is never a warning.
+TinyDev's wizard gives them from its settings (Project Defaults).
+
 **Modifiers:**
 
 | Modifier | Result |
@@ -360,14 +368,17 @@ and description. Below: the project's name and the project drawer
 **Page 2, values:** a form generated from the placeholders: a label and a
 string gadget per value, a chooser where `choices` are given, the
 description as help bubble, defaults filled in (expanded with the shared
-placeholder code; `PROJECT` and `DRAWER` from page 1; a field keeps a
-value the user typed). `required` values are marked with `*` and must be
+placeholder code; `PROJECT` and `DRAWER` from page 1, `AUTHOR` and
+`AUTHORMAIL` from TinyDev's settings before a template's default; a field
+keeps a value the user typed). The project drawer is suggested in the
+setting Project Defaults/Project drawer, if set. `required` values are marked with `*` and must be
 filled in before Create. Back, Next and Create switch the pages; Create
 also works from page 1. The forms of all templates are built with the
 window, as pages of one page gadget.
 
 **Create:** TinyDev writes the values (with `PROJECT` if a name was
-given) to a file in the temporary drawer,
+given, `AUTHOR` and `AUTHORMAIL` from the settings also when the template
+does not ask for them) to a file in the temporary drawer,
 runs `Sprout <template> <drawer> VALUES <file>`, shows its messages if it
 fails, and on success opens the drawer as the project (the tree's root),
 then the files of `open`.

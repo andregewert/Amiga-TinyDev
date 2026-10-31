@@ -12,7 +12,9 @@
       "description": "The macro that keeps the header from being read twice" },
     { "key": "PURPOSE", "label": "Description", "default": "",
       "description": "One line about what the module does" },
-    { "key": "AUTHOR", "label": "Author" }
+    { "key": "AUTHOR", "label": "Author" },
+    { "key": "AUTHORMAIL", "label": "E-mail",
+      "description": "The author's e-mail address (optional), below the author" }
   ],
   "open": ["{$NAME}.c", "{$NAME}.h"]
 }

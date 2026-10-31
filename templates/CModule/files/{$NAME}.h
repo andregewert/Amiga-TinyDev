@@ -3,6 +3,7 @@
  *
  * Project: {$PROJECT}
  * Copyright (c) {$YEAR} {$AUTHOR}
+ * {$AUTHORMAIL}
  * Created {$DATE}
  */
 #ifndef {$GUARD:upper}

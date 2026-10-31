@@ -119,6 +119,15 @@ int sprout_key_valid(const char *key, size_t len);
 int sprout_key_builtin(const char *key);
 
 /**
+ * @brief Tell whether a key is a standard one (AUTHOR, AUTHORMAIL): always
+ *        defined (empty unless given), and a template may declare it as a
+ *        placeholder to ask for it.
+ * @param key The key.
+ * @return Non-zero if standard.
+ */
+int sprout_key_standard(const char *key);
+
+/**
  * @brief Initialise an empty set of values.
  * @param[out] v The values.
  */
@@ -215,6 +224,7 @@ int sprout_builtins(SproutValues *v, const char *project, const char *drawer, lo
  *
  * The built-in keys come first: PROJECT (the given one, else the drawer's
  * name), DRAWER (the drawer's name), DATE as YYYY-MM-DD and YEAR; then
+ * the standard keys AUTHOR and AUTHORMAIL (given, else empty); then
  * each placeholder in its order: the given value, else its default
  * (expanded with the values so far), else the first choice, else empty.
  * Errors: a required value empty, a value not among the choices. Given

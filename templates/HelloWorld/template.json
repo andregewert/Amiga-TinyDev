@@ -9,6 +9,8 @@
     { "key": "NAME", "label": "Program name", "default": "{$PROJECT:ident}",
       "description": "The name of the program and of its source file" },
     { "key": "AUTHOR", "label": "Author", "required": true },
+    { "key": "AUTHORMAIL", "label": "E-mail",
+      "description": "The author's e-mail address (optional), below the author" },
     { "key": "PURPOSE", "label": "Description", "default": "A program that greets the world" },
     { "key": "CC", "label": "Compiler", "choices": ["vbcc", "gcc", "sasc"],
       "description": "The compiler the Makefile and the Build menu use (sasc: SAS/C with smake)" }

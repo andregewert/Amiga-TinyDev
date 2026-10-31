@@ -14,6 +14,8 @@
 
 /** The built-in keys, which a template cannot define. */
 static const char *const builtin_keys[] = { "PROJECT", "DRAWER", "DATE", "YEAR", NULL };
+/** The standard keys: always defined, a template may declare them. */
+static const char *const standard_keys[] = { "AUTHOR", "AUTHORMAIL", NULL };
 
 /**
  * @brief Pass a message of up to three parts to the report callback.
@@ -133,6 +135,14 @@ int sprout_key_valid(const char *key, size_t len)
         if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_')) return 0;
     }
     return 1;
+}
+
+int sprout_key_standard(const char *key)
+{
+    int i;
+    for (i = 0; standard_keys[i] != NULL; ++i)
+        if (strcmp(key, standard_keys[i]) == 0) return 1;
+    return 0;
 }
 
 int sprout_key_builtin(const char *key)
@@ -525,11 +535,17 @@ int sprout_resolve(const SproutTemplate *t, const SproutValues *given, const cha
 
     sprout_values_init(out);
     if (sprout_builtins(out, sprout_values_get(given, "PROJECT"), drawer, days) < 0) goto nomem;
+    /* the standard keys: given or empty (a placeholder of the template
+       with such a key works its value out again below) */
+    for (i = 0; standard_keys[i] != NULL; ++i) {
+        const char *val = sprout_values_get(given, standard_keys[i]);
+        if (sprout_values_set(out, standard_keys[i], val != NULL ? val : "") < 0) goto nomem;
+    }
 
     for (j = 0; j < given->count; ++j) {
         const char *key = given->keys[j];
         int known = 0;
-        if (strcmp(key, "PROJECT") == 0) continue;
+        if (strcmp(key, "PROJECT") == 0 || sprout_key_standard(key)) continue;
         if (sprout_key_builtin(key)) {
             say(report, user, 0, "built-in value cannot be set: ", key, NULL);
             continue;
