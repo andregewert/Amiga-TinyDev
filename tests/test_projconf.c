@@ -218,6 +218,35 @@ static void test_languages(void)
 }
 
 /**
+ * @brief The project's name: reading, trimming, writing and removing.
+ */
+static void test_name(void)
+{
+    ProjConf c, d;
+    char *text, *again;
+
+    projconf_init(&c);
+    assert(c.name == NULL);
+    assert(projconf_parse(&c, "{ \"name\": \"My Game\", \"build\": [] }") == 1);
+    assert(c.name != NULL && strcmp(c.name, "My Game") == 0);
+    assert(projconf_parse(&c, "{ \"name\": 5 }") == 1 && c.name == NULL);
+
+    assert(projconf_set_name(&c, "  Demo\t") == 1 && strcmp(c.name, "Demo") == 0);
+    assert(projconf_copy(&d, &c) == 1 && d.name != c.name && strcmp(d.name, "Demo") == 0);
+    projconf_clear(&d);
+
+    text = projconf_format(&c, "{ \"version\": 1, \"other\": true }");
+    assert(text != NULL && strstr(text, "\"name\": \"Demo\"") != NULL && strstr(text, "other") != NULL);
+    assert(projconf_set_name(&c, "   ") == 1 && c.name == NULL);
+    again = projconf_format(&c, text);
+    assert(again != NULL && strstr(again, "name") == NULL && strstr(again, "other") != NULL);
+    free(again);
+    free(text);
+    assert(projconf_set_name(&c, NULL) == 1 && c.name == NULL);
+    projconf_clear(&c);
+}
+
+/**
  * @brief Host-native tests of the project settings: the three actions,
  *        names, drawers, command lines as string or array, the default
  *        command, skipped entries, refused files, and the placeholders.
@@ -306,6 +335,7 @@ int main(void)
     test_edit_and_format();
     test_include();
     test_languages();
+    test_name();
     puts("project settings tests passed");
     return 0;
 }

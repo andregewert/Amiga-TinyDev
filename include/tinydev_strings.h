@@ -385,7 +385,8 @@
 #define MSG_STATUS_SPACES            380
 #define MSG_STATUS_TABS              381
 #define MSG_MENU_CLOSEALL            382
-#define MSG_COUNT                    383
+#define MSG_PJ_NAME                  383
+#define MSG_COUNT                    384
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -773,6 +774,7 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "  Indent: %ld spaces",
     "  Indent: tab (%ld)",
     "Close All Files",
+    "Project _name ",
 };
 #endif
 

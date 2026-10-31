@@ -15,6 +15,7 @@
  *
  *   {
  *     "version": 1,
+ *     "name": "TinyDev",
  *     "build": [
  *       { "name": "Build", "command": "make", "default": true },
  *       { "name": "Clean", "command": ["Delete build ALL QUIET", "Delete bin/TinyDev QUIET"] },
@@ -41,6 +42,9 @@
  * Entries without a command are skipped, as are lists that are no arrays.
  * Other keys, in the file and in the entries, are ignored, so the file can
  * grow; projconf_format() keeps them.
+ *
+ * "name" is the project's name, shown for instance as the title of the
+ * AppIcon; without it, the name of the project directory counts.
  *
  * "include" lists the drawers searched for included files (relative to the
  * project directory or absolute); TinyDev-Scout indexes the files found
@@ -77,6 +81,7 @@ typedef struct ProjCommand {
 
 /** The settings of a project. */
 typedef struct ProjConf {
+    char *name;                             /**< the project's name (malloc()), NULL if it has none */
     ProjCommand *commands[PROJ_ACTIONS];    /**< the commands of each action (malloc()) */
     long count[PROJ_ACTIONS];               /**< number of commands of each action */
     char **include;                         /**< the include drawers, as written (malloc()) */
@@ -179,8 +184,9 @@ char *projconf_command_text(const ProjCommand *cmd);
 /**
  * @brief Write settings as the JSON text of a project file.
  *
- * The lists of the actions (and the include drawers and the languages,
- * when there are some or the file had them) replace those of @p old_json; everything else in it
+ * The lists of the actions (and the name, the include drawers and the
+ * languages, when there are some or the file had them) replace those of
+ * @p old_json; a removed name loses its key. Everything else in it
  * stays, in its place, and so do the other keys of the entries
  * (ProjCommand::extra). "name" is left out when it is the first line,
  * "dir" and "default" when they are not set. A new file starts with
@@ -193,6 +199,14 @@ char *projconf_command_text(const ProjCommand *cmd);
  *         is not a JSON object.
  */
 char *projconf_format(const ProjConf *c, const char *old_json);
+
+/**
+ * @brief Set or remove the project's name.
+ * @param c The settings.
+ * @param name The name; NULL or "" (also only blanks) removes it.
+ * @return 1 on success, -1 if out of memory (nothing changes).
+ */
+int projconf_set_name(ProjConf *c, const char *name);
 
 /**
  * @brief Add or change an include drawer.

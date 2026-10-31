@@ -1184,3 +1184,6 @@ MSG_STATUS_TABS (//)
 MSG_MENU_CLOSEALL (//)
 Close All Files
 ;
+MSG_PJ_NAME (//)
+Project _name 
+;

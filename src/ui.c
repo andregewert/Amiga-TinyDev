@@ -12,6 +12,7 @@
  * the Workbench background until a subclass draws it itself.
  */
 #include "editor.h"
+#include "projconf.h"
 
 #include <gadgets/clicktab.h>
 #include <gadgets/button.h>
@@ -28,6 +29,7 @@
 #include <intuition/icclass.h>
 #include <workbench/workbench.h>
 #include <proto/clicktab.h>
+#include <proto/dos.h>
 #include <proto/button.h>
 #include <proto/bitmap.h>
 #include <proto/exec.h>
@@ -42,6 +44,7 @@
 #include <reaction/reaction.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #define UD(id) ((APTR)(ULONG)(id))  /**< a MID_ as a menu item's user data */
@@ -1082,6 +1085,47 @@ void ui_apply_settings(EditorApp *app, const Settings *n)
 }
 
 /**
+ * @brief The title of the AppIcon: the project's name from project.json,
+ *        else the name of the project directory, else "TinyDev".
+ * @param app The application state.
+ * @return The title (a static buffer, valid until the next call).
+ */
+static const char *icon_title(EditorApp *app)
+{
+    static char title[128];
+    char root[512];
+    char *text = NULL;
+    const char *name;
+    size_t n;
+    if (!tree_project_root(app, root, sizeof(root))) return APP_NAME;
+    if (projdata_read(root, "project.json", &text) > 0) {
+        ProjConf conf;
+        projconf_init(&conf);
+        if (projconf_parse(&conf, text) > 0 && conf.name != NULL) {
+            strncpy(title, conf.name, sizeof(title) - 1);
+            title[sizeof(title) - 1] = '\0';
+            projconf_clear(&conf);
+            free(text);
+            return title;
+        }
+        projconf_clear(&conf);
+        free(text);
+    }
+    /* "Work:Projects/TinyDev" -> "TinyDev", "Work:" -> "Work" */
+    n = strlen(root);
+    while (n > 0 && root[n - 1] == '/') root[--n] = '\0';
+    name = (const char *)FilePart((STRPTR)root);
+    if (*name == '\0') {
+        if (n > 0 && root[n - 1] == ':') root[--n] = '\0';
+        name = root;
+    }
+    if (*name == '\0') return APP_NAME;
+    strncpy(title, name, sizeof(title) - 1);
+    title[sizeof(title) - 1] = '\0';
+    return title;
+}
+
+/**
  * @brief Iconify the main window: the open tool windows close (and are
  *        remembered), the window becomes the program icon on the Workbench.
  * @param app The application state.
@@ -1105,6 +1149,7 @@ static void ui_iconify(EditorApp *app)
     app->main_box[3] = app->window->Height;
     app->scrollbar_dragging = 0;
     toolbar_window_closed();
+    SetAttrs(app->window_object, WINDOW_IconTitle, (ULONG)icon_title(app), TAG_END);
     DoMethod(app->window_object, WM_ICONIFY, NULL);
     GetAttr(WINDOW_Window, app->window_object, (ULONG *)&still);
     if (still != NULL) {                /* not iconified: everything as it was */

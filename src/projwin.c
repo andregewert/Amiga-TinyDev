@@ -1,10 +1,11 @@
 /**
  * @file projwin.c
- * @brief The project settings window: the commands of the actions Build,
- *        Run and Debug and the include drawers, kept in
+ * @brief The project settings window: the project's name, the commands of
+ *        the actions Build, Run and Debug and the include drawers, kept in
  *        \<project\>/.tinydev/project.json.
  *
- * Built like the settings window (prefswin.c): the categories on the left,
+ * The project's name is a field above the rest (TinyDev's AppIcon shows
+ * it). Built like the settings window (prefswin.c): the categories on the left,
  * one page per action on the right with a listbrowser of its commands
  * (name, first line of the command; the checkbox marks the default). The
  * buttons Add, Edit, Remove, Up and Down sit next to the page and act on
@@ -75,7 +76,7 @@ enum {
     PJ_CATS = 100,
     PJ_LIST,                    /* + page */
     PJ_ADD = PJ_LIST + PROJ_ACTIONS + 1,
-    PJ_EDIT, PJ_REMOVE, PJ_UP, PJ_DOWN, PJ_SAVE, PJ_CANCEL
+    PJ_EDIT, PJ_REMOVE, PJ_UP, PJ_DOWN, PJ_SAVE, PJ_CANCEL, PJ_NAME
 };
 
 /** Gadget IDs of the command window. */
@@ -110,7 +111,7 @@ static struct {
     char title[EDITOR_PATH_MAX + 64];
     ProjConf conf;                      /* the settings edited */
     Object *winobj, *layout, *cats, *page, *lists[PAGES];
-    Object *add, *edit, *remove, *up, *down;
+    Object *add, *edit, *remove, *up, *down, *name;
     struct Window *win;
     struct List catlist, nodes[PAGES];
     struct ColumnInfo columns[PAGES][3];
@@ -641,6 +642,7 @@ static Object *build(EditorApp *app)
         PAGE_Current, 0,
         TAG_END);
 
+    pj.name = string(PJ_NAME, pj.conf.name != NULL ? pj.conf.name : "", 80);
     pj.add = button(PJ_ADD, S(MSG_PJ_ADD));
     pj.edit = button(PJ_EDIT, S(MSG_PJ_EDIT));
     pj.remove = button(PJ_REMOVE, S(MSG_PJ_REMOVE));
@@ -656,6 +658,8 @@ static Object *build(EditorApp *app)
         LAYOUT_BottomSpacing, AREA_SPACING,
         LAYOUT_InnerSpacing, AREA_SPACING,
         LAYOUT_DeferLayout, TRUE,
+        LAYOUT_AddChild, (ULONG)pj.name, FIXED,
+        CHILD_Label, (ULONG)label(S(MSG_PJ_NAME)),
         LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
             LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
             LAYOUT_InnerSpacing, AREA_SPACING,
@@ -865,6 +869,10 @@ void project_settings(EditorApp *app)
                     else refill(act, projconf_move(&pj.conf, act, sel, id == PJ_UP ? -1 : 1));
                     break;
                 case PJ_SAVE:
+                    if (projconf_set_name(&pj.conf, (const char *)get(pj.name, STRINGA_TextVal)) < 0) {
+                        message(pj.win, S(MSG_PJ_NOMEM));
+                        break;
+                    }
                     if (save()) {
                         done = 1;
                         scoutlink_project_opened(app);     /* the include drawers count */

@@ -1544,3 +1544,7 @@ MSG_MENU_CLOSEALL
 Alle Dateien schlieﬂen
 ; Close All Files
 ;
+MSG_PJ_NAME
+Projekt_name 
+; Project _name 
+;

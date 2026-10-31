@@ -31,6 +31,7 @@ void projconf_init(ProjConf *c)
     c->include_count = 0;
     c->lang_files = c->lang_ids = NULL;
     c->lang_count = 0;
+    c->name = NULL;
 }
 
 /**
@@ -63,6 +64,7 @@ void projconf_clear(ProjConf *c)
     }
     free(c->lang_files);
     free(c->lang_ids);
+    free(c->name);
     projconf_init(c);
 }
 
@@ -144,6 +146,10 @@ int projconf_parse(ProjConf *c, const char *json)
         return 0;
     }
     projconf_clear(c);
+    {
+        const JsonValue *v = json_obj_get(root, "name");
+        if (v != NULL && v->type == JSON_STRING && projconf_set_name(c, v->u.str_val) < 0) goto nomem;
+    }
     for (a = 0; a < PROJ_ACTIONS; ++a) {
         const JsonValue *list = json_obj_get_array(root, action_keys[a]);
         size_t i, n = json_array_length(list);
@@ -270,6 +276,7 @@ int projconf_copy(ProjConf *dst, const ProjConf *src)
     int a, ok = 1;
     long i, k;
     projconf_init(dst);
+    dst->name = copy_or_null(src->name, &ok);
     for (a = 0; a < PROJ_ACTIONS && ok; ++a) {
         if (src->count[a] == 0) continue;
         dst->commands[a] = calloc((size_t)src->count[a], sizeof(ProjCommand));
@@ -298,6 +305,28 @@ int projconf_copy(ProjConf *dst, const ProjConf *src)
         projconf_clear(dst);
         return 0;
     }
+    return 1;
+}
+
+int projconf_set_name(ProjConf *c, const char *name)
+{
+    size_t from = 0, to;
+    char *n;
+    if (name == NULL) name = "";
+    to = strlen(name);
+    /* blanks around the name are typing slips */
+    while (from < to && (name[from] == ' ' || name[from] == '\t')) ++from;
+    while (to > from && (name[to - 1] == ' ' || name[to - 1] == '\t')) --to;
+    if (from == to) {
+        free(c->name);
+        c->name = NULL;
+        return 1;
+    }
+    if ((n = malloc(to - from + 1)) == NULL) return -1;
+    memcpy(n, name + from, to - from);
+    n[to - from] = '\0';
+    free(c->name);
+    c->name = n;
     return 1;
 }
 
@@ -626,6 +655,8 @@ char *projconf_format(const ProjConf *c, const char *old_json)
     }
     if (root == NULL) return NULL;
 
+    if (c->name != NULL) ok = json_obj_set(root, "name", json_new_string(c->name));
+    else json_obj_remove(root, "name");
     for (a = 0; a < PROJ_ACTIONS && ok; ++a) {
         JsonValue *list = json_new_array();
         for (i = 0; list != NULL && i < c->count[a]; ++i)
