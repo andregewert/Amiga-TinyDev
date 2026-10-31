@@ -49,7 +49,7 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
   defined, also in another file; Go Back (Amiga+U) returns.
 - Completion (Amiga+L): a list of the names that could complete the word
   at the cursor (locals, the file's and the project's symbols, keywords).
-- Project settings (Build/Project Settings...): Shell commands for
+- Project settings (Project/Project Settings...): Shell commands for
   building, running and debugging the project, several per action with
   one default. Build (Amiga+E) saves the modified documents and runs in
   the background, its output in the output window (View/Output Window);

@@ -812,7 +812,7 @@ MSG_BUILD_NOSTART (//)
 ;
 ; %s: the action
 MSG_BUILD_NOCOMMAND (//)
-There is no command for %s. Please add one in Build/Project Settings....
+There is no command for %s. Please add one in Project/Project Settings....
 ;
 MSG_BUILD_NOFILE (//)
 The command needs a document with a name ({file} or {base}).

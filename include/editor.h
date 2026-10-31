@@ -167,7 +167,7 @@ enum MenuId {
     MID_SNAPSHOT_TOOLS, /**< View/Snapshot Tool Windows */
     MID_HELP,           /**< Project/Help...: starts the HelpViewer */
     MID_ICONIFY,        /**< Project/Iconify: the main window becomes an icon */
-    MID_PROJECT_SETTINGS, /**< Build/Project Settings...: the project's commands */
+    MID_PROJECT_SETTINGS, /**< Project/Project Settings...: the project's commands */
     MID_BUILD,          /**< Build/Build Project: the default Build command */
     MID_RUN,            /**< Build/Run: the default Run command */
     MID_DEBUG,          /**< Build/Debug: the default Debug command */

@@ -74,7 +74,7 @@ below the tree's root.
   making the directory when needed), for bookmarks and project settings;
   `datafile_read()`/`datafile_write()` do the same for any file.
 - `src/projwin.c`: the modal project settings window
-  (Build/Project Settings...), built like the settings window: a page per
+  (Project/Project Settings...), built like the settings window: a page per
   action with a listbrowser of its commands (checkbox = default), buttons
   beside the page, and a modal window to edit one command; "Save" writes
   `project.json` with `projconf_format()`.

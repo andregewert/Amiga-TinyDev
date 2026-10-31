@@ -1049,8 +1049,8 @@ MSG_BUILD_NOSTART
 ; %s could not be started.
 ;
 MSG_BUILD_NOCOMMAND
-Für "%s" gibt es kein Kommando. Bitte eines unter Erstellen/Projekteinstellungen... eintragen.
-; There is no command for %s. Please add one in Build/Project Settings....
+Für "%s" gibt es kein Kommando. Bitte eines unter Projekt/Projekteinstellungen... eintragen.
+; There is no command for %s. Please add one in Project/Project Settings....
 ;
 MSG_BUILD_NOFILE
 Das Kommando braucht ein Dokument mit Namen ({file} oder {base}).

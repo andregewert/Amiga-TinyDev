@@ -649,7 +649,7 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "%s has failed (return code %ld).",
     "%s was stopped.",
     "%s could not be started.",
-    "There is no command for %s. Please add one in Build/Project Settings....",
+    "There is no command for %s. Please add one in Project/Project Settings....",
     "The command needs a document with a name ({file} or {base}).",
     "The drawer %s cannot be found.",
     "The command could not be prepared in the drawer of the temporary files.",
