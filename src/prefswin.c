@@ -75,7 +75,7 @@ enum {
     PG_FOLDERTREE, PG_LINENUMBERS, PG_MINIMAP,
     PG_COLOUR, PG_DEFCOLOURS = PG_COLOUR + SCOL_COUNT,
     PG_TBMODE, PG_TBFRAMES,
-    PG_SCOUT, PG_TEMPDIR, PG_CHOOSETEMP,
+    PG_SCOUT, PG_TEMPDIR, PG_CHOOSETEMP, PG_SHELLWINDOW,
     PG_SAVE, PG_USE, PG_CANCEL
 };
 
@@ -138,7 +138,7 @@ static struct {
     Object *width, *height, *left, *top, *splash, *foldertree, *linenumbers, *minimap;
     Object *colours[SCOL_COUNT];
     Object *tbmode, *tbframes;
-    Object *scout, *tempdir;
+    Object *scout, *tempdir, *shellwindow;
     struct Window *win;
     struct List catlist;
 } pw;
@@ -376,11 +376,14 @@ static Object *build(EditorApp *app, const Settings *s)
         LAYOUT_AddChild, (ULONG)filler(),
         TAG_END);
 
-    /* Advanced: Scout and the drawer of the temporary files */
+    /* Advanced: Scout, the drawer of the temporary files, the Shell window */
     pw.scout = checkbox(PG_SCOUT, S(MSG_PREFS_SCOUT), s->scout);
     pw.tempdir = NewObject(STRING_GetClass(), NULL,
         GA_ID, PG_TEMPDIR, GA_RelVerify, TRUE, GA_TabCycle, TRUE,
         STRINGA_MaxChars, sizeof(s->tempdir), STRINGA_TextVal, (ULONG)s->tempdir, TAG_END);
+    pw.shellwindow = NewObject(STRING_GetClass(), NULL,
+        GA_ID, PG_SHELLWINDOW, GA_RelVerify, TRUE, GA_TabCycle, TRUE,
+        STRINGA_MaxChars, sizeof(s->shellwindow), STRINGA_TextVal, (ULONG)s->shellwindow, TAG_END);
     advanced = NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(categories[3])),
         LAYOUT_AddChild, (ULONG)pw.scout, FIXED,
         LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
@@ -391,6 +394,8 @@ static Object *build(EditorApp *app, const Settings *s)
             TAG_END),
         FIXED,
         CHILD_Label, (ULONG)label(S(MSG_PREFS_TEMPDIR)),
+        LAYOUT_AddChild, (ULONG)pw.shellwindow, FIXED,
+        CHILD_Label, (ULONG)label(S(MSG_PREFS_SHELLWINDOW)),
         LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_ADVNOTE)),
         FIXED,
         LAYOUT_AddChild, (ULONG)filler(),
@@ -476,6 +481,11 @@ static void read_gadgets(Settings *s)
         const char *dir = (const char *)get(pw.tempdir, STRINGA_TextVal);
         strncpy(s->tempdir, dir != NULL && dir[0] != '\0' ? dir : "T:", sizeof(s->tempdir) - 1);
         s->tempdir[sizeof(s->tempdir) - 1] = '\0';
+    }
+    {
+        const char *con = (const char *)get(pw.shellwindow, STRINGA_TextVal);
+        strncpy(s->shellwindow, con != NULL && con[0] != '\0' ? con : "CON:", sizeof(s->shellwindow) - 1);
+        s->shellwindow[sizeof(s->shellwindow) - 1] = '\0';
     }
 }
 

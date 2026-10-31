@@ -59,7 +59,7 @@ typedef struct ToolSpec {
  * Undo | Clipboard | Find | Build | Program). speedbar.gadget of OS 3.2 has
  * no separator (SBNA_Separator is OS4 only). The images exist in AISS
  * Classic and AISS 4; "a|b" takes the first that exists ("debug" is only in
- * AISS 4, "eye" in both).
+ * AISS 4, "eye" in both; "app" stands for the Shell, AISS has no Shell image).
  */
 static const ToolSpec tools[] = {
     { MID_NEW,            0, "new",    MSG_TB_NEW, MSG_TBH_NEW },
@@ -75,6 +75,7 @@ static const ToolSpec tools[] = {
     { MID_BUILD,          8, "tool",   MSG_TB_BUILD, MSG_TBH_BUILD },
     { MID_RUN,            0, "run",    MSG_TB_RUN, MSG_TBH_RUN },
     { MID_DEBUG,          0, "debug|eye", MSG_TB_DEBUG, MSG_TBH_DEBUG },
+    { MID_SHELL,          0, "app",    MSG_TB_SHELL, MSG_TBH_SHELL },
     { MID_SETTINGS,       8, "prefs",  MSG_TB_SETTINGS, MSG_TBH_SETTINGS },
     { MID_HELP,           0, "help",   MSG_TB_HELP, MSG_TBH_HELP },
 };

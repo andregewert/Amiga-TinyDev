@@ -125,6 +125,9 @@ below the tree's root.
   asynchronously with `SystemTags()` (`SYS_Asynch`), so the HelpViewer is
   independent of TinyDev and there is one viewer for TinyDev
   (`OpenWorkbenchObjectA()` cannot pass options).
+- `src/shell.c`: Project/New Shell: `NewShell` started asynchronously in
+  the project drawer, its window from the setting SHELLWINDOW (a console
+  handler, placed below the main window, or a whole window).
 - `src/fileio.c`: loading, line-ending preservation, requesters, and safe saves.
 - `src/tree.c`: connects `dirtree.gadget` to the editor (root selection,
   opening files, column visibility).

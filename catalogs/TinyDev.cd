@@ -873,7 +873,7 @@ MSG_PREFS_ASL_TEMPDIR (//)
 Drawer for temporary files
 ;
 MSG_PREFS_ADVNOTE (//)
-Both take effect at once. TinyDev-Scout finds the symbols\nand errors of the sources. Temporary files: Scout's copies of\nchanged documents and the scripts of the Build menu.\nT: (in the RAM disk) is fastest.
+All take effect at once. TinyDev-Scout finds the symbols\nand errors of the sources. Temporary files: Scout's copies of\nchanged documents and the scripts of the Build menu.\nT: (in the RAM disk) is fastest. Shell window: the console of\nProject/New Shell, e.g. CON: or VNC:, or a whole window\nsuch as CON:0/20/640/200/Shell/CLOSE.
 ;
 MSG_MENU_SYMLIST (//)
 Symbol List
@@ -1102,4 +1102,25 @@ MSG_ERR_FT_READ (//)
 ;
 MSG_ERR_FT_WRITE (//)
 The file type could not be saved in %s.
+;
+MSG_MENU_SHELL (//)
+New Shell
+;
+MSG_TB_SHELL (//)
+Shell
+;
+MSG_TBH_SHELL (//)
+Open a Shell in the project drawer
+;
+MSG_SHELL_TITLE (//)
+TinyDev Shell
+;
+MSG_SHELL_NODEVICE (//)
+The console %s is not mounted.\nThe Shell window is set in Settings, Advanced.
+;
+MSG_SHELL_FAILED (//)
+The Shell could not be started.
+;
+MSG_PREFS_SHELLWINDOW (//)
+Shell window 
 ;

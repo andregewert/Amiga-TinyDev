@@ -242,6 +242,7 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_SAVE_AS)},
     {NM_ITEM, NULL, "W", 0, 0, UD(MID_CLOSE)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
+    {NM_ITEM, NULL, NULL, 0, 0, UD(MID_SHELL)},
     {NM_ITEM, NULL, ",", 0, 0, UD(MID_SETTINGS)},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_HELP)},
     {NM_ITEM, NULL, "?", 0, 0, UD(MID_ABOUT)},
@@ -318,6 +319,7 @@ static const LONG menu_texts[] = {
     MSG_MENU_SAVEAS,
     MSG_MENU_CLOSE,
     -1,
+    MSG_MENU_SHELL,
     MSG_MENU_SETTINGS,
     MSG_MENU_HELP,
     MSG_MENU_ABOUT,
@@ -1150,6 +1152,7 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_CLOSE: document_close(app, app->active, 1); break;
         case MID_ABOUT: ui_about(app); break;
         case MID_HELP: help_open(app); break;
+        case MID_SHELL: shell_open(app); break;
         case MID_SETTINGS: edit_settings(app); break;
         case MID_PROJECT_SETTINGS: project_settings(app); break;
         case MID_BUILD: case MID_RUN: case MID_DEBUG: case MID_STOP:

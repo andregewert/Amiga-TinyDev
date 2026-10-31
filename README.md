@@ -53,6 +53,9 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
   Run (Amiga+R) and
   Debug (Amiga+D) start in a console window of their own; all three are
   also in the toolbar.
+- New Shell (Project menu, toolbar): a Shell window in the project
+  drawer, with CON:, VNC: or another console; it stays open when TinyDev
+  quits.
 - Toolbar with AISS images, images and text, or text only; a settings
   window for window, colours and toolbar.
 - English and German texts (catalogs), help pages shown by the HelpViewer
@@ -161,6 +164,7 @@ the icon, "Use" keeps them for this session.
 | `OUTPUTWINDOW=l,t,w,h` | Position and size of the output window (otherwise below the main window) |
 | `NOSCOUT` | No source analysis with TinyDev-Scout |
 | `TEMPDIR=drawer` | Drawer for temporary files (default `T:`) |
+| `SHELLWINDOW=console` | Console of Project/New Shell: a handler such as `CON:` (default) or `VNC:`, or a whole window such as `CON:0/20/640/200/Shell/CLOSE` |
 | `COLOR_TEXT`, `COLOR_KEYWORD`, `COLOR_STRING`, `COLOR_COMMENT`, `COLOR_PREPROCESSOR`, `COLOR_TYPE`, `COLOR_FUNCTION`, `COLOR_MACRO`, `COLOR_CONSTANT`, `COLOR_VARIABLE` | Colours of the syntax highlighting as `RRGGBB` |
 
 View/Snapshot Tool Windows writes `BOOKMARKLIST`, `BOOKMARKWINDOW`,

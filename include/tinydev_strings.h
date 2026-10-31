@@ -358,7 +358,14 @@
 #define MSG_MENU_FT_TEXT             353
 #define MSG_ERR_FT_READ              354
 #define MSG_ERR_FT_WRITE             355
-#define MSG_COUNT                    356
+#define MSG_MENU_SHELL               356
+#define MSG_TB_SHELL                 357
+#define MSG_TBH_SHELL                358
+#define MSG_SHELL_TITLE              359
+#define MSG_SHELL_NODEVICE           360
+#define MSG_SHELL_FAILED             361
+#define MSG_PREFS_SHELLWINDOW        362
+#define MSG_COUNT                    363
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -642,7 +649,7 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Temporary files ",
     "Choose...",
     "Drawer for temporary files",
-    "Both take effect at once. TinyDev-Scout finds the symbols\nand errors of the sources. Temporary files: Scout's copies of\nchanged documents and the scripts of the Build menu.\nT: (in the RAM disk) is fastest.",
+    "All take effect at once. TinyDev-Scout finds the symbols\nand errors of the sources. Temporary files: Scout's copies of\nchanged documents and the scripts of the Build menu.\nT: (in the RAM disk) is fastest. Shell window: the console of\nProject/New Shell, e.g. CON: or VNC:, or a whole window\nsuch as CON:0/20/640/200/Shell/CLOSE.",
     "Symbol List",
     "Symbols",
     "The symbol list needs listbrowser.gadget, chooser.gadget and string.gadget.",
@@ -719,6 +726,13 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Plain Text",
     "%s could not be read, so the file type is not saved in it.",
     "The file type could not be saved in %s.",
+    "New Shell",
+    "Shell",
+    "Open a Shell in the project drawer",
+    "TinyDev Shell",
+    "The console %s is not mounted.\nThe Shell window is set in Settings, Advanced.",
+    "The Shell could not be started.",
+    "Shell window ",
 };
 #endif
 

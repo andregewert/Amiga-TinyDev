@@ -122,6 +122,7 @@ typedef struct Settings {
     int diaglist;       /**< problem list open at the start (PROBLEMLIST) */
     int scout;          /**< analyse the sources with TinyDev-Scout (NOSCOUT turns it off) */
     char tempdir[256];  /**< drawer of the temporary files (TEMPDIR, default T:) */
+    char shellwindow[256]; /**< console of Project/New Shell: a handler (CON:) or a whole window (SHELLWINDOW) */
     char icon_name[300];/**< program icon without .info, for splash and About */
 } Settings;
 
@@ -178,6 +179,7 @@ enum MenuId {
     MID_GOBACK,         /**< Edit/Go Back */
     MID_COMPLETE,       /**< Edit/Complete */
     MID_RECT,           /**< Edit/Rectangular Selection (check item) */
+    MID_SHELL,          /**< Project/New Shell: a Shell in the project drawer */
     MID_FT_AUTO,        /**< File Type/Automatic: the language Scout detects */
     MID_FT_TEXT,        /**< File Type/Plain Text: no highlighting, no analysis */
     MID_FT_FIRST        /**< File Type: the first language (FILETYPE_SLOTS of them follow) */
@@ -1346,6 +1348,19 @@ void toolwin_remember(struct Window *win, long saved[4]);
  * @param app The application state.
  */
 void help_open(EditorApp *app);
+
+/**
+ * @brief Open a Shell window, independent of TinyDev (it stays open when
+ *        TinyDev quits).
+ *
+ * The Shell starts in the project drawer, otherwise in the drawer of the
+ * active document. Its console is Settings::shellwindow: a handler such
+ * as CON: or VNC:, opened below the main window and as wide as it, or a
+ * whole window specification, used as it is. Shows a requester if the
+ * handler is not mounted or the Shell cannot be started.
+ * @param app The application state.
+ */
+void shell_open(EditorApp *app);
 
 /**
  * @brief Open the bookmark list (or bring it to the front).

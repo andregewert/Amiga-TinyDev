@@ -1129,8 +1129,8 @@ Verzeichnis für temporäre Dateien
 ; Drawer for temporary files
 ;
 MSG_PREFS_ADVNOTE
-Beides wirkt sofort. TinyDev-Scout findet die Symbole und\nFehler der Quelltexte. Temporäre Dateien: Scouts Kopien\ngeänderter Dokumente und die Skripte des Menüs Erstellen.\nT: (in der RAM-Disk) ist am schnellsten.
-; Both take effect at once. TinyDev-Scout finds the symbols\nand errors of the sources. Temporary files: Scout's copies of\nchanged documents and the scripts of the Build menu.\nT: (in the RAM disk) is fastest.
+Alles wirkt sofort. TinyDev-Scout findet die Symbole und\nFehler der Quelltexte. Temporäre Dateien: Scouts Kopien\ngeänderter Dokumente und die Skripte des Menüs Erstellen.\nT: (in der RAM-Disk) ist am schnellsten. Shell-Fenster: die\nKonsole von Projekt/Neue Shell, z. B. CON: oder VNC:, oder ein\nganzes Fenster wie CON:0/20/640/200/Shell/CLOSE.
+; All take effect at once. TinyDev-Scout finds the symbols\nand errors of the sources. Temporary files: Scout's copies of\nchanged documents and the scripts of the Build menu.\nT: (in the RAM disk) is fastest. Shell window: the console of\nProject/New Shell, e.g. CON: or VNC:, or a whole window\nsuch as CON:0/20/640/200/Shell/CLOSE.
 ;
 MSG_MENU_SYMLIST
 Symbolliste
@@ -1435,4 +1435,32 @@ MSG_ERR_FT_READ
 MSG_ERR_FT_WRITE
 Der Dateityp konnte nicht in %s gespeichert werden.
 ; The file type could not be saved in %s.
+;
+MSG_MENU_SHELL
+Neue Shell
+; New Shell
+;
+MSG_TB_SHELL
+Shell
+; Shell
+;
+MSG_TBH_SHELL
+Eine Shell in der Projektschublade öffnen
+; Open a Shell in the project drawer
+;
+MSG_SHELL_TITLE
+TinyDev-Shell
+; TinyDev Shell
+;
+MSG_SHELL_NODEVICE
+Die Konsole %s ist nicht angemeldet.\nDas Shell-Fenster wird in den Einstellungen\nunter Erweitert festgelegt.
+; The console %s is not mounted.\nThe Shell window is set in Settings, Advanced.
+;
+MSG_SHELL_FAILED
+Die Shell ließ sich nicht starten.
+; The Shell could not be started.
+;
+MSG_PREFS_SHELLWINDOW
+Shell-Fenster 
+; Shell window 
 ;
