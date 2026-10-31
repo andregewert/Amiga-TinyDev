@@ -1338,9 +1338,60 @@ static void focus_field(void)
         fw.focus = 0;
 }
 
+static void open_window(EditorApp *app);
+
+/**
+ * @brief Take a selection of the active document within one line as the
+ *        search text (the find field and fw.text). A selection over
+ *        several lines is left alone: it is rarely meant as a search;
+ *        so is the last hit, which is still marked.
+ * @param app The application state.
+ */
+static void take_selection(EditorApp *app)
+{
+    Document *doc = app->active;
+    ULONG x0, y0, x1, y1, n = 0, from, to;
+    char *text, *p;
+    /* the last hit stays marked: its text would replace a pattern */
+    if (doc == NULL || !get(doc->editor, GA_TEXTEDITOR_AreaMarked) || hit_marked(app)) return;
+    block(app, doc, &x0, &y0, &x1, &y1);
+    if (y0 == ~0UL || y0 != y1 || x0 == x1) return;
+    from = x0 < x1 ? x0 : x1;
+    to = x0 < x1 ? x1 : x0;
+    if ((text = (char *)DoMethod(doc->editor, GM_TEXTEDITOR_ExportText, NULL)) == NULL) return;
+    for (p = text; *p != '\0' && n < y0; ++p)
+        if (*p == '\n') ++n;
+    if (n == y0) {
+        ULONG len = 0;
+        while (p[len] != '\0' && p[len] != '\n') ++len;
+        if (from < len) {
+            if (to > len) to = len;
+            if (to - from > MAXSEARCH) to = from + MAXSEARCH;
+            memcpy(fw.text, p + from, to - from);
+            fw.text[to - from] = '\0';
+            if (fw.win != NULL)
+                SetGadgetAttrs((struct Gadget *)fw.find, fw.win, NULL, STRINGA_TextVal, (ULONG)fw.text, TAG_END);
+            else if (fw.find != NULL)
+                SetAttrs(fw.find, STRINGA_TextVal, (ULONG)fw.text, TAG_END);
+        }
+    }
+    FreeVec(text);
+}
+
 void find_open(EditorApp *app)
 {
     if (app->window == NULL || !open_classes(app)) return;
+    take_selection(app);
+    open_window(app);
+}
+
+/**
+ * @brief Open the window, or bring it to the front, with the cursor in
+ *        the search field.
+ * @param app The application state.
+ */
+static void open_window(EditorApp *app)
+{
     if (fw.winobj == NULL && !build(app)) {
         ui_error(app, APP_NAME, S(MSG_FIND_NOWINDOW));
         return;
@@ -1365,7 +1416,7 @@ void find_next(EditorApp *app)
         return;
     }
     if (fw.scope_on == SCOPE_PROJECT) {
-        if (fw.win == NULL) find_open(app);    /* the search runs while the window is open */
+        if (fw.win == NULL && open_classes(app)) open_window(app);    /* the search runs while the window is open */
         project_find(app);
         return;
     }
@@ -1399,7 +1450,8 @@ int find_hide(void)
 
 void find_show(EditorApp *app)
 {
-    find_open(app);
+    if (app->window == NULL || !open_classes(app)) return;
+    open_window(app);
     if (fw.win == NULL) return;
     /* where it was, not centred over the main window again */
     ChangeWindowBox(fw.win, fw.box[0], fw.box[1], fw.box[2], fw.box[3]);
