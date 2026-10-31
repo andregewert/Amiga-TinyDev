@@ -405,10 +405,134 @@ static void test_diagnostics(void)
     /* the '}' closes the function again: the '(' left open is reported,
        but no mismatch; "don't" in #error is no literal */
     TEST_ASSERT(has_diag(res, "Unclosed bracket '('", SCOUT_SEVERITY_ERROR, 4));
-    TEST_ASSERT(res->diagnostic_count == 11);
+    /* f has no return; the unterminated literals give no missing ';' */
+    TEST_ASSERT(has_diag(res, "Function f returns no value", SCOUT_SEVERITY_WARNING, 1));
+    TEST_ASSERT(res->diagnostic_count == 12);
     c_parse_result_free(res);
 
     res = analyze_text("int ok(void) { return (1 + [2]); }\n");
+    TEST_ASSERT(res != NULL && res->diagnostic_count == 0);
+    c_parse_result_free(res);
+}
+
+/**
+ * @brief Count the diagnostics with a message.
+ * @param res The result.
+ * @param message The message.
+ * @return Their number.
+ */
+static int count_diag(const CParseResult *res, const char *message)
+{
+    long i;
+    int n = 0;
+    for (i = 0; i < res->diagnostic_count; i++) n += strcmp(res->diagnostics[i].message, message) == 0;
+    return n;
+}
+
+/**
+ * @brief The checks of statements: missing ';' in blocks, at file scope
+ *        and after a struct, assignments in conditions, empty if, block
+ *        outside a function, returns.
+ */
+static void test_statements(void)
+{
+    CParseResult *res = analyze_text(
+        "struct S { int a; }\n"                         /* 1: ';' missing */
+        "int x = 5\n"                                   /* 2: ';' missing */
+        "int f(int a)\n"                                /* 3 */
+        "{\n"
+        "    int b = a\n"                               /* 5: ';' missing */
+        "    b = g(a)\n"                                /* 6: ';' missing */
+        "    if (b = 2) b++;\n"                         /* 7: assignment */
+        "    if (b);\n"                                 /* 8: empty */
+        "    if (b) ; else b--;\n"                      /* 9: not empty (else) */
+        "    while ((b = g(b)) != 0) b++;\n"            /* 10: in parentheses */
+        "    return b\n"                                /* 11: before '}' */
+        "}\n"
+        "void v(void)\n"
+        "{\n"
+        "    return 1;\n"                               /* 15: value in void */
+        "}\n"
+        "int h(void);\n"
+        "{\n"                                           /* 18: outside */
+        "}\n");
+    TEST_ASSERT(res != NULL);
+    if (!res) return;
+    TEST_ASSERT(has_diag(res, "Missing ';'", SCOUT_SEVERITY_ERROR, 1));
+    TEST_ASSERT(has_diag(res, "Missing ';'", SCOUT_SEVERITY_ERROR, 2));
+    TEST_ASSERT(has_diag(res, "Missing ';'", SCOUT_SEVERITY_ERROR, 5));
+    TEST_ASSERT(has_diag(res, "Missing ';'", SCOUT_SEVERITY_ERROR, 6));
+    TEST_ASSERT(has_diag(res, "Missing ';'", SCOUT_SEVERITY_ERROR, 11));
+    TEST_ASSERT(count_diag(res, "Missing ';'") == 5);
+    TEST_ASSERT(has_diag(res, "Assignment in a condition: '==' meant?", SCOUT_SEVERITY_WARNING, 7));
+    TEST_ASSERT(count_diag(res, "Assignment in a condition: '==' meant?") == 1);
+    TEST_ASSERT(has_diag(res, "Empty statement after if", SCOUT_SEVERITY_WARNING, 8));
+    TEST_ASSERT(count_diag(res, "Empty statement after if") == 1);
+    TEST_ASSERT(has_diag(res, "Return with a value in a void function", SCOUT_SEVERITY_WARNING, 15));
+    TEST_ASSERT(has_diag(res, "Block outside a function (a ';' after the function head?)", SCOUT_SEVERITY_ERROR, 18));
+    TEST_ASSERT(res->diagnostic_count == 9);
+    /* the declarations after the missing ';' are still found */
+    TEST_ASSERT(sym(res, "x", 1) >= 0 && sym(res, "f", 1) >= 0);
+    TEST_ASSERT(has_diag(res, "Missing ';'", SCOUT_SEVERITY_ERROR, 1) &&
+                res->diagnostics[0].range.start_col == 19);
+    c_parse_result_free(res);
+
+    /* no reports for: continued expressions, casts, initializers,
+       compound literals, macro loops, struct bodies, old-style
+       definitions, string concatenation, returns that do not come back */
+    res = analyze_text(
+        "struct P { int x, y; };\n"
+        "static int\n"
+        "old(a, b)\n"
+        "int a;\n"
+        "char *b;\n"
+        "{\n"
+        "    return a\n"
+        "        + 1;\n"
+        "}\n"
+        "int ok(int n)\n"
+        "{\n"
+        "    int t[] = { 1,\n"
+        "                2 };\n"
+        "    struct P p = (struct P){ 1, 2 };\n"
+        "    char *s = \"a\"\n"
+        "              \"b\";\n"
+        "    n = (int)\n"
+        "        t[0];\n"
+        "    FOREACH(n, t) {\n"
+        "        n++;\n"
+        "    }\n"
+        "    struct { int a; } local;\n"
+        "    switch (n) {\n"
+        "    case 1: n = 2; break;\n"
+        "    default: break;\n"
+        "    }\n"
+        "    if (n) ;\n"
+        "    else n = 0;\n"
+        "    return n ? p.x : s[0];\n"
+        "}\n"
+        "int forever(void)\n"
+        "{\n"
+        "    for (;;) wait();\n"
+        "}\n"
+        "int quit(void)\n"
+        "{\n"
+        "    exit(0);\n"
+        "}\n"
+        "int main(void)\n"
+        "{\n"
+        "}\n"
+        "STATIC VOID\n"
+        "macro_head(void)\n"
+        "{\n"
+        "}\n");
+    TEST_ASSERT(res != NULL && res->diagnostic_count == 0);
+    if (res && res->diagnostic_count > 0) printf("  first: %ld: %s\n", res->diagnostics[0].range.start_line,
+                                                 res->diagnostics[0].message);
+    c_parse_result_free(res);
+
+    /* a spliced string literal is one literal */
+    res = analyze_text("char *s = \"ab\\\ncd\";\n");
     TEST_ASSERT(res != NULL && res->diagnostic_count == 0);
     c_parse_result_free(res);
 }
@@ -656,6 +780,7 @@ int main(void)
     test_header();
     test_source();
     test_diagnostics();
+    test_statements();
     test_positions();
     test_declarations();
     test_protocol();

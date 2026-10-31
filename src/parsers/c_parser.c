@@ -139,6 +139,7 @@ typedef struct Parser {
     long refcap;            /**< size of CParseResult::references */
     long tokvalcap;         /**< size of CParseResult::tokens (values) */
     unsigned long steps;    /**< counter for c_parser_should_stop() */
+    const CTok *semi;       /**< the token after which a missing ';' was reported last */
 } Parser;
 
 /** Text being joined from tokens, at most DETAIL_MAX characters. */
@@ -644,6 +645,12 @@ static void lex(Parser *P)
                 if (*p == '\\' && p + 1 < end && p[1] != '\n' && p[1] != '\r') {
                     p += 2;
                     col += 2;
+                } else if (*p == '\\' && p + 1 < end) {
+                    /* a spliced line: the literal goes on */
+                    p++;
+                    if (*p++ == '\r' && p < end && *p == '\n') p++;
+                    line++;
+                    col = 1;
                 } else {
                     p++;
                     col++;
@@ -1037,6 +1044,303 @@ static long first_declarator_name(Parser *P, long i, long end)
     return -1;
 }
 
+/* ---- Checks of statements ---- */
+
+/**
+ * @brief Tell whether a code token can end an expression or a
+ *        declarator: a name, a literal, ')', ']', "++" or "--".
+ * @param P The parser.
+ * @param i Its code index.
+ * @return Non-zero if it can.
+ */
+static int ends_operand(Parser *P, long i)
+{
+    const CTok *t = CT(P, i);
+    if (t->type == TK_IDENT) return !tok_reserved(t);
+    if (t->type != TK_PUNCT) return 1;
+    return tok_is(t, TK_PUNCT, ")") || tok_is(t, TK_PUNCT, "]") || tok_is(t, TK_PUNCT, "++") ||
+           tok_is(t, TK_PUNCT, "--");
+}
+
+/**
+ * @brief Tell whether a code token starts a declaration: a type keyword,
+ *        a storage class, typedef, struct, union or enum.
+ * @param P The parser.
+ * @param i Its code index.
+ * @param end The end (exclusive).
+ * @return Non-zero if it does.
+ */
+static int starts_decl(Parser *P, long i, long end)
+{
+    return i < end && (tok_in(CT(P, i), c_parser_types) || is_tag_word(P, i, end) ||
+                       is_word(P, i, end, "static") || is_word(P, i, end, "extern") ||
+                       is_word(P, i, end, "typedef"));
+}
+
+/**
+ * @brief Tell whether a code token can start a statement: a name, a
+ *        declaration word, a qualifier or a keyword that starts one.
+ * @param P The parser.
+ * @param i Its code index.
+ * @param end The end (exclusive).
+ * @return Non-zero if it can.
+ */
+static int starts_statement(Parser *P, long i, long end)
+{
+    static const char *const words[] = {
+        "return", "if", "else", "while", "for", "do", "switch", "case", "default",
+        "break", "continue", "goto", NULL
+    };
+    return is_name(P, i, end) || starts_decl(P, i, end) || (i < end && (tok_in(CT(P, i), QUALIFIERS) ||
+                                                                          tok_in(CT(P, i), words)));
+}
+
+/**
+ * @brief Tell whether a ')' closes a cast: the group holds only words and
+ *        '*' and does not follow a name or a closing bracket (a call).
+ * @param P The parser.
+ * @param close The ')'.
+ * @return Non-zero if it does.
+ */
+static int is_cast(Parser *P, long close)
+{
+    long open = P->match[close], k;
+    if (open < 0 || open + 1 >= close) return 0;
+    if (open > 0 && ends_operand(P, open - 1)) return 0;
+    for (k = open + 1; k < close; k++) {
+        const CTok *t = CT(P, k);
+        if (t->type != TK_IDENT && !tok_is(t, TK_PUNCT, "*")) return 0;
+    }
+    return 1;
+}
+
+/**
+ * @brief Tell whether a parameter list holds only names (an old-style
+ *        definition, whose parameter declarations follow it).
+ * @param P The parser.
+ * @param close The list's ')'.
+ * @return Non-zero if it does.
+ */
+static int old_style_params(Parser *P, long close)
+{
+    long open = P->match[close], k;
+    if (open < 0 || open + 1 >= close) return 0;
+    for (k = open + 1; k < close; k++) {
+        if (!is_name(P, k, close) && !is_punct(P, k, close, ",")) return 0;
+    }
+    return 1;
+}
+
+/**
+ * @brief Report a missing ';' after a code token (once).
+ * @param P The parser.
+ * @param prev The token.
+ */
+static void missing_semicolon(Parser *P, long prev)
+{
+    const CTok *t = CT(P, prev);
+    if (P->semi == t) return;
+    /* an unterminated literal runs to the line end: reported already */
+    if ((t->type == TK_STRING || t->type == TK_CHAR) && (t->len < 2 || t->s[t->len - 1] != t->s[0])) return;
+    P->semi = t;
+    add_diag(P, "Missing ';'", SCOUT_SEVERITY_ERROR, t->line, t->col + t->len - 1, t->line, t->col + t->len);
+}
+
+/**
+ * @brief Tell whether a declaration seems to lack its ';' before a token:
+ *        the token starts a new line and a declaration, the one before
+ *        can end a declarator (not an old-style parameter list).
+ * @param P The parser.
+ * @param prev The token before (code index; -1 for none).
+ * @param i The token.
+ * @param end The end (exclusive).
+ * @return Non-zero if a ';' is missing (it was reported).
+ */
+static int decl_semicolon(Parser *P, long prev, long i, long end)
+{
+    if (prev < 0 || i >= end || CT(P, i)->line <= CT(P, prev)->line) return 0;
+    if (!starts_decl(P, i, end) || !ends_operand(P, prev)) return 0;
+    if (is_punct(P, prev, end, ")") && old_style_params(P, prev)) return 0;
+    missing_semicolon(P, prev);
+    return 1;
+}
+
+/**
+ * @brief Check the condition of an if or while: an assignment at its top
+ *        level (not in extra parentheses) is a warning.
+ * @param P The parser.
+ * @param lp The condition's '('.
+ * @param rp Its ')'.
+ */
+static void check_condition(Parser *P, long lp, long rp)
+{
+    long k = lp + 1;
+    while (k < rp) {
+        if (is_punct(P, k, rp, "=")) {
+            add_diag_toks(P, "Assignment in a condition: '==' meant?", SCOUT_SEVERITY_WARNING, CT(P, k), CT(P, k));
+            return;
+        }
+        k = skip_one(P, k, rp);
+    }
+}
+
+/**
+ * @brief Check one statement of a block for a missing ';': before a new
+ *        line that starts another statement, or before the block's end.
+ *
+ * A '{' after '=', ',', '(', return or a cast belongs to the statement
+ * (an initializer or compound literal), as does the body of a struct,
+ * union or enum; another '{' ends the statement without a check (a macro
+ * used like a loop), and the caller checks the block.
+ *
+ * @param P The parser.
+ * @param i The statement's first token.
+ * @param end The block's '}' (exclusive end).
+ * @return The index after the statement.
+ */
+static long check_statement(Parser *P, long i, long end)
+{
+    long prev = -1, n = 0;
+    int tag = 0, jump = is_word(P, i, end, "return") || is_word(P, i, end, "break") ||
+                        is_word(P, i, end, "continue");
+    while (i < end) {
+        long next;
+        if (is_punct(P, i, end, ";")) return i + 1;
+        if (is_punct(P, i, end, "{") &&
+            !(tag || (prev >= 0 && (is_punct(P, prev, end, "=") || is_punct(P, prev, end, ",") ||
+                                    is_punct(P, prev, end, "(") || is_word(P, prev, end, "return") ||
+                                    (is_punct(P, prev, end, ")") && is_cast(P, prev)))))) {
+            return i;
+        }
+        if (prev >= 0 && n >= 2 && CT(P, i)->line > CT(P, prev)->line && ends_operand(P, prev) &&
+            starts_statement(P, i, end) && !(is_punct(P, prev, end, ")") && is_cast(P, prev))) {
+            missing_semicolon(P, prev);
+            return i;
+        }
+        if (is_tag_word(P, i, end)) tag = 1;
+        next = skip_one(P, i, end);
+        prev = next - 1 < end ? next - 1 : end - 1;
+        n++;
+        i = next;
+    }
+    /* the block ends: "x = 1 }", "return x }", "break }" */
+    if (prev >= 0 && ((n >= 2 && ends_operand(P, prev)) || (n == 1 && jump))) missing_semicolon(P, prev);
+    return i;
+}
+
+/**
+ * @brief Check the statements of a block: missing ';', assignments in
+ *        conditions, an empty statement after if (unless an else follows).
+ * @param P The parser.
+ * @param i The token after the '{'.
+ * @param end The '}' (exclusive end).
+ */
+static void check_block(Parser *P, long i, long end)
+{
+    while (i < end && !check_stop(P)) {
+        if (is_punct(P, i, end, "{")) {
+            long close = close_of(P, i, end);
+            check_block(P, i + 1, close);
+            i = close + 1;
+            continue;
+        }
+        if (is_punct(P, i, end, ";") || is_punct(P, i, end, "}")) {
+            i++;
+            continue;
+        }
+        if (is_word(P, i, end, "case")) {
+            while (i < end && !is_punct(P, i, end, ":")) i = skip_one(P, i, end);
+            i++;
+            continue;
+        }
+        if ((is_word(P, i, end, "default") || is_name(P, i, end)) && is_punct(P, i + 1, end, ":")) {
+            i += 2;
+            continue;
+        }
+        if ((is_word(P, i, end, "if") || is_word(P, i, end, "while") || is_word(P, i, end, "switch") ||
+             is_word(P, i, end, "for")) && is_punct(P, i + 1, end, "(")) {
+            long rp = close_of(P, i + 1, end);
+            if (is_word(P, i, end, "if") || is_word(P, i, end, "while")) check_condition(P, i + 1, rp);
+            if (is_word(P, i, end, "if") && is_punct(P, rp + 1, end, ";") &&
+                CT(P, rp + 1)->line == CT(P, rp)->line && !is_word(P, rp + 2, end, "else"))
+                add_diag_toks(P, "Empty statement after if", SCOUT_SEVERITY_WARNING, CT(P, rp + 1), CT(P, rp + 1));
+            i = rp + 1;
+            continue;
+        }
+        if (is_word(P, i, end, "else") || is_word(P, i, end, "do")) {
+            i++;
+            continue;
+        }
+        i = check_statement(P, i, end);
+    }
+}
+
+/**
+ * @brief Check what a function returns: a non-void function without a
+ *        return of a value, or a void function returning one.
+ *
+ * main() may end without return; a body calling exit(), abort() or
+ * longjmp() or holding an endless loop (for (;;), while (1)) is not
+ * reported for a missing return. Nothing is checked when the head is
+ * not plainly "type name(parameters) {": with an implicit int, or with
+ * macros in it (STATIC VOID name(...), FT_BASE_DEF(void) name(...)),
+ * the name found may be wrong.
+ *
+ * @param P The parser.
+ * @param start The declaration's first token.
+ * @param name The function's name.
+ * @param params Its parameter list's '('.
+ * @param open The body's '{'.
+ * @param close Its '}'.
+ */
+static void check_returns(Parser *P, long start, long name, long params, long open, long close)
+{
+    static const char *const ends[] = { "exit", "abort", "longjmp", "_exit", "Exit", NULL };
+    int is_void = 0, valued = 0, endless = 0, typed = 0;
+    long k;
+    char msg[96];
+    const CTok *n = CT(P, name);
+    /* a body left open runs to the end of the file */
+    if (close >= P->ncode || !is_punct(P, close, P->ncode, "}")) return;
+    if (close_of(P, params, open) + 1 != open) return;
+    for (k = name + 1; k < params; k++) {
+        if (is_name(P, k, params)) return;
+    }
+    for (k = start; k < name; k++) {
+        if (tok_in(CT(P, k), c_parser_types) || is_tag_word(P, k, name)) typed = 1;
+        if (is_word(P, k, name, "void")) is_void = 1;
+        else if (is_punct(P, k, name, "*")) is_void = 0;
+        else if (is_name(P, k, name)) typed = 1;
+    }
+    if (!typed) return;
+    for (k = open + 1; k < close; k++) {
+        if (is_word(P, k, close, "return") && !is_punct(P, k + 1, close, ";")) {
+            valued = 1;
+            if (is_void) {
+                add_diag_toks(P, "Return with a value in a void function", SCOUT_SEVERITY_WARNING,
+                              CT(P, k), CT(P, k));
+            }
+        } else if (tok_in(CT(P, k), ends) && is_punct(P, k + 1, close, "(")) {
+            endless = 1;
+        } else if (is_word(P, k, close, "for") && is_punct(P, k + 2, close, ";") && is_punct(P, k + 3, close, ";")) {
+            endless = 1;
+        } else if (is_word(P, k, close, "while") && is_punct(P, k + 1, close, "(") &&
+                   is_punct(P, k + 3, close, ")") &&
+                   ((CT(P, k + 2)->type == TK_NUMBER && !(CT(P, k + 2)->len == 1 && CT(P, k + 2)->s[0] == '0')) ||
+                    is_word(P, k + 2, close, "TRUE"))) {
+            endless = 1;
+        }
+    }
+    if (is_void || valued || endless || (n->len == 4 && memcmp(n->s, "main", 4) == 0)) return;
+    /* an empty definition or one holding only a return without value is
+       reported too: both leave the result undefined */
+    memcpy(msg, "Function ", 9);
+    k = n->len < 40 ? n->len : 40;
+    memcpy(msg + 9, n->s, (size_t)k);
+    strcpy(msg + 9 + k, " returns no value");
+    add_diag_toks(P, msg, SCOUT_SEVERITY_WARNING, n, n);
+}
+
 static long parse_declaration(Parser *P, long i, long end, int ctx, long parent);
 
 /**
@@ -1324,6 +1628,11 @@ static long parse_declaration(Parser *P, long i, long end, int ctx, long parent)
                     parse_members(P, i + 1, close, sym >= 0 ? sym : parent);
                 }
                 i = close + 1;
+                /* "struct x { ... }" and a new declaration on the next line */
+                if (close < end && i < end && CT(P, i)->line > CT(P, close)->line && starts_decl(P, i, end)) {
+                    missing_semicolon(P, close);
+                    return i;
+                }
             }
             saw_type = 1;
         } else if (is_name(P, i, end) && !saw_type) {
@@ -1350,6 +1659,9 @@ static long parse_declaration(Parser *P, long i, long end, int ctx, long parent)
         if (is_punct(P, i, end, ";")) return i + 1;
         while (j < end) {
             const CTok *t = CT(P, j);
+            /* a declaration on the next line: the ';' is missing (in blocks
+               check_block() looks at it) */
+            if (ctx != CTX_BLOCK && j > i && decl_semicolon(P, j - 1, j, end)) break;
             if (t->type == TK_PUNCT) {
                 if (tok_is(t, TK_PUNCT, ",") || tok_is(t, TK_PUNCT, ";") || tok_is(t, TK_PUNCT, "{") ||
                     tok_is(t, TK_PUNCT, "=") || tok_is(t, TK_PUNCT, "}")) {
@@ -1369,6 +1681,14 @@ static long parse_declaration(Parser *P, long i, long end, int ctx, long parent)
                     } else if (name >= 0 && !is_func && !fptr) {
                         is_func = 1;
                         params = j;
+                        if (old_style_params(P, close) && !is_punct(P, close + 1, end, ";") &&
+                            !is_punct(P, close + 1, end, ",")) {
+                            /* an old-style definition: its parameter
+                               declarations up to the body */
+                            j = close + 1;
+                            while (j < end && !is_punct(P, j, end, "{")) j = skip_one(P, j, end);
+                            break;
+                        }
                     }
                     j = close + 1;
                     continue;
@@ -1444,7 +1764,10 @@ static long parse_declaration(Parser *P, long i, long end, int ctx, long parent)
 
         if (is_punct(P, j, end, "=")) {
             j++;
-            while (j < end && !is_punct(P, j, end, ",") && !is_punct(P, j, end, ";")) j = skip_one(P, j, end);
+            while (j < end && !is_punct(P, j, end, ",") && !is_punct(P, j, end, ";")) {
+                if (ctx != CTX_BLOCK && decl_semicolon(P, j - 1, j, end)) break;
+                j = skip_one(P, j, end);
+            }
         }
         if (is_punct(P, j, end, "{")) {
             long close = close_of(P, j, end);
@@ -1454,6 +1777,8 @@ static long parse_declaration(Parser *P, long i, long end, int ctx, long parent)
                 first_local = P->res->symbol_count;
                 add_func(P, sym, first_local, params, close);
                 parse_block(P, j + 1, close, sym);
+                check_block(P, j + 1, close);
+                check_returns(P, start, name, params, j, close);
                 if (P->nfuncs > 0 && P->funcs[P->nfuncs - 1].sym == sym) {
                     P->funcs[P->nfuncs - 1].last = P->res->symbol_count;
                 }
@@ -1631,7 +1956,15 @@ CParseResult *c_parser_analyze(const char *source, size_t length, int is_header)
     if (!res->stopped && !res->out_of_memory) {
         long i = 0;
         while (i < P.ncode && !check_stop(&P)) {
-            long n = parse_declaration(&P, i, P.ncode, CTX_FILE, -1);
+            long n;
+            if (is_punct(&P, i, P.ncode, "{")) {
+                /* "int f(void);" followed by its body */
+                add_diag_toks(&P, "Block outside a function (a ';' after the function head?)",
+                              SCOUT_SEVERITY_ERROR, CT(&P, i), CT(&P, i));
+                i = close_of(&P, i, P.ncode) + 1;
+                continue;
+            }
+            n = parse_declaration(&P, i, P.ncode, CTX_FILE, -1);
             i = n > i ? n : i + 1;
         }
     }
