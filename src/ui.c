@@ -752,6 +752,9 @@ int ui_create(EditorApp *app)
     if (app->tab_close_image == NULL) return 0;
     app->tabs = NewObject(CLICKTAB_GetClass(), NULL,
         GA_ID, GID_TABS, GA_RelVerify, TRUE,
+        /* file names may hold a '_'; the autodoc does not name this tag, but
+         * clicktab.gadget 47.13 reads it (seen in its code); before the labels */
+        GA_Underscore, 0,
         CLICKTAB_Labels, (ULONG)&app->tab_nodes,
         CLICKTAB_PageGroup, (ULONG)app->pages,
         CLICKTAB_PageGroupBorder, TRUE,
