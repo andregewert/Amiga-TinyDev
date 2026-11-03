@@ -185,12 +185,15 @@ typedef struct OpenMessage {
     char path[PATHMAX];     /**< directory or page (full path), "" to come to the front only */
 } OpenMessage;
 
+/** Text size of htmlttf.gadget without SIZE. */
+#define DEFAULT_TTF_SIZE 10
+
 /** Options from the command line or the tool types. */
 static struct {
     char dir[PATHMAX];  /**< directory (or page) to open */
     BOOL ttf;           /**< use htmlttf.gadget */
     char fontset[32];   /**< its font family */
-    LONG size;          /**< its text size, 0 = default */
+    LONG size;          /**< its text size, 0 = #DEFAULT_TTF_SIZE */
     LONG box[4];        /**< window left, top, width, height; width 0 = automatic */
     char portname[48];  /**< PORTNAME: one viewer per name, "" = no port */
     char icon[PATHMAX]; /**< the program icon (without .info), "" if unknown */
@@ -1114,7 +1117,9 @@ static int open_window(void)
         /* a directory to open: no welcome text that a page replaces at once */
         opt.dir[0] == '\0' ? HTML_Text : TAG_IGNORE, (ULONG)S(MSG_WELCOME),
         opt.fontset[0] ? HTMLTTF_FontSet : TAG_IGNORE, (ULONG)opt.fontset,
-        opt.size > 0 ? HTMLTTF_Size : TAG_IGNORE, (ULONG)opt.size,
+        opt.ttf ? HTMLTTF_Size : TAG_IGNORE, (ULONG)(opt.size > 0 ? opt.size : DEFAULT_TTF_SIZE),
+        HTML_TableGrid, TRUE,
+        HTML_CodeStyle, TRUE,
         TAG_DONE);
     hv.vscroll = NewObject(SCROLLER_GetClass(), NULL,
         GA_ID, GID_VSCROLL, GA_RelVerify, TRUE,

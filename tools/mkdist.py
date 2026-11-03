@@ -91,7 +91,7 @@ def main():
              ('parsers/dos_parser', PARSER_DOS, WBTOOL, dict(stack=16384)),
              ('parsers/make_parser', PARSER_MAKE, WBTOOL, dict(stack=16384)),
              ('HelpViewer', 'helpviewer', WBTOOL,
-              dict(stack=32768, tooltypes=('(TTF)', '(FONTSET=Vera)', '(SIZE=12)'))),
+              dict(stack=32768, tooltypes=('(TTF)', '(FONTSET=Vera)', '(SIZE=10)'))),
              (NAME + '.readme', 'readme', WBPROJECT, dict(default_tool=MULTIVIEW)),
              ('LICENSE', 'license', WBPROJECT, dict(default_tool=MULTIVIEW)),
              ('Docs/README.md', 'readme', WBPROJECT, dict(default_tool=MULTIVIEW))]

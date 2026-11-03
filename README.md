@@ -208,7 +208,7 @@ uses it for its own help, but it works with any directory of HTML pages.
 |---|---|
 | `DIR` | Directory or page to show; without it, a welcome text |
 | `TTF` | Use htmlttf.gadget (TrueType fonts) instead of html.gadget |
-| `FONTSET`, `SIZE` | Font family and text size for `TTF` |
+| `FONTSET`, `SIZE` | Font family and text size for `TTF` (default size 10) |
 | `PORTNAME` | Only one viewer per name: a later start with the same name shows its page in the running viewer |
 | `WINDOW=l,t,w,h` | Window position and size (tool type, written by Project/Snapshot Window) |
 | `PRINT_MODE=PRINTER\|PS\|PDF`, `PS_LEVEL=1\|2`, `PRINT_TO=FILE\|PRT\|PS\|DEVICE`, `PRINT_DEVICE`, `PRINT_IMAGEDPI` | Print options: kind of output, PostScript level and destination, picture resolution (tool types, written by the print window) |
