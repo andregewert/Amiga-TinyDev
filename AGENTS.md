@@ -216,7 +216,8 @@ below the tree's root.
   -lh0-/-lh4- to -lh7-, CRCs; host-tested in `tests/test_sprout_lha.c`).
   Its design is `src/sprout/docs/Sprout.md`. Like Scout it must not
   depend on TinyDev.
-- `templates/`: the templates that come with TinyDev (HelloWorld, a
+- `templates/`: the templates that come with TinyDev (HelpProject, help
+  pages in Markdown built with `mdtohtml`; HelloWorld, a
   project; CModule, a file template) (`templates/<Id>/`
   with `template.json` and `files/`, ISO-8859-1); `make` copies them to
   `bin/Templates/` with `cp` and checks them with `charcheck-templates`,
@@ -265,7 +266,7 @@ below the tree's root.
 - `tests/test_projconf.c`: host-native tests of the project settings.
 - `tests/test_filetypes.c`: host-native tests of the settings per file type.
 - `tests/test_sprout_tmpl.c`: host-native tests of Sprout's core (also
-  reads `templates/HelloWorld/template.json`).
+  reads the `template.json` of `templates/HelloWorld` and `templates/HelpProject`).
 - `tests/test_sprout_lha.c`: host-native tests of the LhA reader with the
   archives of `tests/data/sprout/` (binary, left out of `charcheck`),
   made by `tools/mksprouttests.py` with jlha.
@@ -295,9 +296,9 @@ below the tree's root.
   unchanged and without our warning flags. Do not edit it; its licence
   requires the credit in `README.md`.
 - `tools/mkicons.py`: motifs of the Workbench icons (TinyDev, Scout, parsers,
-  HelpViewer, the template HelloWorld)
+  HelpViewer, the templates HelloWorld and HelpProject)
   for `amiga-devkit/tools/amigaicons.py`; `make icons` writes `icons/` and
-  `templates/HelloWorld/template.info`. These files are generated, never
+  `templates/<Id>/template.info` of both. These files are generated, never
   edited by hand.
 - `package/`: what the Aminet archive needs besides the build:
   `TinyDev.readme` (the Aminet readme, ISO-8859-1, at most 78 columns) and

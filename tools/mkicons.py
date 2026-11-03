@@ -15,11 +15,13 @@
 #   helpviewer a blue handbook with a question mark on its cover
 #   hello      a Shell window that says "Hi!" in a speech bubble (the
 #              template HelloWorld)
+#   helppages  the handbook of the HelpViewer with a pencil that writes it
+#              (the template HelpProject)
 #
 # Run directly (or "make icons") to write sample icons of all styles to
-# icons/<Style>/ and a preview picture icons/preview.png, and the icon of
-# the template HelloWorld (templates/HelloWorld/template.info, GlowIcons
-# with the classic picture for older systems).
+# icons/<Style>/ and a preview picture icons/preview.png, and the icons of
+# the templates HelloWorld and HelpProject (templates/<Id>/template.info,
+# GlowIcons with the classic picture for older systems).
 
 import os, sys
 
@@ -186,6 +188,52 @@ def pic_hello():
     return c
 
 
+def pencil(put, tx, ty, length, half, colours):
+    """ a pencil at 45 degrees, its tip at (tx, ty), pointing to the lower
+        left. u runs along it (one diagonal step is 2), v across it, so its
+        edges fall exactly on the pixel grid. half: half its width in v.
+        colours: edge, lead, wood, body (light, middle, dark across it),
+        band and eraser.                                                 """
+    tip = 3 * half + 1
+    lead = half + 2
+    for u in range(length + 1):
+        w = min(half, u // 3)
+        for v in range(-w - 1, w + 2):
+            if (u + v) % 2:
+                continue
+            if abs(v) > w or u == length:
+                p = colours['edge']
+            elif u < lead:
+                p = colours['lead']
+            elif u < tip:
+                p = colours['wood']
+            elif u >= length - 6:
+                p = colours['eraser']
+            elif u >= length - 10:
+                p = colours['band']
+            else:
+                p = colours['body'][0 if v < -half // 3 else 2 if v > half // 3 else 1]
+            put(tx + (u + v) // 2, ty - (u - v) // 2, p)
+
+
+def pic_helppages():
+    c = ai.Canvas(38, 24)
+    c.rect(22, 3, 25, 22, 2)                  # the handbook: pages, cover
+    for y in range(5, 22, 3):
+        c.rect(23, y, 25, y, 0)
+    c.frame(22, 3, 25, 22, 1, 1)
+    c.rect(3, 1, 23, 21, 3)
+    c.frame(3, 1, 23, 21, 1, 1)
+    c.rect(5, 1, 5, 21, 1)
+    for dy, row in enumerate(SMALL['?']):
+        for dx, p in enumerate(row):
+            if p == '#':
+                c.rect(9 + 3 * dx, 4 + 3 * dy, 11 + 3 * dx, 6 + 3 * dy, 2)
+    pencil(lambda x, y, p: c.rect(x, y, x, y, p), 15, 23, 34, 2,
+           {'edge': 1, 'lead': 1, 'wood': 0, 'body': (2, 2, 2), 'band': 0, 'eraser': 3})
+    return c
+
+
 # --------------------------------------------- GlowIcons motifs ---
 
 def m_tinydev(s, c):
@@ -255,6 +303,26 @@ def m_hello(s, c):
         glyph(c, x, 21, letter, RED[1])
         glyph(c, x + 1, 21, letter, RED[1])
         x += len(GLYPHS[letter][0]) + 3
+
+
+def m_helppages(s, c):
+    m_book = BLUE
+    pages = [(26, 6), (31, 9), (31, 37), (26, 37)]
+    c.poly(pages, s.ramp(*PAPER)(26, 6, 31, 37), s.line(GREY[1]))
+    for y in range(10, 36, 3):
+        c.line(27, y, 30, y, GREY[0])
+    c.rect(1, 2, 27, 34, s.line(m_book[1]))                     # the cover
+    c.rect(2, 3, 26, 33, s.ramp(*m_book)(2, 3, 26, 33))
+    c.rect(2, 3, 4, 33, s.ramp(m_book[1], ai.mix(m_book[1], BLACK, 0.4))(2, 3, 4, 33))
+    c.line(5, 3, 5, 33, ai.mix(m_book[0], WHITE, 0.4))
+    for dy, row in enumerate(GLYPHS['?']):
+        for dx, p in enumerate(row):
+            if p == '#':
+                c.rect(8 + 3 * dx, 7 + 3 * dy, 10 + 3 * dx, 9 + 3 * dy, WHITE)
+    pencil(c.put, 17, 38, 44, 4,
+           {'edge': (84, 56, 24), 'lead': (40, 44, 56), 'wood': (244, 208, 160),
+            'body': ((255, 232, 120), (250, 196, 60), (222, 140, 28)),
+            'band': GREY[1], 'eraser': RED[0]})
 
 
 def ring(c, cx, cy, r, colour):
@@ -389,6 +457,16 @@ def n_hello(c, sel):
     ai.n_monitor(c, screen, sel)
 
 
+def n_helppages(c, sel):
+    """ the handbook of the HelpViewer on its platform, a pencil in front of
+        it; selected: the question mark lights up yellow, as there         """
+    n_helpviewer(c, sel)
+    pencil(c.put, 18, 38, 38, 3,
+           {'edge': BLACK, 'lead': BLACK, 'wood': ai.N_G204,
+            'body': (ai.N_YELLOW, ai.N_YELLOW, ai.N_TAN),
+            'band': ai.N_G136, 'eraser': ai.N_RED})
+
+
 def ni_parser(letter, colour):
     def n(c, sel):
         """ a chip on its platform, pins along its long side, the language
@@ -448,6 +526,7 @@ ai.register('tinydev', pic_tinydev, m_tinydev, n_tinydev)
 ai.register('scout', pic_scout, m_scout, n_scout)
 ai.register('helpviewer', pic_helpviewer, m_helpviewer, n_helpviewer)
 ai.register('hello', pic_hello, m_hello, n_hello)
+ai.register('helppages', pic_helppages, m_helppages, n_helppages)
 PARSER_C = parser('C')
 PARSER_DOS = parser('S', GREEN, ai.N_GREEN)    # AmigaDOS scripts
 PARSER_MAKE = parser('M', RED, ai.N_RED)       # Makefiles
@@ -455,7 +534,7 @@ PARSER_MAKE = parser('M', RED, ai.N_RED)       # Makefiles
 
 # ---------------------------------------------------------------- samples ---
 
-ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, PARSER_DOS, PARSER_MAKE, 'helpviewer', 'hello', 'readme', 'license')
+ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, PARSER_DOS, PARSER_MAKE, 'helpviewer', 'hello', 'helppages', 'readme', 'license')
 
 SAMPLES = (('Drawer', 'drawer', WBDRAWER, {}),
            ('TinyDev', 'tinydev', WBTOOL, {'stack': 32768}),
@@ -465,12 +544,14 @@ SAMPLES = (('Drawer', 'drawer', WBDRAWER, {}),
            ('make_parser', PARSER_MAKE, WBTOOL, {'stack': 16384}),
            ('HelpViewer', 'helpviewer', WBTOOL, {'stack': 32768}),
            ('HelloWorld', 'hello', WBPROJECT, {}),
+           ('HelpProject', 'helppages', WBPROJECT, {}),
            ('ReadMe', 'readme', WBPROJECT, {'default_tool': 'SYS:Utilities/MultiView'}),
            ('License', 'license', WBPROJECT, {'default_tool': 'SYS:Utilities/MultiView'}))
 
 
 if __name__ == '__main__':
     ai.write_samples(os.path.join(ROOT, 'icons'), SAMPLES, ROLES)
-    # the template's icon, shown by TinyDev's wizard
-    write_icon(os.path.join(ROOT, 'templates', 'HelloWorld', 'template'), 'GlowIcons', 'hello', WBPROJECT)
-    print('template icon written to templates/HelloWorld/template.info')
+    # the templates' icons, shown by TinyDev's wizard
+    for tid, role in (('HelloWorld', 'hello'), ('HelpProject', 'helppages')):
+        write_icon(os.path.join(ROOT, 'templates', tid, 'template'), 'GlowIcons', role, WBPROJECT)
+        print('template icon written to templates/%s/template.info' % tid)

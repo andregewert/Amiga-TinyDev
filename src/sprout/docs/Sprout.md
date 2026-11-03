@@ -131,7 +131,7 @@ A placeholder entry:
   `{$I file}`, `{$H+}`): only the exact form `{$KEY}` or `{$KEY:modifier}`
   is a placeholder, and keys are upper case only.
 - It does not clash with TinyDev's build placeholders (`{project}`,
-  `{file}`, `{base}` in `project.json`), which a template's `project.json`
+  `{tinydev}`, `{file}`, `{base}` in `project.json`), which a template's `project.json`
   must keep, nor with `${VAR}` in Makefiles or `$VAR` in AmigaDOS scripts.
 
 **Escaping:** a placeholder written with one more `$` is not replaced but

@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "name": "{$PROJECT}",
+  "build": [
+    { "name": "Build", "command": "\"{tinydev}mdtohtml\" FROM src ALL TO Help TEMPLATE template.html", "default": true },
+    { "name": "Rebuild", "command": [
+        "If EXISTS Help",
+        "Delete Help ALL QUIET FORCE",
+        "EndIf",
+        "\"{tinydev}mdtohtml\" FROM src ALL TO Help TEMPLATE template.html"
+    ] }
+  ],
+  "run": [
+    { "name": "HelpViewer", "command": "\"{tinydev}HelpViewer\" Help", "default": true }
+  ]
+}

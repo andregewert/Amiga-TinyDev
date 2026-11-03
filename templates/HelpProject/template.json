@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "kind": "project",
+  "name": "Help pages",
+  "description": "Help pages written in Markdown, built into HTML pages for the HelpViewer: a tree of sample pages, a page template and the commands of the Build menu.",
+  "category": "Documentation",
+  "icon": { "type": "document", "file": "template.info" },
+  "placeholders": [
+    { "key": "TITLE", "label": "Title", "default": "{$PROJECT}",
+      "description": "The title of the first page, which the HelpViewer also shows above its tree" },
+    { "key": "AUTHOR", "label": "Author", "required": true }
+  ],
+  "open": ["src/index.md"]
+}

@@ -511,6 +511,42 @@ static void test_text(void)
 }
 
 /**
+ * @brief The template templates/HelpProject: its metadata is valid and the
+ *        project's commands keep TinyDev's own placeholder.
+ */
+static void test_shipped_help(void)
+{
+    SproutTemplate t;
+    SproutValues given, out;
+    char json[4096];
+    char *name, *line;
+    size_t n;
+    int bad;
+    FILE *f = fopen("templates/HelpProject/template.json", "rb");
+    assert(f != NULL);
+    n = fread(json, 1, sizeof(json) - 1, f);
+    fclose(f);
+    json[n] = '\0';
+    reset();
+    assert(sprout_template_parse(&t, json, report, NULL) == 1);
+    sprout_values_init(&given);
+    assert(sprout_values_parse_assign(&given, "AUTHOR=Me") == 1);
+    assert(sprout_resolve(&t, &given, "My Help", 17835, &out, report, NULL) == 1);
+    assert(errors == 0 && warnings == 0);
+    assert(strcmp(sprout_values_get(&out, "TITLE"), "My Help") == 0);
+    assert(t.nopen == 1);
+    name = sprout_expand_path(t.open[0], &out, &bad);
+    assert(name != NULL && strcmp(name, "src/index.md") == 0);
+    free(name);
+    line = sprout_expand("{tinydev}mdtohtml $root$ {$TITLE}", 33, &out, NULL);
+    assert(line != NULL && strcmp(line, "{tinydev}mdtohtml $root$ My Help") == 0);
+    free(line);
+    sprout_values_free(&out);
+    sprout_values_free(&given);
+    sprout_template_free(&t);
+}
+
+/**
  * @brief The template that comes with TinyDev (templates/HelloWorld): its
  *        metadata is valid, and its values and names come out right.
  */
@@ -594,6 +630,7 @@ int main(void)
     test_paths();
     test_text();
     test_shipped();
+    test_shipped_help();
     puts("sprout template tests passed");
     return 0;
 }
