@@ -37,9 +37,14 @@ Wo `AGENTS.md` und die Devkit-Dokumente sich widersprechen, gilt Folgendes:
   Texte umsortiert werden, eine Katalogversion (`OC_Version`) gibt es erst dann.
   `include/tinydev_strings.h` wird erzeugt und eingecheckt. Kürzel (`_`) pro Fenster und
   Sprache eindeutig halten. Ausgaben auf `stderr` bleiben englisch.
-- **Noch nicht vorhanden** (nur nach Absprache einführen): `README.de.md` und ein
-  Installer-Skript (`package/Install`). `package/` enthält die Aminet-Readme und die
-  Hilfeseiten (`package/help/<Sprache>/`), `make dist` baut das Archiv.
+- **Noch nicht vorhanden** (nur nach Absprache einführen): `README.de.md`. `package/` enthält
+  die Aminet-Readme, das Installer-Skript (`Install`) und die Hilfeseiten
+  (`package/help/<Sprache>/`), `make dist` baut das Archiv.
+- **Installer:** Alles kommt in eine Schublade, auch die Kataloge (nicht nach `LOCALE:`, anders
+  als der Styleguide vorsieht) und die Klassen: `help.c` und das Hilfe-Template erwarten
+  HelpViewer und `mdtohtml` im Programmverzeichnis, und eine global installierte Klasse verdeckt
+  die neuere daneben. Nur `mdtohtml` gibt es wahlweise zusätzlich in `C:`. Icons mit
+  Einstellungen (TinyDev, TinyDev-Scout, HelpViewer) überschreibt ein Update nicht.
 - **Hilfeseiten:** Die Texte unter `package/help/` schreibt der Benutzer selbst. Claude
   ändert sie nicht von sich aus, auch nicht für neue Funktionen: die deutschen gar nicht,
   die englischen nur, wenn der Benutzer um eine Übersetzung bittet. Im Bericht darf Claude

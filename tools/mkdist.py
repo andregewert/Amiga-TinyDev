@@ -3,8 +3,8 @@
 #
 # Copyright (c) 2026 André Gewert <agewert@ubergeek.de>, MIT License
 #
-# Creates dist/TinyDev/ with the programs, classes, catalogs and help
-# pages from bin/ (laid out as on the Amiga, so it runs from the archive),
+# Creates dist/TinyDev/ with the installer script, the programs, classes,
+# catalogs and help pages from bin/ (laid out as on the Amiga, so it runs from the archive),
 # the templates packed as LhA archives (Templates/<Id>.lha, for Sprout),
 # the documentation (README.md converted to ISO-8859-1), the sources and
 # icons (classic icons next to the files, complete GlowIcons and NewIcons
@@ -56,6 +56,7 @@ def main():
     os.makedirs(PKG)
 
     copy(b('package', NAME + '.readme'), os.path.join(PKG, NAME + '.readme'))
+    copy(b('package', 'Install'), os.path.join(PKG, 'Install'))
     copy(b('LICENSE'), os.path.join(PKG, 'LICENSE'))
     # bin/ is laid out as on the Amiga: programs, classes, catalogs, help
     for f in ('TinyDev', 'TinyDev-Scout', 'HelpViewer', 'Sprout', 'mdtohtml', os.path.join('parsers', 'c_parser'),
@@ -95,7 +96,9 @@ def main():
     copy_devkit(os.path.join(src, 'amiga-devkit'))
 
     # icons: classic ones next to the files, every style also in Icons/<Style>/
-    icons = [('TinyDev', 'tinydev', WBTOOL,
+    icons = [('Install', 'install', WBPROJECT,
+              dict(default_tool='Installer', tooltypes=('APPNAME=' + NAME, 'MINUSER=AVERAGE'))),
+             ('TinyDev', 'tinydev', WBTOOL,
               dict(stack=32768, tooltypes=('(TOOLBAR=BOTH)', '(TOOLBARFRAMES)', '(NOSPLASH)'))),
              ('TinyDev-Scout', 'scout', WBTOOL, dict(stack=16384)),
              ('parsers/c_parser', PARSER_C, WBTOOL, dict(stack=16384)),

@@ -15,7 +15,7 @@ TinyDev
  - several documents in tabs, each a texteditor.gadget: selection,
    clipboard, undo/redo, line numbers; LF, CR and CRLF line endings are
    kept; safe saves through a temporary file
- - syntax highlighting of C and AmigaDOS scripts
+ - syntax highlighting of C, AmigaDOS scripts, Makefiles and Markdown
  - folder tree of the project (dirtree.gadget) that follows changes on
    disk, and a minimap (minimap.gadget)
  - find and replace in the document, in all open documents or in all
@@ -34,16 +34,21 @@ can be quit while the help stays open.
 
 Installation
 ------------
-TinyDev runs directly from the archive: it finds its classes, catalogs
-and help pages next to it (Classes/, Catalogs/, Help/). html.gadget must
-be installed in SYS:Classes/Gadgets/ or lie next to the HelpViewer.
+Double-click Install: everything goes into one drawer, so deleting the
+drawer removes TinyDev. For an update, choose the same place; your settings
+stay. TinyDev also runs directly from the archive, as it finds all its
+parts next to it. html.gadget must be installed in SYS:Classes/Gadgets/ or
+lie in the drawer Classes/Gadgets of TinyDev.
 
 Contents
 --------
+ Install              the installer script
  TinyDev              the editor
  TinyDev-Scout        source analysis commodity (ARexx port TINYDEV_SCOUT)
- parsers/c_parser     the C parser of Scout
+ parsers/             Scout's parsers: C, scripts, Makefiles, Markdown
  HelpViewer           the help viewer
+ Sprout               creates projects from templates (Shell)
+ Templates/           the templates of new projects and files
  mdtohtml             Markdown to HTML, also whole drawers (help pages)
  Help/                help pages (english, deutsch)
  Classes/Gadgets/     dirtree.gadget and minimap.gadget

@@ -306,7 +306,9 @@ below the tree's root.
   `templates/<Id>/template.info` of both. These files are generated, never
   edited by hand.
 - `package/`: what the Aminet archive needs besides the build:
-  `TinyDev.readme` (the Aminet readme, ISO-8859-1, at most 78 columns) and
+  `TinyDev.readme` (the Aminet readme, ISO-8859-1, at most 78 columns),
+  `Install` (the Installer script, ISO-8859-1: everything into one drawer,
+  an update keeps the icons holding settings) and
   `help/<language>/` (TinyDev's help pages, HTML in ISO-8859-1 with
   entities; language drawers named like the Amiga locales, the same file
   names in every language; `make` copies them to `bin/Help/`).

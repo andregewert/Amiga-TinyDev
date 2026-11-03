@@ -120,7 +120,7 @@ REGEX_CFLAGS := -DPOSIX_MISTAKE -I$(REGEX_GEN) -I$(REGEX_DIR) -w
 REGEX_OBJECTS := $(foreach n,$(REGEX_NAMES),$(REGEX_GEN)/$(n).o)
 REGEX_HOST_OBJECTS := $(foreach n,$(REGEX_NAMES),$(REGEX_GEN)/host/$(n).o)
 # (the LhA archives of tests/data/sprout/ are binary)
-LATIN1 := $(filter-out tests/data/sprout/%,$(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h src/helpviewer/*.h src/helpviewer/catalogs/* src/scout/*.h src/scout/catalogs/* sfd/*.sfd tests/*.c scripts/* tests-host/* catalogs/* package/*.readme $(HELP_SOURCES) examples/*/*.c examples/*/Makefile examples/*/*.txt examples/*/.tinydev/*.json tests/data/*/* LICENSE Makefile))
+LATIN1 := $(filter-out tests/data/sprout/%,$(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h src/helpviewer/*.h src/helpviewer/catalogs/* src/scout/*.h src/scout/catalogs/* sfd/*.sfd tests/*.c scripts/* tests-host/* catalogs/* package/*.readme package/Install $(HELP_SOURCES) examples/*/*.c examples/*/Makefile examples/*/*.txt examples/*/.tinydev/*.json tests/data/*/* LICENSE Makefile))
 
 # Translations: catalogs/TinyDev.cd holds the built-in English strings,
 # catalogs/<language>.ct the translations. include/tinydev_strings.h is in

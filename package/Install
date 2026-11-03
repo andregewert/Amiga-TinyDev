@@ -1,0 +1,168 @@
+;
+; $VER: Install_TinyDev 1.0 (03.11.2026)
+; Installer script for TinyDev
+; Copyright (c) 2026 André Gewert, MIT License
+;
+; Everything goes into one drawer: TinyDev finds its classes, catalogs, help
+; pages, parsers, HelpViewer and mdtohtml there (PROGDIR:), so removing the
+; drawer removes TinyDev. The icons of TinyDev, TinyDev-Scout and HelpViewer
+; hold the user's settings as tool types: an update keeps them.
+;
+(set #l (if (= @language "deutsch") 1 0))
+(set @app-name "TinyDev")
+(set @default-dest "Work:")
+
+(welcome
+    (select #l
+        "Welcome to the installation of TinyDev, a text editor for programmers, with TinyDev-Scout, the HelpViewer and mdtohtml. Everything goes into one drawer. When updating, choose the same place again: your settings are kept. Please quit TinyDev and TinyDev-Scout first."
+        "Willkommen zur Installation von TinyDev, einem Texteditor für Programmierer, mit TinyDev-Scout, dem HelpViewer und mdtohtml. Alles kommt in eine Schublade. Für ein Update wählen Sie denselben Ort: Ihre Einstellungen bleiben erhalten. Bitte beenden Sie vorher TinyDev und TinyDev-Scout."))
+
+; copies one file of the archive to #dest
+(procedure P_COPYFILE #file
+    (copyfiles
+        (prompt (cat (select #l "Copying " "Kopiere ") #file))
+        (help @copyfiles-help)
+        (source #file)
+        (dest #dest)))
+
+; copies a drawer of the archive with all it holds to #dest
+(procedure P_COPYDIR #dir
+    (
+        (if (= (exists (tackon #dest #dir)) 0)
+            (makedir (tackon #dest #dir)))
+        (copyfiles
+            (prompt (cat (select #l "Copying " "Kopiere ") #dir))
+            (help @copyfiles-help)
+            (source #dir)
+            (dest (tackon #dest #dir))
+            (all))))
+
+; an icon with settings steps aside while the icon set is copied ...
+(procedure P_KEEP #name
+    (
+        (set #icon (tackon #dest (cat #name ".info")))
+        (if (exists #icon)
+            (
+                (if (exists (cat #icon ".keep"))
+                    (delete (cat #icon ".keep")))
+                (rename #icon (cat #icon ".keep"))))))
+
+; ... and comes back
+(procedure P_RESTORE #name
+    (
+        (set #icon (tackon #dest (cat #name ".info")))
+        (if (exists (cat #icon ".keep"))
+            (
+                (if (exists #icon)
+                    (delete #icon))
+                (rename (cat #icon ".keep") #icon)))))
+
+; removes a file of #dest if it is there
+(procedure P_DROP #name
+    (if (exists (tackon #dest #name))
+        (delete (tackon #dest #name))))
+
+(set #parts
+    (askoptions
+        (prompt (select #l "What should be installed besides TinyDev?" "Was soll außer TinyDev installiert werden?"))
+        (help @askoptions-help)
+        (choices
+            (select #l "Documentation" "Dokumentation")
+            (select #l "Source code" "Quelltexte")
+            (select #l "An additional copy of mdtohtml in C:" "Eine zusätzliche Kopie von mdtohtml in C:"))
+        (default 1)))
+
+(set #style
+    (askchoice
+        (prompt (select #l "Which icons do you want?" "Welche Icons möchten Sie?"))
+        (help @askchoice-help)
+        (choices "Classic" "GlowIcons" "NewIcons")
+        (default 1)))
+(set #set (tackon "Icons" (select #style "Classic" "GlowIcons" "NewIcons")))
+
+(set #dest
+    (askdir
+        (prompt (select #l "Where should TinyDev go? A drawer \"TinyDev\" will be created there."
+                           "Wohin soll TinyDev? Dort wird eine Schublade \"TinyDev\" angelegt."))
+        (help @askdir-help)
+        (default @default-dest)))
+; for an update, the drawer itself may have been chosen
+(if (<> (fileonly #dest) "TinyDev")
+    (set #dest (tackon #dest "TinyDev")))
+(if (= (exists #dest) 0)
+    (makedir #dest))
+(set @default-dest #dest)
+
+(P_COPYFILE "TinyDev")
+(P_COPYFILE "TinyDev-Scout")
+(P_COPYFILE "HelpViewer")
+(P_COPYFILE "Sprout")
+(P_COPYFILE "mdtohtml")
+(P_COPYFILE "TinyDev.readme")
+(P_COPYFILE "LICENSE")
+(P_COPYDIR "parsers")
+(P_COPYDIR "Classes")
+(P_COPYDIR "Catalogs")
+(P_COPYDIR "Help")
+(P_COPYDIR "Templates")
+(if (IN #parts 0)
+    (P_COPYDIR "Docs"))
+(if (IN #parts 1)
+    (P_COPYDIR "Source"))
+
+; the chosen icons, but not over the settings of an earlier installation
+(P_KEEP "TinyDev")
+(P_KEEP "TinyDev-Scout")
+(P_KEEP "HelpViewer")
+(copyfiles
+    (prompt (select #l "Copying the icons" "Kopiere die Icons"))
+    (help @copyfiles-help)
+    (source #set)
+    (dest #dest)
+    (all))
+(P_RESTORE "TinyDev")
+(P_RESTORE "TinyDev-Scout")
+(P_RESTORE "HelpViewer")
+
+; the set also holds icons of what is not installed here
+(P_DROP "TinyDev-Drawer.info")
+(P_DROP "Install.info")
+(P_DROP "Icons.info")
+(if (= (exists (tackon #dest "Docs/README.md")) 0)
+    (
+        (P_DROP "Docs/README.md.info")
+        (P_DROP "Docs")
+        (P_DROP "Docs.info")))
+(if (= (exists (tackon #dest "Source")) 0)
+    (P_DROP "Source.info"))
+
+; the drawer's own icon
+(set #parent (pathonly #dest))
+(if (= (exists (tackon #parent "TinyDev.info")) 0)
+    (copyfiles
+        (prompt (select #l "Copying the drawer's icon" "Kopiere das Icon der Schublade"))
+        (help @copyfiles-help)
+        (source (tackon #set "TinyDev-Drawer.info"))
+        (dest #parent)
+        (newname "TinyDev.info")))
+
+(if (IN #parts 2)
+    (copyfiles
+        (prompt (select #l "Copying mdtohtml to C:" "mdtohtml wird nach C: kopiert"))
+        (help @copyfiles-help)
+        (source "mdtohtml")
+        (dest "C:")
+        (confirm)))
+
+; html.gadget is needed for the help (Aminet dev/gui/html_gadget.lha)
+(if (AND (= (exists "SYS:Classes/Gadgets/html.gadget" (noreq)) 0)
+         (= (exists (tackon #dest "Classes/Gadgets/html.gadget") (noreq)) 0))
+    (message
+        (select #l
+            "html.gadget is not installed in SYS:Classes/Gadgets. The HelpViewer needs it to show the help: please install it from Aminet (dev/gui/html_gadget.lha), or put it into the drawer Classes/Gadgets of TinyDev. TinyDev itself works without it."
+            "html.gadget ist nicht in SYS:Classes/Gadgets installiert. Der HelpViewer braucht es, um die Hilfe anzuzeigen: Bitte von Aminet installieren (dev/gui/html_gadget.lha) oder in die Schublade Classes/Gadgets von TinyDev legen. TinyDev selbst läuft auch ohne.")))
+
+(exit
+    (select #l
+        "TinyDev has been installed."
+        "TinyDev ist installiert."))

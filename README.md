@@ -85,6 +85,12 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
 - For the help: html.gadget from the
   [HTML gadget](https://github.com/andregewert/Amiga-HTML-Gadget) project.
 
+## Installation
+
+Double-click `Install` in the archive. Everything goes into one drawer, so
+deleting the drawer removes TinyDev; for an update, choose the same place
+again and your settings stay. TinyDev also runs directly from the archive.
+
 ## Usage
 
     TinyDev [<file> ...]
