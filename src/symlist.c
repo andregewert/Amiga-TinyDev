@@ -6,7 +6,9 @@
  * "Show" chooses the active document (its symbols in the order of their
  * lines) or the project (the symbols of the files below the project
  * drawer, sorted by name, with their file and line). Locals (parameters,
- * local variables, fields) are left out. "Filter" keeps the symbols whose
+ * local variables, fields) are left out. In the order of the lines,
+ * headings are indented by their level, as an outline of the document.
+ * "Filter" keeps the symbols whose
  * names contain its text (without regard to case; taken with Return, the
  * field keeps the input focus), "Kind" those of a kind. A click on a
  * column's title sorts by it (again: the other way round). The first
@@ -92,6 +94,7 @@ enum {
     KG_MACRO,           /**< macros */
     KG_VARIABLE,        /**< variables, fields */
     KG_CONSTANT,        /**< constants, enum members */
+    KG_HEADING,         /**< headings of documents */
     KG_OTHER,           /**< labels, modules and the rest */
     KG_COUNT            /**< number of groups */
 };
@@ -99,15 +102,15 @@ enum {
 /** Texts of the groups in the Kind chooser (MSG_). */
 static const LONG group_texts[KG_COUNT] = {
     MSG_SYM_KG_ALL, MSG_SYM_KG_FUNCTION, MSG_SYM_KG_TYPE, MSG_SYM_KG_MACRO,
-    MSG_SYM_KG_VARIABLE, MSG_SYM_KG_CONSTANT, MSG_SYM_KG_OTHER
+    MSG_SYM_KG_VARIABLE, MSG_SYM_KG_CONSTANT, MSG_SYM_KG_HEADING, MSG_SYM_KG_OTHER
 };
 
 /** Letters of the groups (the first column). */
-static const char group_letters[KG_COUNT] = { ' ', 'F', 'T', 'M', 'V', 'C', '?' };
+static const char group_letters[KG_COUNT] = { ' ', 'F', 'T', 'M', 'V', 'C', 'H', '?' };
 
 /** Colours of the groups' letters (0xRRGGBB, after the style guide's accents). */
 static const unsigned long group_colours[KG_COUNT] = {
-    0x000000, 0x0A521E, 0x0A2A8A, 0x7A1F6E, 0x8C1810, 0x005266, 0x3A4A66
+    0x000000, 0x0A521E, 0x0A2A8A, 0x7A1F6E, 0x8C1810, 0x005266, 0x0038C0, 0x3A4A66
 };
 
 /** Columns, also what the list is sorted by. */
@@ -189,6 +192,7 @@ static const char *kind_text(int kind)
     case SCOUT_SYMBOL_FIELD:
     case SCOUT_SYMBOL_PROPERTY:     return S(MSG_SYM_K_FIELD);
     case SCOUT_SYMBOL_LABEL:        return S(MSG_SYM_K_LABEL);
+    case SCOUT_SYMBOL_HEADING:      return S(MSG_SYM_K_HEADING);
     case SCOUT_SYMBOL_MODULE:
     case SCOUT_SYMBOL_NAMESPACE:
     case SCOUT_SYMBOL_PACKAGE:      return S(MSG_SYM_K_MODULE);
@@ -212,6 +216,7 @@ static int kind_group(int kind)
     case SCOUT_SYMBOL_VARIABLE: case SCOUT_SYMBOL_FIELD:
     case SCOUT_SYMBOL_PROPERTY:                                 return KG_VARIABLE;
     case SCOUT_SYMBOL_CONSTANT: case SCOUT_SYMBOL_ENUM_MEMBER:  return KG_CONSTANT;
+    case SCOUT_SYMBOL_HEADING:                                  return KG_HEADING;
     default:                                                    return KG_OTHER;
     }
 }
@@ -341,11 +346,32 @@ static int passes(const SymItem *it)
 }
 
 /**
+ * @brief Return the text of a row's name: a heading's name is indented by
+ *        its level (the number of '#' its detail starts with) while the
+ *        list shows the order of the document.
+ * @param it The symbol.
+ * @param buffer Room for an indented name.
+ * @param size Its size.
+ * @return The text (the name or @p buffer).
+ */
+static const char *row_name(const SymItem *it, char *buffer, size_t size)
+{
+    size_t n = 0, i;
+    if (it->kind != SCOUT_SYMBOL_HEADING || it->detail == NULL || sy.sort_col != COL_WHERE) return it->name;
+    while (it->detail[n] == '#') ++n;
+    if (n < 2) return it->name;
+    for (i = 0; i < (n - 1) * 2 && i + 1 < size; ++i) buffer[i] = ' ';
+    strncpy(buffer + i, it->name, size - i - 1);
+    buffer[size - 1] = '\0';
+    return buffer;
+}
+
+/**
  * @brief Build the rows from the symbols and the filter.
  */
 static void rebuild(void)
 {
-    char text[80];
+    char text[80], name[140];
     long i, shown = 0;
     set_labels((struct List *)~0);
     free_rows();
@@ -361,7 +387,7 @@ static void rebuild(void)
         n = AllocListBrowserNode(COL_COUNT, LBNA_UserData, (ULONG)i,
             LBNA_Column, COL_KIND, LBNCA_RenderHook, (ULONG)&sy.render_hook,
             LBNCA_HookHeight, (ULONG)sy.row_height,
-            LBNA_Column, COL_NAME, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)it->name,
+            LBNA_Column, COL_NAME, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)row_name(it, name, sizeof(name)),
             LBNA_Column, COL_WHERE, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)sy.where_text,
             TAG_END);
         if (n == NULL) continue;

@@ -1497,7 +1497,7 @@ void scout_write_complete(JsonWriter *w, const ScoutStore *st, const ScoutSessio
             }
             for (i = 0; i < f->symbol_count; i++) {
                 const ScoutSymbol *sym = &f->symbols[i];
-                if (sym->scope != SCOUT_SCOPE_LOCAL) add_candidate(&c, sym->name, sym, 1);
+                if (sym->scope != SCOUT_SCOPE_LOCAL && sym->kind != SCOUT_SYMBOL_HEADING) add_candidate(&c, sym->name, sym, 1);
             }
         }
         for (g = s->files; g; g = g->next) {

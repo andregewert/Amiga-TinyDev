@@ -49,6 +49,7 @@
 #define SCOUT_SYMBOL_TYPE_ALIAS     101 /**< a type alias (typedef) */
 #define SCOUT_SYMBOL_LABEL          102 /**< a label */
 #define SCOUT_SYMBOL_PROCEDURE      103 /**< a procedure */
+#define SCOUT_SYMBOL_HEADING        104 /**< a heading of a document */
 /** @} */
 
 /**

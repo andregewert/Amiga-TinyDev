@@ -971,6 +971,9 @@ Label
 MSG_SYM_K_MODULE (//)
 Module
 ;
+MSG_SYM_K_HEADING (//)
+Heading
+;
 MSG_SYM_K_OTHER (//)
 Symbol
 ;
@@ -994,6 +997,9 @@ Variables (V)
 ;
 MSG_SYM_KG_CONSTANT (//)
 Constants (C)
+;
+MSG_SYM_KG_HEADING (//)
+Headings (H)
 ;
 MSG_SYM_KG_OTHER (//)
 Other (?)

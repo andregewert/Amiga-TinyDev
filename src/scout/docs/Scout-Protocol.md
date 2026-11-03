@@ -6,8 +6,9 @@ and a parser needs nothing else from Scout or from an editor. What Scout
 does with the results is described in [Scout.md](Scout.md).
 
 > **Status: draft.** The C parser (`src/parsers/c_parser.c`), the
-> AmigaDOS script parser (`src/parsers/dos_parser.c`) and the Makefile
-> parser (`src/parsers/make_parser.c`) speak version 1; Scout itself does not yet (see [Scout.md](Scout.md)).
+> AmigaDOS script parser (`src/parsers/dos_parser.c`), the Makefile
+> parser (`src/parsers/make_parser.c`) and the Markdown parser
+> (`src/parsers/markdown_parser.c`) speak version 1; Scout itself does not yet (see [Scout.md](Scout.md)).
 
 ## Contents
 
@@ -262,7 +263,10 @@ Scout prefers the definition but can fall back to them.
 | `code` | optional: a short identifier of the kind of problem (string) |
 
 A parser reports what it can see in the one file (syntax errors,
-unbalanced brackets, unknown directives), not what needs other files.
+unbalanced brackets, unknown directives), not what needs other files. An
+exception are files the text names as such, which a parser may look at to
+report a dead link; it reads them from the file system, so unsaved changes
+in them do not count.
 
 ### References
 
@@ -316,7 +320,8 @@ symbols can be reused:
 
 Scout adds kinds that LSP lacks from 100 on: 100 macro, 101 type alias
 (`typedef`), 102 label, 103 procedure (languages that separate procedures
-from functions).
+from functions), 104 heading (of a document; an editor can show them as
+an outline, and does not offer them for completion).
 
 ### Lexical classes
 

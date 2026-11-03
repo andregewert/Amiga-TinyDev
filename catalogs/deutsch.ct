@@ -1260,6 +1260,10 @@ MSG_SYM_K_MODULE
 Modul
 ; Module
 ;
+MSG_SYM_K_HEADING
+Überschrift
+; Heading
+;
 MSG_SYM_K_OTHER
 Symbol
 ; Symbol
@@ -1291,6 +1295,10 @@ Variablen (V)
 MSG_SYM_KG_CONSTANT
 Konstanten (C)
 ; Constants (C)
+;
+MSG_SYM_KG_HEADING
+Überschriften (H)
+; Headings (H)
 ;
 MSG_SYM_KG_OTHER
 Andere (?)

@@ -254,7 +254,10 @@ below the tree's root.
   IF/SKIP checks, tokens) and `dos_parser_rpc.c`; the Makefile parser
   is `make_parser.c` (logical lines, variables, targets, define blocks,
   conditionals, includes, recipe checks, tokens; GNU make syntax, BSD
-  directives left alone) and `make_parser_rpc.c`;
+  directives left alone) and `make_parser_rpc.c`; the Markdown parser is
+  `markdown_parser.c` (headings as symbols of kind heading, dead links and
+  anchors, undefined references, tokens; the file system comes from
+  `MarkdownFiles`, set in the rpc part) and `markdown_parser_rpc.c`;
   `include/scout_protocol.h` holds the protocol's numbers (kinds,
   severities, error codes) for Scout and all parsers.
 - `include/editor.h`: shared application types and cross-module declarations.
@@ -279,6 +282,8 @@ below the tree's root.
   parser (sample in `tests/data/dos_parser/`, ISO-8859-1).
 - `tests/test_make_parser.c`: host-native tests of the Makefile parser
   (sample in `tests/data/make_parser/`, ISO-8859-1).
+- `tests/test_markdown_parser.c`: host-native tests of the Markdown parser
+  (samples in `tests/data/markdown_parser/`, ISO-8859-1).
 - `amiga-devkit/`: git submodule (pinned tag) with shared Amiga tools and AI
   guidelines; see `CLAUDE.md`. Do not edit files inside the submodule.
 - `external/html_gadget/`: git submodule (tag `v1.2`), html.gadget, for
@@ -342,7 +347,8 @@ make test
   unavailable; report that limitation explicitly.
 - Finished Amiga binaries go to `bin/` (`bin/TinyDev`, `bin/TinyDev-Scout`,
   `bin/parsers/c_parser`, `bin/parsers/dos_parser`,
-  `bin/parsers/make_parser`, `bin/Classes/Gadgets/<name>.gadget`,
+  `bin/parsers/make_parser`, `bin/parsers/markdown_parser`,
+  `bin/Classes/Gadgets/<name>.gadget`,
   `bin/Catalogs/<language>/TinyDev.catalog`, `bin/HelpViewer`,
   `bin/Sprout`, `bin/mdtohtml`, `bin/Templates/`,
   `bin/Help/<language>/`), laid out as on

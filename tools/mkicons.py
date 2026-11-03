@@ -38,11 +38,12 @@ COMMENT = (150, 154, 166)
 KEYWORD, STRING, PREPRO = BLUE[1], GREEN[1], RED[1]
 
 # Letters of the language labels: 5 x 7 for GlowIcons and NewIcons,
-# 3 x 5 for the classic icons. Add a letter here for a new parser.
+# 3 x 5 for the classic icons. Add a letter or symbol here for a new parser.
 GLYPHS = {
     'C': ('.###.', '#...#', '#....', '#....', '#....', '#...#', '.###.'),
     'S': ('.####', '#....', '#....', '.###.', '....#', '....#', '####.'),
     'M': ('#...#', '##.##', '#.#.#', '#.#.#', '#...#', '#...#', '#...#'),
+    'v': ('..#..', '..#..', '..#..', '..#..', '#####', '.###.', '..#..'),   # an arrow down
     '?': ('.###.', '#...#', '....#', '...#.', '..#..', '.....', '..#..'),
     'H': ('#...#', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'),
     'i': ('.#.', '...', '##.', '.#.', '.#.', '.#.', '###'),
@@ -52,6 +53,7 @@ SMALL = {
     'C': ('.##', '#..', '#..', '#..', '.##'),
     'S': ('###', '#..', '###', '..#', '###'),
     'M': ('#.#', '###', '###', '#.#', '#.#'),
+    'v': ('.#.', '.#.', '.#.', '###', '.#.'),
     '?': ('##.', '..#', '.#.', '...', '.#.'),
     'H': ('#.#', '#.#', '###', '#.#', '#.#'),
     'i': ('#', '.', '#', '#', '#'),
@@ -530,11 +532,12 @@ ai.register('helppages', pic_helppages, m_helppages, n_helppages)
 PARSER_C = parser('C')
 PARSER_DOS = parser('S', GREEN, ai.N_GREEN)    # AmigaDOS scripts
 PARSER_MAKE = parser('M', RED, ai.N_RED)       # Makefiles
+PARSER_MD = parser('v', ai.BOX, ai.N_TAN)      # Markdown: the arrow of its logo
 
 
 # ---------------------------------------------------------------- samples ---
 
-ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, PARSER_DOS, PARSER_MAKE, 'helpviewer', 'hello', 'helppages', 'readme', 'license')
+ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, PARSER_DOS, PARSER_MAKE, PARSER_MD, 'helpviewer', 'hello', 'helppages', 'readme', 'license')
 
 SAMPLES = (('Drawer', 'drawer', WBDRAWER, {}),
            ('TinyDev', 'tinydev', WBTOOL, {'stack': 32768}),
@@ -542,6 +545,7 @@ SAMPLES = (('Drawer', 'drawer', WBDRAWER, {}),
            ('c_parser', PARSER_C, WBTOOL, {'stack': 16384}),
            ('dos_parser', PARSER_DOS, WBTOOL, {'stack': 16384}),
            ('make_parser', PARSER_MAKE, WBTOOL, {'stack': 16384}),
+           ('markdown_parser', PARSER_MD, WBTOOL, {'stack': 16384}),
            ('HelpViewer', 'helpviewer', WBTOOL, {'stack': 32768}),
            ('HelloWorld', 'hello', WBPROJECT, {}),
            ('HelpProject', 'helppages', WBPROJECT, {}),
