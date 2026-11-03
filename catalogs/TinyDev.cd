@@ -751,6 +751,9 @@ One command per line; several lines run as a script.
 MSG_PJE_NOTE_PLACEHOLDERS (//)
 {file}: active document, {base}: the same without extension, {project}: project
 ;
+MSG_PJE_NOTE_TINYDEV (//)
+{tinydev}: TinyDev's drawer, as in {tinydev}mdtohtml
+;
 MSG_PJE_NOTE_DIR (//)
 Without a drawer, the command runs in the project.
 ;

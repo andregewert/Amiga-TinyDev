@@ -139,6 +139,22 @@ static int load_settings(EditorApp *app, ProjAction action, char *root, ProjConf
 }
 
 /**
+ * @brief TinyDev's drawer for the placeholder {tinydev}: its full path (the
+ *        scripts do not have our PROGDIR:), ready to have a name appended.
+ * @return The path (a static buffer), "" if it is not known.
+ */
+static const char *program_drawer(void)
+{
+    static char path[EDITOR_PATH_MAX];
+    size_t n;
+
+    if (!NameFromLock(GetProgramDir(), (STRPTR)path, sizeof(path) - 1)) return "";
+    n = strlen(path);
+    if (n > 0 && path[n - 1] != ':' && path[n - 1] != '/') strcpy(path + n, "/");
+    return path;
+}
+
+/**
  * @brief Write the script of a command: the stack, then its lines with the
  *        placeholders replaced.
  * @param app The application state.
@@ -165,7 +181,7 @@ static int write_script(EditorApp *app, ProjAction action, const ProjCommand *cm
     ok = FPuts(fh, (STRPTR)stack) == 0;
     for (i = 0; ok && i < cmd->line_count; ++i) {
         int m = 0;
-        char *line = projconf_expand(cmd->lines[i], root, file, &m);
+        char *line = projconf_expand(cmd->lines[i], root, program_drawer(), file, &m);
         if (m) missing = 1;
         ok = line != NULL && FPuts(fh, (STRPTR)line) == 0 && FPutC(fh, '\n') >= 0;
         free(line);
@@ -202,7 +218,7 @@ static BPTR lock_drawer(EditorApp *app, ProjAction action, const ProjCommand *cm
 
     strcpy(path, root);
     if (cmd->dir != NULL) {
-        if ((dir = projconf_expand(cmd->dir, root, file, &missing)) == NULL) {
+        if ((dir = projconf_expand(cmd->dir, root, program_drawer(), file, &missing)) == NULL) {
             report(app, action, S(MSG_PJ_NOMEM));
             return 0;
         }

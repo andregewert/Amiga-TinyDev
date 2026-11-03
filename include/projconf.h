@@ -56,6 +56,8 @@
  * language Scout detects.
  *
  * In command lines and "dir", {project} stands for the project directory,
+ * {tinydev} for TinyDev's drawer with the separator to add a name
+ * ({tinydev}mdtohtml; TinyDev's drawer is not on the command path),
  * {file} for the active document and {base} for the document without its
  * extension (projconf_expand()). Braces, unlike "$", mean nothing to the
  * AmigaShell. A path with spaces needs quotes around the placeholder.
@@ -282,12 +284,15 @@ const char *projconf_relative(const char *project, const char *path);
 long projconf_default(const ProjConf *c, ProjAction action);
 
 /**
- * @brief Replace the placeholders {project}, {file} and {base} in a text.
+ * @brief Replace the placeholders {project}, {tinydev}, {file} and {base}
+ *        in a text.
  *
  * Other braces stay as they are.
  *
  * @param text The text (a command line or a drawer).
  * @param project The project directory.
+ * @param program TinyDev's drawer, ready to have a name appended
+ *                ("Work:TinyDev/"); NULL leaves {tinydev} out.
  * @param file The active document's full path, NULL if there is none
  *             (or it was never saved).
  * @param[out] missing Set to non-zero if the text needs a document but
@@ -295,6 +300,7 @@ long projconf_default(const ProjConf *c, ProjAction action);
  *                     out); may be NULL.
  * @return The text (free() it), or NULL if out of memory.
  */
-char *projconf_expand(const char *text, const char *project, const char *file, int *missing);
+char *projconf_expand(const char *text, const char *project, const char *program,
+                      const char *file, int *missing);
 
 #endif

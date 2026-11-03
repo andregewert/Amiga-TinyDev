@@ -7,3 +7,6 @@
 [submodule "external/html_gadget"]
 	path = external/html_gadget
 	url = https://github.com/andregewert/Amiga-HTML-Gadget.git
+[submodule "external/mdtools"]
+	path = external/mdtools
+	url = https://github.com/andregewert/Amiga-Kickdown.git

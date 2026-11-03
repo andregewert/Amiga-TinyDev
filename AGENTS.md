@@ -67,7 +67,7 @@ below the tree's root.
 - `src/projconf.c`, `include/projconf.h`: the portable reader and writer
   of a project's settings (`<project>/.tinydev/project.json`): the Shell
   commands of the actions Build, Run and Debug, the default of each, and
-  the placeholders `{project}`, `{file}`, `{base}`, the include drawers
+  the placeholders `{project}`, `{tinydev}`, `{file}`, `{base}`, the include drawers
   and the languages chosen for files; writing keeps the keys it does not
   know; no Amiga headers.
 - `src/projdata.c`: reading and writing the files of
@@ -283,6 +283,12 @@ below the tree's root.
 - `external/html_gadget/`: git submodule (tag `v1.2`), html.gadget, for
   the headers the HelpViewer is built with (the class itself is installed
   separately). Do not edit it.
+- `external/mdtools/`: git submodule (the Kickdown project, repository
+  Amiga-Kickdown) for `bin/mdtohtml`, which turns a tree of Markdown files
+  into HTML pages. The Makefile compiles only its converter, unchanged and
+  without our warning flags, with the nested submodule `md4c`; `make dist`
+  ships those sources only. Do not edit it: changes belong in
+  `~/Dokumente/Amiga-MDTools`.
 - `external/regex/`: git submodule (tag `alpha3.8p1`), Henry Spencer's POSIX
   regex library for `src/search.c`. Its `regex.h` and `*.ih` headers are
   generated with its `mkh` script into `build/regex/`; it is compiled
@@ -337,7 +343,7 @@ make test
   `bin/parsers/c_parser`, `bin/parsers/dos_parser`,
   `bin/parsers/make_parser`, `bin/Classes/Gadgets/<name>.gadget`,
   `bin/Catalogs/<language>/TinyDev.catalog`, `bin/HelpViewer`,
-  `bin/Sprout`, `bin/Templates/`,
+  `bin/Sprout`, `bin/mdtohtml`, `bin/Templates/`,
   `bin/Help/<language>/`), laid out as on
   the Amiga; nothing else goes there. All intermediate files (objects,
   dependency files, `.debug` files, host test binaries) go to `build/`; gadget

@@ -20,7 +20,7 @@ static void check_expand(const char *text, const char *file, const char *expecte
                          int expect_missing)
 {
     int missing = -1;
-    char *s = projconf_expand(text, "Work:My Project", file, &missing);
+    char *s = projconf_expand(text, "Work:My Project", "Work:TinyDev/", file, &missing);
     assert(s != NULL);
     assert(strcmp(s, expected) == 0);
     assert(missing == expect_missing);
@@ -317,6 +317,12 @@ int main(void)
 
     /* placeholders */
     check_expand("make", NULL, "make", 0);
+    check_expand("\"{tinydev}mdtohtml\" FROM src", NULL, "\"Work:TinyDev/mdtohtml\" FROM src", 0);
+    {
+        char *s = projconf_expand("{tinydev}x", "p", NULL, NULL, NULL);
+        assert(s != NULL && strcmp(s, "x") == 0);
+        free(s);
+    }
     check_expand("cd \"{project}\"", NULL, "cd \"Work:My Project\"", 0);
     check_expand("vc -c {file} -o {base}.o", "Work:src/main.c", "vc -c Work:src/main.c -o Work:src/main.o", 0);
     check_expand("run {base}", "Work:a.b/name", "run Work:a.b/name", 0);
@@ -327,7 +333,7 @@ int main(void)
     check_expand("{other} {proj {file", "f", "{other} {proj {file", 0);
     check_expand("", "f", "", 0);
     {
-        char *s = projconf_expand("{file}", NULL, NULL, NULL);
+        char *s = projconf_expand("{file}", NULL, NULL, NULL, NULL);
         assert(s != NULL && s[0] == '\0');
         free(s);
     }

@@ -22,6 +22,8 @@ DRAWER_ICON = NAME + '-Drawer'      # Icons/<Style>/: icon of the package drawer
 DIST = os.path.join(ROOT, 'dist')
 PKG = os.path.join(DIST, NAME)
 MULTIVIEW = 'SYS:Utilities/MultiView'
+MDTOHTML_SOURCES = ('mdtohtml.c', 'mdtree.c', 'mdtree.h', 'mdtree_dos.c', 'mdconv.c', 'mdconv.h',
+                    'entity_stub.c', 'fileio.c', 'fileio.h')
 
 
 def pack_templates(dest):
@@ -56,7 +58,7 @@ def main():
     copy(b('package', NAME + '.readme'), os.path.join(PKG, NAME + '.readme'))
     copy(b('LICENSE'), os.path.join(PKG, 'LICENSE'))
     # bin/ is laid out as on the Amiga: programs, classes, catalogs, help
-    for f in ('TinyDev', 'TinyDev-Scout', 'HelpViewer', 'Sprout', os.path.join('parsers', 'c_parser'),
+    for f in ('TinyDev', 'TinyDev-Scout', 'HelpViewer', 'Sprout', 'mdtohtml', os.path.join('parsers', 'c_parser'),
               os.path.join('parsers', 'dos_parser'), os.path.join('parsers', 'make_parser')):
         copy(b('bin', f), os.path.join(PKG, f))
     for d in ('Classes', 'Catalogs', 'Help'):
@@ -81,6 +83,14 @@ def main():
     copytree(b('external', 'regex'), os.path.join(src, 'external', 'regex'), ignore=('.git',))
     copytree(b('external', 'html_gadget', 'include'), os.path.join(src, 'external', 'html_gadget', 'include'))
     copy(b('external', 'html_gadget', 'LICENSE'), os.path.join(src, 'external', 'html_gadget', 'LICENSE'))
+    # mdtohtml: only what the Makefile compiles of the Kickdown project
+    mdtools = os.path.join(src, 'external', 'mdtools')
+    for f in MDTOHTML_SOURCES:
+        copy(b('external', 'mdtools', 'src', f), os.path.join(mdtools, 'src', f))
+    copy(b('external', 'mdtools', 'LICENSE'), os.path.join(mdtools, 'LICENSE'))
+    for f in ('md4c.c', 'md4c.h', 'md4c-html.c', 'md4c-html.h', 'entity.h'):
+        copy(b('external', 'mdtools', 'md4c', 'src', f), os.path.join(mdtools, 'md4c', 'src', f))
+    copy(b('external', 'mdtools', 'md4c', 'LICENSE.md'), os.path.join(mdtools, 'md4c', 'LICENSE.md'))
     copy_devkit(os.path.join(src, 'amiga-devkit'))
 
     # icons: classic ones next to the files, every style also in Icons/<Style>/

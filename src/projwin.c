@@ -380,6 +380,7 @@ static int edit_command(long index)
             LAYOUT_AddChild, (ULONG)pe.isdefault, FIXED,
             LAYOUT_AddImage, (ULONG)label(S(MSG_PJE_NOTE_LINES)), FIXED,
             LAYOUT_AddImage, (ULONG)label(S(MSG_PJE_NOTE_PLACEHOLDERS)), FIXED,
+            LAYOUT_AddImage, (ULONG)label(S(MSG_PJE_NOTE_TINYDEV)), FIXED,
             LAYOUT_AddImage, (ULONG)label(S(MSG_PJE_NOTE_DIR)), FIXED,
             TAG_END),
         LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,

@@ -44,6 +44,7 @@ Contents
  TinyDev-Scout        source analysis commodity (ARexx port TINYDEV_SCOUT)
  parsers/c_parser     the C parser of Scout
  HelpViewer           the help viewer
+ mdtohtml             Markdown to HTML, also whole drawers (help pages)
  Help/                help pages (english, deutsch)
  Classes/Gadgets/     dirtree.gadget and minimap.gadget
  Catalogs/            translations (German)
@@ -63,6 +64,8 @@ License
 MIT License, see LICENSE.
 regex: Henry Spencer's regular expression library, see
 Source/external/regex/COPYRIGHT.
+mdtohtml: from Kickdown, with md4c (both MIT License), see
+Source/external/mdtools/.
 
 Deutsch
 -------

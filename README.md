@@ -137,7 +137,8 @@ to the project) are optional, `default` marks the command the action runs.
 `include` lists drawers with headers (relative to the project or absolute,
 e.g. the NDK's) that TinyDev-Scout indexes for Go to Definition and
 completion. `{file}`, `{base}` (without extension) and `{project}` are
-replaced with the active document and the project directory:
+replaced with the active document and the project directory, `{tinydev}` with
+TinyDev's drawer (`"{tinydev}mdtohtml" ...`, as it is not on the command path):
 
     {
       "version": 1,
@@ -290,8 +291,9 @@ is described in [src/sprout/docs/Sprout.md](src/sprout/docs/Sprout.md).
 The shared tools in `amiga-devkit/` are a git submodule
 ([Amiga-Devkit](https://github.com/andregewert/Amiga-Devkit)), and so are
 Henry Spencer's regex library (`external/regex/`) and the headers of
-html.gadget (`external/html_gadget/`). Clone with `git clone --recursive` or
-run `git submodule update --init` once. The toolchain is bebbo's amiga-gcc
+html.gadget (`external/html_gadget/`) and the Kickdown project for `mdtohtml`
+(`external/mdtools/`). Clone with `git clone --recursive` or run
+`git submodule update --init --recursive` once. The toolchain is bebbo's amiga-gcc
 in `/opt/amiga`.
 
     make            # programs, classes, catalogs and help pages in bin/
@@ -343,3 +345,6 @@ help pages go to `package/help/<language>/`.
 Regular expressions: the regex library by Henry Spencer (alpha3.8 patch 1,
 <https://github.com/garyhouston/regex>), Copyright 1992, 1993, 1994, 1997
 Henry Spencer, used unchanged as a submodule.
+
+Markdown: `mdtohtml` from [Kickdown](https://github.com/andregewert/Amiga-Kickdown)
+with [md4c](https://github.com/mity/md4c) (MIT License), used unchanged as a submodule.

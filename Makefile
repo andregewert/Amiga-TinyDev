@@ -25,6 +25,22 @@ SPROUT_SOURCES := src/sprout/sprout_main.c src/sprout/sprout_tmpl.c src/sprout/s
 SPROUT_OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SPROUT_SOURCES))
 SPROUT_DEPS := $(SPROUT_OBJECTS:.o=.d)
 
+# mdtohtml (submodule external/mdtools, the Kickdown project): turns a tree of
+# Markdown files into HTML pages for the HelpViewer. Only its converter is
+# compiled here, unchanged and without our warnings; md4c is a submodule of
+# that submodule.
+MDTOOLS_DIR := external/mdtools
+MD4C_DIR := $(MDTOOLS_DIR)/md4c/src
+ifeq ($(and $(wildcard $(MDTOOLS_DIR)/src/mdtree.c),$(wildcard $(MD4C_DIR)/md4c.c)),)
+$(error $(MDTOOLS_DIR) is missing: git submodule update --init --recursive)
+endif
+MDTOHTML_TARGET := $(BIN_DIR)/mdtohtml
+MDTOHTML_NAMES := mdtohtml mdtree mdtree_dos mdconv entity_stub fileio
+MDTOHTML_OBJ_DIR := $(BUILD_DIR)/mdtools
+MDTOHTML_OBJECTS := $(foreach n,$(MDTOHTML_NAMES) md4c md4c-html,$(MDTOHTML_OBJ_DIR)/$(n).o)
+MDTOHTML_CFLAGS := -std=gnu99 -m68000 -msoft-float -noixemul -Os -fno-common -w -DMD4C_USE_ASCII \
+    -I$(MDTOOLS_DIR)/src -I$(MD4C_DIR)
+
 # The templates that come with TinyDev (templates/<Id>/): copied whole to
 # bin/Templates/ (PROGDIR:Templates/). Their file names may contain
 # placeholders ({$NAME}), which make and the Shell would take for
@@ -119,7 +135,7 @@ SCOUT_CATALOGS := $(foreach l,$(SCOUT_LANGUAGES),$(BIN_DIR)/Catalogs/$(l)/TinyDe
 
 .PHONY: all clean test icons dist templates charcheck-templates
 all: charcheck charcheck-templates $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(SCOUT_CATALOGS) $(PARSER_C_TARGET) $(PARSER_DOS_TARGET) $(PARSER_MAKE_TARGET) $(CATALOGS) \
-     $(HV_TARGET) $(HV_CATALOGS) $(HELP_FILES) $(SPROUT_TARGET) templates
+     $(HV_TARGET) $(HV_CATALOGS) $(HELP_FILES) $(SPROUT_TARGET) $(MDTOHTML_TARGET) templates
 
 # Included after "all" so that charcheck does not become the default goal.
 include $(DEVKIT)/make/charcheck.mk
@@ -203,6 +219,19 @@ $(BUILD_DIR)/search.o: | $(REGEX_GEN)/regex.h
 $(SPROUT_TARGET): $(SPROUT_OBJECTS)
 	@mkdir -p $(BIN_DIR)
 	$(TARGET_CC) $(LDFLAGS) -Wl,-u,___stkinit -o $@ $(SPROUT_OBJECTS)
+
+$(MDTOHTML_OBJ_DIR)/%.o: $(MDTOOLS_DIR)/src/%.c
+	@mkdir -p $(dir $@)
+	$(TARGET_CC) $(MDTOHTML_CFLAGS) -c $< -o $@
+
+$(MDTOHTML_OBJ_DIR)/%.o: $(MD4C_DIR)/%.c
+	@mkdir -p $(dir $@)
+	$(TARGET_CC) $(MDTOHTML_CFLAGS) -c $< -o $@
+
+$(MDTOHTML_TARGET): $(MDTOHTML_OBJECTS)
+	@mkdir -p $(BIN_DIR)
+	$(TARGET_CC) $(LDFLAGS) -Wl,-u,___stkinit -o $(MDTOHTML_OBJ_DIR)/mdtohtml.debug $(MDTOHTML_OBJECTS)
+	$(TARGET_STRIP) -o $@ $(MDTOHTML_OBJ_DIR)/mdtohtml.debug
 
 # copied again every time (cheap), so removed files go too
 templates:

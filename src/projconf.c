@@ -211,7 +211,8 @@ static size_t base_length(const char *path)
     return n;
 }
 
-char *projconf_expand(const char *text, const char *project, const char *file, int *missing)
+char *projconf_expand(const char *text, const char *project, const char *program,
+                      const char *file, int *missing)
 {
     /* Two passes: the first measures, the second writes. */
     char *out = NULL;
@@ -229,6 +230,10 @@ char *projconf_expand(const char *text, const char *project, const char *file, i
                 if (strncmp(p, "{project}", 9) == 0) {
                     value = project;
                     value_length = strlen(project);
+                    skip = 9;
+                } else if (strncmp(p, "{tinydev}", 9) == 0) {
+                    value = program != NULL ? program : "";
+                    value_length = strlen(value);
                     skip = 9;
                 } else if (strncmp(p, "{file}", 6) == 0 || strncmp(p, "{base}", 6) == 0) {
                     skip = 6;

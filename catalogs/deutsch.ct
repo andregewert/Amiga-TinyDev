@@ -976,6 +976,10 @@ MSG_PJE_NOTE_PLACEHOLDERS
 {file}: aktives Dokument, {base}: dasselbe ohne Endung, {project}: Projekt
 ; {file}: active document, {base}: the same without extension, {project}: project
 ;
+MSG_PJE_NOTE_TINYDEV
+{tinydev}: Verzeichnis von TinyDev, wie in {tinydev}mdtohtml
+; {tinydev}: TinyDev's drawer, as in {tinydev}mdtohtml
+;
 MSG_PJE_NOTE_DIR
 Ohne Verzeichnis läuft das Kommando im Projekt.
 ; Without a drawer, the command runs in the project.
