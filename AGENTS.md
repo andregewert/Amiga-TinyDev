@@ -283,8 +283,8 @@ below the tree's root.
 - `external/html_gadget/`: git submodule (tag `v1.2`), html.gadget, for
   the headers the HelpViewer is built with (the class itself is installed
   separately). Do not edit it.
-- `external/mdtools/`: git submodule (the Kickdown project, repository
-  Amiga-Kickdown) for `bin/mdtohtml`, which turns a tree of Markdown files
+- `external/mdtools/`: git submodule (tag `v1.2-beta1`; the Kickdown project,
+  repository Amiga-Kickdown) for `bin/mdtohtml`, which turns a tree of Markdown files
   into HTML pages. The Makefile compiles only its converter, unchanged and
   without our warning flags, with the nested submodule `md4c`; `make dist`
   ships those sources only. Do not edit it: changes belong in
