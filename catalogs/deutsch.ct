@@ -1596,9 +1596,21 @@ MSG_NP_CHOOSE
 W‰h_len...
 ; C_hoose...
 ;
-MSG_NP_NAMENOTE
-Ohne Namen heiﬂt das Projekt wie sein Verzeichnis.
-; Without a name, the project is named after its drawer.
+MSG_NP_SUBDIR
+_Verzeichnisname 
+; _Drawer name 
+;
+MSG_NP_PARENT
+Anlegen _in 
+; Create _in 
+;
+MSG_NP_RESULT
+Wird angelegt: %s
+; Will be created: %s
+;
+MSG_NP_EXISTSNOTE
+%s gibt es schon.
+; %s exists already.
 ;
 MSG_NP_BACK
 < _Zur¸ck
@@ -1629,12 +1641,24 @@ Mit * markierte Werte m¸ssen ausgef¸llt sein.
 ; Values marked * must be filled in.
 ;
 MSG_NP_ASL
-Projektverzeichnis w‰hlen oder benennen
-; Choose or name the project drawer
+W‰hlen, wo das Projekt angelegt wird
+; Choose where to create the project
 ;
 MSG_NP_NODRAWER
-Bitte das Projektverzeichnis angeben.\nSprout legt es an, wenn es noch nicht existiert.
-; Please enter the project drawer.\nSprout creates it if it does not exist.
+Bitte angeben, wo das Projekt angelegt werden soll.
+; Please enter where the project is to be created.
+;
+MSG_NP_NOSUBDIR
+Bitte den Namen des Projektverzeichnisses angeben.
+; Please enter the name of the project's drawer.
+;
+MSG_NP_BADSUBDIR
+Der Verzeichnisname darf weder ':' noch '/' enthalten.
+; The drawer name must not contain ':' or '/'.
+;
+MSG_NP_EXISTS
+Das Verzeichnis %s gibt es schon.\nBitte einen anderen Namen w‰hlen.
+; The drawer %s exists already.\nPlease choose another name.
 ;
 MSG_NP_REQUIRED
 Bitte "%s" ausf¸llen.

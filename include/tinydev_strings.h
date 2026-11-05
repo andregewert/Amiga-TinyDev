@@ -398,47 +398,53 @@
 #define MSG_NP_NAME                  393
 #define MSG_NP_DRAWER                394
 #define MSG_NP_CHOOSE                395
-#define MSG_NP_NAMENOTE              396
-#define MSG_NP_BACK                  397
-#define MSG_NP_NEXT                  398
-#define MSG_NP_CREATE                399
-#define MSG_NP_CANCEL                400
-#define MSG_NP_VALUES                401
-#define MSG_NP_NOVALUES              402
-#define MSG_NP_REQUIREDNOTE          403
-#define MSG_NP_ASL                   404
-#define MSG_NP_NODRAWER              405
-#define MSG_NP_REQUIRED              406
-#define MSG_NP_NOSPROUT              407
-#define MSG_NP_LISTFAILED            408
-#define MSG_NP_NOTEMPLATES           409
-#define MSG_NP_NOVALUESFILE          410
-#define MSG_NP_FAILED                411
-#define MSG_NP_WARNINGS              412
-#define MSG_NP_CREATED               413
-#define MSG_NP_NEEDCLASS             414
-#define MSG_MENU_NEWFROMTEMPLATE     415
-#define MSG_NF_TITLE                 416
-#define MSG_NF_DRAWERNOTE            417
-#define MSG_NF_ASL                   418
-#define MSG_NF_NODRAWER              419
-#define MSG_NF_NOTEMPLATES           420
-#define MSG_NF_FAILED                421
-#define MSG_NF_WARNINGS              422
-#define MSG_NF_CREATED               423
-#define MSG_CAT_PROJECT              424
-#define MSG_PREFS_PROJECTDIR         425
-#define MSG_PREFS_ASL_PROJECTDIR     426
-#define MSG_PREFS_AUTHOR             427
-#define MSG_PREFS_AUTHORMAIL         428
-#define MSG_PREFS_PROJNOTE           429
-#define MSG_MENU_CLOSEPROJECT        430
-#define MSG_LAMP_IDLE                431
-#define MSG_LAMP_BUSY                432
-#define MSG_LAMP_JOBS                433
-#define MSG_LAMP_FAILED              434
-#define MSG_LAMP_OFF                 435
-#define MSG_COUNT                    436
+#define MSG_NP_SUBDIR                396
+#define MSG_NP_PARENT                397
+#define MSG_NP_RESULT                398
+#define MSG_NP_EXISTSNOTE            399
+#define MSG_NP_BACK                  400
+#define MSG_NP_NEXT                  401
+#define MSG_NP_CREATE                402
+#define MSG_NP_CANCEL                403
+#define MSG_NP_VALUES                404
+#define MSG_NP_NOVALUES              405
+#define MSG_NP_REQUIREDNOTE          406
+#define MSG_NP_ASL                   407
+#define MSG_NP_NODRAWER              408
+#define MSG_NP_NOSUBDIR              409
+#define MSG_NP_BADSUBDIR             410
+#define MSG_NP_EXISTS                411
+#define MSG_NP_REQUIRED              412
+#define MSG_NP_NOSPROUT              413
+#define MSG_NP_LISTFAILED            414
+#define MSG_NP_NOTEMPLATES           415
+#define MSG_NP_NOVALUESFILE          416
+#define MSG_NP_FAILED                417
+#define MSG_NP_WARNINGS              418
+#define MSG_NP_CREATED               419
+#define MSG_NP_NEEDCLASS             420
+#define MSG_MENU_NEWFROMTEMPLATE     421
+#define MSG_NF_TITLE                 422
+#define MSG_NF_DRAWERNOTE            423
+#define MSG_NF_ASL                   424
+#define MSG_NF_NODRAWER              425
+#define MSG_NF_NOTEMPLATES           426
+#define MSG_NF_FAILED                427
+#define MSG_NF_WARNINGS              428
+#define MSG_NF_CREATED               429
+#define MSG_CAT_PROJECT              430
+#define MSG_PREFS_PROJECTDIR         431
+#define MSG_PREFS_ASL_PROJECTDIR     432
+#define MSG_PREFS_AUTHOR             433
+#define MSG_PREFS_AUTHORMAIL         434
+#define MSG_PREFS_PROJNOTE           435
+#define MSG_MENU_CLOSEPROJECT        436
+#define MSG_LAMP_IDLE                437
+#define MSG_LAMP_BUSY                438
+#define MSG_LAMP_JOBS                439
+#define MSG_LAMP_FAILED              440
+#define MSG_LAMP_OFF                 441
+#define MSG_COUNT                    442
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -839,7 +845,10 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Project na_me ",
     "_Drawer ",
     "C_hoose...",
-    "Without a name, the project is named after its drawer.",
+    "_Drawer name ",
+    "Create _in ",
+    "Will be created: %s",
+    "%s exists already.",
     "< _Back",
     "_Next >",
     "C_reate",
@@ -847,8 +856,11 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Values for %s",
     "This template needs no values.",
     "Values marked * must be filled in.",
-    "Choose or name the project drawer",
-    "Please enter the project drawer.\nSprout creates it if it does not exist.",
+    "Choose where to create the project",
+    "Please enter where the project is to be created.",
+    "Please enter the name of the project's drawer.",
+    "The drawer name must not contain ':' or '/'.",
+    "The drawer %s exists already.\nPlease choose another name.",
     "Please fill in \"%s\".",
     "Sprout (in the drawer of TinyDev) could not be started.",
     "Sprout could not list the templates:\n\n%s",

@@ -1223,8 +1223,17 @@ _Drawer
 MSG_NP_CHOOSE (//)
 C_hoose...
 ;
-MSG_NP_NAMENOTE (//)
-Without a name, the project is named after its drawer.
+MSG_NP_SUBDIR (//)
+_Drawer name 
+;
+MSG_NP_PARENT (//)
+Create _in 
+;
+MSG_NP_RESULT (//)
+Will be created: %s
+;
+MSG_NP_EXISTSNOTE (//)
+%s exists already.
 ;
 MSG_NP_BACK (//)
 < _Back
@@ -1248,10 +1257,19 @@ MSG_NP_REQUIREDNOTE (//)
 Values marked * must be filled in.
 ;
 MSG_NP_ASL (//)
-Choose or name the project drawer
+Choose where to create the project
 ;
 MSG_NP_NODRAWER (//)
-Please enter the project drawer.\nSprout creates it if it does not exist.
+Please enter where the project is to be created.
+;
+MSG_NP_NOSUBDIR (//)
+Please enter the name of the project's drawer.
+;
+MSG_NP_BADSUBDIR (//)
+The drawer name must not contain ':' or '/'.
+;
+MSG_NP_EXISTS (//)
+The drawer %s exists already.\nPlease choose another name.
 ;
 MSG_NP_REQUIRED (//)
 Please fill in "%s".

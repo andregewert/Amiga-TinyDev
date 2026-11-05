@@ -13,8 +13,16 @@
  * - page 0, the template: the categories (listbrowser), the templates of
  *   the chosen one (listbrowser, the symbol of the icon type drawn by a
  *   render hook, tmplsym.c), the chosen template's icon (or its symbol
- *   enlarged) with its name and description; below them the project's name and drawer
- *   (string gadget, ASL button);
+ *   enlarged) with its name and description; below them, for a project,
+ *   its name, the name of its drawer and where that drawer is created
+ *   (string gadgets, ASL button; the setting PROJECTDIR is suggested,
+ *   else the drawer holding the current project), with a line that shows
+ *   the drawer that will be created (or that it exists already); for
+ *   file templates the drawer of the files. The drawer's name follows
+ *   the project's name (spaces and characters AmigaDOS paths do not like
+ *   become '_') until the user changes it; string.gadget sends nothing
+ *   while one types, so the fields are looked at on every wake-up
+ *   (IDCMP_INTUITICKS);
  * - then one page per template with a form generated from its
  *   placeholders: a string gadget per value, a chooser where the template
  *   gives choices, the description as help bubble. All forms are built
@@ -34,7 +42,7 @@
  * settings AUTHOR and AUTHORMAIL (Project Defaults) count as given
  * values: they fill fields of these keys before the template's defaults
  * and go to Sprout also when the template does not ask for them. A new
- * project's drawer is suggested in the setting PROJECTDIR, if there is one.
+ * project's drawer must not exist yet.
  *
  * Create writes all values (and PROJECT if a name was given) as a JSON
  * object to a file in the drawer of the temporary files and runs
@@ -100,7 +108,7 @@ extern struct Library *StringBase;         /* shared with the find window */
 /** Gadget IDs of the wizard. */
 enum {
     NP_CATS = 100, NP_TMPLS, NP_DESC, NP_NAME, NP_DRAWER, NP_CHOOSE,
-    NP_BACK, NP_NEXT, NP_CREATE, NP_CANCEL,
+    NP_BACK, NP_NEXT, NP_CREATE, NP_CANCEL, NP_SUBDIR,
     NP_FIELD = 1000             /* + template * FIELDS_PER + placeholder */
 };
 
@@ -126,6 +134,11 @@ enum {
 #define BIG_SCALE 3                 /**< the enlarged symbol: pixels per symbol pixel */
 #define DESC_CHARS 34               /**< width of the description, in average characters */
 #define ICON_MAX 128                /**< the largest template icon shown, in pixels either way */
+
+/** Longest drawer name the project's name suggests (FFS without long names). */
+#define SUBDIR_MAX 30
+/** Characters a suggested drawer name gets as '_' instead. */
+#define SUBDIR_BAD " :/\"#?*"
 
 /** the child just added keeps its height */
 #define FIXED CHILD_WeightedHeight, 0
@@ -159,6 +172,12 @@ static struct {
     UWORD iconw, iconh;             /* the box of the icon: the largest icon */
     Object *winobj, *layout, *page_gad, *catlist_gad, *tmpllist_gad, *desc_gad;
     Object *icon, *title, *name, *drawer, *back, *next, *create;
+    Object *subdir, *result;        /* projects: the drawer's name, the line with the result */
+    char last_name[81];             /* the project's name looked at last */
+    char last_auto[SUBDIR_MAX + 1]; /* the drawer's name filled in last */
+    char last_target[EDITOR_PATH_MAX];  /* the drawer the result line shows */
+    char result_text[EDITOR_PATH_MAX + 64]; /* the result line */
+    int result_set;                 /* the result line shows last_target */
     struct Window *win;
     struct DrawInfo *dri;
     struct List catnodes, tmplnodes, descnodes;
@@ -218,6 +237,94 @@ static const char *project_name(void)
     if (np.files) return np.project;
     name = (const char *)get(np.name, STRINGA_TextVal);
     return name != NULL ? name : "";
+}
+
+/**
+ * @brief Read a string gadget's text.
+ * @param o The gadget (may be NULL).
+ * @return Its text, "" if none.
+ */
+static const char *text_of(Object *o)
+{
+    const char *t = o != NULL ? (const char *)get(o, STRINGA_TextVal) : NULL;
+    return t != NULL ? t : "";
+}
+
+/**
+ * @brief Suggest a drawer name for a project's name: spaces at the ends
+ *        dropped, SUBDIR_BAD characters as '_', at most SUBDIR_MAX.
+ * @param name The project's name.
+ * @param[out] out The drawer name.
+ * @param size Size of @p out.
+ */
+static void suggest_subdir(const char *name, char *out, size_t size)
+{
+    size_t n = 0, len = strlen(name);
+    while (len > 0 && name[len - 1] == ' ') --len;
+    while (len > 0 && *name == ' ') { ++name; --len; }
+    for (; len > 0 && n + 1 < size && n < SUBDIR_MAX; ++name, --len)
+        out[n++] = strchr(SUBDIR_BAD, *name) != NULL ? '_' : *name;
+    out[n] = '\0';
+}
+
+/**
+ * @brief Work out the drawer Sprout is to create (a project's: "Create
+ *        in" and the drawer's name) or fill (file templates).
+ * @param[out] out The drawer.
+ * @param size Size of @p out.
+ * @return Non-zero if there is one; 0 if a part is missing or too long.
+ */
+static int target_drawer(char *out, size_t size)
+{
+    const char *where = text_of(np.drawer), *sub;
+    out[0] = '\0';
+    if (np.files) {
+        if (where[0] == '\0' || strlen(where) >= size) return 0;
+        strcpy(out, where);
+        return 1;
+    }
+    sub = text_of(np.subdir);
+    if (where[0] == '\0' || sub[0] == '\0' || strlen(where) >= size) return 0;
+    strcpy(out, where);
+    return AddPart((STRPTR)out, (STRPTR)sub, (ULONG)size) != 0;
+}
+
+static void set_page(Object *o, ULONG attr, ULONG value);
+
+/**
+ * @brief Projects: let the drawer's name follow the project's name (until
+ *        the user changed it) and show the drawer that will be created.
+ *        Called on every wake-up of the window, as the string gadgets tell
+ *        nothing while one types.
+ */
+static void follow_fields(void)
+{
+    char target[EDITOR_PATH_MAX];
+    const char *name, *shown;
+    BPTR lock;
+    if (np.files || np.win == NULL || np.subdir == NULL) return;
+    name = text_of(np.name);
+    if (strcmp(name, np.last_name) != 0) {
+        strncpy(np.last_name, name, sizeof(np.last_name) - 1);
+        if (strcmp(text_of(np.subdir), np.last_auto) == 0) {
+            suggest_subdir(name, np.last_auto, sizeof(np.last_auto));
+            set_page(np.subdir, STRINGA_TextVal, (ULONG)np.last_auto);
+        }
+    }
+    if (!target_drawer(target, sizeof(target))) target[0] = '\0';
+    if (np.result_set && strcmp(target, np.last_target) == 0) return;
+    strcpy(np.last_target, target);
+    np.result_set = 1;
+    shown = np.result_text;
+    if (target[0] == '\0') {
+        shown = "";
+    } else if ((lock = Lock((STRPTR)target, ACCESS_READ)) != 0) {
+        UnLock(lock);
+        snprintf(np.result_text, sizeof(np.result_text), S(MSG_NP_EXISTSNOTE), target);
+    } else {
+        snprintf(np.result_text, sizeof(np.result_text), S(MSG_NP_RESULT), target);
+    }
+    set_page(np.result, GA_Text, (ULONG)shown);
 }
 
 /**
@@ -791,15 +898,15 @@ static void template_chosen(void)
 }
 
 /**
- * @brief Let the user choose the project drawer with the ASL requester (a
- *        new drawer's name may be typed in).
+ * @brief Let the user choose with the ASL requester where a project is
+ *        created, or the drawer of the files.
  */
 static void choose_drawer(void)
 {
     const char *cur = (const char *)get(np.drawer, STRINGA_TextVal);
     struct FileRequester *fr = AllocAslRequestTags(ASL_FileRequest,
         ASLFR_TitleText, (ULONG)text_for(MSG_NP_ASL, MSG_NF_ASL), ASLFR_DrawersOnly, TRUE,
-        ASLFR_DoSaveMode, (ULONG)!np.files, TAG_END);
+        TAG_END);
     if (fr == NULL) return;
     if (AslRequestTags(fr, ASLFR_Window, (ULONG)np.win, ASLFR_SleepWindow, TRUE,
                        cur != NULL && cur[0] != '\0' ? ASLFR_InitialDrawer : TAG_IGNORE, (ULONG)cur,
@@ -838,11 +945,12 @@ static const char *field_value(const NpTemplate *p, int k)
  */
 static int form_values(NpTemplate *p, SproutValues *v, int fill)
 {
-    char drawer[EDITOR_PATH_MAX];
+    char target[EDITOR_PATH_MAX], drawer[EDITOR_PATH_MAX];
     int k, j;
 
     sprout_values_init(v);
-    sprout_drawer_name((const char *)get(np.drawer, STRINGA_TextVal), drawer, sizeof(drawer));
+    if (!target_drawer(target, sizeof(target))) target[0] = '\0';
+    sprout_drawer_name(target, drawer, sizeof(drawer));
     if (sprout_builtins(v, project_name(), drawer, np.days) < 0 ||
         sprout_values_set(v, "AUTHOR", np.app->settings.author) < 0 ||
         sprout_values_set(v, "AUTHORMAIL", np.app->settings.authormail) < 0)
@@ -1110,7 +1218,14 @@ static Object *build(const char *drawer)
         LISTBROWSER_ShowSelected, FALSE,
         LISTBROWSER_Selected, (ULONG)-1,
         TAG_END);
-    if (!np.files) np.name = string(NP_NAME, "", 80);
+    if (!np.files) {
+        np.name = string(NP_NAME, "", 80);
+        np.subdir = string(NP_SUBDIR, "", 108);
+        /* a path may hold a '_'; before GA_Text, see the style guide */
+        np.result = NewObject(BUTTON_GetClass(), NULL, GA_ReadOnly, TRUE, GA_Underscore, 0,
+            GA_Text, (ULONG)"", BUTTON_BevelStyle, BVS_NONE, BUTTON_Transparent, TRUE,
+            BUTTON_Justification, BCJ_LEFT, TAG_END);
+    }
     np.drawer = string(NP_DRAWER, drawer, EDITOR_PATH_MAX);
 
     page0 = NewObject(LAYOUT_GetClass(), NULL,
@@ -1159,6 +1274,9 @@ static Object *build(const char *drawer)
             np.files ? TAG_IGNORE : LAYOUT_AddChild, (ULONG)np.name,
             np.files ? TAG_IGNORE : CHILD_WeightedHeight, 0,
             np.files ? TAG_IGNORE : CHILD_Label, np.files ? 0 : (ULONG)label(S(MSG_NP_NAME), 1),
+            np.files ? TAG_IGNORE : LAYOUT_AddChild, (ULONG)np.subdir,
+            np.files ? TAG_IGNORE : CHILD_WeightedHeight, 0,
+            np.files ? TAG_IGNORE : CHILD_Label, np.files ? 0 : (ULONG)label(S(MSG_NP_SUBDIR), 1),
             LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
                 LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
                 LAYOUT_AddChild, (ULONG)np.drawer,
@@ -1166,8 +1284,11 @@ static Object *build(const char *drawer)
                 CHILD_WeightedWidth, 0,
                 TAG_END),
             FIXED,
-            CHILD_Label, (ULONG)label(S(MSG_NP_DRAWER), 1),
-            LAYOUT_AddImage, (ULONG)label(text_for(MSG_NP_NAMENOTE, MSG_NF_DRAWERNOTE), 1), FIXED,
+            CHILD_Label, (ULONG)label(S(np.files ? MSG_NP_DRAWER : MSG_NP_PARENT), 1),
+            /* projects: the drawer that will be created; files: a note */
+            np.files ? LAYOUT_AddImage : LAYOUT_AddChild,
+            np.files ? (ULONG)label(S(MSG_NF_DRAWERNOTE), 1) : (ULONG)np.result,
+            FIXED,
             TAG_END),
         FIXED,
         TAG_END);
@@ -1279,18 +1400,41 @@ static int write_values(const SproutValues *v, const char *path)
 static int create(SproutValues *v)
 {
     NpTemplate *p = &np.tmpl[np.cur];
-    const char *drawer = (const char *)get(np.drawer, STRINGA_TextVal);
-    char values[EDITOR_PATH_MAX], out[EDITOR_PATH_MAX];
+    char drawer[EDITOR_PATH_MAX], values[EDITOR_PATH_MAX], out[EDITOR_PATH_MAX];
+    const char *sub = text_of(np.subdir);
+    Object *wrong = NULL;
+    LONG problem = 0;
+    BPTR lock;
     char args[EDITOR_PATH_MAX * 3 + 16], qid[EDITOR_PATH_MAX], qdrawer[EDITOR_PATH_MAX], qvalues[EDITOR_PATH_MAX];
     char *msgs;
     LONG rc;
     int k;
 
     sprout_values_init(v);
-    if (drawer == NULL || drawer[0] == '\0') {
-        message(text_for(MSG_NP_NODRAWER, MSG_NF_NODRAWER));
+    /* page 0 first: where, and for a project a new drawer's name */
+    if (text_of(np.drawer)[0] == '\0') {
+        problem = np.files ? MSG_NF_NODRAWER : MSG_NP_NODRAWER;
+        wrong = np.drawer;
+    } else if (!np.files && sub[0] == '\0') {
+        problem = MSG_NP_NOSUBDIR;
+        wrong = np.subdir;
+    } else if (!np.files && (strchr(sub, ':') != NULL || strchr(sub, '/') != NULL)) {
+        problem = MSG_NP_BADSUBDIR;
+        wrong = np.subdir;
+    } else if (!target_drawer(drawer, sizeof(drawer))) {
+        problem = MSG_ERR_PATHTOOLONG;
+        wrong = np.files ? np.drawer : np.subdir;
+    }
+    if (problem == 0 && !np.files && (lock = Lock((STRPTR)drawer, ACCESS_READ)) != 0) {
+        UnLock(lock);
+        message_arg(MSG_NP_EXISTS, drawer);
+        wrong = np.subdir;
+    } else if (problem != 0) {
+        message(S(problem));
+    }
+    if (wrong != NULL) {
         if (np.page != 0) show_page(0);
-        ActivateLayoutGadget((struct Gadget *)np.layout, np.win, NULL, (ULONG)np.drawer);
+        ActivateLayoutGadget((struct Gadget *)np.layout, np.win, NULL, (ULONG)wrong);
         return 0;
     }
     if (form_values(p, v, 1) < 0) {
@@ -1398,15 +1542,15 @@ static void wizard(EditorApp *app, int files)
     if (!c) goto out;
 
     /* suggested drawer: for files the active document's, else the
-     * project's; for a project the setting PROJECTDIR, else the one
-     * holding the current project */
+     * project's; where a project is created: the setting PROJECTDIR, else
+     * the drawer holding the current project */
     drawer[0] = '\0';
     if (!files && app->settings.projectdir[0] != '\0') {
         size_t n;
-        strncpy(drawer, app->settings.projectdir, sizeof(drawer) - 2);
-        drawer[sizeof(drawer) - 2] = '\0';
+        strncpy(drawer, app->settings.projectdir, sizeof(drawer) - 1);
+        drawer[sizeof(drawer) - 1] = '\0';
         n = strlen(drawer);
-        if (drawer[n - 1] != ':' && drawer[n - 1] != '/') strcpy(drawer + n, "/");
+        if (n > 1 && drawer[n - 1] == '/') drawer[n - 1] = '\0';
     } else if (files) {
         if (app->active != NULL && app->active->path != NULL) {
             strncpy(drawer, app->active->path, sizeof(drawer) - 1);
@@ -1414,11 +1558,8 @@ static void wizard(EditorApp *app, int files)
             *PathPart((STRPTR)drawer) = '\0';
         } else if (!tree_project_root(app, drawer, sizeof(drawer))) drawer[0] = '\0';
     } else if (tree_project_root(app, root, sizeof(root))) {
-        size_t n;
         *PathPart((STRPTR)root) = '\0';
         strcpy(drawer, root);
-        n = strlen(drawer);
-        if (n > 0 && drawer[n - 1] != ':' && n + 1 < sizeof(drawer)) strcpy(drawer + n, "/");
     }
     np.render_hook.h_Entry = (ULONG (*)())HookEntry;
     np.render_hook.h_SubEntry = (ULONG (*)())render_row;
@@ -1437,6 +1578,7 @@ static void wizard(EditorApp *app, int files)
         WA_DragBar, TRUE,
         WA_CloseGadget, TRUE,
         WA_SizeGadget, TRUE,
+        WA_IDCMP, IDCMP_INTUITICKS,     /* follow_fields() while one types */
         WINDOW_RefWindow, (ULONG)app->window,
         WINDOW_Position, WPOS_CENTERWINDOW,
         WINDOW_ParentGroup, (ULONG)np.layout,
@@ -1449,7 +1591,8 @@ static void wizard(EditorApp *app, int files)
     }
     if ((np.win = (struct Window *)DoMethod(np.winobj, WM_OPEN, NULL)) == NULL) goto out;
     show_details();
-    ActivateLayoutGadget((struct Gadget *)np.layout, np.win, NULL, (ULONG)np.drawer);
+    follow_fields();
+    ActivateLayoutGadget((struct Gadget *)np.layout, np.win, NULL, (ULONG)(np.files ? np.drawer : np.name));
 
     SetAttrs(app->window_object, WA_BusyPointer, TRUE, TAG_END);
     GetAttr(WINDOW_SigMask, app->window_object, &mainsig);
@@ -1460,6 +1603,7 @@ static void wizard(EditorApp *app, int files)
         while ((result = DoMethod(np.winobj, WM_HANDLEINPUT, &code)) != WMHI_LASTMSG) {
             ULONG id = result & WMHI_GADGETMASK;
             if ((result & WMHI_CLASSMASK) == WMHI_CLOSEWINDOW) { done = 1; continue; }
+            if ((result & WMHI_CLASSMASK) == WMHI_INTUITICK) { follow_fields(); continue; }
             if ((result & WMHI_CLASSMASK) != WMHI_GADGETUP) continue;
             switch (id) {
                 case NP_CATS:
@@ -1493,8 +1637,7 @@ static void wizard(EditorApp *app, int files)
     SetAttrs(app->window_object, WA_BusyPointer, FALSE, TAG_END);
     if (created) {
         /* the drawer's text goes with the window */
-        strncpy(drawer, (const char *)get(np.drawer, STRINGA_TextVal), sizeof(drawer) - 1);
-        drawer[sizeof(drawer) - 1] = '\0';
+        if (!target_drawer(drawer, sizeof(drawer))) drawer[0] = '\0';
     }
 
 out:
