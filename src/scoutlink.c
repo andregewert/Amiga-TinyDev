@@ -91,8 +91,13 @@ struct RxsLib *RexxSysBase = NULL;
 #define TICK_MICROS 250000
 /** Timer ticks without typing before a changed document is analysed (1 s). */
 #define PAUSE_TICKS 4
-/** Timer ticks Scout may take to show its port after being started (10 s). */
+/** Timer ticks Scout may take to show its port after being started (10 s);
+ *  then the lamp shows it failed, but its port is still looked for. */
 #define START_TICKS 40
+/** Timer ticks after which a Scout that was started is given up (2 min):
+ *  on a real Amiga, the first start from a cold disk, beside TinyDev's own
+ *  start, took longer than START_TICKS. */
+#define LATE_TICKS 480
 /** Most extensions and file names remembered from LANGUAGES. */
 #define MAX_EXTENSIONS 48
 /** Most languages remembered from LANGUAGES. */
@@ -145,6 +150,7 @@ static struct {
     struct MsgPort *port;       /**< where the answers come back */
     int state;                  /**< SL_ value */
     int ticks;                  /**< timer ticks waited for the port */
+    int late;                   /**< SL_FAILED after START_TICKS: the port is still looked for */
     int idle;                   /**< timer ticks since the last change of a text */
     struct MsgPort *timer_port; /**< port of the timer */
     struct timerequest *timer;  /**< the timer */
@@ -313,6 +319,7 @@ static void connect(EditorApp *app)
     }
     sl.state = rc == -1 ? SL_FAILED : SL_STARTING;
     sl.ticks = 0;
+    sl.late = 0;
     (void)app;
 }
 
@@ -909,7 +916,8 @@ static void start_timer(void)
 static int timer_needed(EditorApp *app)
 {
     Document *doc;
-    if (!app->settings.scout || sl.state == SL_FAILED) return 0;
+    if (!app->settings.scout || (sl.state == SL_FAILED && !sl.late)) return 0;
+    if (sl.late) return 1;
     if (sl.state == SL_STARTING || sl.indexing || (sl.session > 0 && sl.state == SL_READY)) return 1;
     for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ;
          doc = (Document *)doc->node.ln_Succ)
@@ -932,13 +940,20 @@ static void tick(EditorApp *app)
              doc = (Document *)doc->node.ln_Succ)
             if (doc->scout_pending && doc->path != NULL) { connect(app); break; }
     }
-    if (sl.state == SL_STARTING) {
+    if (sl.state == SL_STARTING || sl.late) {
         struct MsgPort *port;
         Forbid();
         port = FindPort((STRPTR)SCOUT_PORT);
         Permit();
-        if (port != NULL) sl.state = SL_READY;
-        else if (++sl.ticks > START_TICKS) sl.state = SL_FAILED;
+        if (port != NULL) {
+            sl.state = SL_READY;        /* also when it came late */
+            sl.late = 0;
+        } else if (++sl.ticks > LATE_TICKS) {
+            sl.late = 0;                /* given up */
+        } else if (sl.ticks > START_TICKS) {
+            sl.state = SL_FAILED;
+            sl.late = 1;
+        }
     }
     when_ready();
     send_due(app);
@@ -1019,7 +1034,10 @@ void scoutlink_settings_changed(EditorApp *app)
 {
     Document *doc;
     if (app->settings.scout) {
-        if (sl.state == SL_FAILED) sl.state = SL_OFF;   /* try again */
+        if (sl.state == SL_FAILED) {
+            sl.state = SL_OFF;          /* try again */
+            sl.late = 0;
+        }
         if (sl.session == 0 && !sl.opening) scoutlink_project_opened(app);
         scoutlink_start(app);
         all_pending(app);
