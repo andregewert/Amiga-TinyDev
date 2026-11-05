@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "name": "Grüße aus \"Amiga\"",
+  "window": {
+    "left": 10, "top": -2.5e3,
+    "title": "A very long title that is shortened in the detail of its symbol, as it goes on",
+    "flags": [true, false, null],
+    "deep": { "hidden": 1 }
+  },
+  "list": [ { "inArray": 1 } ],
+  "name": "twice",
+  "empty": {}
+}

@@ -48,7 +48,8 @@ struct TokenMap;
  *
  * Parameters and variables (SYNTAX_VARIABLE) are also shown in strings and
  * preprocessor lines (AmigaDOS scripts substitute them there), only
- * comments hide them.
+ * comments hide them. A token covering a whole string exactly gives it
+ * its style (the keys of JSON).
  *
  * There are no built-in scanners: without Scout (no rules, no tokens)
  * nothing is highlighted.

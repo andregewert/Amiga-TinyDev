@@ -26,7 +26,8 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
   numbers; saved in `TinyDev.json` in TinyDev's drawer.
 - Syntax highlighting with the rules of TinyDev-Scout's parsers (C:
   `.c`, `.h`; AmigaDOS scripts: `.script`, `.dos`; Makefiles: `Makefile`,
-  `SMakefile`, `.mk`; Markdown: `.md`, `.markdown`), including the types,
+  `SMakefile`, `.mk`; Markdown: `.md`, `.markdown`; JSON: `.json`),
+  including the types,
   functions, macros, constants and parameters of the project. Without
   Scout nothing is highlighted; other files are plain text. Scripts
   without an extension are recognised by their script bit (or a `.KEY`
@@ -43,7 +44,8 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
 - Symbol list (View/Symbol List): the functions, types, macros and
   variables of the current file or of the project, found by TinyDev-Scout,
   with a filter; a double-click goes to the symbol. In a Markdown file it
-  lists the headings as an outline of the document.
+  lists the headings as an outline of the document, in a JSON file the
+  keys of its first two levels.
 - Problems found by TinyDev-Scout (syntax errors and the like) marked in
   the bar left of the text, shown in the status line on their line, and
   listed in a problem list (View/Problem List).
@@ -341,7 +343,7 @@ The motifs are in `tools/mkicons.py`, the icon writer comes from
 |---|---|
 | `TinyDev` | Editor window with line numbers, coloured code and the minimap |
 | `TinyDev-Scout` | A page of code under a magnifying glass |
-| `c_parser`, `dos_parser`, `make_parser`, `markdown_parser` | A chip with the label of the parser's language ("C", "S" for scripts, "M" for Makefiles, an arrow down for Markdown) |
+| `c_parser`, `dos_parser`, `make_parser`, `markdown_parser`, `json_parser` | A chip with the label of the parser's language ("C", "S" for scripts, "M" for Makefiles, an arrow down for Markdown, "J" for JSON) |
 | `HelpViewer` | A blue handbook with a question mark on its cover |
 
 ## Languages

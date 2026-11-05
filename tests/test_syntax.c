@@ -101,6 +101,25 @@ int main(void)
 
     tokenmap_free(m);
     rules_free(r);
+
+    {   /* JSON: a token covering a whole string restyles it (a key), one
+         * covering only part of a string does not */
+        const char *jrules = "{\"strings\":[{\"open\":\"\\\"\",\"close\":\"\\\"\",\"escape\":\"\\\\\"}],"
+                             "\"keywords\":{\"constant\":[\"true\"]}}";
+        const char *jtext = "{ \"key\": \"value\", \"on\": true }\n";
+        const long jvalues[] = { 1, 3, 5, 1, 1, 13, 3, 1, 1, 19, 4, 1 };
+        SyntaxRules *jr = rules_parse(jrules);
+        TokenMap *jm = tokenmap_build(jtext, strlen(jtext), jvalues, 12);
+        assert(jr != NULL);
+        assert(jm != NULL);
+        scan(jr, jm, "{ \"key\": \"value\", \"on\": true }", &c);
+        assert(has(&c, 2, 7, SYNTAX_STRING) && has(&c, 2, 7, SYNTAX_TYPE));
+        assert(has(&c, 9, 16, SYNTAX_STRING) && !has(&c, 12, 15, SYNTAX_TYPE));
+        assert(has(&c, 18, 22, SYNTAX_STRING) && has(&c, 18, 22, SYNTAX_TYPE));
+        assert(has(&c, 24, 28, SYNTAX_CONSTANT));
+        tokenmap_free(jm);
+        rules_free(jr);
+    }
     puts("syntax tests passed");
     return 0;
 }

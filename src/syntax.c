@@ -63,9 +63,11 @@ unsigned long syntax_scan(const struct SyntaxRules *rules, const struct TokenMap
             int k, free_text = e <= len, variable = spans[i].style == SYNTAX_VARIABLE;
             /* only where the line is normal text (not a comment, a string...);
              * parameters and variables also in strings and preprocessor
-             * lines, where scripts substitute them */
+             * lines, where scripts substitute them; a token covering a
+             * whole string gives it its style (a key in JSON) */
             for (k = 0; free_text && k < rec.count; k++)
-                if (s < rec.end[k] && e > rec.start[k] && (!variable || rec.style[k] == SYNTAX_COMMENT))
+                if (s < rec.end[k] && e > rec.start[k] && (!variable || rec.style[k] == SYNTAX_COMMENT) &&
+                    !(rec.style[k] == SYNTAX_STRING && s == rec.start[k] && e == rec.end[k]))
                     free_text = 0;
             if (free_text) {
                 SyntaxSpan span;

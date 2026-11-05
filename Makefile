@@ -50,6 +50,7 @@ PARSER_C_TARGET := $(BIN_DIR)/parsers/c_parser
 PARSER_DOS_TARGET := $(BIN_DIR)/parsers/dos_parser
 PARSER_MAKE_TARGET := $(BIN_DIR)/parsers/make_parser
 PARSER_MARKDOWN_TARGET := $(BIN_DIR)/parsers/markdown_parser
+PARSER_JSON_TARGET := $(BIN_DIR)/parsers/json_parser
 
 # HelpViewer (src/helpviewer/): shows a directory of HTML help pages with
 # html.gadget (submodule external/html_gadget, for its headers) and
@@ -135,7 +136,7 @@ SCOUT_LANGUAGES := $(basename $(notdir $(wildcard src/scout/catalogs/*.ct)))
 SCOUT_CATALOGS := $(foreach l,$(SCOUT_LANGUAGES),$(BIN_DIR)/Catalogs/$(l)/TinyDev-Scout.catalog)
 
 .PHONY: all clean test icons dist templates charcheck-templates
-all: charcheck charcheck-templates $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(SCOUT_CATALOGS) $(PARSER_C_TARGET) $(PARSER_DOS_TARGET) $(PARSER_MAKE_TARGET) $(PARSER_MARKDOWN_TARGET) $(CATALOGS) \
+all: charcheck charcheck-templates $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(SCOUT_CATALOGS) $(PARSER_C_TARGET) $(PARSER_DOS_TARGET) $(PARSER_MAKE_TARGET) $(PARSER_MARKDOWN_TARGET) $(PARSER_JSON_TARGET) $(CATALOGS) \
      $(HV_TARGET) $(HV_CATALOGS) $(HELP_FILES) $(SPROUT_TARGET) $(MDTOHTML_TARGET) templates
 
 # Included after "all" so that charcheck does not become the default goal.
@@ -268,11 +269,15 @@ $(PARSER_MARKDOWN_TARGET): src/parsers/markdown_parser.c src/parsers/markdown_pa
 	@mkdir -p $(BIN_DIR)/parsers
 	$(TARGET_CC) $(CPPFLAGS) $(filter-out -MMD -MP,$(CFLAGS)) $(LDFLAGS) -Wl,-u,___stkinit -o $@ src/parsers/markdown_parser.c src/parsers/markdown_parser_rpc.c src/scout/scout_rpc.c src/json.c
 
+$(PARSER_JSON_TARGET): src/parsers/json_parser.c src/parsers/json_parser_rpc.c src/scout/scout_rpc.c src/json.c include/json_parser.h include/scout_protocol.h include/scout_rpc.h include/json.h
+	@mkdir -p $(BIN_DIR)/parsers
+	$(TARGET_CC) $(CPPFLAGS) $(filter-out -MMD -MP,$(CFLAGS)) $(LDFLAGS) -Wl,-u,___stkinit -o $@ src/parsers/json_parser.c src/parsers/json_parser_rpc.c src/scout/scout_rpc.c src/json.c
+
 $(BUILD_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)
 	$(TARGET_CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_projconf $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_json $(BUILD_DIR)/test_scout_rpc $(BUILD_DIR)/test_c_parser $(BUILD_DIR)/test_dos_parser $(BUILD_DIR)/test_make_parser $(BUILD_DIR)/test_markdown_parser $(BUILD_DIR)/test_scout_store $(BUILD_DIR)/test_rules $(BUILD_DIR)/test_filetypes $(BUILD_DIR)/test_sprout_tmpl $(BUILD_DIR)/test_sprout_lha
+test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_projconf $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_json $(BUILD_DIR)/test_scout_rpc $(BUILD_DIR)/test_c_parser $(BUILD_DIR)/test_dos_parser $(BUILD_DIR)/test_make_parser $(BUILD_DIR)/test_markdown_parser $(BUILD_DIR)/test_json_parser $(BUILD_DIR)/test_scout_store $(BUILD_DIR)/test_rules $(BUILD_DIR)/test_filetypes $(BUILD_DIR)/test_sprout_tmpl $(BUILD_DIR)/test_sprout_lha
 	./$(BUILD_DIR)/test_syntax
 	./$(BUILD_DIR)/test_search
 	./$(BUILD_DIR)/test_bmstore
@@ -285,6 +290,7 @@ test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstor
 	./$(BUILD_DIR)/test_dos_parser
 	./$(BUILD_DIR)/test_make_parser
 	./$(BUILD_DIR)/test_markdown_parser
+	./$(BUILD_DIR)/test_json_parser
 	./$(BUILD_DIR)/test_scout_store
 	./$(BUILD_DIR)/test_rules
 	./$(BUILD_DIR)/test_filetypes
@@ -350,6 +356,10 @@ $(BUILD_DIR)/test_make_parser: src/parsers/make_parser.c src/parsers/make_parser
 $(BUILD_DIR)/test_markdown_parser: src/parsers/markdown_parser.c src/parsers/markdown_parser_rpc.c src/scout/scout_rpc.c src/json.c tests/test_markdown_parser.c include/markdown_parser.h include/scout_protocol.h include/scout_rpc.h include/json.h $(wildcard tests/data/markdown_parser/*)
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Iinclude -DMARKDOWN_PARSER_NO_MAIN -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/parsers/markdown_parser.c src/parsers/markdown_parser_rpc.c src/scout/scout_rpc.c src/json.c tests/test_markdown_parser.c
+
+$(BUILD_DIR)/test_json_parser: src/parsers/json_parser.c src/parsers/json_parser_rpc.c src/scout/scout_rpc.c src/json.c tests/test_json_parser.c include/json_parser.h include/scout_protocol.h include/scout_rpc.h include/json.h $(wildcard tests/data/json_parser/*)
+	@mkdir -p $(BUILD_DIR)
+	$(HOST_CC) -Iinclude -DJSON_PARSER_NO_MAIN -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/parsers/json_parser.c src/parsers/json_parser_rpc.c src/scout/scout_rpc.c src/json.c tests/test_json_parser.c
 
 $(BUILD_DIR)/test_scout_store: src/scout/scout_store.c src/parsers/c_parser.c src/parsers/c_parser_rpc.c src/scout/scout_rpc.c src/json.c tests/test_scout_store.c include/scout_store.h include/c_parser.h include/scout_protocol.h include/scout_rpc.h include/json.h $(wildcard tests/data/c_parser/*)
 	@mkdir -p $(BUILD_DIR)

@@ -264,6 +264,10 @@ below the tree's root.
   anchors, undefined references, links to files as references of kind
   `link`, tokens; the file system comes from
   `MarkdownFiles`, set in the rpc part) and `markdown_parser_rpc.c`;
+  the JSON parser is `json_parser.c` (a scanner with positions of its
+  own, the syntax up to the first error, keys defined twice, the keys of
+  the first two levels as symbols, every key as a token) and
+  `json_parser_rpc.c`;
   `include/scout_protocol.h` holds the protocol's numbers (kinds,
   severities, error codes) for Scout and all parsers.
 - `include/editor.h`: shared application types and cross-module declarations.
@@ -290,6 +294,8 @@ below the tree's root.
   (sample in `tests/data/make_parser/`, ISO-8859-1).
 - `tests/test_markdown_parser.c`: host-native tests of the Markdown parser
   (samples in `tests/data/markdown_parser/`, ISO-8859-1).
+- `tests/test_json_parser.c`: host-native tests of the JSON parser
+  (sample in `tests/data/json_parser/`, ISO-8859-1).
 - `amiga-devkit/`: git submodule (pinned tag) with shared Amiga tools and AI
   guidelines; see `CLAUDE.md`. Do not edit files inside the submodule.
 - `external/html_gadget/`: git submodule (tag `v1.2`), html.gadget, for
@@ -356,6 +362,7 @@ make test
 - Finished Amiga binaries go to `bin/` (`bin/TinyDev`, `bin/TinyDev-Scout`,
   `bin/parsers/c_parser`, `bin/parsers/dos_parser`,
   `bin/parsers/make_parser`, `bin/parsers/markdown_parser`,
+  `bin/parsers/json_parser`,
   `bin/Classes/Gadgets/<name>.gadget`,
   `bin/Catalogs/<language>/TinyDev.catalog`, `bin/HelpViewer`,
   `bin/Sprout`, `bin/mdtohtml`, `bin/Templates/`,

@@ -7,8 +7,9 @@ does with the results is described in [Scout.md](Scout.md).
 
 > **Status: draft.** The C parser (`src/parsers/c_parser.c`), the
 > AmigaDOS script parser (`src/parsers/dos_parser.c`), the Makefile
-> parser (`src/parsers/make_parser.c`) and the Markdown parser
-> (`src/parsers/markdown_parser.c`) speak version 1; Scout itself does not yet (see [Scout.md](Scout.md)).
+> parser (`src/parsers/make_parser.c`), the Markdown parser
+> (`src/parsers/markdown_parser.c`) and the JSON parser
+> (`src/parsers/json_parser.c`) speak version 1; Scout itself does not yet (see [Scout.md](Scout.md)).
 
 ## Contents
 
@@ -296,6 +297,9 @@ tokens: `Point` in line 3 (a type), `main` in line 8 (a function) and
 - sorted by line, then column;
 - no overlaps;
 - a token never spans lines (split it if needed);
+- a token that covers a whole string of the lexical rules exactly (with
+  its quotes) gives the string its own colour, e.g. the keys in JSON;
+  one covering part of a string is ignored there;
 - uses count, not only definitions: every place a known type name
   appears should be a token.
 
