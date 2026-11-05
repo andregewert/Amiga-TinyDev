@@ -1229,6 +1229,9 @@ Category
 MSG_NP_COL_TEMPLATE (//)
 Template
 ;
+MSG_NP_CAT_OTHER (//)
+Other
+;
 MSG_NP_NAME (//)
 Project na_me 
 ;

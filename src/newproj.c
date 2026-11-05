@@ -571,12 +571,14 @@ static void free_templates(void)
 
 /**
  * @brief Take the templates of Sprout's LIST output: the valid project
- *        templates, and their categories sorted.
+ *        templates, and their categories sorted, Sprout's "Other" (for
+ *        templates without a category) in the user's language and last.
  * @param root The output.
  * @return 1 on success; -1 if out of memory.
  */
 static int take_templates(const JsonValue *root)
 {
+    const char *other = S(MSG_NP_CAT_OTHER);
     const JsonValue *arr = json_obj_get_array(root, "templates");
     size_t i, n = json_array_length(arr);
     int c, j;
@@ -601,14 +603,22 @@ static int take_templates(const JsonValue *root)
             return -1;
         }
         ++np.count;
+        /* Sprout's category for templates without one: in the user's language */
+        if (strcmp(p->t.category, "Other") == 0) {
+            char *cat = dup(other);
+            if (cat == NULL) return -1;
+            free(p->t.category);
+            p->t.category = cat;
+        }
     }
-    /* the categories: each once, sorted (insertion sort; few of them) */
+    /* the categories: each once, sorted, "Other" last (insertion sort; few of them) */
     if (np.count > 0 && (np.cats = malloc((size_t)np.count * sizeof(char *))) == NULL) return -1;
     for (i = 0; i < (size_t)np.count; ++i) {
         const char *cat = np.tmpl[i].t.category;
         for (c = 0; c < np.ncats && strcmp(np.cats[c], cat) != 0; ++c) ;
         if (c < np.ncats) continue;
-        for (c = np.ncats; c > 0 && Stricmp((STRPTR)np.cats[c - 1], (STRPTR)cat) > 0; --c)
+        for (c = np.ncats; c > 0 && strcmp(cat, other) != 0 &&
+                           (strcmp(np.cats[c - 1], other) == 0 || Stricmp((STRPTR)np.cats[c - 1], (STRPTR)cat) > 0); --c)
             np.cats[c] = np.cats[c - 1];
         np.cats[c] = (char *)cat;
         ++np.ncats;

@@ -1604,6 +1604,10 @@ MSG_NP_COL_TEMPLATE
 Vorlage
 ; Template
 ;
+MSG_NP_CAT_OTHER
+Sonstige
+; Other
+;
 MSG_NP_NAME
 Projekt_name 
 ; Project na_me 

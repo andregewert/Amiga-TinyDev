@@ -146,6 +146,8 @@ member of its own beside the English one, with the language in brackets:
   template works in every language.
 - `LIST` and `INFO` write the chosen texts under the plain keys, without
   the translations, so the wizard shows them as they are.
+- A template without `category` is listed as `"Other"`; TinyDev's wizard
+  shows that category in the user's language (from its catalog), last.
 
 ## 5. Placeholders
 

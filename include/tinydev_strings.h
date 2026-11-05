@@ -400,56 +400,57 @@
 #define MSG_NP_TITLE                 395
 #define MSG_NP_COL_CATEGORY          396
 #define MSG_NP_COL_TEMPLATE          397
-#define MSG_NP_NAME                  398
-#define MSG_NP_DRAWER                399
-#define MSG_NP_CHOOSE                400
-#define MSG_NP_SUBDIR                401
-#define MSG_NP_PARENT                402
-#define MSG_NP_RESULT                403
-#define MSG_NP_EXISTSNOTE            404
-#define MSG_NP_BACK                  405
-#define MSG_NP_NEXT                  406
-#define MSG_NP_CREATE                407
-#define MSG_NP_CANCEL                408
-#define MSG_NP_VALUES                409
-#define MSG_NP_NOVALUES              410
-#define MSG_NP_REQUIREDNOTE          411
-#define MSG_NP_ASL                   412
-#define MSG_NP_NODRAWER              413
-#define MSG_NP_NOSUBDIR              414
-#define MSG_NP_BADSUBDIR             415
-#define MSG_NP_EXISTS                416
-#define MSG_NP_REQUIRED              417
-#define MSG_NP_NOSPROUT              418
-#define MSG_NP_LISTFAILED            419
-#define MSG_NP_NOTEMPLATES           420
-#define MSG_NP_NOVALUESFILE          421
-#define MSG_NP_FAILED                422
-#define MSG_NP_WARNINGS              423
-#define MSG_NP_CREATED               424
-#define MSG_NP_NEEDCLASS             425
-#define MSG_MENU_NEWFROMTEMPLATE     426
-#define MSG_NF_TITLE                 427
-#define MSG_NF_DRAWERNOTE            428
-#define MSG_NF_ASL                   429
-#define MSG_NF_NODRAWER              430
-#define MSG_NF_NOTEMPLATES           431
-#define MSG_NF_FAILED                432
-#define MSG_NF_WARNINGS              433
-#define MSG_NF_CREATED               434
-#define MSG_CAT_PROJECT              435
-#define MSG_PREFS_PROJECTDIR         436
-#define MSG_PREFS_ASL_PROJECTDIR     437
-#define MSG_PREFS_AUTHOR             438
-#define MSG_PREFS_AUTHORMAIL         439
-#define MSG_PREFS_PROJNOTE           440
-#define MSG_MENU_CLOSEPROJECT        441
-#define MSG_LAMP_IDLE                442
-#define MSG_LAMP_BUSY                443
-#define MSG_LAMP_JOBS                444
-#define MSG_LAMP_FAILED              445
-#define MSG_LAMP_OFF                 446
-#define MSG_COUNT                    447
+#define MSG_NP_CAT_OTHER             398
+#define MSG_NP_NAME                  399
+#define MSG_NP_DRAWER                400
+#define MSG_NP_CHOOSE                401
+#define MSG_NP_SUBDIR                402
+#define MSG_NP_PARENT                403
+#define MSG_NP_RESULT                404
+#define MSG_NP_EXISTSNOTE            405
+#define MSG_NP_BACK                  406
+#define MSG_NP_NEXT                  407
+#define MSG_NP_CREATE                408
+#define MSG_NP_CANCEL                409
+#define MSG_NP_VALUES                410
+#define MSG_NP_NOVALUES              411
+#define MSG_NP_REQUIREDNOTE          412
+#define MSG_NP_ASL                   413
+#define MSG_NP_NODRAWER              414
+#define MSG_NP_NOSUBDIR              415
+#define MSG_NP_BADSUBDIR             416
+#define MSG_NP_EXISTS                417
+#define MSG_NP_REQUIRED              418
+#define MSG_NP_NOSPROUT              419
+#define MSG_NP_LISTFAILED            420
+#define MSG_NP_NOTEMPLATES           421
+#define MSG_NP_NOVALUESFILE          422
+#define MSG_NP_FAILED                423
+#define MSG_NP_WARNINGS              424
+#define MSG_NP_CREATED               425
+#define MSG_NP_NEEDCLASS             426
+#define MSG_MENU_NEWFROMTEMPLATE     427
+#define MSG_NF_TITLE                 428
+#define MSG_NF_DRAWERNOTE            429
+#define MSG_NF_ASL                   430
+#define MSG_NF_NODRAWER              431
+#define MSG_NF_NOTEMPLATES           432
+#define MSG_NF_FAILED                433
+#define MSG_NF_WARNINGS              434
+#define MSG_NF_CREATED               435
+#define MSG_CAT_PROJECT              436
+#define MSG_PREFS_PROJECTDIR         437
+#define MSG_PREFS_ASL_PROJECTDIR     438
+#define MSG_PREFS_AUTHOR             439
+#define MSG_PREFS_AUTHORMAIL         440
+#define MSG_PREFS_PROJNOTE           441
+#define MSG_MENU_CLOSEPROJECT        442
+#define MSG_LAMP_IDLE                443
+#define MSG_LAMP_BUSY                444
+#define MSG_LAMP_JOBS                445
+#define MSG_LAMP_FAILED              446
+#define MSG_LAMP_OFF                 447
+#define MSG_COUNT                    448
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -852,6 +853,7 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "New Project",
     "Category",
     "Template",
+    "Other",
     "Project na_me ",
     "_Drawer ",
     "C_hoose...",
