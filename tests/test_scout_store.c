@@ -277,6 +277,27 @@ static void test_sessions(ScoutStore *st)
     json_value_free(v);
     json_writer_free(&w);
 
+    /* REFERENCE: in its range or anywhere on its line */
+    TEST_ASSERT(scout_reference_at(c, 2, 1) && strcmp(scout_reference_at(c, 2, 1)->target, "sample.h") == 0);
+    TEST_ASSERT(scout_reference_at(c, 3, 40) && scout_reference_at(c, 3, 40)->system);
+    TEST_ASSERT(scout_reference_at(c, 4, 1) == NULL);
+    json_writer_init_alloc(&w, 256);
+    scout_write_reference(&w, scout_reference_at(c, 2, 12), "Work:Hello/sample.h");
+    v = parse_written(&w);
+    TEST_ASSERT(v && strcmp(json_obj_get_string(json_obj_get_obj(v, "reference"), "file", ""),
+                            "Work:Hello/sample.h") == 0);
+    TEST_ASSERT(v && strcmp(json_obj_get_string(json_obj_get_obj(v, "reference"), "kind", ""), "include") == 0);
+    json_value_free(v);
+    json_writer_free(&w);
+    json_writer_init_alloc(&w, 256);
+    scout_write_reference(&w, scout_reference_at(c, 3, 1), NULL);
+    TEST_ASSERT(strstr(json_writer_get(&w), "\"system\":true") && strstr(json_writer_get(&w), "\"file\":null"));
+    json_writer_free(&w);
+    json_writer_init_alloc(&w, 64);
+    scout_write_reference(&w, NULL, NULL);
+    TEST_ASSERT(strcmp(json_writer_get(&w), "{\"reference\":null}") == 0);
+    json_writer_free(&w);
+
     /* SYMBOLS of a file, matched, and of the project (no locals) */
     json_writer_init_alloc(&w, 1024);
     scout_write_symbols(&w, s, c, NULL, NULL);

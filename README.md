@@ -49,6 +49,8 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
   listed in a problem list (View/Problem List).
 - Go to Definition (Amiga+T) jumps to where the name at the cursor is
   defined, also in another file; Go Back (Amiga+U) returns.
+- Open Included File (Amiga+H) opens the file an `#include` (or another
+  language's include, or a Markdown link) in the cursor's line refers to.
 - Completion (Amiga+L): a list of the names that could complete the word
   at the cursor (locals, the file's and the project's symbols, keywords).
 - Project settings (Project/Project Settings...): Shell commands for
@@ -103,6 +105,7 @@ From the Workbench, TinyDev opens the files given as project icons.
 | Amiga+Z, Y, X, C, V, A | Undo, Redo, Cut, Copy, Paste, Select All |
 | Amiga+F, G | Find and replace, Find Next |
 | Amiga+T, U | Go to the definition of the name at the cursor (again: the next one), go back |
+| Amiga+H | Open the file included (or linked) in the cursor's line |
 | Amiga+L | Complete the word at the cursor (a list of names from TinyDev-Scout) |
 | Ctrl+left Alt | Rectangular selection on/off (texteditor.gadget; fixed-width font only; shown in the status line) |
 | Amiga+B, J, K | Set/remove bookmark, next and previous bookmark |

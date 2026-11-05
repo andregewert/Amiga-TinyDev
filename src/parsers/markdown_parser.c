@@ -69,6 +69,7 @@ typedef struct Parser {
     const MarkdownFiles *files; /**< access to other files (may be NULL) */
     long symbol_cap;        /**< room for symbols */
     long diagnostic_cap;    /**< room for diagnostics */
+    long reference_cap;     /**< room for references */
     long token_cap;         /**< room for token values */
     Link *links;            /**< the links, in the order of the file */
     long link_count;        /**< number of links */
@@ -1409,21 +1410,28 @@ static int read_other(Parser *P, const char *path)
 }
 
 /**
- * @brief Check a link to another file.
+ * @brief Find the file a link to another file means.
+ *
+ * Without access to the file system it is the link's path, resolved;
+ * a missing x.html is then x.md or x.markdown if one of them exists
+ * (mdtohtml makes one from the other).
+ *
  * @param P The parser.
- * @param l The link.
- * @param path Its path, decoded.
- * @param anchor Its anchor, decoded (may be NULL).
+ * @param path The link's path, decoded.
+ * @param[out] found Set to non-zero if the file exists (always 0 without
+ *                   access to the file system).
+ * @return The file's path (allocated); NULL if the link leaves the volume
+ *         or memory ran out (then out_of_memory is set).
  */
-static void check_file(Parser *P, const Link *l, const char *path, const char *anchor)
+static char *link_file(Parser *P, const char *path, int *found)
 {
     char *full = resolve_path(P->path, path);
-    int found = full && P->files->exists(full);
-    if (full && !found && (has_extension(full, ".html") || has_extension(full, ".htm"))) {
-        /* mdtohtml makes page.html from page.md */
+    int exists = P->files && P->files->exists;
+    *found = full && exists && P->files->exists(full);
+    if (full && exists && !*found && (has_extension(full, ".html") || has_extension(full, ".htm"))) {
         static const char *const sources[] = { ".md", ".markdown" };
         size_t i, stem = (size_t)(strrchr(full, '.') - full);
-        for (i = 0; i < 2 && !found; i++) {
+        for (i = 0; i < 2 && !*found; i++) {
             char *other = (char *)malloc(stem + strlen(sources[i]) + 1);
             if (!other) {
                 P->res->out_of_memory = 1;
@@ -1434,13 +1442,57 @@ static void check_file(Parser *P, const Link *l, const char *path, const char *a
             if (P->files->exists(other)) {
                 free(full);
                 full = other;
-                found = 1;
+                *found = 1;
             } else {
                 free(other);
             }
         }
     }
-    if (!found) {
+    return full;
+}
+
+/**
+ * @brief Add a reference to another file.
+ * @param P The parser.
+ * @param l The link.
+ * @param full The file's path (copied).
+ */
+static void add_reference(Parser *P, const Link *l, const char *full)
+{
+    void *array = P->res->references;
+    MarkdownReference *r;
+    char *target = dup_text(full, strlen(full));
+    if (!target) {
+        P->res->out_of_memory = 1;
+        return;
+    }
+    if (!grow(P, &array, P->res->reference_count, &P->reference_cap, sizeof(MarkdownReference))) {
+        free(target);
+        return;
+    }
+    P->res->references = (MarkdownReference *)array;
+    r = &P->res->references[P->res->reference_count++];
+    r->target = target;
+    r->range.start_line = r->range.end_line = l->line;
+    r->range.start_col = l->col;
+    r->range.end_col = l->col + l->len;
+}
+
+/**
+ * @brief Report a link to another file and check it.
+ * @param P The parser.
+ * @param l The link.
+ * @param path Its path, decoded.
+ * @param anchor Its anchor, decoded (may be NULL).
+ */
+static void check_file(Parser *P, const Link *l, const char *path, const char *anchor)
+{
+    int found;
+    char *full = link_file(P, path, &found);
+    if (full) add_reference(P, l, full);
+    if (!P->files || !P->files->exists) {
+        /* nothing to check against */
+    } else if (!found) {
         add_diagnostic(P, l->line, l->col, l->len, "file not found: ", path);
     } else if (anchor && *anchor && P->files->read && is_markdown(full) && read_other(P, full) &&
                !has_name(&P->other_anchors, anchor)) {
@@ -1487,7 +1539,7 @@ static void check_links(Parser *P)
             if (*anchor && !has_name(&P->anchors, anchor)) {
                 add_diagnostic(P, l->line, l->col, l->len, "anchor not found: #", anchor);
             }
-        } else if (P->path && P->files && P->files->exists) {
+        } else if (P->path) {
             check_file(P, l, path, anchor);
         }
         free(path);
@@ -1545,6 +1597,8 @@ void markdown_parse_result_free(MarkdownParseResult *res)
     free(res->symbols);
     for (i = 0; i < res->diagnostic_count; i++) free(res->diagnostics[i].message);
     free(res->diagnostics);
+    for (i = 0; i < res->reference_count; i++) free(res->references[i].target);
+    free(res->references);
     free(res->tokens);
     free(res);
 }

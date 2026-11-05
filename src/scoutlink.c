@@ -128,6 +128,7 @@ enum {
     RQ_STATUS,          /**< STATUS, while the project is indexed */
     RQ_DIAGNOSTICS,     /**< DIAGNOSTICS of a document or the project */
     RQ_DEFINITION,      /**< DEFINITION of a name (Go to Definition) */
+    RQ_REFERENCE,       /**< REFERENCE at a position (Open Included File) */
     RQ_SYNTAX,          /**< SYNTAX of a language */
     RQ_TOKENS,          /**< TOKENS of a document */
     RQ_COMPLETE,        /**< COMPLETE of a prefix (Edit/Complete) */
@@ -818,6 +819,9 @@ static void answer(EditorApp *app, ScoutRequest *rq, int ok, const char *result,
         case RQ_DEFINITION:
             navigate_definition_answer(app, ok ? result : NULL);
             break;
+        case RQ_REFERENCE:
+            navigate_reference_answer(app, ok ? result : NULL);
+            break;
         case RQ_COMPLETE:
             complete_answer(app, ok ? result : NULL);
             break;
@@ -1193,6 +1197,17 @@ int scoutlink_request_definition(EditorApp *app, Document *doc, long line, long 
     snprintf(command, sizeof(command), "DEFINITION %sFILE \"%s\" LINE %ld COLUMN %ld NAME \"%s\"",
              session, doc->path, line, col, name);
     return send_command(command, RQ_DEFINITION, doc->number, -1);
+}
+
+int scoutlink_request_reference(EditorApp *app, Document *doc, long line, long col)
+{
+    char command[2 * EDITOR_PATH_MAX], session[24];
+    if (scoutlink_unavailable(app) || !sl.languages || sl.opening || sl.want_open || doc->path == NULL) return 0;
+    session[0] = '\0';
+    if (sl.session > 0) snprintf(session, sizeof(session), "SESSION %ld ", sl.session);
+    snprintf(command, sizeof(command), "REFERENCE %sFILE \"%s\" LINE %ld COLUMN %ld",
+             session, doc->path, line, col);
+    return send_command(command, RQ_REFERENCE, doc->number, -1);
 }
 
 int scoutlink_request_complete(EditorApp *app, Document *doc, long line, long col, const char *prefix)

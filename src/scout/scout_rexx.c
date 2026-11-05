@@ -573,6 +573,31 @@ static void cmd_definition(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
 }
 
 /**
+ * @brief REFERENCE SESSION/K/N,FILE/A,LINE/N/A,COLUMN/N/A: the file an
+ *        include (or a link) at a position refers to.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments.
+ */
+static void cmd_reference(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    ScoutSession *s = get_session(srv, rx, (LONG *)v[0]);
+    char path[SCOUT_PATH_MAX], full[SCOUT_PATH_MAX];
+    const ScoutReference *r;
+    ScoutFile *f;
+    JsonWriter w;
+    int found;
+    if (!s) return;
+    full_name((const char *)v[1], path, sizeof(path));
+    if ((f = ready_file(srv, rx, s, path)) == NULL) return;
+    r = scout_reference_at(f, *(LONG *)v[2], *(LONG *)v[3]);
+    found = r && scout_resolve_reference(s, f, r, full, sizeof(full));
+    json_writer_init_alloc(&w, 512);
+    scout_write_reference(&w, r, found ? full : NULL);
+    finish(srv, rx, s->id, &w, NULL);
+}
+
+/**
  * @brief COMPLETE SESSION/K/N,FILE/A,LINE/N/A,COLUMN/N/A,PREFIX/K,MAX/K/N:
  *        names that could be completed at a position.
  * @param srv The server.
@@ -824,6 +849,7 @@ static const Command commands[] = {
     { "TOKENS",      "SESSION/K/N,FILE/A,TO/K",                          cmd_tokens,      1 },
     { "DEFINITION",  "SESSION/K/N,FILE/A,LINE/N/A,COLUMN/N/A,NAME/K",    cmd_definition,  1 },
     { "COMPLETE",    "SESSION/K/N,FILE/A,LINE/N/A,COLUMN/N/A,PREFIX/K,MAX/K/N", cmd_complete, 1 },
+    { "REFERENCE",   "SESSION/K/N,FILE/A,LINE/N/A,COLUMN/N/A",           cmd_reference,   1 },
     { "LANGUAGES",   "",                                                 cmd_languages,   1 },
     { "LANGUAGE",    "SESSION/K/N,FILE/A,SET/K,TEXT/S,AUTO/S",           cmd_language,    1 },
     { "SYNTAX",      "LANG/A,TO/K",                                      cmd_syntax,      1 },

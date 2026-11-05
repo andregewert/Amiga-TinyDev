@@ -407,8 +407,23 @@ int scout_walk_step(ScoutServer *srv);
 void scout_walk_refresh(ScoutServer *srv, ScoutSession *s, const char *path);
 
 /**
+ * @brief Find the file a reference means: next to the file holding it
+ *        (unless it is a system reference), then along the session's
+ *        include paths; drawers do not count.
+ * @param s The session.
+ * @param f The file holding the reference.
+ * @param r The reference.
+ * @param[out] full The file's full name.
+ * @param size Size of @p full.
+ * @return 1 if it was found.
+ */
+int scout_resolve_reference(const ScoutSession *s, const ScoutFile *f, const ScoutReference *r,
+                            char *full, size_t size);
+
+/**
  * @brief Queue the included files of a file of a session that are not
- *        known yet (resolved next to the file and along the include paths).
+ *        known yet (resolved with scout_resolve_reference(); links are
+ *        left out).
  * @param srv The server.
  * @param s The session.
  * @param f The file.

@@ -317,6 +317,73 @@ static void test_links(void)
     TEST_ASSERT(!no_diagnostics("[a]( )\n"));
 }
 
+/**
+ * @brief Find a reference by its line and column.
+ * @param r The result.
+ * @param line Its line.
+ * @param col Its column.
+ * @return The reference, or NULL.
+ */
+static const MarkdownReference *reference_at(const MarkdownParseResult *r, long line, long col)
+{
+    long i;
+    for (i = 0; i < r->reference_count; i++) {
+        if (r->references[i].range.start_line == line && r->references[i].range.start_col == col)
+            return &r->references[i];
+    }
+    return NULL;
+}
+
+/** @brief Links to other files as references. */
+static void test_references(void)
+{
+    size_t length = 0;
+    char *text = read_all(DATA "sample.md", &length);
+    MarkdownParseResult *r;
+    const MarkdownReference *ref;
+    long i, outside = 0;
+
+    TEST_ASSERT(text != NULL);
+    if (!text) return;
+    r = markdown_parser_analyze(text, length, DATA "sample.md", &g_files);
+    free(text);
+    TEST_ASSERT(r != NULL);
+    if (!r) return;
+    ref = reference_at(r, 11, 22);
+    TEST_ASSERT(ref && strcmp(ref->target, DATA "other.md") == 0);
+    if (ref) TEST_ASSERT(ref->range.end_line == 11 && ref->range.end_col == 30);
+    /* the page made from other.md is other.md; a missing file is reported too */
+    TEST_ASSERT(r->reference_count > 0);
+    for (i = 0; i < r->reference_count; i++) {
+        const char *t = r->references[i].target;
+        if (strstr(t, "http") || strstr(t, "mailto") || strstr(t, "Work:") || strstr(t, "page.md") ||
+            strstr(t, "other.html") || strstr(t, "..") || strstr(t, "dead.md") || strncmp(t, DATA, strlen(DATA)) != 0)
+            outside++;
+    }
+    TEST_ASSERT(outside == 0);
+    ref = reference_at(r, 13, 16);
+    TEST_ASSERT(ref && strcmp(ref->target, DATA "other.md") == 0);
+    ref = reference_at(r, 12, 43);
+    TEST_ASSERT(ref && strcmp(ref->target, DATA "gone.md") == 0);
+    ref = reference_at(r, 16, 15);
+    TEST_ASSERT(ref && strcmp(ref->target, DATA "other.md") == 0);
+    TEST_ASSERT(reference_at(r, 3, 65) == NULL);
+    markdown_parse_result_free(r);
+
+    /* without access to other files the path is resolved all the same; "#d"
+       stays in the file */
+    r = markdown_parser_analyze("[a](sub/x.md) [b](../y.md#z) [c](#d)\n", 37, "Work:dir/f.md", NULL);
+    TEST_ASSERT(r && r->reference_count == 2);
+    if (r && r->reference_count == 2) {
+        TEST_ASSERT(strcmp(r->references[0].target, "Work:dir/sub/x.md") == 0);
+        TEST_ASSERT(strcmp(r->references[1].target, "Work:y.md") == 0);
+    }
+    markdown_parse_result_free(r);
+    r = markdown_parser_analyze("[a](x.md)\n", 10, NULL, NULL);
+    TEST_ASSERT(r && r->reference_count == 0);
+    markdown_parse_result_free(r);
+}
+
 /** @brief The Scout protocol: describe and analyze. */
 static void test_rpc(void)
 {
@@ -355,6 +422,13 @@ static void test_rpc(void)
     TEST_ASSERT(strstr(json_writer_get(&out), "file not found: gone.md") != NULL);
 
     out.length = 0;
+    TEST_ASSERT(markdown_parser_handle_request("{\"jsonrpc\":\"2.0\",\"id\":6,\"method\":\"scout/analyze\","
+                                               "\"params\":{\"path\":\"" DATA "sample.md\",\"want\":[\"references\"]}}",
+                                               &out));
+    TEST_ASSERT(strstr(json_writer_get(&out), "{\"kind\":\"link\",\"target\":\"" DATA "other.md\"") != NULL);
+    TEST_ASSERT(strstr(json_writer_get(&out), "\"tokens\"") == NULL);
+
+    out.length = 0;
     TEST_ASSERT(markdown_parser_handle_request("{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"scout/analyze\","
                                                "\"params\":{\"path\":\"x\",\"language\":\"c\"}}", &out));
     TEST_ASSERT(strstr(json_writer_get(&out), "\"error\"") != NULL);
@@ -377,6 +451,7 @@ int main(void)
     test_headings();
     test_anchors();
     test_links();
+    test_references();
     test_rpc();
     printf("markdown_parser: %d tests, %d failures\n", g_test_count, g_fail_count);
     return g_fail_count ? 1 : 0;

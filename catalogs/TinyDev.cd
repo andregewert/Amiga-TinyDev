@@ -1037,6 +1037,9 @@ Go to Definition
 MSG_MENU_GOBACK (//)
 Go Back
 ;
+MSG_MENU_REFERENCE (//)
+Open Included File
+;
 MSG_NAV_NONAME (//)
 There is no name at the cursor.
 ;
@@ -1054,6 +1057,18 @@ MSG_NAV_FOUND (//)
 ;
 MSG_NAV_NOBACK (//)
 There is no place to go back to.
+;
+MSG_REF_LOOKING (//)
+Looking for the included file...
+;
+MSG_REF_NONE (//)
+There is no included file or link at the cursor.
+;
+MSG_REF_NOTFOUND (//)
+%s not found.
+;
+MSG_REF_FAILED (//)
+TinyDev-Scout could not look for the included file.
 ;
 MSG_PREFS_COL_TYPE (//)
 Types\x20

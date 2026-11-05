@@ -53,7 +53,7 @@ typedef struct ScoutDiagnostic {
 
 /** A reference of a file to another one (an include). */
 typedef struct ScoutReference {
-    char *kind;             /**< "include" or "import" (allocated) */
+    char *kind;             /**< "include", "import" or "link" (allocated) */
     char *target;           /**< the name as written (allocated) */
     int system;             /**< looked up in the include paths only */
     ScoutRange range;       /**< where it is */
@@ -457,6 +457,32 @@ void scout_write_tokens(JsonWriter *w, const ScoutFile *f);
  */
 void scout_write_definition(JsonWriter *w, const ScoutSession *s, const ScoutFile *f,
                             long line, long col, const char *name);
+
+/**
+ * @brief Find the reference to another file at a position.
+ *
+ * The reference whose range holds the position, otherwise the first one
+ * in the position's line (the cursor anywhere on an #include line).
+ *
+ * @param f The file.
+ * @param line The position's line.
+ * @param col Its column.
+ * @return The reference, or NULL if there is none (or no result).
+ */
+const ScoutReference *scout_reference_at(const ScoutFile *f, long line, long col);
+
+/**
+ * @brief Write the result of REFERENCE.
+ *
+ * {"reference":{"kind":...,"target":...,"system":true,"range":...,
+ * "file":...}}, "file" null if it was not found; {"reference":null}
+ * without a reference.
+ *
+ * @param w The writer.
+ * @param r The reference (may be NULL).
+ * @param file The file it was resolved to (may be NULL).
+ */
+void scout_write_reference(JsonWriter *w, const ScoutReference *r, const char *file);
 
 /**
  * @brief Write the result of COMPLETE: names starting with a prefix

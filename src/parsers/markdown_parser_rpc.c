@@ -19,8 +19,9 @@
 /** @{ */
 #define WANT_SYMBOLS        1   /**< "symbols" */
 #define WANT_DIAGNOSTICS    2   /**< "diagnostics" */
-#define WANT_TOKENS         4   /**< "tokens" */
-#define WANT_ALL            7   /**< all of them */
+#define WANT_REFERENCES     4   /**< "references" */
+#define WANT_TOKENS         8   /**< "tokens" */
+#define WANT_ALL            15  /**< all of them */
 /** @} */
 
 void markdown_parser_describe(JsonWriter *w)
@@ -36,7 +37,8 @@ void markdown_parser_describe(JsonWriter *w)
                       "\"syntax\":{\"caseSensitive\":true,"
                       "\"identifier\":{\"start\":\"A-Za-z_\",\"part\":\"A-Za-z0-9_-\"},"
                       "\"blockComments\":[{\"open\":\"<!--\",\"close\":\"-->\",\"nested\":false}]}}],"
-                      "\"capabilities\":{\"symbols\":true,\"diagnostics\":true,\"tokens\":true}}");
+                      "\"capabilities\":{\"symbols\":true,\"diagnostics\":true,"
+                      "\"references\":true,\"tokens\":true}}");
 }
 
 /**
@@ -104,6 +106,19 @@ static void write_result(JsonWriter *w, const MarkdownParseResult *res, int want
             json_write_string(w, d->message);
             json_write_raw(w, ",\"range\":");
             write_range(w, &d->range);
+            json_write_raw(w, "}");
+        }
+        json_write_raw(w, "]");
+    }
+    if (want & WANT_REFERENCES) {
+        json_write_raw(w, ",\"references\":[");
+        for (i = 0; i < res->reference_count; i++) {
+            const MarkdownReference *r = &res->references[i];
+            if (i > 0) json_write_raw(w, ",");
+            json_write_raw(w, "{\"kind\":\"link\",\"target\":");
+            json_write_string(w, r->target);
+            json_write_raw(w, ",\"range\":");
+            write_range(w, &r->range);
             json_write_raw(w, "}");
         }
         json_write_raw(w, "]");
@@ -222,6 +237,7 @@ static int analyze(long id, const JsonValue *params, JsonWriter *out)
             const char *part = v && v->type == JSON_STRING ? v->u.str_val : "";
             if (strcmp(part, "symbols") == 0) want |= WANT_SYMBOLS;
             else if (strcmp(part, "diagnostics") == 0) want |= WANT_DIAGNOSTICS;
+            else if (strcmp(part, "references") == 0) want |= WANT_REFERENCES;
             else if (strcmp(part, "tokens") == 0) want |= WANT_TOKENS;
         }
     }

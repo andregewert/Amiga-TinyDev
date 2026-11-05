@@ -272,6 +272,7 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NULL, "G", 0, 0, UD(MID_FIND_NEXT)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, "T", 0, 0, UD(MID_DEFINITION)},
+    {NM_ITEM, NULL, "H", 0, 0, UD(MID_REFERENCE)},
     {NM_ITEM, NULL, "U", 0, 0, UD(MID_GOBACK)},
     {NM_ITEM, NULL, "L", 0, 0, UD(MID_COMPLETE)},
     {NM_TITLE, NULL, NULL, 0, 0, NULL},
@@ -353,6 +354,7 @@ static const LONG menu_texts[] = {
     MSG_MENU_FINDNEXT,
     -1,
     MSG_MENU_DEFINITION,
+    MSG_MENU_REFERENCE,
     MSG_MENU_GOBACK,
     MSG_MENU_COMPLETE,
     MSG_MENU_FILETYPE,
@@ -1304,8 +1306,10 @@ static void menu_action(EditorApp *app, ULONG id)
             break;
         case MID_COMPLETE:
         case MID_DEFINITION:
+        case MID_REFERENCE:
         case MID_GOBACK:
             if (id == MID_DEFINITION) navigate_definition(app);
+            else if (id == MID_REFERENCE) navigate_reference(app);
             else if (id == MID_GOBACK) navigate_back(app);
             else complete_start(app);
             /* the menu pick took the input focus; a jump gives it back

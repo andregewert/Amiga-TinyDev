@@ -1,7 +1,8 @@
 /**
  * @file navigate.c
- * @brief Edit/Go to Definition and Edit/Go Back: jumping to where the name
- *        at the cursor is defined (asked from TinyDev-Scout) and back.
+ * @brief Edit/Go to Definition, Edit/Open Included File and Edit/Go Back:
+ *        jumping to where the name at the cursor is defined or to the file
+ *        it includes (both asked from TinyDev-Scout) and back.
  *
  * Go to Definition takes the name at the cursor from the editor's text
  * (not from Scout's last snapshot, which may be older) and asks Scout with
@@ -10,6 +11,12 @@
  * declarations; TinyDev goes to the first. When there are several, the
  * status line says so, and Go to Definition again (with the cursor still
  * where it went) goes to the next one, round.
+ *
+ * Open Included File asks Scout with REFERENCE for the include (or
+ * Markdown link) at the cursor or elsewhere in its line. Scout looks at
+ * its last analysis of the document (after a pause in typing, a snapshot)
+ * and resolves the name as its index does: next to the file, then along
+ * the include paths. A file already open keeps its cursor.
  *
  * Every jump first notes where the cursor was (at most HISTORY_MAX
  * places); Go Back returns there, also into another file.
@@ -49,7 +56,7 @@ static struct {
     int count;                      /* number of them */
     int current;                    /* the one gone to */
     char name[NAME_MAX];            /* the name */
-    int waiting;                    /* the answer is on its way */
+    int waiting;                    /* an answer (DEFINITION or REFERENCE) is on its way */
     ULONG asked_at;                 /* when it was asked (CurrentTime() seconds) */
     Place from;                     /* where the request came from */
 } nv;
@@ -183,17 +190,58 @@ static int at_current(Document *doc)
     return line == p->line && Stricmp((STRPTR)doc->path, (STRPTR)p->path) == 0;
 }
 
+/**
+ * @brief Tell whether an answer is still awaited; one that does not come
+ *        (Scout quit) blocks for 10 seconds at most.
+ * @param[out] secs The current time (CurrentTime() seconds).
+ * @return Non-zero if an answer is awaited.
+ */
+static int still_waiting(ULONG *secs)
+{
+    ULONG micros = 0;
+    *secs = 0;
+    CurrentTime(secs, &micros);
+    if (nv.waiting && *secs - nv.asked_at > 10) nv.waiting = 0;
+    return nv.waiting;
+}
+
+/**
+ * @brief Note where a request came from and that its answer is awaited.
+ * @param doc The active document.
+ * @param line The cursor's line.
+ * @param col Its column.
+ * @param secs The current time (CurrentTime() seconds).
+ */
+static void note_request(Document *doc, long line, long col, ULONG secs)
+{
+    clear_place(&nv.from);
+    nv.from.path = dup_str(doc->path);
+    nv.from.line = line;
+    nv.from.col = col;
+    nv.waiting = 1;
+    nv.asked_at = secs;
+}
+
+/**
+ * @brief Tell whether the user is still in the document a request came
+ *        from.
+ * @param doc The active document.
+ * @return Non-zero if so.
+ */
+static int still_there(Document *doc)
+{
+    return doc != NULL && doc->path != NULL && nv.from.path != NULL &&
+           Stricmp((STRPTR)doc->path, (STRPTR)nv.from.path) == 0;
+}
+
 void navigate_definition(EditorApp *app)
 {
     Document *doc = app->active;
     char name[NAME_MAX], text[200];
     long line, col;
     int why;
-    ULONG secs = 0, micros = 0;
-    CurrentTime(&secs, &micros);
-    /* an answer that does not come (Scout quit) does not block for long */
-    if (nv.waiting && secs - nv.asked_at > 10) nv.waiting = 0;
-    if (doc == NULL || nv.waiting) return;
+    ULONG secs;
+    if (still_waiting(&secs) || doc == NULL) return;
     if (doc->path == NULL) {
         ui_status_message(app, S(MSG_SYM_NOFILE));
         return;
@@ -219,12 +267,7 @@ void navigate_definition(EditorApp *app)
         return;
     }
     strcpy(nv.name, name);
-    clear_place(&nv.from);
-    nv.from.path = dup_str(doc->path);
-    nv.from.line = line;
-    nv.from.col = col;
-    nv.waiting = 1;
-    nv.asked_at = secs;
+    note_request(doc, line, col, secs);
     snprintf(text, sizeof(text), S(MSG_NAV_LOOKING), name);
     ui_status_message(app, text);
 }
@@ -262,13 +305,73 @@ void navigate_definition_answer(EditorApp *app, const char *json)
         return;
     }
     /* only if the user did not go to another document meanwhile */
-    if (doc == NULL || doc->path == NULL || nv.from.path == NULL ||
-        Stricmp((STRPTR)doc->path, (STRPTR)nv.from.path) != 0) {
+    if (!still_there(doc)) {
         ui_status_message(app, NULL);
         return;
     }
     push_history(doc);
     go_to_found(app, 0);
+}
+
+void navigate_reference(EditorApp *app)
+{
+    Document *doc = app->active;
+    long line, col;
+    int why;
+    ULONG secs;
+    if (still_waiting(&secs) || doc == NULL) return;
+    if (doc->path == NULL) {
+        ui_status_message(app, S(MSG_SYM_NOFILE));
+        return;
+    }
+    if ((why = scoutlink_unavailable(app)) != 0) {
+        ui_status_message(app, S(why == 1 ? MSG_SYM_OFF : MSG_SYM_WAIT));
+        return;
+    }
+    cursor_of(doc, &line, &col);
+    if (!scoutlink_request_reference(app, doc, line, col)) {
+        ui_status_message(app, S(MSG_SYM_WAIT));
+        return;
+    }
+    note_request(doc, line, col, secs);
+    ui_status_message(app, S(MSG_REF_LOOKING));
+}
+
+void navigate_reference_answer(EditorApp *app, const char *json)
+{
+    JsonValue *root;
+    const JsonValue *ref;
+    const char *file = NULL, *target = NULL;
+    char text[EDITOR_PATH_MAX + 64];
+    Document *doc = app->active, *other;
+    long line = 1, col = 1;
+    nv.waiting = 0;
+    root = json != NULL ? json_parse(json, NULL) : NULL;
+    ref = root != NULL ? json_obj_get_obj(root, "reference") : NULL;
+    if (ref != NULL) {
+        file = json_obj_get_string(ref, "file", NULL);
+        target = json_obj_get_string(ref, "target", NULL);
+    }
+    if (file == NULL) {
+        DisplayBeep(app->screen);
+        if (json == NULL || root == NULL) {
+            ui_status_message(app, S(MSG_REF_FAILED));
+        } else if (ref == NULL) {
+            ui_status_message(app, S(MSG_REF_NONE));
+        } else {
+            snprintf(text, sizeof(text), S(MSG_REF_NOTFOUND), target != NULL ? target : "?");
+            ui_status_message(app, text);
+        }
+    } else if (!still_there(doc)) {
+        ui_status_message(app, NULL);       /* the user went elsewhere meanwhile */
+    } else {
+        push_history(doc);
+        /* a file already open stays where its cursor is */
+        if ((other = document_find_path(app, file)) != NULL) cursor_of(other, &line, &col);
+        document_go_to(app, file, line, col);
+        ui_status_message(app, NULL);
+    }
+    json_value_free(root);
 }
 
 void navigate_back(EditorApp *app)

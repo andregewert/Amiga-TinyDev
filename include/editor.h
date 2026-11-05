@@ -181,6 +181,7 @@ enum MenuId {
     MID_SYMLIST,        /**< View/Symbol List (check item) */
     MID_DIAGLIST,       /**< View/Problem List (check item) */
     MID_DEFINITION,     /**< Edit/Go to Definition */
+    MID_REFERENCE,      /**< Edit/Open Included File */
     MID_GOBACK,         /**< Edit/Go Back */
     MID_COMPLETE,       /**< Edit/Complete */
     MID_RECT,           /**< Edit/Rectangular Selection (check item) */
@@ -2094,6 +2095,17 @@ void ui_status_message(EditorApp *app, const char *text);
 int scoutlink_request_definition(EditorApp *app, Document *doc, long line, long col, const char *name);
 
 /**
+ * @brief Ask Scout for the file an include (or a link) at a position
+ *        refers to; the answer goes to navigate_reference_answer().
+ * @param app The application state.
+ * @param doc The document (with a file).
+ * @param line The position's line (1-based).
+ * @param col Its column (1-based).
+ * @return Non-zero if the request was sent.
+ */
+int scoutlink_request_reference(EditorApp *app, Document *doc, long line, long col);
+
+/**
  * @brief Edit/Go to Definition: ask Scout where the name at the cursor is
  *        defined; again at the place it went to: the next definition.
  * @param app The application state.
@@ -2106,6 +2118,19 @@ void navigate_definition(EditorApp *app);
  * @param json The answer, NULL if the request failed.
  */
 void navigate_definition_answer(EditorApp *app, const char *json);
+/**
+ * @brief Edit/Open Included File: ask Scout for the file the include or
+ *        link at the cursor refers to.
+ * @param app The application state.
+ */
+void navigate_reference(EditorApp *app);
+/**
+ * @brief Take Scout's answer to REFERENCE: open the file (noting the
+ *        place for Go Back), or say why not.
+ * @param app The application state.
+ * @param json The answer, NULL if the request failed.
+ */
+void navigate_reference_answer(EditorApp *app, const char *json);
 /**
  * @brief Edit/Go Back: return to where the last jump came from.
  * @param app The application state.

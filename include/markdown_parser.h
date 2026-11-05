@@ -1,8 +1,8 @@
 /**
  * @file markdown_parser.h
  * @brief Interface of the Markdown parser of Scout: the analysis of one
- *        Markdown file (headings as symbols, dead links and anchors,
- *        highlighting tokens) and the handling of the requests of the
+ *        Markdown file (headings as symbols, dead links and anchors, links
+ *        to other files as references, highlighting tokens) and the handling of the requests of the
  *        Scout protocol.
  *
  * Portable C without Amiga headers, so the host tests can use it.
@@ -44,12 +44,20 @@ typedef struct MarkdownDiagnostic {
     MarkdownRange range;/**< where it is */
 } MarkdownDiagnostic;
 
+/** A link to another file. */
+typedef struct MarkdownReference {
+    char *target;       /**< the file's path, resolved against the file holding the link (allocated) */
+    MarkdownRange range;/**< the link's target as written */
+} MarkdownReference;
+
 /** The result of analysing a file. */
 typedef struct MarkdownParseResult {
     MarkdownSymbol *symbols;            /**< the headings, in the order of the file */
     long symbol_count;                  /**< number of headings */
     MarkdownDiagnostic *diagnostics;    /**< the diagnostics, in the order of their lines */
     long diagnostic_count;              /**< number of diagnostics */
+    MarkdownReference *references;      /**< the links to other files, in the order of the file */
+    long reference_count;               /**< number of references */
     long *tokens;                       /**< highlighting tokens, four values each: line, column, length, SCOUT_TOKEN_ kind; sorted, no overlaps */
     long token_count;                   /**< number of tokens (values / 4) */
     int out_of_memory;                  /**< memory ran out; the result is incomplete */
@@ -96,7 +104,11 @@ extern int (*markdown_parser_should_stop)(void);
  * without a definition; a link without a target; a code fence not closed.
  * Links with a scheme (http:, mailto:, Work:) and paths from the root
  * (/page) are not looked at. A link to x.html counts as found if x.md or
- * x.markdown exists, as mdtohtml makes one from the other. Tokens:
+ * x.markdown exists, as mdtohtml makes one from the other. References:
+ * the links and images to other files (with a @p path), their targets
+ * resolved to paths without "..", which AmigaDOS reads as well (the
+ * Markdown file, when x.html stands for it); also links to files that do
+ * not exist. Tokens:
  * headings as SCOUT_TOKEN_TYPE, code as SCOUT_TOKEN_CONSTANT, link targets
  * and autolinks as SCOUT_TOKEN_MACRO; markers (of lists, task boxes, block
  * quotes, tables, thematic breaks, emphasis) as SCOUT_TOKEN_FUNCTION; HTML

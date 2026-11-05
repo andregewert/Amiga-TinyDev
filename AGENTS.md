@@ -116,8 +116,9 @@ below the tree's root.
 - `src/diaglist.c`: the problem list, a tool window (View/Problem List):
   the diagnostics of the active document or of the project, Go to.
 - `src/navigate.c`: Edit/Go to Definition (DEFINITION with the name at
-  the cursor, cycling through several) and Edit/Go Back (a history of
-  places).
+  the cursor, cycling through several), Edit/Open Included File
+  (REFERENCE at the cursor: Scout resolves the include or link) and
+  Edit/Go Back (a history of places).
 - `src/complete.c`: Edit/Complete: COMPLETE with the prefix at the
   cursor, a borderless list window at the cursor that takes the keys
   (choose, insert with MarkText/Replace, narrow while typing).
@@ -259,7 +260,8 @@ below the tree's root.
   conditionals, includes, recipe checks, tokens; GNU make syntax, BSD
   directives left alone) and `make_parser_rpc.c`; the Markdown parser is
   `markdown_parser.c` (headings as symbols of kind heading, dead links and
-  anchors, undefined references, tokens; the file system comes from
+  anchors, undefined references, links to files as references of kind
+  `link`, tokens; the file system comes from
   `MarkdownFiles`, set in the rpc part) and `markdown_parser_rpc.c`;
   `include/scout_protocol.h` holds the protocol's numbers (kinds,
   severities, error codes) for Scout and all parsers.

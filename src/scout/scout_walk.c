@@ -203,7 +203,7 @@ int scout_walk_step(ScoutServer *srv)
 }
 
 /**
- * @brief Tell whether a file exists and return its full name.
+ * @brief Tell whether a file (not a drawer) exists and return its full name.
  * @param path The file.
  * @param[out] full Its full name.
  * @param size Size of @p full.
@@ -212,31 +212,44 @@ int scout_walk_step(ScoutServer *srv)
 static int find_file(const char *path, char *full, size_t size)
 {
     BPTR lock = Lock((STRPTR)path, SHARED_LOCK);
+    struct FileInfoBlock *fib;
     int ok;
     if (!lock) return 0;
-    ok = NameFromLock(lock, (STRPTR)full, (LONG)size) != 0;
+    fib = (struct FileInfoBlock *)AllocDosObject(DOS_FIB, NULL);
+    ok = fib && Examine(lock, fib) && fib->fib_DirEntryType < 0 &&
+         NameFromLock(lock, (STRPTR)full, (LONG)size) != 0;
+    if (fib) FreeDosObject(DOS_FIB, fib);
     UnLock(lock);
     return ok;
 }
 
+int scout_resolve_reference(const ScoutSession *s, const ScoutFile *f, const ScoutReference *r,
+                            char *full, size_t size)
+{
+    char path[SCOUT_PATH_MAX];
+    long j;
+    if (!r->system) {
+        strncpy(path, f->path, sizeof(path) - 1);
+        path[sizeof(path) - 1] = '\0';
+        *PathPart((STRPTR)path) = '\0';
+        if (AddPart((STRPTR)path, (STRPTR)r->target, sizeof(path)) && find_file(path, full, size)) return 1;
+    }
+    for (j = 0; j < s->include_count; j++) {
+        strncpy(path, s->include[j], sizeof(path) - 1);
+        path[sizeof(path) - 1] = '\0';
+        if (AddPart((STRPTR)path, (STRPTR)r->target, sizeof(path)) && find_file(path, full, size)) return 1;
+    }
+    return 0;
+}
+
 void scout_walk_references(ScoutServer *srv, ScoutSession *s, const ScoutFile *f)
 {
-    long i, j;
+    long i;
     for (i = 0; i < f->reference_count; i++) {
         const ScoutReference *r = &f->references[i];
-        char path[SCOUT_PATH_MAX], full[SCOUT_PATH_MAX];
-        int found = 0;
-        if (!r->system) {
-            strncpy(path, f->path, sizeof(path) - 1);
-            path[sizeof(path) - 1] = '\0';
-            *PathPart((STRPTR)path) = '\0';
-            found = AddPart((STRPTR)path, (STRPTR)r->target, sizeof(path)) && find_file(path, full, sizeof(full));
-        }
-        for (j = 0; !found && j < s->include_count; j++) {
-            strncpy(path, s->include[j], sizeof(path) - 1);
-            path[sizeof(path) - 1] = '\0';
-            found = AddPart((STRPTR)path, (STRPTR)r->target, sizeof(path)) && find_file(path, full, sizeof(full));
-        }
-        if (found) scout_index_file(srv, s, full, 0, -1);
+        char full[SCOUT_PATH_MAX];
+        /* a link is no part of the file's program: not indexed */
+        if (strcmp(r->kind, "link") == 0) continue;
+        if (scout_resolve_reference(s, f, r, full, sizeof(full))) scout_index_file(srv, s, full, 0, -1);
     }
 }

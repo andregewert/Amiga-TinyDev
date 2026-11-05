@@ -271,12 +271,12 @@ in them do not count.
 ### References
 
 Other files this one refers to, so Scout can add them to the project
-index and resolve them.
+index and resolve them (editors open them with Scout's `REFERENCE`).
 
 | Field | Meaning |
 |---|---|
-| `kind` | `include` (text included, e.g. `#include`, `INCLUDE`), `import` (a module used, e.g. `uses`, `MODULE`) |
-| `target` | the name as written, without quotes or brackets; Scout resolves it (relative to `path`, then along the include paths) |
+| `kind` | `include` (text included, e.g. `#include`, `INCLUDE`), `import` (a module used, e.g. `uses`, `MODULE`), `link` (a file the text points to, e.g. a Markdown link; Scout resolves it for editors but does not index it) |
+| `target` | the name as written, without quotes or brackets; Scout resolves it (relative to `path`, then along the include paths). A parser may give the full path instead, when the name as written is no AmigaDOS path (the Markdown parser's links, with `..` and `%20`) |
 | `system` | optional: `true` for a reference that is looked up in the include paths only (`<...>` in C) |
 | `range` | where the reference is |
 

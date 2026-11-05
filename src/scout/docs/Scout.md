@@ -169,7 +169,8 @@ the snapshot, so it can tell which state an answer belongs to.
   ask for the project's symbols again.
 - **Queries:** `SYMBOLS`, `DIAGNOSTICS`, `TOKENS` read the results of a
   file (or the index); `DEFINITION` and `COMPLETE` combine the symbol at
-  the position, the scopes in the file and the index. Context-sensitive
+  the position, the scopes in the file and the index; `REFERENCE`
+  resolves the file's reference at the position. Context-sensitive
   completion (the fields after `->`) needs more than the index; the
   protocol keeps room for an optional parser method for that.
 
@@ -332,6 +333,7 @@ Documents (`SESSION` is a keyword, `ANALYZE SESSION 3 FILE x.c`; without it, ses
 | `TOKENS` | `SESSION/K/N,FILE/A,TO/K` | `{"file":...,"version":7,"tokens":[...]}` as in the protocol |
 | `DEFINITION` | `SESSION/K/N,FILE/A,LINE/N/A,COLUMN/N/A,NAME/K` | `{"name":...,"locations":[{"file":...,"name":...,"kind":12,"range":...,"selection":...,"detail":...}]}`, definitions before declarations, empty if unknown; without `NAME`, the word at the position |
 | `COMPLETE` | `SESSION/K/N,FILE/A,LINE/N/A,COLUMN/N/A,PREFIX/K,MAX/K/N` | `{"prefix":...,"items":[{"label":...,"kind":12,"detail":...}]}`, locals first, then the file's, the project's and keywords (`{"label":...,"keyword":true}`); without `PREFIX`, the part of the word before the position; `MAX` default 50 |
+| `REFERENCE` | `SESSION/K/N,FILE/A,LINE/N/A,COLUMN/N/A` | `{"reference":{"kind":"include","target":"exec/types.h","system":true,"range":...,"file":"Include:exec/types.h"}}`: the reference to another file at the position (or the first in its line), resolved like the index does it (next to the file unless `system`, then along the include paths); `"file":null` if it was not found, `{"reference":null}` without one |
 
 Languages and parsers:
 
@@ -380,7 +382,7 @@ What a client such as TinyDev does:
    write a snapshot to `T:` if the document is changed, `ANALYZE` it
    with the snapshot and a new version, then `TOKENS` and `DIAGNOSTICS`
    with `TO`. Results for an old version are dropped.
-5. `SYMBOLS`, `DEFINITION`, `COMPLETE` when the user asks for them.
+5. `SYMBOLS`, `DEFINITION`, `REFERENCE`, `COMPLETE` when the user asks for them.
 6. `FORGET` for a document closed without saving; `CLOSE` the session
    when the project changes or the client quits. Delete the snapshots
    and `TO` files.

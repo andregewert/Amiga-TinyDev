@@ -1432,6 +1432,38 @@ void scout_write_definition(JsonWriter *w, const ScoutSession *s, const ScoutFil
     write_locations(w, name, loc, n);
 }
 
+const ScoutReference *scout_reference_at(const ScoutFile *f, long line, long col)
+{
+    const ScoutReference *first = NULL;
+    long i;
+    if (!f || !f->valid) return NULL;
+    for (i = 0; i < f->reference_count; i++) {
+        const ScoutReference *r = &f->references[i];
+        if (in_range(&r->range, line, col)) return r;
+        if (!first && r->range.start_line <= line && line <= r->range.end_line) first = r;
+    }
+    return first;
+}
+
+void scout_write_reference(JsonWriter *w, const ScoutReference *r, const char *file)
+{
+    if (!r) {
+        json_write_raw(w, "{\"reference\":null}");
+        return;
+    }
+    json_write_raw(w, "{\"reference\":{\"kind\":");
+    json_write_string(w, r->kind);
+    json_write_raw(w, ",\"target\":");
+    json_write_string(w, r->target);
+    if (r->system) json_write_raw(w, ",\"system\":true");
+    json_write_raw(w, ",\"range\":");
+    write_range(w, &r->range);
+    json_write_raw(w, ",\"file\":");
+    if (file) json_write_string(w, file);
+    else json_write_raw(w, "null");
+    json_write_raw(w, "}}");
+}
+
 /** A candidate of COMPLETE. */
 typedef struct Candidate {
     const char *label;          /**< the text */
