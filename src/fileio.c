@@ -4,7 +4,12 @@
  *
  * Contents are 8-bit text (no UTF-8 decoding); files with NUL bytes are
  * refused. LF, CR and CRLF are kept as loaded. A save writes a temporary
- * file first, so a failed write leaves the original intact. Opening a file
+ * file first, so a failed write leaves the original intact. The temporary
+ * file gets the original's protection bits and comment before it takes
+ * the original's place (AmigaDOS cannot create a file with them): without
+ * the script bit a saved Shell script would no longer run, nor be taken
+ * for one by Scout. The archive bit is cleared (the file changed); a
+ * delete-protected file gets that bit only after the renaming. Opening a file
  * that is open already shows its tab. Once a directory is open, the
  * requesters for new files start in it (Save As of a named file starts in
  * its drawer).
@@ -122,11 +127,39 @@ static int write_complete(BPTR file, const char *text, LONG length)
     return 1;
 }
 
+/**
+ * @brief Read a file's protection bits and comment.
+ * @param path The file.
+ * @param[out] protection Its bits.
+ * @param[out] comment Its comment ("" if none).
+ * @param size Size of @p comment.
+ * @return Non-zero if the file exists and was examined.
+ */
+static int read_attributes(const char *path, LONG *protection, char *comment, size_t size)
+{
+    struct FileInfoBlock *fib;
+    BPTR lock;
+    int ok = 0;
+    comment[0] = '\0';
+    if ((lock = Lock((STRPTR)path, ACCESS_READ)) == 0) return 0;
+    if ((fib = (struct FileInfoBlock *)AllocDosObject(DOS_FIB, NULL)) != NULL) {
+        if (Examine(lock, fib) && fib->fib_DirEntryType < 0) {
+            *protection = fib->fib_Protection;
+            strncpy(comment, fib->fib_Comment, size - 1);
+            comment[size - 1] = '\0';
+            ok = 1;
+        }
+        FreeDosObject(DOS_FIB, fib);
+    }
+    UnLock(lock);
+    return ok;
+}
+
 int file_save(EditorApp *app, Document *doc, const char *path)
 {
     char canonical[EDITOR_PATH_MAX], resolved[EDITOR_PATH_MAX];
-    char temp[EDITOR_PATH_MAX], backup[EDITOR_PATH_MAX];
-    char *text; LONG length; BPTR file, collision; int had_old, wrote, closed;
+    char temp[EDITOR_PATH_MAX], backup[EDITOR_PATH_MAX], comment[80];
+    char *text; LONG length, protection = 0; BPTR file, collision; int had_old, wrote, closed, attrs;
     unsigned long old_hash = doc->saved_hash; long old_length = doc->saved_length;
     if (!canonical_path(path, canonical, sizeof(canonical))) return 0;
     if (document_find_path(app, canonical) != NULL && document_find_path(app, canonical) != doc) {
@@ -160,10 +193,22 @@ int file_save(EditorApp *app, Document *doc, const char *path)
     document_mark_saved(doc, text, length, 0);
     FreeVec(text);
     { BPTR lock = Lock(canonical, ACCESS_READ); had_old = lock != 0; if (lock != 0) UnLock(lock); }
+    /* the original's bits and comment, before the file takes its place;
+     * archived no more, and deletable until the renaming is done */
+    attrs = had_old && read_attributes(canonical, &protection, comment, sizeof(comment));
+    if (attrs) {
+        protection &= ~FIBF_ARCHIVE;
+        SetProtection(temp, protection & ~FIBF_DELETE);
+        if (comment[0] != '\0') SetComment(temp, comment);
+    }
     if (had_old && !Rename(canonical, backup)) goto replace_failed;
     if (!Rename(temp, canonical)) {
         if (had_old) Rename(backup, canonical);
         goto replace_failed;
+    }
+    if (attrs && (protection & FIBF_DELETE)) {
+        SetProtection(canonical, protection);
+        SetProtection(backup, 0);       /* the original's copy goes */
     }
     if (had_old) DeleteFile(backup);
     if (canonical_path(canonical, resolved, sizeof(resolved))) document_set_path(app, doc, resolved);
