@@ -71,7 +71,7 @@ static void test_standard(void)
         "  { \"key\": \"LINE\", \"default\": \"{$AUTHOR} <{$AUTHORMAIL}>\" } ] }";
     assert(sprout_key_standard("AUTHOR") && sprout_key_standard("AUTHORMAIL"));
     assert(!sprout_key_standard("PROJECT") && !sprout_key_builtin("AUTHOR"));
-    assert(sprout_template_parse(&t, json, report, NULL) == 1);
+    assert(sprout_template_parse(&t, json, NULL, report, NULL) == 1);
     sprout_values_init(&given);
     reset();
     assert(sprout_resolve(&t, &given, "x", 0, &out, report, NULL) == 1);
@@ -122,6 +122,50 @@ static void check_path_bad(const SproutValues *v, const char *path, const char *
     free(s);
 }
 
+/** @brief Translated texts: the first of the user's languages that has one. */
+static void test_languages(void)
+{
+    SproutTemplate t;
+    const char *json =
+        "{ \"name\": \"Hello\", \"name[deutsch]\": \"Hallo\", \"name[fran\xe7" "ais]\": \"Bonjour\",\n"
+        "  \"description\": \"A program\", \"category\": \"C\", \"category[deutsch]\": \"C (deutsch)\",\n"
+        "  \"placeholders\": [ { \"key\": \"NAME\", \"label\": \"Name\", \"label[deutsch]\": \"Programmname\",\n"
+        "    \"description[deutsch]\": \"Nur deutsch\", \"default\": \"x\", \"default[deutsch]\": \"y\",\n"
+        "    \"choices\": [\"a\", \"b\"] } ] }";
+    static const char *const german[] = { "deutsch", "english", NULL };
+    static const char *const french[] = { "FRAN\xc7" "AIS", "deutsch", NULL };
+    static const char *const dutch[] = { "nederlands", NULL };
+
+    reset();
+    assert(sprout_template_parse(&t, json, german, report, NULL) == 1 && errors == 0);
+    assert(strcmp(t.name, "Hallo") == 0 && strcmp(t.description, "A program") == 0);
+    assert(strcmp(t.category, "C (deutsch)") == 0);
+    assert(strcmp(t.ph[0].label, "Programmname") == 0 && strcmp(t.ph[0].description, "Nur deutsch") == 0);
+    assert(strcmp(t.ph[0].def, "y") == 0 && strcmp(t.ph[0].choices[1], "b") == 0);
+    {   /* written as a tree: the chosen texts, no translations */
+        JsonValue *tree = sprout_template_to_json(&t);
+        assert(tree != NULL && strcmp(json_obj_get_string(tree, "name", ""), "Hallo") == 0);
+        assert(json_obj_get(tree, "name[deutsch]") == NULL);
+        json_value_free(tree);
+    }
+    sprout_template_free(&t);
+
+    assert(sprout_template_parse(&t, json, french, report, NULL) == 1);
+    assert(strcmp(t.name, "Bonjour") == 0 && strcmp(t.category, "C (deutsch)") == 0);
+    sprout_template_free(&t);
+
+    assert(sprout_template_parse(&t, json, dutch, report, NULL) == 1);
+    assert(strcmp(t.name, "Hello") == 0 && strcmp(t.ph[0].label, "Name") == 0 && t.ph[0].description == NULL);
+    sprout_template_free(&t);
+
+    /* a translation alone is enough for the name */
+    assert(sprout_template_parse(&t, "{ \"name[deutsch]\": \"Nur\" }", german, report, NULL) == 1);
+    assert(strcmp(t.name, "Nur") == 0);
+    sprout_template_free(&t);
+    assert(sprout_template_parse(&t, "{ \"name[deutsch]\": \"Nur\" }", NULL, report, NULL) == 0);
+    sprout_template_free(&t);
+}
+
 /** @brief Reading template.json: a full one, defaults, invalid ones. */
 static void test_parse(void)
 {
@@ -137,7 +181,7 @@ static void test_parse(void)
         "  \"open\": [\"src/{$NAME}.c\", \"Makefile\"], \"verbatim\": \"#?.iff\", \"other\": 5 }";
 
     reset();
-    assert(sprout_template_parse(&t, full, report, NULL) == 1);
+    assert(sprout_template_parse(&t, full, NULL, report, NULL) == 1);
     assert(errors == 0);
     assert(strcmp(t.kind, "project") == 0 && strcmp(t.name, "ReAction program") == 0);
     assert(strcmp(t.description, "A window") == 0 && strcmp(t.category, "C") == 0);
@@ -154,7 +198,7 @@ static void test_parse(void)
         JsonValue *tree = sprout_template_to_json(&t);
         assert(tree != NULL);
         assert(json_obj_get_int(tree, "version", 0) == 1);
-        assert(sprout_template_from_json(&u, tree, report, NULL) == 1);
+        assert(sprout_template_from_json(&u, tree, NULL, report, NULL) == 1);
         assert(strcmp(u.kind, t.kind) == 0 && strcmp(u.name, t.name) == 0);
         assert(strcmp(u.description, t.description) == 0 && strcmp(u.category, t.category) == 0);
         assert(strcmp(u.icon_type, "program") == 0 && strcmp(u.icon_file, "template.info") == 0);
@@ -170,21 +214,21 @@ static void test_parse(void)
     assert(t.name == NULL && t.nph == 0);
     {   /* a minimal one: only what is there is written */
         JsonValue *tree;
-        assert(sprout_template_parse(&t, "{ \"name\": \"X\" }", report, NULL) == 1);
+        assert(sprout_template_parse(&t, "{ \"name\": \"X\" }", NULL, report, NULL) == 1);
         tree = sprout_template_to_json(&t);
         assert(tree != NULL && json_obj_get(tree, "icon") == NULL && json_obj_get(tree, "placeholders") == NULL);
         assert(json_obj_get(tree, "open") == NULL && strcmp(json_obj_get_string(tree, "category", ""), "Other") == 0);
         json_value_free(tree);
         sprout_template_free(&t);
-        assert(sprout_template_from_json(&t, NULL, report, NULL) == 0);
+        assert(sprout_template_from_json(&t, NULL, NULL, report, NULL) == 0);
     }
 
     /* only a name: kind project, category Other */
-    assert(sprout_template_parse(&t, "{ \"name\": \"X\" }", report, NULL) == 1);
+    assert(sprout_template_parse(&t, "{ \"name\": \"X\" }", NULL, report, NULL) == 1);
     assert(strcmp(t.kind, "project") == 0 && strcmp(t.category, "Other") == 0);
     assert(t.description == NULL && t.icon_type == NULL && t.nph == 0 && t.nopen == 0);
     sprout_template_free(&t);
-    assert(sprout_template_parse(&t, "{ \"name\": \"X\", \"kind\": \"file\" }", report, NULL) == 1);
+    assert(sprout_template_parse(&t, "{ \"name\": \"X\", \"kind\": \"file\" }", NULL, report, NULL) == 1);
     sprout_template_free(&t);
 
     /* invalid ones are reported */
@@ -211,7 +255,7 @@ static void test_parse(void)
         int i;
         for (i = 0; bad[i] != NULL; ++i) {
             reset();
-            assert(sprout_template_parse(&t, bad[i], report, NULL) == 0);
+            assert(sprout_template_parse(&t, bad[i], NULL, report, NULL) == 0);
             assert(errors == 1);
             assert(t.name == NULL && t.nph == 0);
         }
@@ -320,7 +364,7 @@ static void test_resolve(void)
         "  { \"key\": \"CC\", \"choices\": [\"gcc\", \"vbcc\"] },\n"
         "  { \"key\": \"NOTE\" } ] }";
 
-    assert(sprout_template_parse(&t, json, report, NULL) == 1);
+    assert(sprout_template_parse(&t, json, NULL, report, NULL) == 1);
     sprout_values_init(&given);
     assert(sprout_values_parse_assign(&given, "AUTHOR=Me") == 1);
     reset();
@@ -528,7 +572,7 @@ static void test_shipped_help(void)
     fclose(f);
     json[n] = '\0';
     reset();
-    assert(sprout_template_parse(&t, json, report, NULL) == 1);
+    assert(sprout_template_parse(&t, json, NULL, report, NULL) == 1);
     sprout_values_init(&given);
     assert(sprout_values_parse_assign(&given, "AUTHOR=Me") == 1);
     assert(sprout_resolve(&t, &given, "My Help", 17835, &out, report, NULL) == 1);
@@ -564,7 +608,7 @@ static void test_shipped(void)
     fclose(f);
     json[n] = '\0';
     reset();
-    assert(sprout_template_parse(&t, json, report, NULL) == 1);
+    assert(sprout_template_parse(&t, json, NULL, report, NULL) == 1);
     sprout_values_init(&given);
     assert(sprout_values_parse_assign(&given, "AUTHOR=Me") == 1);
     assert(sprout_resolve(&t, &given, "My Tool", 17835, &out, report, NULL) == 1);
@@ -574,6 +618,14 @@ static void test_shipped(void)
     name = sprout_expand_path(t.open[0], &out, &bad);
     assert(name != NULL && strcmp(name, "My_Tool.c") == 0);
     free(name);
+    {   /* and in German */
+        static const char *const german[] = { "deutsch", NULL };
+        SproutTemplate g;
+        assert(sprout_template_parse(&g, json, german, report, NULL) == 1);
+        assert(strcmp(g.name, "Hallo Welt") == 0 && strcmp(g.ph[0].label, "Programmname") == 0);
+        assert(strcmp(g.ph[0].def, t.ph[0].def) == 0);
+        sprout_template_free(&g);
+    }
     assert(strcmp(sprout_values_get(&out, "CC"), "vbcc") == 0);
     check_path(&out, "Makefile{?CC=vbcc}", "Makefile");
     check_path_bad(&out, "smakefile{?CC=sasc}", NULL, SPROUT_PATH_LEFTOUT);
@@ -595,7 +647,7 @@ static void test_shipped(void)
     n = fread(json, 1, sizeof(json) - 1, f);
     fclose(f);
     json[n] = '\0';
-    assert(sprout_template_parse(&t, json, report, NULL) == 1);
+    assert(sprout_template_parse(&t, json, NULL, report, NULL) == 1);
     assert(strcmp(t.kind, "file") == 0);
     sprout_values_init(&given);
     assert(sprout_resolve(&t, &given, "src", 17835, &out, report, NULL) == 0);     /* NAME is required */
@@ -622,6 +674,7 @@ static void test_shipped(void)
 int main(void)
 {
     test_parse();
+    test_languages();
     test_values();
     test_builtins();
     test_resolve();

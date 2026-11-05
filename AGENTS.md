@@ -213,7 +213,8 @@ below the tree's root.
   `INFO`): `sprout_main.c` (arguments, templates as drawers or archives,
   copying, protection bits and file notes, removing what it made on an
   error, the JSON output), `sprout_tmpl.c` with `include/sprout_tmpl.h`
-  (the portable core: `template.json` as text or tree, values,
+  (the portable core: `template.json` as text or tree, with its texts
+  translated as `"name[deutsch]"` for the locale's languages, values,
   placeholders `{$KEY}`, safe paths; host-tested in
   `tests/test_sprout_tmpl.c`) and `sprout_lha.c` with
   `include/sprout_lha.h` (the portable LhA reader: header levels 0-2,

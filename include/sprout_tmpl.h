@@ -69,28 +69,45 @@ typedef struct SproutValues {
 
 /**
  * @brief Read a template's metadata.
+ *
+ * The texts shown to the user (name, description, category, and label,
+ * description and default of a placeholder) may be translated: a member
+ * "name[deutsch]" beside "name" holds the text for that language. The
+ * first of @p languages with a translation wins, otherwise the member
+ * without a language is taken.
+ *
  * @param[out] t The metadata (always initialised; sprout_template_free() it).
  * @param json The text of template.json.
+ * @param languages The user's languages, most preferred first, named as
+ *                  by the Amiga's locale ("deutsch"), NULL-terminated;
+ *                  NULL for none.
  * @param report Receives the reason when the metadata is not valid.
  * @param user Passed to @p report.
  * @return 1 on success; 0 if not valid (reported); -1 if out of memory.
  */
-int sprout_template_parse(SproutTemplate *t, const char *json, SproutReport report, void *user);
+int sprout_template_parse(SproutTemplate *t, const char *json, const char *const *languages,
+                          SproutReport report, void *user);
 
 /**
  * @brief Read a template's metadata from a JSON tree (an object as in
  *        template.json, or an entry of Sprout's LIST output).
+ * Translated texts are chosen as with sprout_template_parse().
+ *
  * @param[out] t The metadata (always initialised; sprout_template_free() it).
  * @param root The object.
+ * @param languages The user's languages (as with sprout_template_parse()),
+ *                  NULL for none.
  * @param report Receives the reason when the metadata is not valid.
  * @param user Passed to @p report.
  * @return 1 on success; 0 if not valid (reported); -1 if out of memory.
  */
-int sprout_template_from_json(SproutTemplate *t, const struct JsonValue *root, SproutReport report, void *user);
+int sprout_template_from_json(SproutTemplate *t, const struct JsonValue *root, const char *const *languages,
+                              SproutReport report, void *user);
 
 /**
  * @brief Write a template's metadata as a JSON tree, in the form of
- *        template.json (keys without a value left out).
+ *        template.json (keys without a value left out; the texts in the
+ *        language chosen when reading, without translations).
  * @param t The metadata.
  * @return The object (json_value_free() it), or NULL if out of memory.
  */

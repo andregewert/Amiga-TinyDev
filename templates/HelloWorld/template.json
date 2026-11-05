@@ -2,18 +2,26 @@
   "version": 1,
   "kind": "project",
   "name": "Hello World",
+  "name[deutsch]": "Hallo Welt",
   "description": "A small C program for the Shell, with a Makefile for vbcc, gcc or SAS/C and the commands of the Build menu.",
+  "description[deutsch]": "Ein kleines C-Programm für die Shell, mit einem Makefile für vbcc, gcc oder SAS/C und den Befehlen des Menüs Erstellen.",
   "category": "C",
   "icon": { "type": "program", "file": "template.info" },
   "placeholders": [
-    { "key": "NAME", "label": "Program name", "default": "{$PROJECT:ident}",
-      "description": "The name of the program and of its source file" },
-    { "key": "AUTHOR", "label": "Author", "required": true },
-    { "key": "AUTHORMAIL", "label": "E-mail",
-      "description": "The author's e-mail address (optional), below the author" },
-    { "key": "PURPOSE", "label": "Description", "default": "A program that greets the world" },
+    { "key": "NAME", "label": "Program name", "label[deutsch]": "Programmname",
+      "default": "{$PROJECT:ident}",
+      "description": "The name of the program and of its source file",
+      "description[deutsch]": "Der Name des Programms und seiner Quelldatei" },
+    { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor", "required": true },
+    { "key": "AUTHORMAIL", "label": "E-mail", "label[deutsch]": "E-Mail",
+      "description": "The author's e-mail address (optional), below the author",
+      "description[deutsch]": "Die E-Mail-Adresse des Autors (wahlweise), unter dem Autor" },
+    { "key": "PURPOSE", "label": "Description", "label[deutsch]": "Beschreibung",
+      "default": "A program that greets the world",
+      "default[deutsch]": "Ein Programm, das die Welt grüßt" },
     { "key": "CC", "label": "Compiler", "choices": ["vbcc", "gcc", "sasc"],
-      "description": "The compiler the Makefile and the Build menu use (sasc: SAS/C with smake)" }
+      "description": "The compiler the Makefile and the Build menu use (sasc: SAS/C with smake)",
+      "description[deutsch]": "Der Compiler, den das Makefile und das Menü Erstellen benutzen (sasc: SAS/C mit smake)" }
   ],
   "open": ["{$NAME}.c"]
 }

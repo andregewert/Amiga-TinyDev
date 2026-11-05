@@ -590,7 +590,7 @@ static int take_templates(const JsonValue *root)
         int r;
         /* templates Sprout could not read come with an "error": left out */
         if (id == NULL || json_obj_get(e, "error") != NULL) continue;
-        r = sprout_template_from_json(&p->t, e, NULL, NULL);
+        r = sprout_template_from_json(&p->t, e, NULL, NULL, NULL);
         if (r < 0) return -1;
         if (r == 0 || (p->t.kind != NULL && strcmp(p->t.kind, np.files ? "file" : "project") != 0)) {
             sprout_template_free(&p->t);

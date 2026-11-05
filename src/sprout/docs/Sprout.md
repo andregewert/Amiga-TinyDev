@@ -122,6 +122,31 @@ A placeholder entry:
 | `required` | `true`: the value must not be empty |
 | `choices` | the allowed values; the wizard shows a chooser, the first is the default |
 
+### Translations
+
+The texts the user reads may be given in other languages, each as a
+member of its own beside the English one, with the language in brackets:
+
+```json
+"name": "Hello World",
+"name[deutsch]": "Hallo Welt",
+"placeholders": [
+  { "key": "NAME", "label": "Program name", "label[deutsch]": "Programmname" }
+]
+```
+
+- This works for `name`, `description` and `category`, and for `label`,
+  `description` and `default` of a placeholder. Keys, `choices`, `open`
+  and file names are not translated.
+- Languages are named as the Amiga's locale names them, in lower case
+  (`deutsch`, `français`, `italiano`), like the drawers of catalogs.
+- Sprout takes the translation of the first of the user's preferred
+  languages (Locale preferences) that has one, otherwise the member
+  without a language. That member stays required for `name`, so the
+  template works in every language.
+- `LIST` and `INFO` write the chosen texts under the plain keys, without
+  the translations, so the wizard shows them as they are.
+
 ## 5. Placeholders
 
 **Syntax:** `{$KEY}`, optionally with a modifier: `{$KEY:upper}`.
@@ -270,7 +295,7 @@ project's name use `PROJECT`. With
 ## 8. Command line
 
 ```
-Sprout TEMPLATE,TO,SET/M,VALUES/K,DIR/K,ICON/K,LIST/S,INFO/S,FORCE/S,QUIET/S
+Sprout TEMPLATE,TO,SET/M,VALUES/K,DIR/K,ICON/K,LIST/S,INFO/S,FORCE/S,QUIET/S,LANGUAGE/K
 ```
 
 | Argument | Meaning |
@@ -285,6 +310,7 @@ Sprout TEMPLATE,TO,SET/M,VALUES/K,DIR/K,ICON/K,LIST/S,INFO/S,FORCE/S,QUIET/S
 | `ICON` | with `INFO`: also extract the template's icon to this file; with `LIST`: extract the icons of all templates to this (existing) drawer as `<Id>.info` (for the wizard) |
 | `FORCE` | write into an existing, non-empty `TO` |
 | `QUIET` | no progress lines |
+| `LANGUAGE` | the language the template's texts are read in (`deutsch`), instead of the Locale's preferred languages; `english` gives the untranslated texts |
 
 Examples:
 

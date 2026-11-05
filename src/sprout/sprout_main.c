@@ -11,6 +11,8 @@
  * drawer or an LhA archive; an archive is read twice, once for
  * template.json (which may come after the files), once for the files.
  * LIST and INFO write JSON to the standard output, built with json.c.
+ * The texts of a template are read in the user's languages (the locale's
+ * preferred ones, or LANGUAGE), so LIST and INFO give them translated.
  *
  * Messages go to the error stream of the Shell (pr_CES, else Output()),
  * in English, prefixed "Sprout: ". The created drawers and files are kept
@@ -25,8 +27,10 @@
 #include <dos/dos.h>
 #include <dos/dosextens.h>
 #include <dos/rdargs.h>
+#include <libraries/locale.h>
 #include <proto/exec.h>
 #include <proto/dos.h>
+#include <proto/locale.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -47,7 +51,7 @@ static const char version[] __attribute__((used)) = "$VER: Sprout 1.0 (31.10.202
 #define JSONMAX (256L * 1024L)
 
 /** The ReadArgs template. */
-#define ARG_TEMPLATE "TEMPLATE,TO,SET/M,VALUES/K,DIR/K,ICON/K,LIST/S,INFO/S,FORCE/S,QUIET/S"
+#define ARG_TEMPLATE "TEMPLATE,TO,SET/M,VALUES/K,DIR/K,ICON/K,LIST/S,INFO/S,FORCE/S,QUIET/S,LANGUAGE/K"
 
 /** The arguments, in the order of #ARG_TEMPLATE. */
 enum {
@@ -61,8 +65,17 @@ enum {
     ARG_INFO,       /**< describe a template */
     ARG_FORCE,      /**< write into an existing drawer */
     ARG_QUIET,      /**< no progress lines */
+    ARG_LANGUAGE,   /**< the language of the texts, instead of the locale's */
     ARG_COUNT       /**< number of arguments */
 };
+
+/** The most languages the texts are looked up in (as many as a Locale holds). */
+#define LANGUAGES_MAX 10
+/** The longest language name kept. */
+#define LANGUAGE_LEN 32
+
+/** locale.library, open only while the languages are read. */
+struct LocaleBase *LocaleBase = NULL;
 
 /** Something Sprout created (a node of a list, newest first). */
 typedef struct Created {
@@ -83,6 +96,8 @@ static struct {
     char *capture;                  /**< if set, the first message goes here instead (LIST) */
     size_t capsize;                 /**< its size */
     char to[PATHMAX];               /**< the project drawer */
+    char language_names[LANGUAGES_MAX][LANGUAGE_LEN];   /**< the user's languages */
+    const char *languages[LANGUAGES_MAX + 1];           /**< pointers to them, NULL-terminated */
 } sp;
 
 /** The default templates drawer. */
@@ -910,10 +925,39 @@ static int load_meta(Source *s, SproutTemplate *t)
     r = template_file(s, NULL, 1, JSONMAX, &text, &len);
     if (r == 0) msg("no template.json in ", s->path, NULL);
     if (r <= 0) return 0;
-    r = sprout_template_parse(t, text, report, NULL);
+    r = sprout_template_parse(t, text, sp.languages, report, NULL);
     free(text);
     if (r < 0) msg("out of memory", NULL, NULL);
     return r;
+}
+
+/**
+ * @brief Note the languages the texts of templates are read in: the
+ *        given one, else the locale's preferred languages (none without
+ *        locale.library, then the untranslated texts are used).
+ * @param given The LANGUAGE argument (may be NULL).
+ */
+static void read_languages(const char *given)
+{
+    struct Locale *loc;
+    int i, n = 0;
+    if (given != NULL && given[0] != '\0') {
+        strncpy(sp.language_names[n], given, LANGUAGE_LEN - 1);
+        sp.languages[n] = sp.language_names[n];
+        ++n;
+    } else if ((LocaleBase = (struct LocaleBase *)OpenLibrary((STRPTR)"locale.library", 38)) != NULL) {
+        if ((loc = OpenLocale(NULL)) != NULL) {
+            for (i = 0; i < LANGUAGES_MAX && loc->loc_PrefLanguages[i] != NULL; ++i) {
+                strncpy(sp.language_names[n], (const char *)loc->loc_PrefLanguages[i], LANGUAGE_LEN - 1);
+                sp.languages[n] = sp.language_names[n];
+                ++n;
+            }
+            CloseLocale(loc);
+        }
+        CloseLibrary((struct Library *)LocaleBase);
+        LocaleBase = NULL;
+    }
+    sp.languages[n] = NULL;
 }
 
 /**
@@ -1493,6 +1537,7 @@ int main(void)
         PrintFault(IoErr(), (STRPTR)"Sprout");
         return RETURN_FAIL;
     }
+    read_languages((const char *)args[ARG_LANGUAGE]);
     if (args[ARG_LIST]) {
         rc = list_templates((const char *)args[ARG_DIR], (const char *)args[ARG_ICON]);
     } else if (args[ARG_INFO]) {

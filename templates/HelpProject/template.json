@@ -2,13 +2,17 @@
   "version": 1,
   "kind": "project",
   "name": "Help pages",
+  "name[deutsch]": "Hilfeseiten",
   "description": "Help pages written in Markdown, built into HTML pages for the HelpViewer: a tree of sample pages, a page template and the commands of the Build menu.",
+  "description[deutsch]": "Hilfeseiten in Markdown, übersetzt in HTML-Seiten für den HelpViewer: ein Baum von Beispielseiten, eine Seitenvorlage und die Befehle des Menüs Erstellen.",
   "category": "Documentation",
+  "category[deutsch]": "Dokumentation",
   "icon": { "type": "document", "file": "template.info" },
   "placeholders": [
-    { "key": "TITLE", "label": "Title", "default": "{$PROJECT}",
-      "description": "The title of the first page, which the HelpViewer also shows above its tree" },
-    { "key": "AUTHOR", "label": "Author", "required": true }
+    { "key": "TITLE", "label": "Title", "label[deutsch]": "Titel", "default": "{$PROJECT}",
+      "description": "The title of the first page, which the HelpViewer also shows above its tree",
+      "description[deutsch]": "Der Titel der ersten Seite, den der HelpViewer auch über seinem Baum zeigt" },
+    { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor", "required": true }
   ],
   "open": ["src/index.md"]
 }

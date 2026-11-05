@@ -74,6 +74,58 @@ static int dup_member(const JsonValue *obj, const char *key, char **out)
     return 1;
 }
 
+/** The longest language name looked for in "key[language]". */
+#define LANGUAGE_MAX 32
+
+/**
+ * @brief Find the text of a member that may be translated: "key[language]"
+ *        for the first of the languages that has one, else "key".
+ * @param obj The object.
+ * @param key The member's key (short: at most 16 characters).
+ * @param languages The languages, NULL-terminated (may be NULL).
+ * @return The text, or NULL if there is none.
+ */
+static const char *localized(const JsonValue *obj, const char *key, const char *const *languages)
+{
+    char name[16 + LANGUAGE_MAX + 3];
+    size_t klen = strlen(key), i, j;
+    const char *s;
+    for (i = 0; languages != NULL && languages[i] != NULL; ++i) {
+        size_t llen = strlen(languages[i]);
+        if (klen > 16 || llen == 0 || llen > LANGUAGE_MAX) continue;
+        memcpy(name, key, klen);
+        name[klen] = '[';
+        /* the locale names its languages in lower case; a name given in
+         * another case is matched all the same (ASCII and Latin-1) */
+        for (j = 0; j < llen; ++j) {
+            unsigned char ch = (unsigned char)languages[i][j];
+            if ((ch >= 'A' && ch <= 'Z') || (ch >= 0xC0 && ch <= 0xDE && ch != 0xD7)) ch = (unsigned char)(ch + 32);
+            name[klen + 1 + j] = (char)ch;
+        }
+        name[klen + 1 + llen] = ']';
+        name[klen + 2 + llen] = '\0';
+        if ((s = json_obj_get_string(obj, name, NULL)) != NULL) return s;
+    }
+    return json_obj_get_string(obj, key, NULL);
+}
+
+/**
+ * @brief Copy an optional member that may be translated (see localized()).
+ * @param obj The object.
+ * @param key The member's key.
+ * @param languages The languages, NULL-terminated (may be NULL).
+ * @param[out] out The copy, or NULL if there is no text.
+ * @return 1 on success (also when missing); -1 if out of memory.
+ */
+static int dup_localized(const JsonValue *obj, const char *key, const char *const *languages, char **out)
+{
+    const char *s = localized(obj, key, languages);
+    *out = NULL;
+    if (s == NULL) return 1;
+    if ((*out = str_dup(s)) == NULL) return -1;
+    return 1;
+}
+
 /**
  * @brief Free an array of malloc()ed strings.
  * @param list The array (may be NULL).
@@ -158,12 +210,13 @@ int sprout_key_builtin(const char *key)
  * @param t The template so far (for duplicate keys).
  * @param e The entry.
  * @param[out] p The placeholder (zeroed first).
+ * @param languages The user's languages, NULL-terminated (may be NULL).
  * @param report Receives the reason when it is not valid.
  * @param user Passed to @p report.
  * @return 1 on success; 0 if not valid; -1 if out of memory.
  */
 static int parse_placeholder(const SproutTemplate *t, const JsonValue *e, SproutPlaceholder *p,
-                             SproutReport report, void *user)
+                             const char *const *languages, SproutReport report, void *user)
 {
     const char *key;
     int i, r;
@@ -187,8 +240,9 @@ static int parse_placeholder(const SproutTemplate *t, const JsonValue *e, Sprout
             return 0;
         }
     if ((p->key = str_dup(key)) == NULL) return -1;
-    if (dup_member(e, "label", &p->label) < 0 || dup_member(e, "description", &p->description) < 0 ||
-        dup_member(e, "default", &p->def) < 0)
+    if (dup_localized(e, "label", languages, &p->label) < 0 ||
+        dup_localized(e, "description", languages, &p->description) < 0 ||
+        dup_localized(e, "default", languages, &p->def) < 0)
         return -1;
     p->required = json_obj_get_bool(e, "required", 0);
     if ((r = string_list(e, "choices", &p->choices, &p->nchoices)) <= 0) {
@@ -211,7 +265,8 @@ static void free_placeholder(SproutPlaceholder *p)
     free_list(p->choices, p->nchoices);
 }
 
-int sprout_template_parse(SproutTemplate *t, const char *json, SproutReport report, void *user)
+int sprout_template_parse(SproutTemplate *t, const char *json, const char *const *languages,
+                          SproutReport report, void *user)
 {
     JsonValue *root = json_parse(json, NULL);
     int r;
@@ -221,12 +276,13 @@ int sprout_template_parse(SproutTemplate *t, const char *json, SproutReport repo
         json_value_free(root);
         return 0;
     }
-    r = sprout_template_from_json(t, root, report, user);
+    r = sprout_template_from_json(t, root, languages, report, user);
     json_value_free(root);
     return r;
 }
 
-int sprout_template_from_json(SproutTemplate *t, const struct JsonValue *root, SproutReport report, void *user)
+int sprout_template_from_json(SproutTemplate *t, const struct JsonValue *root, const char *const *languages,
+                              SproutReport report, void *user)
 {
     const JsonValue *icon, *phs;
     const char *kind, *name;
@@ -240,7 +296,7 @@ int sprout_template_from_json(SproutTemplate *t, const struct JsonValue *root, S
     }
     version = json_obj_get_int(root, "version", 1);
     kind = json_obj_get_string(root, "kind", "project");
-    name = json_obj_get_string(root, "name", NULL);
+    name = localized(root, "name", languages);
     if (version != 1) {
         say(report, user, 1, "unknown version of template.json", NULL, NULL);
         r = 0;
@@ -253,8 +309,8 @@ int sprout_template_from_json(SproutTemplate *t, const struct JsonValue *root, S
     }
     if (r > 0) {
         if ((t->kind = str_dup(kind)) == NULL || (t->name = str_dup(name)) == NULL ||
-            dup_member(root, "description", &t->description) < 0 ||
-            dup_member(root, "category", &t->category) < 0)
+            dup_localized(root, "description", languages, &t->description) < 0 ||
+            dup_localized(root, "category", languages, &t->category) < 0)
             r = -1;
         else if (t->category == NULL && (t->category = str_dup("Other")) == NULL)
             r = -1;
@@ -275,7 +331,7 @@ int sprout_template_from_json(SproutTemplate *t, const struct JsonValue *root, S
         } else if ((count = json_array_length(phs)) > 0) {
             if ((t->ph = (SproutPlaceholder *)malloc(count * sizeof(SproutPlaceholder))) == NULL) r = -1;
             for (i = 0; r > 0 && i < count; ++i) {
-                r = parse_placeholder(t, json_array_get(phs, i), &t->ph[t->nph], report, user);
+                r = parse_placeholder(t, json_array_get(phs, i), &t->ph[t->nph], languages, report, user);
                 ++t->nph;           /* freed with the rest, also when it failed */
             }
         }
