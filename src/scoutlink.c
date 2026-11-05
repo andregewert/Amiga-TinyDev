@@ -1198,6 +1198,17 @@ long scoutlink_indexing(void)
     return sl.indexing && sl.session > 0 ? (sl.queue > 0 ? sl.queue : 0) : -1;
 }
 
+int scoutlink_activity(EditorApp *app)
+{
+    ScoutRequest *rq;
+    if (!app->settings.scout) return SCOUT_ACT_OFF;
+    if (sl.state == SL_FAILED) return SCOUT_ACT_FAILED;
+    if (sl.state == SL_STARTING || sl.opening || sl.want_open || sl.indexing) return SCOUT_ACT_BUSY;
+    for (rq = sl.requests; rq != NULL; rq = rq->next)
+        if (rq->kind == RQ_ANALYZE) return SCOUT_ACT_BUSY;
+    return sl.state == SL_READY ? SCOUT_ACT_IDLE : SCOUT_ACT_OFF;
+}
+
 int scoutlink_unavailable(EditorApp *app)
 {
     if (!app->settings.scout) return 1;

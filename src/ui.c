@@ -248,6 +248,7 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_SAVE_AS)},
     {NM_ITEM, NULL, "W", 0, 0, UD(MID_CLOSE)},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_CLOSE_ALL)},
+    {NM_ITEM, NULL, NULL, 0, 0, UD(MID_CLOSE_PROJECT)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_SHELL)},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_PROJECT_SETTINGS)},
@@ -328,6 +329,7 @@ static const LONG menu_texts[] = {
     MSG_MENU_SAVEAS,
     MSG_MENU_CLOSE,
     MSG_MENU_CLOSEALL,
+    MSG_MENU_CLOSEPROJECT,
     -1,
     MSG_MENU_SHELL,
     MSG_MENU_PROJSETTINGS,
@@ -588,7 +590,7 @@ void ui_update_status(EditorApp *app)
         /* the problem of the cursor's line */
         if ((d = diag_at_line(app->active, (long)y + 1)) != NULL) {
             size_t n = strlen(status_text);
-            snprintf(status_text + n, sizeof(status_text) - n, " - %s", d->message);
+            snprintf(status_text + n, sizeof(status_text) - n, " \xB7 %s", d->message);   /* a middle dot (ISO-8859-1) */
         }
     } else {
         snprintf(status_text, sizeof(status_text),
@@ -615,6 +617,7 @@ void ui_update_status(EditorApp *app)
         if (secs < status_message_until) strcpy(status_text, status_message);
         else status_message_until = 0;
     }
+    statuslamp_update(app);
     if (app->statusbar == NULL) return;
     /* Called on every tick: only redraw the status line when it changed. */
     if (strcmp(status_text, shown_text) == 0) return;
@@ -819,13 +822,19 @@ int ui_create(EditorApp *app)
         BUTTON_Justification, BCJ_LEFT,
         TAG_END);
     if (app->statusbar == NULL) return 0;
+    if ((app->statuslamp = statuslamp_new(app)) == NULL) return 0;
     app->layout = NewObject(LAYOUT_GetClass(), NULL,
         LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
         LAYOUT_AddChild, (ULONG)app->toolbar,
         CHILD_WeightedHeight, 0,
         LAYOUT_AddChild, (ULONG)app->content_layout,
         CHILD_WeightedHeight, 100,
-        LAYOUT_AddChild, (ULONG)app->statusbar,
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+            LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+            LAYOUT_AddChild, (ULONG)app->statusbar,
+            LAYOUT_AddChild, (ULONG)app->statuslamp,
+            CHILD_WeightedWidth, 0,
+            TAG_END),
         CHILD_WeightedHeight, 0,
         TAG_END);
     if (app->layout == NULL) return 0;
@@ -1240,6 +1249,7 @@ static void menu_action(EditorApp *app, ULONG id)
             break;
         case MID_CLOSE: document_close(app, app->active, 1); break;
         case MID_CLOSE_ALL: document_close_all(app); break;
+        case MID_CLOSE_PROJECT: tree_close_project(app); break;
         case MID_ABOUT: ui_about(app); break;
         case MID_HELP: help_open(app); break;
         case MID_SHELL: shell_open(app); break;
@@ -1571,6 +1581,7 @@ void ui_destroy(EditorApp *app)
     else if (app->layout != NULL) DisposeObject(app->layout);
     else {
         if (app->statusbar != NULL) DisposeObject(app->statusbar);
+        if (app->statuslamp != NULL) DisposeObject(app->statuslamp);
         if (app->toolbar != NULL) DisposeObject(app->toolbar);
         if (app->content_layout != NULL) DisposeObject(app->content_layout);
         else {
@@ -1592,6 +1603,7 @@ void ui_destroy(EditorApp *app)
     close_image_free_class();
     tmplsym_free_class();
     close_editor_colors(app);
+    statuslamp_cleanup(app);
     diag_close(app);
     if (app->screen != NULL) UnlockPubScreen(NULL, app->screen);
     if (app->app_port != NULL) {        /* after the window that used it */
@@ -1601,7 +1613,7 @@ void ui_destroy(EditorApp *app)
         app->app_port = NULL;
     }
     app->window_object = app->layout = app->toolbar = app->content_layout = NULL;
-    app->statusbar = NULL;
+    app->statusbar = app->statuslamp = NULL;
     app->minimap = NULL;
     app->tree = app->tabs = app->pages = NULL;
     app->window = NULL; app->screen = NULL;

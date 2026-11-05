@@ -114,7 +114,7 @@ static struct {
     ULONG disabled;                 /**< TOOLBIT() of the ghosted buttons */
     ULONG of_visible;               /**< SPEEDBAR_Visible of the overflow list */
     ULONG of_disabled;              /**< ghosted buttons of the overflow list */
-    struct HintInfo hints[NUMTOOLS + 2];
+    struct HintInfo hints[NUMTOOLS + 3];
 } tb;
 
 /**
@@ -335,6 +335,13 @@ int toolbar_create(EditorApp *app)
     tb.hints[i].hi_GadgetID = GID_OVERFLOW;
     tb.hints[i].hi_Code = -1;
     tb.hints[i].hi_Text = (STRPTR)S(MSG_TB_MORE);
+    tb.hints[i].hi_Flags = 0;
+    ++i;
+    /* not the toolbar's, but the window has one list: Scout's lamp, its
+     * text kept up to date by statuslamp.c */
+    tb.hints[i].hi_GadgetID = GID_STATUSLAMP;
+    tb.hints[i].hi_Code = -1;
+    tb.hints[i].hi_Text = (STRPTR)statuslamp_hint();
     tb.hints[i].hi_Flags = 0;
     ++i;
     tb.hints[i].hi_GadgetID = -1;

@@ -35,6 +35,7 @@ struct Library *MinimapBase = NULL;
 struct Library *ScrollerBase = NULL;
 struct Library *SpeedBarBase = NULL;
 struct Library *LabelBase = NULL;
+struct Library *SpaceBase = NULL;
 /* Optional: without it the toolbar has no overflow list. */
 struct Library *ChooserBase = NULL;
 /* Opened when a font is needed: title of splash/About, small toolbar font. */
@@ -158,6 +159,7 @@ int app_open_classes(void)
            open_one(&ScrollerBase, "gadgets/scroller.gadget", 47) &&
            open_one(&SpeedBarBase, "gadgets/speedbar.gadget", 47) &&
            open_one(&LabelBase, "images/label.image", 47) &&
+           open_one(&SpaceBase, "gadgets/space.gadget", 47) &&
            (ChooserBase = OpenLibrary("gadgets/chooser.gadget", 47), 1) &&
            open_class(&DirTreeBase, "dirtree.gadget", DIRTREE_VERSION) &&
            open_class(&MinimapBase, "minimap.gadget", MINIMAP_VERSION) &&
@@ -176,7 +178,7 @@ void app_close_libraries(void)
     prefs_cleanup();
     locale_close();
     CLOSE_BASE(TextFieldBase); CLOSE_BASE(ClickTabBase); CLOSE_BASE(DirTreeBase); CLOSE_BASE(MinimapBase);
-    CLOSE_BASE(ScrollerBase); CLOSE_BASE(SpeedBarBase); CLOSE_BASE(LabelBase);
+    CLOSE_BASE(ScrollerBase); CLOSE_BASE(SpeedBarBase); CLOSE_BASE(LabelBase); CLOSE_BASE(SpaceBase);
     CLOSE_BASE(ChooserBase); CLOSE_BASE(BitMapBase);
     CLOSE_BASE(ButtonBase); CLOSE_BASE(LayoutBase);
     CLOSE_BASE(WindowBase); CLOSE_BASE(IconBase); CLOSE_BASE(GadToolsBase);

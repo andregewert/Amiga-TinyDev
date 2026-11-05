@@ -70,6 +70,7 @@ enum GadgetId {
     GID_MINIMAP = 5,    /**< minimap.gadget */
     GID_TOOLBAR = 6,    /**< speedbar; the GADGETUP code is the MID_ of the button */
     GID_OVERFLOW = 7,   /**< chooser with the buttons that do not fit */
+    GID_STATUSLAMP = 8, /**< Scout's lamp right of the status line */
     GID_LAST            /**< first free ID */
 };
 
@@ -187,6 +188,7 @@ enum MenuId {
     MID_CLOSE_ALL,      /**< Project/Close All Files */
     MID_NEW_PROJECT,    /**< Project/New Project...: the wizard of Sprout's templates */
     MID_NEW_FROM_TEMPLATE, /**< Project/New File from Template...: the wizard of file templates */
+    MID_CLOSE_PROJECT,  /**< Project/Close Project: all files and the folder tree's root */
     /* the File Type entries stay last: menu_action() takes the IDs from
      * MID_FT_AUTO on as file types */
     MID_FT_AUTO,        /**< File Type/Automatic: the language Scout detects */
@@ -305,6 +307,7 @@ typedef struct EditorApp {
     Object *tabs;               /**< clicktab.gadget of the documents */
     Object *pages;              /**< page.gadget with a page per document */
     Object *statusbar;          /**< status line (read-only button) */
+    Object *statuslamp;         /**< Scout's lamp right of it (statuslamp.c) */
     Object *minimap;            /**< minimap.gadget */
     Object *minimap_editor;     /**< editor connected to the minimap */
     struct Window *window;      /**< the open main window, NULL when closed */
@@ -367,6 +370,7 @@ extern struct Library *MinimapBase;     /**< minimap.gadget */
 extern struct Library *ScrollerBase;    /**< scroller.gadget */
 extern struct Library *SpeedBarBase;    /**< speedbar.gadget */
 extern struct Library *LabelBase;       /**< label.image */
+extern struct Library *SpaceBase;       /**< space.gadget (completion details, Scout's lamp) */
 extern struct Library *ChooserBase;     /**< chooser.gadget (may be NULL) */
 extern struct Library *DiskfontBase;    /**< diskfont.library (may be NULL) */
 /** @} */
@@ -1202,8 +1206,9 @@ void bookmarks_refresh(EditorApp *app, Document *doc);
  */
 void bookmarks_poll(EditorApp *app);
 /**
- * @brief A directory was opened in the folder tree: save the bookmarks of
- *        the previous project and read those of the new one.
+ * @brief A directory was opened in the folder tree, or the project was
+ *        closed: save the bookmarks of the previous project and read those
+ *        of the new one (if any).
  * @param app The application state.
  */
 void bookmarks_project_opened(EditorApp *app);
@@ -1639,7 +1644,9 @@ void find_show(EditorApp *app);
 /**
  * @brief Prompt the user for a directory and load it into the tree.
  *
- * Opens an ASL drawers-only file requester, combines the chosen drawer and
+ * Opens an ASL drawers-only file requester (starting in the drawer holding
+ * the current project, or without one in the drawer of the setting
+ * PROJECTDIR), combines the chosen drawer and
  * optional file component into a full path, and loads that directory. Reports
  * an error if the requester cannot be allocated or the combined path is too
  * long. The requester is always freed before returning.
@@ -1675,6 +1682,18 @@ int tree_project_root(EditorApp *app, char *out, LONG size);
  * @return Non-zero if it is the project now.
  */
 int tree_open_project(EditorApp *app, const char *path);
+/**
+ * @brief Close the project: all documents (each changed one asked about)
+ *        and then the folder tree's root.
+ *
+ * The bookmarks of the project are saved and Scout's session is closed,
+ * as when another project is opened. Without a project it only closes the
+ * documents.
+ *
+ * @param app The application state.
+ * @return Non-zero if everything was closed, 0 if the user kept a document.
+ */
+int tree_close_project(EditorApp *app);
 /**
  * @brief Return the signal mask of the folder tree's directory
  *        notifications (0 if it does not watch).
@@ -1848,6 +1867,45 @@ long scoutlink_indexing(void);
  *         not reachable.
  */
 int scoutlink_unavailable(EditorApp *app);
+
+/** What Scout does, for the lamp of the status line. */
+enum {
+    SCOUT_ACT_OFF = 0,  /**< switched off in the settings */
+    SCOUT_ACT_IDLE,     /**< ready, nothing to do */
+    SCOUT_ACT_BUSY,     /**< starting, opening the session, indexing or analysing */
+    SCOUT_ACT_FAILED    /**< could not be started */
+};
+/**
+ * @brief Tell what Scout does now.
+ * @param app The application state.
+ * @return A SCOUT_ACT_ value.
+ */
+int scoutlink_activity(EditorApp *app);
+
+/**
+ * @brief Make the lamp of the status line (statuslamp.c) and get its pens.
+ * @param app The application state (its screen is locked).
+ * @return The gadget for the window's layout (which owns it), or NULL.
+ */
+Object *statuslamp_new(EditorApp *app);
+/**
+ * @brief Show Scout's state in the lamp; draws it again only when it
+ *        changed. Called with the status line on every wake-up.
+ * @param app The application state.
+ */
+void statuslamp_update(EditorApp *app);
+/**
+ * @brief The text of the lamp's help bubble (Scout's state, the jobs
+ *        waiting); kept up to date by statuslamp_update().
+ * @return The text (static).
+ */
+const char *statuslamp_hint(void);
+/**
+ * @brief Release the lamp's pens and forget the gadget (after the window
+ *        and its layout were disposed).
+ * @param app The application state.
+ */
+void statuslamp_cleanup(EditorApp *app);
 
 /**
  * @brief Open the symbol list, a tool window (or bring it to the front).

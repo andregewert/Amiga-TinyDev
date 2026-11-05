@@ -107,6 +107,9 @@ below the tree's root.
 - `src/symlist.c`: the symbol list, a tool window (View/Symbol List):
   the symbols of the active document or of the project from Scout
   (through `scoutlink.c`), filter, Go to (`document_go_to()`).
+- `src/statuslamp.c`: the lamp right of the status line (a space.gadget
+  with a render hook): Scout's state from `scoutlink_activity()` as a
+  traffic light (green ready, yellow working, red failed, empty off).
 - `src/diag.c`: the diagnostics of the documents from Scout: the list per
   document and the marks in the editor's left bar (drawn by the left bar
   hook of `bookmarks.c`; a fixed array changed under `Forbid()`).

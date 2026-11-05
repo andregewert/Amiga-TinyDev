@@ -348,10 +348,11 @@ Scout:
 | Command | Template | Result |
 |---|---|---|
 | `STATUS` | `SESSION/K/N` | `{"version":"1.0","protocol":1,"enabled":true,"scanning":false,"tempdir":"T:","sessions":2,"queue":0,"walks":0,"lowMemory":false,"changes":12,"parsers":[...],"problems":[...]}` (`changes` only with `SESSION`) |
+| `SHOW` | | `{}`; opens Scout's window, as Exchange's Show does |
 | `QUIT` | | `{}`; Scout ends after replying to waiting messages |
 
 Exchange enables and disables Scout and removes it. While disabled,
-commands fail with `RC2` 5 except `STATUS` and `QUIT`.
+commands fail with `RC2` 5 except `STATUS`, `SHOW` and `QUIT`.
 
 Show (or the hotkey `CX_POPKEY`, or `CX_POPUP=YES` at the start, or
 starting Scout a second time) opens Scout's window; Hide or its close

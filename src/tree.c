@@ -120,9 +120,20 @@ int tree_request_directory(EditorApp *app)
         ASLFR_TitleText, (ULONG)S(MSG_ASL_DIR),
         ASLFR_DrawersOnly, TRUE, TAG_END);
     char path[EDITOR_PATH_MAX]; int result = 0;
+    /* start in the drawer holding the current project, so a neighbour is
+     * one click away; without a project in the drawer of the projects
+     * (PROJECTDIR) */
+    const char *start = app->settings.projectdir;
     if (fr == NULL) { ui_error(app, APP_NAME, S(MSG_ERR_DIRREQ)); return 0; }
+    if (tree_project_root(app, path, sizeof(path))) {
+        *PathPart((STRPTR)path) = '\0';   /* a volume's root stays itself */
+        start = path;
+    }
+    if (start[0] == '\0') start = NULL;
     if (AslRequestTags(fr, ASLFR_Window, (ULONG)app->window,
-                       ASLFR_SleepWindow, TRUE, TAG_END)) {
+                       ASLFR_SleepWindow, TRUE,
+                       start != NULL ? ASLFR_InitialDrawer : TAG_IGNORE, (ULONG)start,
+                       TAG_END)) {
         strncpy(path, fr->fr_Drawer, sizeof(path) - 1); path[sizeof(path) - 1] = '\0';
         if (fr->fr_File[0] != '\0' && !AddPart(path, fr->fr_File, sizeof(path)))
             ui_error(app, S(MSG_OPENDIR_FAILED), S(MSG_ERR_PATHTOOLONG));
@@ -138,6 +149,19 @@ int tree_open_project(EditorApp *app, const char *path)
 {
     if (same_project(app, path)) return 1;
     return document_close_all(app) && load_directory(app, path);
+}
+
+int tree_close_project(EditorApp *app)
+{
+    char root[EDITOR_PATH_MAX];
+    if (!document_close_all(app)) return 0;
+    if (app->tree == NULL || !tree_project_root(app, root, sizeof(root))) return 1;
+    SetGadgetAttrs((struct Gadget *)app->tree, app->window, NULL,
+                   DIRTREE_Root, (ULONG)NULL, TAG_END);
+    ui_relayout(app);
+    bookmarks_project_opened(app);      /* saves those of the project */
+    scoutlink_project_opened(app);      /* closes the session */
+    return 1;
 }
 
 void tree_handle_event(EditorApp *app)

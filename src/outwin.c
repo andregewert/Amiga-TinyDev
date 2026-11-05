@@ -10,6 +10,9 @@
  * an unfinished line waits for its end; CRs and the escape sequences of
  * console output (colours) are dropped.
  *
+ * The mouse wheel scrolls the list: its rawkey codes are handled here, as
+ * listbrowser.gadget only gets them while it is the active gadget.
+ *
  * Below the list a status line tells what runs or how it ended, beside it
  * Stop ends the build (build_stop()). The window opens below the main
  * window, as wide as it (toolwin.c); its box is kept for the session and
@@ -23,6 +26,7 @@
 #include <gadgets/button.h>
 #include <gadgets/listbrowser.h>
 #include <images/bevel.h>
+#include <libraries/keymap.h>
 
 #include <proto/exec.h>
 #include <proto/intuition.h>
@@ -41,6 +45,7 @@ enum { OG_LIST = 500, OG_STATUS, OG_STOP, OG_CLEAR };
 
 #define MIN_WIDTH 200               /**< smallest width of the window */
 #define MIN_HEIGHT 80               /**< smallest height of the window */
+#define WHEEL_ROWS 3                /**< rows the list moves per step of the mouse wheel */
 #define OUT_MAX_LINES 2000          /**< lines kept */
 #define OUT_LINE_MAX 512            /**< longest line kept (longer ones are cut) */
 
@@ -224,6 +229,7 @@ void outwin_open(EditorApp *app)
         WA_Width, (ULONG)box[2], WA_Height, (ULONG)box[3],
         WA_DepthGadget, TRUE, WA_DragBar, TRUE, WA_CloseGadget, TRUE, WA_SizeGadget, TRUE,
         WA_Activate, FALSE,
+        WA_IDCMP, IDCMP_RAWKEY,
         WINDOW_ParentGroup, (ULONG)(ow.root = NewObject(LAYOUT_GetClass(), NULL,
             LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
             LAYOUT_SpaceOuter, TRUE,
@@ -292,6 +298,16 @@ void outwin_handle(EditorApp *app)
             outwin_close(app);
             ui_set_menu_check(app, MID_OUTPUT, 0);
             return;
+        case WMHI_RAWKEY:
+            if ((result & WMHI_KEYMASK) == RAWKEY_WHEEL_UP || (result & WMHI_KEYMASK) == RAWKEY_WHEEL_DOWN) {
+                ULONG top = 0;
+                LONG t;
+                GetAttr(LISTBROWSER_Top, ow.list, &top);
+                t = (LONG)top + ((result & WMHI_KEYMASK) == RAWKEY_WHEEL_UP ? -WHEEL_ROWS : WHEEL_ROWS);
+                if (t < 0) t = 0;
+                SetGadgetAttrs((struct Gadget *)ow.list, ow.win, NULL, LISTBROWSER_Top, (ULONG)t, TAG_END);
+            }
+            break;
         case WMHI_GADGETUP:
             switch (result & WMHI_GADGETMASK) {
             case OG_STOP: build_stop(app); break;

@@ -10,13 +10,19 @@
  * and the width of the text before the cursor: texteditor.gadget does not
  * tell where its cursor is drawn, so it may be a little off) and takes
  * the keyboard:
- * - Up and Down choose, Return or Tab put the chosen name in place of the
+ * - Up and Down choose, the mouse wheel scrolls (its rawkey codes are
+ *   handled here, as listbrowser.gadget only gets them while it is the
+ *   active gadget), Return or Tab put the chosen name in place of the
  *   prefix (GM_TEXTEDITOR_MarkText and Replace), Esc closes;
  * - characters of a name go into the editor and narrow the list, Backspace
  *   takes the last one back; any other character goes into the editor and
  *   closes the list, as does a click elsewhere.
  * The first column shows the kind as a coloured letter, like the symbol
- * list (K for a keyword). After Scout's names come the other words of the
+ * list (K for a keyword); the name column is as wide as the longest name
+ * shown, at most half the list. As the window stays small, the declarations
+ * are cut off in the list: the field below it shows the chosen one whole,
+ * wrapped by the width of the font into DETAIL_LINES lines (the last one
+ * ends in "..." if that is not enough). After Scout's names come the other words of the
  * document that start with the prefix (W; not those in comments and
  * strings, found with the document's highlighter): so a name Scout cannot know,
  * such as a function of a system header the project does not index
@@ -30,8 +36,11 @@
 #include <classes/window.h>
 #include <gadgets/layout.h>
 #include <gadgets/listbrowser.h>
+#include <gadgets/space.h>
+#include <images/bevel.h>
 #include <gadgets/texteditor.h>
 #include <libraries/gadtools.h>
+#include <libraries/keymap.h>
 #include <exec/memory.h>
 
 #include <proto/exec.h>
@@ -40,6 +49,7 @@
 #include <proto/window.h>
 #include <proto/layout.h>
 #include <proto/listbrowser.h>
+#include <proto/space.h>
 #include <proto/utility.h>
 #include <clib/alib_protos.h>
 
@@ -57,11 +67,22 @@ extern struct Library *ListBrowserBase;     /* shared with the settings window *
 #define ROWS 8
 /** Width of the window (pixels). */
 #define WIN_WIDTH 280
+/** Lines of the field below the list that shows the chosen declaration. */
+#define DETAIL_LINES 3
+/** Longest line of that field (bytes). */
+#define DETAIL_MAX 160
+/** Indentation of its continued lines. */
+#define DETAIL_INDENT "    "
+/** Share of the list (percent) the name column takes at least and at most. */
+#define NAME_MIN_PCT 20
+#define NAME_MAX_PCT 50         /**< at most */
 /** Width of the left bar of the editor (bookmarks.c). */
 #define LEFTBAR_WIDTH 20
 /** Rawkey codes of the cursor keys. */
 #define KEY_UP 0x4C
 #define KEY_DOWN 0x4D           /**< Down */
+/** Rows the list moves per step of the mouse wheel. */
+#define WHEEL_ROWS 3
 
 /** A name of the list. */
 typedef struct CompItem {
@@ -76,6 +97,10 @@ typedef struct CompItem {
 /** The state of the list. */
 static struct {
     Object *winobj, *list;
+    Object *detail;                 /* space.gadget drawing the chosen declaration */
+    struct Hook detail_hook;        /* its render hook */
+    char detail_text[DETAIL_LINES][DETAIL_MAX];
+    WORD line_height;               /* of the field's lines */
     struct Window *win;
     struct List nodes;              /* LBNA_UserData: index in items */
     struct ColumnInfo *columns;
@@ -217,12 +242,168 @@ static void close_list(EditorApp *app)
         cp.winobj = NULL;
         cp.win = NULL;
         cp.list = NULL;
+        cp.detail = NULL;
     }
     free_all();
     if (app->window != NULL) {
         ActivateWindow(app->window);
         app->focus_editor = 1;          /* when the window is active */
     }
+}
+
+/**
+ * @brief Take as many bytes of a text as fit into a width, breaking after
+ *        a space where one is.
+ * @param rp The rastport (its font measures).
+ * @param s The text.
+ * @param len Its length.
+ * @param width The width in pixels.
+ * @param[out] next Where the rest starts (spaces skipped).
+ * @return The number of bytes of the line.
+ */
+static long fit_line(struct RastPort *rp, const char *s, long len, WORD width, long *next)
+{
+    struct TextExtent te;
+    long n, k;
+    if (width <= 0) { *next = len; return 0; }
+    n = (long)TextFit(rp, (STRPTR)s, (UWORD)(len > 0xFFFF ? 0xFFFF : len), &te, NULL, 1,
+                      (UWORD)width, (UWORD)(rp->TxHeight + 1));
+    if (n >= len) { *next = len; return len; }
+    for (k = n; k > 0 && s[k] != ' '; --k) ;
+    if (k > 0) n = k;                   /* after the last word that fits */
+    else if (n == 0) n = 1;             /* not even one character: go on anyway */
+    *next = n;
+    while (*next < len && s[*next] == ' ') ++*next;
+    return n;
+}
+
+/**
+ * @brief Show the chosen name's declaration (or the name) whole in the
+ *        field below the list, wrapped into its lines.
+ */
+static void show_detail(void)
+{
+    struct Node *node;
+    struct RastPort *rp;
+    char text[512];
+    const char *src = "";
+    ULONG index = 0;
+    long len, pos = 0, i, n, next;
+    int line;
+    WORD width, indent, dots;
+    if (cp.win == NULL || cp.list == NULL || cp.detail == NULL) return;
+    node = (struct Node *)get(cp.list, LISTBROWSER_SelectedNode);
+    rp = cp.win->RPort;
+    width = (WORD)(((struct Gadget *)cp.detail)->Width - 4);
+    indent = (WORD)TextLength(rp, (STRPTR)DETAIL_INDENT, sizeof(DETAIL_INDENT) - 1);
+    dots = (WORD)TextLength(rp, (STRPTR)"...", 3);
+    if (node != NULL) {
+        GetListBrowserNodeAttrs(node, LBNA_UserData, (ULONG)&index, TAG_END);
+        if ((long)index < cp.count)
+            src = cp.items[index].detail != NULL && cp.items[index].detail[0] != '\0' ?
+                  cp.items[index].detail : cp.items[index].label;
+    }
+    /* one line of single spaces */
+    for (len = 0; *src != '\0' && len < (long)sizeof(text) - 1; ++src) {
+        char c = *src;
+        if ((unsigned char)c < ' ') c = ' ';
+        if (c == ' ' && (len == 0 || text[len - 1] == ' ')) continue;
+        text[len++] = c;
+    }
+    while (len > 0 && text[len - 1] == ' ') --len;
+    for (line = 0; line < DETAIL_LINES; ++line) {
+        char *out = cp.detail_text[line];
+        long o = 0;
+        WORD w = width;
+        if (line > 0 && pos < len) {
+            strcpy(out, DETAIL_INDENT);
+            o = (long)sizeof(DETAIL_INDENT) - 1;
+            w = (WORD)(w - indent);
+        }
+        n = fit_line(rp, text + pos, len - pos, w, &next);
+        if (line == DETAIL_LINES - 1 && pos + next < len) {
+            /* the last line and still more: cut it, with "..." */
+            n = fit_line(rp, text + pos, len - pos, (WORD)(w - dots), &next);
+            while (n > 0 && text[pos + n - 1] == ' ') --n;
+            if (n > DETAIL_MAX - o - 4) n = DETAIL_MAX - o - 4;
+            for (i = 0; i < n; ++i) out[o++] = text[pos + i];
+            strcpy(out + o, "...");
+        } else {
+            if (n > DETAIL_MAX - o - 1) n = DETAIL_MAX - o - 1;
+            for (i = 0; i < n; ++i) out[o++] = text[pos + i];
+            out[o] = '\0';
+        }
+        pos += next;
+    }
+    RefreshGList((struct Gadget *)cp.detail, cp.win, NULL, 1);
+}
+
+/**
+ * @brief Render hook of the field below the list: its lines, as close as
+ *        the font allows. Graphics only, it may run during input handling.
+ *
+ * It clears the field first: space.gadget 47 leaves the old lines when
+ * called again (despite SPACE_Transparent defaulting to FALSE).
+ * @param hook The hook.
+ * @param obj The space.gadget.
+ * @param msg The render message.
+ * @return 0.
+ */
+static ULONG render_detail(struct Hook *hook, Object *obj, struct gpRender *msg)
+{
+    struct RastPort *rp = msg->gpr_RPort;
+    struct IBox *box = NULL;
+    UWORD pen = 1;
+    WORD y;
+    int line;
+    (void)hook;
+    if (rp == NULL) return 0;
+    GetAttr(SPACE_AreaBox, obj, (ULONG *)&box);
+    if (box == NULL || box->Width <= 0 || box->Height <= 0) return 0;
+    /* the window's background (its backfill hook), as around the field */
+    EraseRect(rp, box->Left, box->Top, (WORD)(box->Left + box->Width - 1),
+              (WORD)(box->Top + box->Height - 1));
+    if (msg->gpr_GInfo != NULL && msg->gpr_GInfo->gi_DrInfo != NULL)
+        pen = msg->gpr_GInfo->gi_DrInfo->dri_Pens[TEXTPEN];
+    SetAPen(rp, (UBYTE)pen);
+    SetDrMd(rp, JAM1);
+    y = (WORD)(box->Top + 1);
+    for (line = 0; line < DETAIL_LINES && y + rp->TxHeight <= box->Top + box->Height; ++line) {
+        const char *t = cp.detail_text[line];
+        Move(rp, (WORD)(box->Left + 2), (WORD)(y + rp->TxBaseline));
+        Text(rp, (STRPTR)t, (UWORD)strlen(t));
+        y = (WORD)(y + cp.line_height);
+    }
+    return 0;
+}
+
+/**
+ * @brief Make the name column as wide as the longest name shown (between
+ *        NAME_MIN_PCT and NAME_MAX_PCT of the list); the declarations get
+ *        the rest. Only while the list is detached from its labels.
+ */
+static void size_columns(void)
+{
+    struct RastPort *rp = cp.win->RPort;
+    struct Node *node;
+    WORD list_width = (WORD)(((struct Gadget *)cp.list)->Width - 20);     /* without the scroller */
+    long widest = 0, w, kind_pct, name_pct;
+    ULONG index;
+    if (list_width < 40) return;
+    for (node = cp.nodes.lh_Head; node->ln_Succ != NULL; node = node->ln_Succ) {
+        index = 0;
+        GetListBrowserNodeAttrs(node, LBNA_UserData, (ULONG)&index, TAG_END);
+        if ((long)index >= cp.count) continue;
+        w = TextLength(rp, (STRPTR)cp.items[index].label, (UWORD)strlen(cp.items[index].label));
+        if (w > widest) widest = w;
+    }
+    kind_pct = (cp.row_height + 6) * 100L / list_width;
+    name_pct = (widest + 8) * 100L / list_width + 1;
+    if (name_pct < NAME_MIN_PCT) name_pct = NAME_MIN_PCT;
+    if (name_pct > NAME_MAX_PCT) name_pct = NAME_MAX_PCT;
+    SetLBColumnInfoAttrs(cp.columns, LBCIA_Column, 0, LBCIA_Weight, (ULONG)kind_pct,
+                         LBCIA_Column, 1, LBCIA_Weight, (ULONG)name_pct,
+                         LBCIA_Column, 2, LBCIA_Weight, (ULONG)(100 - kind_pct - name_pct), TAG_END);
 }
 
 /**
@@ -250,9 +431,14 @@ static long rebuild(void)
             ++shown;
         }
     }
-    if (cp.list != NULL && cp.win != NULL)
-        SetGadgetAttrs((struct Gadget *)cp.list, cp.win, NULL, LISTBROWSER_Labels, (ULONG)&cp.nodes,
+    if (cp.list != NULL && cp.win != NULL) {
+        /* the column info set again, so the list takes the new widths */
+        size_columns();
+        SetGadgetAttrs((struct Gadget *)cp.list, cp.win, NULL, LISTBROWSER_ColumnInfo, (ULONG)cp.columns,
+                       LISTBROWSER_Labels, (ULONG)&cp.nodes,
                        LISTBROWSER_Selected, 0, LISTBROWSER_MakeVisible, 0, TAG_END);
+        show_detail();
+    }
     return shown;
 }
 
@@ -294,6 +480,7 @@ static void cursor_box(EditorApp *app, Document *doc, WORD *x, WORD *y)
 static int open_list(EditorApp *app, Document *doc)
 {
     WORD x, y, height;
+    int i;
     if (ListBrowserBase == NULL &&
         (ListBrowserBase = OpenLibrary((STRPTR)"gadgets/listbrowser.gadget", 44)) == NULL)
         return 0;
@@ -305,7 +492,8 @@ static int open_list(EditorApp *app, Document *doc)
     cp.render_hook.h_Entry = (ULONG (*)())HookEntry;
     cp.render_hook.h_SubEntry = (ULONG (*)())render_kind;
     cp.row_height = (WORD)((app->screen->Font != NULL ? app->screen->Font->ta_YSize : 8) + 2);
-    height = (WORD)(ROWS * cp.row_height + 8);
+    cp.line_height = (WORD)(cp.row_height - 1);
+    height = (WORD)(ROWS * cp.row_height + 8 + 2 + DETAIL_LINES * cp.line_height + 4);
     cursor_box(app, doc, &x, &y);
     /* in the screen; above the line if there is no room below */
     if (x + WIN_WIDTH > app->screen->Width) x = (WORD)(app->screen->Width - WIN_WIDTH);
@@ -315,6 +503,21 @@ static int open_list(EditorApp *app, Document *doc)
     cp.list = NewObject(LISTBROWSER_GetClass(), NULL, GA_RelVerify, TRUE,
         LISTBROWSER_Labels, (ULONG)&cp.nodes, LISTBROWSER_ColumnInfo, (ULONG)cp.columns,
         LISTBROWSER_ShowSelected, TRUE, LISTBROWSER_Selected, 0, TAG_END);
+    /* the field below the list: space.gadget, drawn by render_detail()
+     * (button.gadget lines would be taller than the font: they keep a
+     * margin above and below their text, whatever the layout allows) */
+    for (i = 0; i < DETAIL_LINES; ++i) cp.detail_text[i][0] = '\0';
+    cp.detail_hook.h_Entry = (ULONG (*)())HookEntry;
+    cp.detail_hook.h_SubEntry = (ULONG (*)())render_detail;
+    cp.detail = NewObject(SPACE_GetClass(), NULL,
+        SPACE_MinHeight, (ULONG)(DETAIL_LINES * cp.line_height + 2),
+        SPACE_RenderHook, (ULONG)&cp.detail_hook, TAG_END);
+    if (cp.list == NULL || cp.detail == NULL) {
+        if (cp.list != NULL) DisposeObject(cp.list);
+        if (cp.detail != NULL) DisposeObject(cp.detail);
+        cp.list = cp.detail = NULL;
+        return 0;
+    }
     cp.winobj = NewObject(WINDOW_GetClass(), NULL,
         WA_PubScreen, (ULONG)app->screen,
         WA_Left, (ULONG)x, WA_Top, (ULONG)y, WA_Width, WIN_WIDTH, WA_Height, (ULONG)height,
@@ -323,13 +526,17 @@ static int open_list(EditorApp *app, Document *doc)
         WINDOW_ParentGroup, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
             LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
             LAYOUT_BevelStyle, BVS_BUTTON,
+            LAYOUT_InnerSpacing, 2,
             LAYOUT_AddChild, (ULONG)cp.list,
+            LAYOUT_AddChild, (ULONG)cp.detail,
+            CHILD_WeightedHeight, 0,
             TAG_END),
         TAG_END);
+    /* the window disposes the layout with its children */
     if (cp.winobj == NULL || (cp.win = (struct Window *)DoMethod(cp.winobj, WM_OPEN, NULL)) == NULL) {
         if (cp.winobj != NULL) DisposeObject(cp.winobj);
         cp.winobj = NULL;
-        cp.list = NULL;
+        cp.list = cp.detail = NULL;
         return 0;
     }
     rebuild();
@@ -570,6 +777,7 @@ static void move_selection(int delta)
     if (sel < 0) return;
     SetGadgetAttrs((struct Gadget *)cp.list, cp.win, NULL, LISTBROWSER_Selected, (ULONG)sel,
                    LISTBROWSER_MakeVisible, (ULONG)sel, TAG_END);
+    show_detail();
 }
 
 void complete_handle(EditorApp *app)
@@ -588,10 +796,19 @@ void complete_handle(EditorApp *app)
                 insert_selected(app);
                 return;
             }
+            show_detail();              /* a click chose another row */
             break;
         case WMHI_RAWKEY:
             if ((result & WMHI_KEYMASK) == KEY_UP) move_selection(-1);
             else if ((result & WMHI_KEYMASK) == KEY_DOWN) move_selection(1);
+            else if ((result & WMHI_KEYMASK) == RAWKEY_WHEEL_UP || (result & WMHI_KEYMASK) == RAWKEY_WHEEL_DOWN) {
+                ULONG top = 0;
+                LONG t;
+                GetAttr(LISTBROWSER_Top, cp.list, &top);
+                t = (LONG)top + ((result & WMHI_KEYMASK) == RAWKEY_WHEEL_UP ? -WHEEL_ROWS : WHEEL_ROWS);
+                if (t < 0) t = 0;
+                SetGadgetAttrs((struct Gadget *)cp.list, cp.win, NULL, LISTBROWSER_Top, (ULONG)t, TAG_END);
+            }
             break;
         case WMHI_VANILLAKEY: {
             unsigned char c = (unsigned char)(result & WMHI_KEYMASK);

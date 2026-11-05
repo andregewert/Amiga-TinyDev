@@ -798,6 +798,19 @@ static void cmd_quit(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
     scout_reply(rx, "{}");
 }
 
+/**
+ * @brief SHOW: open Scout's window, as Exchange's Show does.
+ * @param srv The server.
+ * @param rx The message.
+ * @param v The arguments (none).
+ */
+static void cmd_show(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
+{
+    (void)v;
+    scout_window_show(srv);
+    scout_reply(rx, "{}");
+}
+
 /** The commands. */
 static const Command commands[] = {
     { "OPEN",        "PROJECT/A,INCLUDE/M",                              cmd_open,        1 },
@@ -817,6 +830,7 @@ static const Command commands[] = {
     { "REGISTER",    "EXTENSION/A,PARSER/A",                             cmd_register,    1 },
     { "RESCAN",      "",                                                 cmd_rescan,      1 },
     { "STATUS",      "SESSION/K/N",                                      cmd_status,      0 },
+    { "SHOW",        "",                                                 cmd_show,        0 },
     { "QUIT",        "",                                                 cmd_quit,        0 },
     { NULL, NULL, NULL, 0 }
 };
@@ -888,7 +902,7 @@ void scout_rexx_command(ScoutServer *srv, struct RexxMsg *rx, int languages)
         scout_fail(srv, rx, -1, SCOUT_E_ARGS, "unknown command");
         return;
     }
-    if (!srv->enabled && c->run != cmd_status && c->run != cmd_quit) {
+    if (!srv->enabled && c->run != cmd_status && c->run != cmd_show && c->run != cmd_quit) {
         scout_fail(srv, rx, -1, SCOUT_E_PARSER, "Scout is disabled");
         return;
     }

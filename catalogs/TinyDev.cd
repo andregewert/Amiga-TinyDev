@@ -199,10 +199,10 @@ MSG_OK (//)
 OK
 ;
 MSG_STATUS (//)
-Documents: %lu  Lines: %lu
+Documents: %lu · Lines: %lu
 ;
 MSG_STATUS_RECT (//)
-Rectangular selection (Ctrl+left Alt) - %s
+Rectangular selection (Ctrl+left Alt) · %s
 ;
 MSG_UNTITLED (//)
 Untitled %lu
@@ -861,7 +861,7 @@ Debug
 MSG_TBH_DEBUG (//)
 Debug the project (Amiga+D)
 MSG_STATUS_SCOUT (//)
-Documents: %lu  Lines: %lu  Symbols: %ld  Problems: %ld
+Documents: %lu · Lines: %lu · Symbols: %ld · Problems: %ld
 ;
 MSG_CAT_ADVANCED (//)
 Advanced
@@ -1191,10 +1191,10 @@ MSG_ERR_FTPREFS_WRITE (//)
 The file type settings could not be saved\nin TinyDev.json in the drawer of TinyDev.
 ;
 MSG_STATUS_SPACES (//)
-  Indent: %ld spaces
+ · Indent: %ld spaces
 ;
 MSG_STATUS_TABS (//)
-  Indent: tab (%ld)
+ · Indent: tab (%ld)
 ;
 MSG_MENU_CLOSEALL (//)
 Close All Files
@@ -1324,4 +1324,22 @@ E-mail
 ;
 MSG_PREFS_PROJNOTE (//)
 All take effect at once. Project/New Project... suggests\nthe project drawer (if empty, the drawer that holds the\ncurrent project) and fills author and e-mail address into\nthe templates, where they can still be changed.
+;
+MSG_MENU_CLOSEPROJECT (//)
+Close Project
+;
+MSG_LAMP_IDLE (//)
+Scout: ready
+;
+MSG_LAMP_BUSY (//)
+Scout: working
+;
+MSG_LAMP_JOBS (//)
+Scout: %ld jobs waiting
+;
+MSG_LAMP_FAILED (//)
+Scout could not be started
+;
+MSG_LAMP_OFF (//)
+Scout is switched off (settings, Advanced)
 ;

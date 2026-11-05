@@ -260,12 +260,12 @@ OK
 ; OK
 ;
 MSG_STATUS
-Dokumente: %lu  Zeilen: %lu
-; Documents: %lu  Lines: %lu
+Dokumente: %lu · Zeilen: %lu
+; Documents: %lu · Lines: %lu
 ;
 MSG_STATUS_RECT
-Rechteckige Auswahl (Ctrl+linke Alt) - %s
-; Rectangular selection (Ctrl+left Alt) - %s
+Rechteckige Auswahl (Ctrl+linke Alt) · %s
+; Rectangular selection (Ctrl+left Alt) · %s
 ;
 MSG_UNTITLED
 Unbenannt %lu
@@ -1113,8 +1113,8 @@ Projekt debuggen (Amiga+D)
 ; Debug the project (Amiga+D)
 ;
 MSG_STATUS_SCOUT
-Dokumente: %lu  Zeilen: %lu  Symbole: %ld  Probleme: %ld
-; Documents: %lu  Lines: %lu  Symbols: %ld  Problems: %ld
+Dokumente: %lu · Zeilen: %lu · Symbole: %ld · Probleme: %ld
+; Documents: %lu · Lines: %lu · Symbols: %ld · Problems: %ld
 ;
 MSG_CAT_ADVANCED
 Erweitert
@@ -1553,12 +1553,12 @@ Die Dateityp-Einstellungen konnten nicht in TinyDev.json\nin der Schublade von T
 ; The file type settings could not be saved\nin TinyDev.json in the drawer of TinyDev.
 ;
 MSG_STATUS_SPACES
-  Einrückung: %ld Leerzeichen
-;   Indent: %ld spaces
+ · Einrückung: %ld Leerzeichen
+; · Indent: %ld spaces
 ;
 MSG_STATUS_TABS
-  Einrückung: Tab (%ld)
-;   Indent: tab (%ld)
+ · Einrückung: Tab (%ld)
+; · Indent: tab (%ld)
 ;
 MSG_MENU_CLOSEALL
 Alle Dateien schließen
@@ -1731,4 +1731,28 @@ E-Mail
 MSG_PREFS_PROJNOTE
 Alles wirkt sofort. Projekt/Neues Projekt... schlägt das\nProjektverzeichnis vor (wenn leer, das Verzeichnis, in dem\ndas aktuelle Projekt liegt) und trägt Autor und E-Mail-Adresse\nin die Vorlagen ein, wo sie sich noch ändern lassen.
 ; All take effect at once. Project/New Project... suggests\nthe project drawer (if empty, the drawer that holds the\ncurrent project) and fills author and e-mail address into\nthe templates, where they can still be changed.
+;
+MSG_MENU_CLOSEPROJECT
+Projekt schließen
+; Close Project
+;
+MSG_LAMP_IDLE
+Scout: bereit
+; Scout: ready
+;
+MSG_LAMP_BUSY
+Scout: arbeitet
+; Scout: working
+;
+MSG_LAMP_JOBS
+Scout: %ld Aufträge warten
+; Scout: %ld jobs waiting
+;
+MSG_LAMP_FAILED
+Scout ließ sich nicht starten
+; Scout could not be started
+;
+MSG_LAMP_OFF
+Scout ist abgeschaltet (Einstellungen, Erweitert)
+; Scout is switched off (settings, Advanced)
 ;

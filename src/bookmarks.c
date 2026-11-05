@@ -439,13 +439,13 @@ void bookmarks_project_opened(EditorApp *app)
 {
     Document *doc;
     char root[EDITOR_PATH_MAX];
-    if (!tree_project_root(app, root, sizeof(root))) return;
+    if (!tree_project_root(app, root, sizeof(root))) root[0] = '\0';   /* closed */
     if (strcmp(root, pj.root) == 0) return;
     bookmarks_save(app);                /* the previous project */
     bmstore_clear(&pj.store);
     strcpy(pj.root, root);
     pj.keep_file = pj.reported = 0;
-    load_project(app);
+    if (root[0] != '\0') load_project(app);
     ++generation;
     for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ != NULL;
          doc = (Document *)doc->node.ln_Succ)

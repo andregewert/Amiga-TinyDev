@@ -269,7 +269,8 @@ the commands with the sample sources of `tests/data/c_parser/` (it starts
 TinyDev starts Scout (from its own drawer) at its own start, opens a
 session for the project and has the open documents analysed (status
 line, symbol list, problems). Scout notices files of the project that
-change on disk. Its window (Exchange's Show, or its hotkey) shows what
+change on disk. A lamp at the right of the status line shows whether it
+is still working (yellow), done (green) or could not be started (red). Its window (Exchange's Show, or its hotkey) shows what
 it does, its sessions and parsers. Its design, the
 ARexx commands and the protocol for writing parsers are described in
 [src/scout/docs/Scout.md](src/scout/docs/Scout.md) and

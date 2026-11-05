@@ -432,7 +432,13 @@
 #define MSG_PREFS_AUTHOR             427
 #define MSG_PREFS_AUTHORMAIL         428
 #define MSG_PREFS_PROJNOTE           429
-#define MSG_COUNT                    430
+#define MSG_MENU_CLOSEPROJECT        430
+#define MSG_LAMP_IDLE                431
+#define MSG_LAMP_BUSY                432
+#define MSG_LAMP_JOBS                433
+#define MSG_LAMP_FAILED              434
+#define MSG_LAMP_OFF                 435
+#define MSG_COUNT                    436
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -500,8 +506,8 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "The HelpViewer could not be started.\nIt belongs in the drawer of TinyDev,\nthe help pages in its drawer Help.",
     "More buttons",
     "OK",
-    "Documents: %lu  Lines: %lu",
-    "Rectangular selection (Ctrl+left Alt) - %s",
+    "Documents: %lu \267 Lines: %lu",
+    "Rectangular selection (Ctrl+left Alt) \267 %s",
     "Untitled %lu",
     "Unsaved changes",
     "Save changes to %s?",
@@ -712,7 +718,7 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Run the project (Amiga+R)",
     "Debug",
     "Debug the project (Amiga+D)",
-    "Documents: %lu  Lines: %lu  Symbols: %ld  Problems: %ld",
+    "Documents: %lu \267 Lines: %lu \267 Symbols: %ld \267 Problems: %ld",
     "Advanced",
     "Anal_yse sources with Scout",
     "Temporary files ",
@@ -822,8 +828,8 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Shift+Tab always indents, Tab indents a selection.\nAll take effect at once. View/Line Numbers changes\nthe line numbers of the current document only.",
     "TinyDev.json in the drawer of TinyDev could not be read.\nThe built-in file type settings are used,\nand the file is not changed.",
     "The file type settings could not be saved\nin TinyDev.json in the drawer of TinyDev.",
-    "  Indent: %ld spaces",
-    "  Indent: tab (%ld)",
+    " \267 Indent: %ld spaces",
+    " \267 Indent: tab (%ld)",
     "Close All Files",
     "Project _name ",
     "New Project...",
@@ -867,6 +873,12 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Author ",
     "E-mail ",
     "All take effect at once. Project/New Project... suggests\nthe project drawer (if empty, the drawer that holds the\ncurrent project) and fills author and e-mail address into\nthe templates, where they can still be changed.",
+    "Close Project",
+    "Scout: ready",
+    "Scout: working",
+    "Scout: %ld jobs waiting",
+    "Scout could not be started",
+    "Scout is switched off (settings, Advanced)",
 };
 #endif
 
