@@ -1,0 +1,69 @@
+; $VER: test_save.script 1.0 (05.11.2026)
+; Does what TinyDev does when it saves a file, many times over, without
+; TinyDev: if the file system is damaged afterwards, TinyDev is not the
+; cause.
+;
+; Usage: Execute scripts/test_save.script DIR=<drawer> [TIMES=<n>] [SOURCE=<file>]
+;   DIR     a drawer on the drive to test (made if it does not exist);
+;           only the files test.txt, test.txt.tmp and test.txt.bak in it
+;           are written
+;   TIMES   how many saves (default 200)
+;   SOURCE  the text written (default S:Startup-Sequence); every second
+;           save writes it twice, so the files change their size
+;
+; One save, as file_save() in src/fileio.c does it:
+;   write test.txt.tmp, give it the script bit and a comment,
+;   rename test.txt to test.txt.bak, test.txt.tmp to test.txt,
+;   delete test.txt.bak.
+; Afterwards wait a few seconds (the file system writes its bitmap later),
+; then reboot: a "block used twice" or "not validated" means the damage
+; comes from the file system or the emulator. Rebooting at once instead
+; shows whether a reset shortly after saving leaves it damaged.
+
+.key DIR/A,TIMES/N,SOURCE
+.bra @
+.ket %
+.def TIMES 200
+.def SOURCE "S:Startup-Sequence"
+
+FailAt 21
+IF NOT EXISTS "@DIR%"
+    MakeDir "@DIR%"
+ENDIF
+IF NOT EXISTS "@DIR%"
+    Echo "Cannot make the drawer @DIR%."
+    Quit 10
+ENDIF
+
+Set n 0
+Lab next
+Set n `Eval $n + 1`
+IF $n GT @TIMES% VAL
+    Skip done
+ENDIF
+Set odd `Eval $n MOD 2`
+IF $odd EQ 1 VAL
+    Copy "@SOURCE%" TO "@DIR%/test.txt.tmp" QUIET
+ELSE
+    Join "@SOURCE%" "@SOURCE%" AS "@DIR%/test.txt.tmp"
+ENDIF
+IF WARN
+    Echo "Writing test.txt.tmp failed in save $n."
+    Quit 10
+ENDIF
+Protect "@DIR%/test.txt.tmp" +s QUIET
+FileNote "@DIR%/test.txt.tmp" "save test $n" QUIET
+IF EXISTS "@DIR%/test.txt"
+    Rename "@DIR%/test.txt" TO "@DIR%/test.txt.bak" QUIET
+ENDIF
+Rename "@DIR%/test.txt.tmp" TO "@DIR%/test.txt" QUIET
+IF WARN
+    Echo "Renaming failed in save $n."
+    Quit 10
+ENDIF
+Delete "@DIR%/test.txt.bak" QUIET
+Skip next BACK
+
+Lab done
+Echo "@TIMES% saves done in @DIR%."
+Echo "Wait a few seconds, then reboot and watch for a validation error."
