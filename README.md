@@ -34,7 +34,9 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
   line); the File Type menu chooses the language of a file, and in a
   project the choice is kept.
 - Folder tree of the project (the directory opened with Project/Open
-  Directory): opens files with a double-click and follows changes on disk.
+  Directory): opens files with a double-click and follows changes on disk;
+  the small buttons above it (also in Project/Folder Tree) make a new file
+  or drawer and rename or delete the selected entry, icons included.
 - Minimap: a coloured overview of the document; click or drag in it to
   scroll.
 - Find and replace (Amiga+F) in the current document, in all open documents

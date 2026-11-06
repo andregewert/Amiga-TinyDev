@@ -1379,3 +1379,93 @@ Scout could not be started
 MSG_LAMP_OFF (//)
 Scout is switched off (settings, Advanced)
 ;
+MSG_MENU_TREE_NEWFILE (//)
+New File...
+;
+MSG_MENU_TREE_NEWDRAWER (//)
+New Drawer...
+;
+MSG_MENU_TREE_RENAME (//)
+Rename...
+;
+MSG_MENU_TREE_DELETE (//)
+Delete...
+;
+MSG_TREEOPS_HINT_NEWFILE (//)
+New file in the selected drawer
+;
+MSG_TREEOPS_HINT_NEWDRAWER (//)
+New drawer in the selected drawer
+;
+MSG_TREEOPS_HINT_RENAME (//)
+Rename the selected file or drawer
+;
+MSG_TREEOPS_HINT_DELETE (//)
+Delete the selected file or drawer
+;
+MSG_TREEOPS_NEWFILE_TITLE (//)
+New File
+;
+MSG_TREEOPS_NEWDRAWER_TITLE (//)
+New Drawer
+;
+MSG_TREEOPS_RENAME_TITLE (//)
+Rename
+;
+MSG_TREEOPS_IN (//)
+In %s
+;
+MSG_TREEOPS_RENAME_WHAT (//)
+Rename %s
+;
+MSG_TREEOPS_NAME (//)
+Name 
+;
+MSG_TREEOPS_NEEDCLASS (//)
+This needs %s.
+;
+MSG_TREEOPS_NOPROJECT (//)
+No project is open.
+;
+MSG_TREEOPS_NOSELECTION (//)
+Select a file or drawer in the folder tree first.
+;
+MSG_TREEOPS_BADNAME (//)
+A name must not be empty or contain ':' or '/'.
+;
+MSG_TREEOPS_EXISTS (//)
+%s already exists.
+;
+MSG_TREEOPS_ERR_CREATE (//)
+Could not create %s:\n%s
+;
+MSG_TREEOPS_ERR_RENAME (//)
+Could not rename %s:\n%s
+;
+MSG_TREEOPS_ERR_DELETE (//)
+Could not delete %s:\n%s
+;
+MSG_TREEOPS_ERR_READ (//)
+Could not read %s:\n%s
+;
+MSG_TREEOPS_PROTECTED (//)
+%s is protected from deletion.\nNothing was deleted.
+;
+MSG_TREEOPS_TOODEEP (//)
+%s lies too deep below the drawer to delete.\nNothing was deleted.
+;
+MSG_TREEOPS_DEL_TITLE (//)
+Delete
+;
+MSG_TREEOPS_DEL_FILE (//)
+Delete the file\n%s?
+;
+MSG_TREEOPS_DEL_DRAWER (//)
+Delete the empty drawer\n%s?
+;
+MSG_TREEOPS_DEL_FULL (//)
+Delete the drawer\n%s\nwith %ld files and %ld drawers in it?
+;
+MSG_TREEOPS_DEL_GADGETS (//)
+Delete|Cancel
+;

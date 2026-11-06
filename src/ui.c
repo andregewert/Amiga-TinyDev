@@ -244,6 +244,11 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_OPEN_DIRECTORY)},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_NEW_PROJECT)},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_TREE_REFRESH)},
+    {NM_ITEM, NULL, NULL, 0, 0, NULL},
+    {NM_SUB, NULL, NULL, 0, 0, UD(MID_TREE_NEW_FILE)},
+    {NM_SUB, NULL, NULL, 0, 0, UD(MID_TREE_NEW_DRAWER)},
+    {NM_SUB, NULL, NULL, 0, 0, UD(MID_TREE_RENAME)},
+    {NM_SUB, NULL, NULL, 0, 0, UD(MID_TREE_DELETE)},
     {NM_ITEM, NULL, "S", 0, 0, UD(MID_SAVE)},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_SAVE_AS)},
     {NM_ITEM, NULL, "W", 0, 0, UD(MID_CLOSE)},
@@ -326,6 +331,11 @@ static const LONG menu_texts[] = {
     MSG_MENU_OPENDIR,
     MSG_MENU_NEWPROJECT,
     MSG_MENU_TREE_REFRESH,
+    MSG_MENU_TREE,
+    MSG_MENU_TREE_NEWFILE,
+    MSG_MENU_TREE_NEWDRAWER,
+    MSG_MENU_TREE_RENAME,
+    MSG_MENU_TREE_DELETE,
     MSG_MENU_SAVE,
     MSG_MENU_SAVEAS,
     MSG_MENU_CLOSE,
@@ -788,12 +798,13 @@ int ui_create(EditorApp *app)
         DIRTREE_UnavailableText, (ULONG)S(MSG_TREE_UNAVAILABLE),
         TAG_END);
     if (app->tree == NULL) return 0;
+    if (treeops_create(app) == NULL) return 0;  /* the buttons above it */
     if (minimap_create_gadget(app) == NULL) return 0;
     if (!toolbar_create(app)) return 0;
     app->content_layout = NewObject(LAYOUT_GetClass(), NULL,
         LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
-        LAYOUT_AddChild, (ULONG)app->tree,
-        CHILD_MinWidth, 140,
+        LAYOUT_AddChild, (ULONG)app->tree_column,
+        CHILD_MinWidth, TREE_MIN_WIDTH,
         CHILD_WeightedWidth, 25,
         CHILD_WeightBar, TRUE,
         LAYOUT_AddChild, (ULONG)app->tabs,
@@ -1299,6 +1310,10 @@ static void menu_action(EditorApp *app, ULONG id)
             break;
         case MID_FOLDER_TREE: tree_set_visible(app, !app->tree_visible); break;
         case MID_TREE_REFRESH: tree_refresh(app, 1); break;
+        case MID_TREE_NEW_FILE: treeops_new_file(app); break;
+        case MID_TREE_NEW_DRAWER: treeops_new_drawer(app); break;
+        case MID_TREE_RENAME: treeops_rename(app); break;
+        case MID_TREE_DELETE: treeops_delete(app); break;
         case MID_BM_LIST:
             if (bmlist_is_open()) bmlist_close(app);
             else bmlist_open(app);
@@ -1498,6 +1513,10 @@ int ui_run(EditorApp *app)
             }
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_TABS) tab_event(app);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_TREE) tree_handle_event(app);
+            else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) >= GID_TREE_NEW_FILE &&
+                     (result & WMHI_GADGETMASK) <= GID_TREE_DELETE)
+                /* the buttons above the tree, in the order of their menu items */
+                menu_action(app, MID_TREE_NEW_FILE + ((result & WMHI_GADGETMASK) - GID_TREE_NEW_FILE));
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_VSCROLL) document_scroll_finish(app, 0);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_HSCROLL) document_scroll_finish(app, 1);
             else if (kind == WMHI_INTUITICK) { document_scroll_tick(app); document_change_tick(app); }
@@ -1554,6 +1573,7 @@ int ui_run(EditorApp *app)
         document_sync_scrollers(app, app->active);
         ui_update_status(app);
         toolbar_update(app);
+        treeops_update(app);
         minimap_poll(app);
         bmlist_update(app);
         symlist_update(app);
@@ -1590,7 +1610,8 @@ void ui_destroy(EditorApp *app)
         if (app->content_layout != NULL) DisposeObject(app->content_layout);
         else {
             if (app->minimap != NULL) { DisposeObject(app->minimap); app->minimap = NULL; }
-            if (app->tree != NULL) DisposeObject(app->tree);
+            if (app->tree_column != NULL) DisposeObject(app->tree_column);  /* the tree with it */
+            else if (app->tree != NULL) DisposeObject(app->tree);
             if (app->tabs != NULL) DisposeObject(app->tabs);
             else if (app->pages != NULL) DisposeObject(app->pages);
         }
@@ -1603,6 +1624,7 @@ void ui_destroy(EditorApp *app)
         app->minimap = NULL;
     }
     toolbar_dispose(app);
+    treeops_dispose();                  /* the symbols of the tree's buttons */
     if (app->tab_close_image != NULL) { DisposeObject(app->tab_close_image); app->tab_close_image = NULL; }
     close_image_free_class();
     tmplsym_free_class();
@@ -1619,6 +1641,6 @@ void ui_destroy(EditorApp *app)
     app->window_object = app->layout = app->toolbar = app->content_layout = NULL;
     app->statusbar = app->statuslamp = NULL;
     app->minimap = NULL;
-    app->tree = app->tabs = app->pages = NULL;
+    app->tree = app->tree_column = app->tabs = app->pages = NULL;
     app->window = NULL; app->screen = NULL;
 }

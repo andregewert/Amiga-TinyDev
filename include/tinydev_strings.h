@@ -450,7 +450,37 @@
 #define MSG_LAMP_JOBS                445
 #define MSG_LAMP_FAILED              446
 #define MSG_LAMP_OFF                 447
-#define MSG_COUNT                    448
+#define MSG_MENU_TREE_NEWFILE        448
+#define MSG_MENU_TREE_NEWDRAWER      449
+#define MSG_MENU_TREE_RENAME         450
+#define MSG_MENU_TREE_DELETE         451
+#define MSG_TREEOPS_HINT_NEWFILE     452
+#define MSG_TREEOPS_HINT_NEWDRAWER   453
+#define MSG_TREEOPS_HINT_RENAME      454
+#define MSG_TREEOPS_HINT_DELETE      455
+#define MSG_TREEOPS_NEWFILE_TITLE    456
+#define MSG_TREEOPS_NEWDRAWER_TITLE  457
+#define MSG_TREEOPS_RENAME_TITLE     458
+#define MSG_TREEOPS_IN               459
+#define MSG_TREEOPS_RENAME_WHAT      460
+#define MSG_TREEOPS_NAME             461
+#define MSG_TREEOPS_NEEDCLASS        462
+#define MSG_TREEOPS_NOPROJECT        463
+#define MSG_TREEOPS_NOSELECTION      464
+#define MSG_TREEOPS_BADNAME          465
+#define MSG_TREEOPS_EXISTS           466
+#define MSG_TREEOPS_ERR_CREATE       467
+#define MSG_TREEOPS_ERR_RENAME       468
+#define MSG_TREEOPS_ERR_DELETE       469
+#define MSG_TREEOPS_ERR_READ         470
+#define MSG_TREEOPS_PROTECTED        471
+#define MSG_TREEOPS_TOODEEP          472
+#define MSG_TREEOPS_DEL_TITLE        473
+#define MSG_TREEOPS_DEL_FILE         474
+#define MSG_TREEOPS_DEL_DRAWER       475
+#define MSG_TREEOPS_DEL_FULL         476
+#define MSG_TREEOPS_DEL_GADGETS      477
+#define MSG_COUNT                    478
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -903,6 +933,36 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Scout: %ld jobs waiting",
     "Scout could not be started",
     "Scout is switched off (settings, Advanced)",
+    "New File...",
+    "New Drawer...",
+    "Rename...",
+    "Delete...",
+    "New file in the selected drawer",
+    "New drawer in the selected drawer",
+    "Rename the selected file or drawer",
+    "Delete the selected file or drawer",
+    "New File",
+    "New Drawer",
+    "Rename",
+    "In %s",
+    "Rename %s",
+    "Name ",
+    "This needs %s.",
+    "No project is open.",
+    "Select a file or drawer in the folder tree first.",
+    "A name must not be empty or contain ':' or '/'.",
+    "%s already exists.",
+    "Could not create %s:\n%s",
+    "Could not rename %s:\n%s",
+    "Could not delete %s:\n%s",
+    "Could not read %s:\n%s",
+    "%s is protected from deletion.\nNothing was deleted.",
+    "%s lies too deep below the drawer to delete.\nNothing was deleted.",
+    "Delete",
+    "Delete the file\n%s?",
+    "Delete the empty drawer\n%s?",
+    "Delete the drawer\n%s\nwith %ld files and %ld drawers in it?",
+    "Delete|Cancel",
 };
 #endif
 

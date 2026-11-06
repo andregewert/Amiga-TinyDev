@@ -71,6 +71,10 @@ enum GadgetId {
     GID_TOOLBAR = 6,    /**< speedbar; the GADGETUP code is the MID_ of the button */
     GID_OVERFLOW = 7,   /**< chooser with the buttons that do not fit */
     GID_STATUSLAMP = 8, /**< Scout's lamp right of the status line */
+    GID_TREE_NEW_FILE = 9,  /**< button above the folder tree: New File */
+    GID_TREE_NEW_DRAWER = 10, /**< button above the folder tree: New Drawer */
+    GID_TREE_RENAME = 11,   /**< button above the folder tree: Rename */
+    GID_TREE_DELETE = 12,   /**< button above the folder tree: Delete */
     GID_LAST            /**< first free ID */
 };
 
@@ -190,6 +194,10 @@ enum MenuId {
     MID_NEW_PROJECT,    /**< Project/New Project...: the wizard of Sprout's templates */
     MID_NEW_FROM_TEMPLATE, /**< Project/New File from Template...: the wizard of file templates */
     MID_CLOSE_PROJECT,  /**< Project/Close Project: all files and the folder tree's root */
+    MID_TREE_NEW_FILE,  /**< Project/Folder Tree/New File...: an empty file, opened */
+    MID_TREE_NEW_DRAWER, /**< Project/Folder Tree/New Drawer... */
+    MID_TREE_RENAME,    /**< Project/Folder Tree/Rename...: the selected entry */
+    MID_TREE_DELETE,    /**< Project/Folder Tree/Delete...: the selected entry */
     /* the File Type entries stay last: menu_action() takes the IDs from
      * MID_FT_AUTO on as file types */
     MID_FT_AUTO,        /**< File Type/Automatic: the language Scout detects */
@@ -304,6 +312,7 @@ typedef struct EditorApp {
     Object *toolbar;            /**< layout with the speedbar and the overflow chooser */
     Object *content_layout;     /**< layout of folder tree, editor area and minimap */
     Object *tree;               /**< dirtree.gadget */
+    Object *tree_column;        /**< page.gadget: the folder tree with its buttons above it, or nothing while hidden (treeops.c) */
     Object *tab_close_image;    /**< close symbol of the tabs (CLICKTAB_CloseImage, closeimage.c) */
     Object *tabs;               /**< clicktab.gadget of the documents */
     Object *pages;              /**< page.gadget with a page per document */
@@ -493,7 +502,8 @@ struct DiskObject;
 /** The size of a template symbol in symbol pixels (square). */
 #define TMPLSYM_SIZE 12
 
-/** The icon types of templates (template.json "icon": { "type" }). */
+/** The icon types of templates (template.json "icon": { "type" }), then the
+ *  symbols of the folder tree's buttons. */
 typedef enum TmplSymType {
     TMPLSYM_GENERIC = 0,        /**< "generic", also for unknown types */
     TMPLSYM_PROGRAM,            /**< "program" */
@@ -501,7 +511,12 @@ typedef enum TmplSymType {
     TMPLSYM_CLASS,              /**< "class" */
     TMPLSYM_SCRIPT,             /**< "script" */
     TMPLSYM_DOCUMENT,           /**< "document" */
-    TMPLSYM_COUNT               /**< number of types */
+    TMPLSYM_COUNT,              /**< number of icon types */
+    TMPLSYM_NEW_FILE = TMPLSYM_COUNT, /**< button of the folder tree: New File */
+    TMPLSYM_NEW_DRAWER,         /**< button of the folder tree: New Drawer */
+    TMPLSYM_RENAME,             /**< button of the folder tree: Rename */
+    TMPLSYM_DELETE,             /**< button of the folder tree: Delete */
+    TMPLSYM_ALL                 /**< number of symbols */
 } TmplSymType;
 
 /** Attribute of a symbol image: the TmplSymType shown (I S). */
@@ -1712,9 +1727,11 @@ void tree_refresh(EditorApp *app, int all);
 /**
  * @brief Show or hide the folder tree column and relayout the window.
  *
- * Records the requested visibility and adjusts the tree gadget's layout
- * constraints (minimum, maximum, and weighted width) so it either occupies its
- * default width or collapses to zero, then triggers a relayout. Showing the
+ * Records the requested visibility and adjusts the layout constraints of
+ * the tree's column (minimum, maximum, and weighted width) so it either
+ * occupies its default width or collapses to zero, then triggers a relayout.
+ * The column is a page.gadget (treeops_create()): while the tree is hidden
+ * it shows its empty second page, which draws nothing at no width. Showing the
  * tree always restores the default column width; the previous on-screen width
  * is not remembered. Does nothing if the content layout or tree gadget does
  * not exist.
@@ -1723,6 +1740,66 @@ void tree_refresh(EditorApp *app, int all);
  * @param visible Non-zero to show the tree, zero to hide it.
  */
 void tree_set_visible(EditorApp *app, int visible);
+
+/* treeops.c */
+
+/** Number of buttons above the folder tree. */
+#define TREEOPS_BUTTONS 4
+
+/**
+ * @brief Make the column of the folder tree: the buttons New File, New
+ *        Drawer, Rename and Delete above app->tree.
+ * @param app The application state (EditorApp::tree made).
+ * @return A page.gadget (also EditorApp::tree_column) with the column as
+ *         its first page and an empty one as the second (shown while the
+ *         tree is hidden), or NULL; on failure app->tree is not owned by
+ *         a layout.
+ */
+Object *treeops_create(EditorApp *app);
+/**
+ * @brief Fill in the help bubbles of the buttons (for WINDOW_HintInfo).
+ * @param[out] hints #TREEOPS_BUTTONS entries.
+ */
+void treeops_hints(struct HintInfo *hints);
+/**
+ * @brief Ghost the buttons that would do nothing: all without a project,
+ *        Rename and Delete without a selected entry. Changes them only
+ *        when their state changes (called after every batch of input).
+ * @param app The application state.
+ */
+void treeops_update(EditorApp *app);
+/**
+ * @brief Dispose the buttons' symbols (button.gadget does not); after the
+ *        window and its gadgets are gone.
+ */
+void treeops_dispose(void);
+/**
+ * @brief Project/Folder Tree/New File...: ask for a name, make an empty file
+ *        in the selected drawer (that of a selected file, or the project's)
+ *        and open it.
+ * @param app The application state.
+ */
+void treeops_new_file(EditorApp *app);
+/**
+ * @brief Project/Folder Tree/New Drawer...: ask for a name and make a
+ *        drawer there.
+ * @param app The application state.
+ */
+void treeops_new_drawer(EditorApp *app);
+/**
+ * @brief Project/Folder Tree/Rename...: rename the selected entry (and its
+ *        icon); open documents follow the new name.
+ * @param app The application state.
+ */
+void treeops_rename(EditorApp *app);
+/**
+ * @brief Project/Folder Tree/Delete...: delete the selected entry (a drawer
+ *        with all it holds) and its icon after asking; nothing is deleted if
+ *        something in it is protected from deletion. Open documents of
+ *        deleted files stay open, marked as changed.
+ * @param app The application state.
+ */
+void treeops_delete(EditorApp *app);
 
 /**
  * @brief Make the name of a temporary file: TEMPDIR/TinyDev-PROCESS-N plus

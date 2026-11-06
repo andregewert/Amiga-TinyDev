@@ -186,18 +186,25 @@ void tree_handle_event(EditorApp *app)
 void tree_set_visible(EditorApp *app, int visible)
 {
     app->tree_visible = visible;
-    if (app->content_layout == NULL || app->tree == NULL) return;
-    /* Showing the tree always uses the default column width; the previous
+    if (app->content_layout == NULL || app->tree_column == NULL) return;
+    /* the page with the tree, or the empty one, which draws nothing in
+     * the column collapsed to no width */
+    if (app->window != NULL)
+        SetGadgetAttrs((struct Gadget *)app->tree_column, app->window, NULL,
+                       PAGE_Current, visible ? 0 : 1, TAG_END);
+    else SetAttrs(app->tree_column, PAGE_Current, visible ? 0 : 1, TAG_END);
+    /* The column (the tree with its buttons) is collapsed as a whole.
+     * Showing the tree always uses the default column width; the previous
      * on-screen width is intentionally not remembered or restored. */
     if (app->window != NULL)
         SetGadgetAttrs((struct Gadget *)app->content_layout, app->window, NULL,
-            LAYOUT_ModifyChild, (ULONG)app->tree,
+            LAYOUT_ModifyChild, (ULONG)app->tree_column,
             CHILD_MinWidth, visible ? TREE_MIN_WIDTH : 0,
             CHILD_MaxWidth, visible ? ~0UL : 0,
             CHILD_WeightedWidth, visible ? TREE_DEFAULT_WEIGHT : 0,
             TAG_END);
     else SetAttrs(app->content_layout,
-        LAYOUT_ModifyChild, (ULONG)app->tree,
+        LAYOUT_ModifyChild, (ULONG)app->tree_column,
         CHILD_MinWidth, visible ? TREE_MIN_WIDTH : 0,
         CHILD_MaxWidth, visible ? ~0UL : 0,
         CHILD_WeightedWidth, visible ? TREE_DEFAULT_WEIGHT : 0,

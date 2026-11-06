@@ -1,15 +1,16 @@
 /**
  * @file tmplsym.c
  * @brief The symbols of the template icon types (generic, program,
- *        library, class, script, document), drawn by a small private image
- *        class.
+ *        library, class, script, document) and of the buttons above the
+ *        folder tree, drawn by a small private image class.
  *
  * Templates name an icon type in template.json; the wizard of
  * Project/New Project... shows its symbol small in the list of templates
  * (tmplsym_draw() from the list's render hook) and enlarged next to it (an
  * image of this class). The symbols are 12 x 12 pixels in the screen's
  * pens, drawn scaled by a whole number; an unknown type gets the generic
- * one. The image shows a template's own icon instead when it is given one
+ * one. The buttons above the folder tree (treeops.c) show the symbols
+ * after the icon types in an image of this class. The image shows a template's own icon instead when it is given one
  * (#TMPLSYM_Icon, drawn with icon.library V44). Graphics only, so the
  * drawing may run during input handling.
  */
@@ -32,11 +33,12 @@
 #include <string.h>
 
 /**
- * The symbols, TMPLSYM_SIZE pixels square, in the order of TmplSymType:
+ * The symbols, TMPLSYM_SIZE pixels square, in the order of TmplSymType
+ * (the icon types, then the buttons of the folder tree):
  * 'o' is drawn in TEXTPEN, '#' in SHINEPEN, '+' in FILLPEN; '.' is
  * transparent.
  */
-static const char *const symbols[TMPLSYM_COUNT][TMPLSYM_SIZE] = {
+static const char *const symbols[TMPLSYM_ALL][TMPLSYM_SIZE] = {
     {   /* generic: a sheet with a folded corner */
         "..oooooo....", "..o####oo...", "..o####o#o..", "..o####oooo.",
         "..o#######o.", "..o#######o.", "..o#######o.", "..o#######o.",
@@ -66,6 +68,26 @@ static const char *const symbols[TMPLSYM_COUNT][TMPLSYM_SIZE] = {
         "..oooooo....", "..o####oo...", "..o####o#o..", "..o####oooo.",
         "..o#######o.", "..o#+++++#o.", "..o#######o.", "..o#+++++#o.",
         "..o#######o.", "..o#++++##o.", "..o#######o.", "..ooooooooo.",
+    },
+    {   /* new file: a sheet with a plus */
+        "oooooo......", "o####oo.....", "o####o#o....", "o####oooo...",
+        "o#######o...", "o######.....", "o######.++..", "o####...++..",
+        "o####.++++++", "o####.++++++", "o####...++..", "ooooooo.++..",
+    },
+    {   /* new drawer: a drawer with a plus */
+        "............", "oooo........", "o##ooooo....", "o#######o...",
+        "ooooooooo...", "o######.....", "o######.++..", "o####...++..",
+        "o####.++++++", "o####.++++++", "ooooo...++..", "........++..",
+    },
+    {   /* rename: a text field with a cursor */
+        "............", "............", "......+++...", "ooooooo+oooo",
+        "o######+###o", "o#ooo##+###o", "o#ooo##+###o", "o######+###o",
+        "ooooooo+oooo", "......+++...", "............", "............",
+    },
+    {   /* delete: a dustbin */
+        "....oooo....", "oooooooooooo", "............", ".oooooooooo.",
+        ".o##o##o##o.", ".o##o##o##o.", ".o##o##o##o.", ".o##o##o##o.",
+        ".o##o##o##o.", ".o##o##o##o.", ".o##o##o##o.", ".oooooooooo.",
     },
 };
 
@@ -111,7 +133,7 @@ TmplSymType tmplsym_type(const char *name)
 
 void tmplsym_draw(struct RastPort *rp, WORD x, WORD y, struct DrawInfo *dri, TmplSymType type, UWORD scale)
 {
-    const char *const *rows = symbols[type < TMPLSYM_COUNT ? type : TMPLSYM_GENERIC];
+    const char *const *rows = symbols[type < TMPLSYM_ALL ? type : TMPLSYM_GENERIC];
     WORD row, col, end;
     if (scale == 0) scale = 1;
     for (row = 0; row < TMPLSYM_SIZE; ++row)
@@ -153,7 +175,7 @@ static ULONG sym_dispatch(Class *cl, Object *o, Msg msg)
         case OM_SET:
             d = (SymData *)INST_DATA(cl, o);
             if ((tag = FindTagItem(TMPLSYM_Type, ((struct opSet *)msg)->ops_AttrList)) != NULL)
-                d->type = tag->ti_Data < TMPLSYM_COUNT ? tag->ti_Data : TMPLSYM_GENERIC;
+                d->type = tag->ti_Data < TMPLSYM_ALL ? tag->ti_Data : TMPLSYM_GENERIC;
             if ((tag = FindTagItem(TMPLSYM_Icon, ((struct opSet *)msg)->ops_AttrList)) != NULL)
                 set_icon(d, (struct DiskObject *)tag->ti_Data);
             return DoSuperMethodA(cl, o, msg);

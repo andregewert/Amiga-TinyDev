@@ -87,9 +87,16 @@ below the tree's root.
   `sprout_tmpl.c`, linked into TinyDev); Create writes the values to
   TEMPDIR, runs Sprout synchronously, shows its messages, and opens the
   new drawer as the project with the template's files of `open`.
-- `src/tmplsym.c`: the built-in symbols of the template icon types
-  (`tmplsym_draw()` and a small private image class, which also shows a
-  template's own icon).
+- `src/tmplsym.c`: the built-in symbols of the template icon types and
+  of the folder tree's buttons (`tmplsym_draw()` and a small private image
+  class, which also shows a template's own icon).
+- `src/treeops.c`: the folder tree's file operations: a row of small
+  buttons above the tree (symbols of `tmplsym.c`, no AISS images) and
+  Project/Folder Tree: New File, New Drawer, Rename, Delete on the entry
+  selected in the tree (icons taken along; Delete asks, walks a drawer
+  without following links and deletes nothing if something is protected;
+  open documents follow a rename or are marked changed), and the small
+  modal window asking for a name.
 - `src/build.c`: the Build menu's actions: the default command of Build,
   Run or Debug from `project.json`, written as a script to `T:`
   (placeholders replaced, "Stack 65536" first). Build runs in a process
@@ -160,7 +167,8 @@ below the tree's root.
   handler, placed below the main window, or a whole window).
 - `src/fileio.c`: loading, line-ending preservation, requesters, and safe saves.
 - `src/tree.c`: connects `dirtree.gadget` to the editor (root selection,
-  opening files, column visibility).
+  opening files, column visibility; the column is the tree with the buttons
+  of `treeops.c`).
 - `src/classes/`: TinyDev's own ReAction gadget classes, each a standalone class
   library for `SYS:Classes/Gadgets/` (`src/classes/<name>/`, with
   `class_config.h` for name and version). `src/classes/common/classlib.c` is the

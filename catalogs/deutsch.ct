@@ -1804,3 +1804,123 @@ MSG_LAMP_OFF
 Scout ist abgeschaltet (Einstellungen, Erweitert)
 ; Scout is switched off (settings, Advanced)
 ;
+MSG_MENU_TREE_NEWFILE
+Neue Datei...
+; New File...
+;
+MSG_MENU_TREE_NEWDRAWER
+Neue Schublade...
+; New Drawer...
+;
+MSG_MENU_TREE_RENAME
+Umbenennen...
+; Rename...
+;
+MSG_MENU_TREE_DELETE
+Löschen...
+; Delete...
+;
+MSG_TREEOPS_HINT_NEWFILE
+Neue Datei in der gewählten Schublade
+; New file in the selected drawer
+;
+MSG_TREEOPS_HINT_NEWDRAWER
+Neue Schublade in der gewählten Schublade
+; New drawer in the selected drawer
+;
+MSG_TREEOPS_HINT_RENAME
+Gewählte Datei oder Schublade umbenennen
+; Rename the selected file or drawer
+;
+MSG_TREEOPS_HINT_DELETE
+Gewählte Datei oder Schublade löschen
+; Delete the selected file or drawer
+;
+MSG_TREEOPS_NEWFILE_TITLE
+Neue Datei
+; New File
+;
+MSG_TREEOPS_NEWDRAWER_TITLE
+Neue Schublade
+; New Drawer
+;
+MSG_TREEOPS_RENAME_TITLE
+Umbenennen
+; Rename
+;
+MSG_TREEOPS_IN
+In %s
+; In %s
+;
+MSG_TREEOPS_RENAME_WHAT
+%s umbenennen
+; Rename %s
+;
+MSG_TREEOPS_NAME
+Name 
+; Name 
+;
+MSG_TREEOPS_NEEDCLASS
+Dafür wird %s benötigt.
+; This needs %s.
+;
+MSG_TREEOPS_NOPROJECT
+Es ist kein Projekt geöffnet.
+; No project is open.
+;
+MSG_TREEOPS_NOSELECTION
+Bitte zuerst eine Datei oder Schublade im Verzeichnisbaum wählen.
+; Select a file or drawer in the folder tree first.
+;
+MSG_TREEOPS_BADNAME
+Ein Name darf nicht leer sein und kein ':' oder '/' enthalten.
+; A name must not be empty or contain ':' or '/'.
+;
+MSG_TREEOPS_EXISTS
+%s gibt es schon.
+; %s already exists.
+;
+MSG_TREEOPS_ERR_CREATE
+%s ließ sich nicht anlegen:\n%s
+; Could not create %s:\n%s
+;
+MSG_TREEOPS_ERR_RENAME
+%s ließ sich nicht umbenennen:\n%s
+; Could not rename %s:\n%s
+;
+MSG_TREEOPS_ERR_DELETE
+%s ließ sich nicht löschen:\n%s
+; Could not delete %s:\n%s
+;
+MSG_TREEOPS_ERR_READ
+%s ließ sich nicht lesen:\n%s
+; Could not read %s:\n%s
+;
+MSG_TREEOPS_PROTECTED
+%s ist gegen Löschen geschützt.\nEs wurde nichts gelöscht.
+; %s is protected from deletion.\nNothing was deleted.
+;
+MSG_TREEOPS_TOODEEP
+%s liegt zu tief in der Schublade.\nEs wurde nichts gelöscht.
+; %s lies too deep below the drawer to delete.\nNothing was deleted.
+;
+MSG_TREEOPS_DEL_TITLE
+Löschen
+; Delete
+;
+MSG_TREEOPS_DEL_FILE
+Die Datei\n%s\nlöschen?
+; Delete the file\n%s?
+;
+MSG_TREEOPS_DEL_DRAWER
+Die leere Schublade\n%s\nlöschen?
+; Delete the empty drawer\n%s?
+;
+MSG_TREEOPS_DEL_FULL
+Die Schublade\n%s\nmit %ld Dateien und %ld Schubladen darin löschen?
+; Delete the drawer\n%s\nwith %ld files and %ld drawers in it?
+;
+MSG_TREEOPS_DEL_GADGETS
+Löschen|Abbrechen
+; Delete|Cancel
+;

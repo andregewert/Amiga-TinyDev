@@ -114,7 +114,7 @@ static struct {
     ULONG disabled;                 /**< TOOLBIT() of the ghosted buttons */
     ULONG of_visible;               /**< SPEEDBAR_Visible of the overflow list */
     ULONG of_disabled;              /**< ghosted buttons of the overflow list */
-    struct HintInfo hints[NUMTOOLS + 3];
+    struct HintInfo hints[NUMTOOLS + TREEOPS_BUTTONS + 3];
 } tb;
 
 /**
@@ -344,6 +344,9 @@ int toolbar_create(EditorApp *app)
     tb.hints[i].hi_Text = (STRPTR)statuslamp_hint();
     tb.hints[i].hi_Flags = 0;
     ++i;
+    /* and the buttons above the folder tree */
+    treeops_hints(&tb.hints[i]);
+    i += TREEOPS_BUTTONS;
     tb.hints[i].hi_GadgetID = -1;
     tb.hints[i].hi_Code = -1;
 
