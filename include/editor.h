@@ -148,7 +148,7 @@ enum {
 enum MenuId {
     MID_NEW = 1,        /**< Project/New */
     MID_OPEN,           /**< Project/Open... */
-    MID_OPEN_DIRECTORY, /**< Project/Open Directory... */
+    MID_OPEN_DIRECTORY, /**< Project/Open Project...: a drawer as the project */
     MID_SAVE,           /**< Project/Save */
     MID_SAVE_AS,        /**< Project/Save As... */
     MID_CLOSE,          /**< Project/Close */
@@ -170,7 +170,7 @@ enum MenuId {
     MID_BM_NEXT,        /**< Bookmarks/Next Bookmark */
     MID_BM_PREV,        /**< Bookmarks/Previous Bookmark */
     MID_BM_CLEAR,       /**< Bookmarks/Remove All in This File */
-    MID_TREE_REFRESH,   /**< Project/Refresh Folder Tree */
+    MID_TREE_REFRESH,   /**< Project/Folder Tree/Refresh */
     MID_BM_LIST,        /**< View/Bookmarks: the bookmark list (check item) */
     MID_SNAPSHOT_TOOLS, /**< View/Snapshot Tool Windows */
     MID_UNSNAPSHOT_TOOLS, /**< View/Unsnapshot Tool Windows: back to the defaults */

@@ -1,7 +1,7 @@
 HelloWorld - a demo project for TinyDev's Build menu
 ====================================================
 
-Open this drawer with Project/Open Directory... in TinyDev, then:
+Open this drawer with Project/Open Project... in TinyDev, then:
 
   Build/Build Project (Amiga+E)  runs "make" (needs vbcc and make)
   Build/Run (Amiga+R)            starts "hello" in a console window

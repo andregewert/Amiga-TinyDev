@@ -19,7 +19,7 @@ process:
   `SetGadgetAttrs()`), which reads the directory and redraws. Changes on
   disk arrive as DOS notifications on the gadget's signal
   (`DIRTREE_SignalMask`); the event loop answers with `DIRTREE_Refresh`,
-  which reads only the changed directories. Project/Refresh Folder Tree
+  which reads only the changed directories. Project/Folder Tree/Refresh
   reads all shown directories, for file systems without notification.
 - **minimap.gadget** reads the editor and starts a render job only when
   `minimap.c` sets `MINIMAP_Update`: after every batch of input events and

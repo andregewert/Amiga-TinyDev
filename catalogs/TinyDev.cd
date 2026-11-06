@@ -17,7 +17,7 @@ MSG_MENU_OPEN (//)
 Open File...
 ;
 MSG_MENU_OPENDIR (//)
-Open Directory...
+Open Project...
 ;
 MSG_MENU_SAVE (//)
 Save File
@@ -107,7 +107,7 @@ MSG_MENU_TREE (//)
 Folder Tree
 ;
 MSG_MENU_TREE_REFRESH (//)
-Refresh Folder Tree
+Refresh
 ;
 MSG_MENU_LINENUMBERS (//)
 Line Numbers
@@ -129,7 +129,7 @@ MSG_TBH_OPEN (//)
 Open a file (Amiga+O)
 ;
 MSG_TB_OPENDIR (//)
-Directory
+Project
 ;
 MSG_TBH_OPENDIR (//)
 Open a directory as the project
@@ -708,7 +708,7 @@ MSG_PJ_DEFAULTNOTE (//)
 The checked command is the one the action runs; without a check, the first one.
 ;
 MSG_PJ_NOPROJECT (//)
-There is no project. Open a directory first (Project/Open Directory...); its settings are kept in it.
+There is no project. Open a directory first (Project/Open Project...); its settings are kept in it.
 ;
 ; %s: the project file
 MSG_PJ_READ (//)

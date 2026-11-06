@@ -18,8 +18,8 @@ Datei öffnen...
 ; Open File...
 ;
 MSG_MENU_OPENDIR
-Verzeichnis öffnen...
-; Open Directory...
+Projekt öffnen...
+; Open Project...
 ;
 MSG_MENU_SAVE
 Datei speichern
@@ -138,8 +138,8 @@ Verzeichnisbaum
 ; Folder Tree
 ;
 MSG_MENU_TREE_REFRESH
-Verzeichnisbaum aktualisieren
-; Refresh Folder Tree
+Aktualisieren
+; Refresh
 ;
 MSG_MENU_LINENUMBERS
 Zeilennummern
@@ -167,8 +167,8 @@ Datei öffnen (Amiga+O)
 ; Open a file (Amiga+O)
 ;
 MSG_TB_OPENDIR
-Verzeichnis
-; Directory
+Projekt
+; Project
 ;
 MSG_TBH_OPENDIR
 Verzeichnis als Projekt öffnen
@@ -925,8 +925,8 @@ Die Aktion führt das markierte Kommando aus, ohne Markierung das erste.
 ; The checked command is the one the action runs; without a check, the first one.
 ;
 MSG_PJ_NOPROJECT
-Es ist kein Projekt geöffnet. Bitte zuerst ein Verzeichnis öffnen (Projekt/Verzeichnis öffnen...); seine Einstellungen werden darin gespeichert.
-; There is no project. Open a directory first (Project/Open Directory...); its settings are kept in it.
+Es ist kein Projekt geöffnet. Bitte zuerst ein Verzeichnis öffnen (Projekt/Projekt öffnen...); seine Einstellungen werden darin gespeichert.
+; There is no project. Open a directory first (Project/Open Project...); its settings are kept in it.
 ;
 MSG_PJ_READ
 %s konnte nicht gelesen werden oder ist keine Projektdatei. Die Datei bleibt unverändert; bitte zuerst korrigieren.
