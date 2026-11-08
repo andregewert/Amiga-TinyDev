@@ -81,7 +81,7 @@ extern struct Library *StringBase;         /* shared with the find window */
 enum {
     PG_LIST = 100,
     PG_WIDTH, PG_HEIGHT, PG_LEFT, PG_TOP, PG_CURSIZE, PG_AUTOSIZE, PG_SPLASH,
-    PG_FOLDERTREE, PG_MINIMAP,
+    PG_FOLDERTREE, PG_MINIMAP, PG_HIDEINFO,
     PG_COLOUR, PG_DEFCOLOURS = PG_COLOUR + SCOL_COUNT,
     PG_TBMODE, PG_TBFRAMES,
     PG_PROJECTDIR, PG_CHOOSEPROJECT, PG_AUTHOR, PG_AUTHORMAIL,
@@ -162,7 +162,7 @@ static const LONG colour_titles[SCOL_COUNT] = {
 /** Objects of the open settings window. */
 static struct {
     Object *winobj, *root, *list, *page;
-    Object *width, *height, *left, *top, *splash, *foldertree, *minimap;
+    Object *width, *height, *left, *top, *splash, *foldertree, *minimap, *hideinfo;
     Object *colours[SCOL_COUNT];
     Object *tbmode, *tbframes;
     Object *projectdir, *author, *authormail;
@@ -383,6 +383,7 @@ static Object *build(EditorApp *app, const Settings *s)
     pw.splash = checkbox(PG_SPLASH, S(MSG_PREFS_SPLASH), s->splash);
     pw.foldertree = checkbox(PG_FOLDERTREE, S(MSG_PREFS_FOLDERTREE), s->foldertree);
     pw.minimap = checkbox(PG_MINIMAP, S(MSG_PREFS_MINIMAP), s->minimap);
+    pw.hideinfo = checkbox(PG_HIDEINFO, S(MSG_PREFS_HIDEINFO), !s->showinfo);
     general = NewObject(LAYOUT_GetClass(), NULL,
         LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
         LAYOUT_InnerSpacing, AREA_SPACING,
@@ -415,6 +416,7 @@ static Object *build(EditorApp *app, const Settings *s)
             LAYOUT_AddChild, (ULONG)pw.foldertree, FIXED,
             LAYOUT_AddChild, (ULONG)pw.minimap, FIXED,
             LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_VIEWNOTE)), FIXED,
+            LAYOUT_AddChild, (ULONG)pw.hideinfo, FIXED,
             TAG_END),
         FIXED,
         LAYOUT_AddChild, (ULONG)filler(),
@@ -635,6 +637,7 @@ static void read_gadgets(Settings *s)
     s->wintop = (long)(LONG)get(pw.top, INTEGER_Number);
     s->splash = get(pw.splash, CHECKBOX_Checked) != 0;
     s->foldertree = get(pw.foldertree, CHECKBOX_Checked) != 0;
+    s->showinfo = get(pw.hideinfo, CHECKBOX_Checked) == 0;
     s->minimap = get(pw.minimap, CHECKBOX_Checked) != 0;
     for (i = 0; i < SCOL_COUNT; ++i)
         s->colours[i] = get(pw.colours[i], GETCOLOR_Color) & 0xFFFFFFUL;

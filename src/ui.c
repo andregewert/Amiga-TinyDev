@@ -250,6 +250,7 @@ static struct NewMenu menus[] = {
     {NM_SUB, NULL, NULL, 0, 0, UD(MID_TREE_DELETE)},
     {NM_SUB, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_SUB, NULL, NULL, 0, 0, UD(MID_TREE_REFRESH)},
+    {NM_SUB, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_TREE_HIDE_INFO)},
     {NM_ITEM, NULL, "S", 0, 0, UD(MID_SAVE)},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_SAVE_AS)},
     {NM_ITEM, NULL, "W", 0, 0, UD(MID_CLOSE)},
@@ -338,6 +339,7 @@ static const LONG menu_texts[] = {
     MSG_MENU_TREE_DELETE,
     -1,
     MSG_MENU_TREE_REFRESH,
+    MSG_MENU_TREE_HIDEINFO,
     MSG_MENU_SAVE,
     MSG_MENU_SAVEAS,
     MSG_MENU_CLOSE,
@@ -731,6 +733,7 @@ static void set_menu_checks(EditorApp *app, int bm_open)
         int on;
         if (ud == UD(MID_BM_LIST)) on = bm_open;
         else if (ud == UD(MID_FOLDER_TREE)) on = app->tree_visible;
+        else if (ud == UD(MID_TREE_HIDE_INFO)) on = !app->settings.showinfo;
         else if (ud == UD(MID_LINE_NUMBERS)) on = ln_shown;
         else if (ud == UD(MID_MINIMAP)) on = app->minimap_visible;
         else if (ud == UD(MID_OUTPUT)) on = app->outwin_was_open;
@@ -798,6 +801,7 @@ int ui_create(EditorApp *app)
         DIRTREE_LoadingText, (ULONG)S(MSG_TREE_LOADING),
         DIRTREE_EmptyText, (ULONG)S(MSG_TREE_EMPTY),
         DIRTREE_UnavailableText, (ULONG)S(MSG_TREE_UNAVAILABLE),
+        DIRTREE_HideIcons, (ULONG)!app->settings.showinfo,
         TAG_END);
     if (app->tree == NULL) return 0;
     if (treeops_create(app) == NULL) return 0;  /* the buttons above it */
@@ -1114,10 +1118,16 @@ void ui_apply_settings(EditorApp *app, const Settings *n)
     Document *doc;
 
     int scout = app->settings.scout;
+    int showinfo = app->settings.showinfo;
 
     changed = memcmp(app->settings.colours, n->colours, sizeof(n->colours)) != 0;
     app->settings = *n;
     if (scout != n->scout) scoutlink_settings_changed(app);
+    if (showinfo != n->showinfo) {
+        tree_apply_info(app);
+        set_menu_checks(app, bmlist_is_open());
+        ui_set_menu_check(app, MID_TREE_HIDE_INFO, !n->showinfo);
+    }
     if (!changed || !app->editor_colors_open || app->screen == NULL) return;
     cm = app->screen->ViewPort.ColorMap;
     for (i = 0; i < SCOL_COUNT; ++i) {
@@ -1352,6 +1362,12 @@ static void menu_action(EditorApp *app, ULONG id)
             break;
         case MID_FOLDER_TREE: tree_set_visible(app, !app->tree_visible); break;
         case MID_TREE_REFRESH: tree_refresh(app, 1); break;
+        case MID_TREE_HIDE_INFO:
+            app->settings.showinfo = !app->settings.showinfo;
+            tree_apply_info(app);
+            /* the table, from which the menus may be built anew */
+            set_menu_checks(app, bmlist_is_open());
+            break;
         case MID_TREE_NEW_FILE: treeops_new_file(app); break;
         case MID_TREE_NEW_DRAWER: treeops_new_drawer(app); break;
         case MID_TREE_RENAME: treeops_rename(app); break;

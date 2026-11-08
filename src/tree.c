@@ -17,6 +17,7 @@
 #include <proto/utility.h>
 #include <proto/exec.h>
 #include <proto/intuition.h>
+#include <proto/layout.h>
 
 #include <string.h>
 
@@ -81,6 +82,19 @@ void tree_refresh(EditorApp *app, int all)
     GetAttr(DIRTREE_Status, app->tree, &status);
     /* only a refresh the user asked for reports a directory it could not read */
     if (all) report_status(app, status, S(MSG_TREE_TITLE), S(MSG_ERR_TREEMEM));
+}
+
+void tree_apply_info(EditorApp *app)
+{
+    ULONG status = DIRTREE_ST_OK;
+    if (app->tree == NULL) return;
+    /* the tree may be on the hidden page of its column */
+    if (app->window != NULL)
+        SetPageGadgetAttrs((struct Gadget *)app->tree, app->tree_column, app->window, NULL,
+                           DIRTREE_HideIcons, (ULONG)!app->settings.showinfo, TAG_END);
+    else SetAttrs(app->tree, DIRTREE_HideIcons, (ULONG)!app->settings.showinfo, TAG_END);
+    GetAttr(DIRTREE_Status, app->tree, &status);
+    report_status(app, status, S(MSG_TREE_TITLE), S(MSG_ERR_TREEMEM));
 }
 
 int tree_project_root(EditorApp *app, char *out, LONG size)

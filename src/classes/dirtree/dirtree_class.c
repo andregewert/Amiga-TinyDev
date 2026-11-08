@@ -10,7 +10,7 @@
  * Reading is bounded by DIRTREE_MaxDepth and DIRTREE_MaxEntries.
  *
  * DOS is only used from OM_NEW and OM_SET (DIRTREE_Root,
- * DIRTREE_HandleEvent, DIRTREE_Refresh), which run on the application's
+ * DIRTREE_HandleEvent, DIRTREE_Refresh, DIRTREE_HideIcons), which run on the application's
  * process, never from input handling. OM_SET also brings the GadgetInfo
  * for redrawing.
  *
@@ -1389,7 +1389,15 @@ static ULONG om_set(Class *cl, Object *o, struct opSet *ops)
                          ? GetTagData(DIRTREE_Refresh, 0, ops->ops_AttrList) : 0;
     int refreshed = 0;
     struct TagItem *title_tag = NULL;
-    if (ops->MethodID == OM_SET) update_row_height(d, ops->ops_GInfo);
+    if (ops->MethodID == OM_SET) {
+        struct TagItem *hide = FindTagItem(DIRTREE_HideIcons, ops->ops_AttrList);
+        update_row_height(d, ops->ops_GInfo);
+        /* a change shows or leaves out entries of every shown directory */
+        if (hide != NULL && (hide->ti_Data != 0) != (d->hide_icons != 0)) {
+            d->hide_icons = hide->ti_Data != 0;
+            refresh_mode = DIRTREE_RF_ALL;
+        }
+    }
     /* Read the listbrowser's event before the OM_SET reaches it: setting
      * attributes may reset LISTBROWSER_RelEvent. */
     if (handle) {

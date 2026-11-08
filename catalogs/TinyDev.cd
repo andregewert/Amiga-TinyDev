@@ -109,6 +109,9 @@ Folder Tree
 MSG_MENU_TREE_REFRESH (//)
 Refresh
 ;
+MSG_MENU_TREE_HIDEINFO (//)
+Hide Info Files
+;
 MSG_MENU_LINENUMBERS (//)
 Line Numbers
 ;
@@ -392,6 +395,9 @@ Show at the start:
 ;
 MSG_PREFS_FOLDERTREE (//)
 Folder tr_ee
+;
+MSG_PREFS_HIDEINFO (//)
+Hide ._info files in the folder tree
 ;
 MSG_PREFS_MINIMAP (//)
 _Minimap

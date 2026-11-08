@@ -9,7 +9,8 @@
  * directory are read, collapsing a directory frees them again. Depth and
  * the number of entries are bounded. Entries get small built-in symbols
  * (drawer, open drawer, file, source code, script, picture), drawn with the
- * name by the class's render hook; icon files (*.info) are left out. The
+ * name by the class's render hook; icon files (*.info) are left out by
+ * default. The
  * shown directories are watched, so the tree follows changes on disk.
  * A pattern can choose the files that are shown, a hook the names they
  * show (e.g. the titles of HTML files), and the entries can be sorted in
@@ -182,7 +183,10 @@
 /**
  * @brief Leave out icon files (*.info).
  *
- * Type: BOOL. Applicability: I G. Default: TRUE.
+ * Changing it reads the shown directories again, as #DIRTREE_Refresh with
+ * #DIRTREE_RF_ALL does (and reports through #DIRTREE_Status).
+ *
+ * Type: BOOL. Applicability: I S G. Default: TRUE.
  */
 #define DIRTREE_HideIcons   (DIRTREE_Dummy + 12)
 

@@ -112,6 +112,7 @@ typedef struct Settings {
     int splash;         /**< splash window while starting (NOSPLASH turns it off) */
     int foldertree;     /**< folder tree shown at the start (NOFOLDERTREE turns it off) */
     int minimap;        /**< minimap shown at the start (MINIMAP) */
+    int showinfo;       /**< the folder tree shows .info files (SHOWINFO) */
     long winwidth;      /**< width of the main window at the start: 0 = automatic */
     long winheight;     /**< its height: 0 = automatic */
     long winleft;       /**< its left edge: -1 = centred */
@@ -198,6 +199,7 @@ enum MenuId {
     MID_TREE_NEW_DRAWER, /**< Project/Folder Tree/New Drawer... */
     MID_TREE_RENAME,    /**< Project/Folder Tree/Rename...: the selected entry */
     MID_TREE_DELETE,    /**< Project/Folder Tree/Delete...: the selected entry */
+    MID_TREE_HIDE_INFO, /**< Project/Folder Tree/Hide Info Files (check item) */
     /* the File Type entries stay last: menu_action() takes the IDs from
      * MID_FT_AUTO on as file types */
     MID_FT_AUTO,        /**< File Type/Automatic: the language Scout detects */
@@ -1724,6 +1726,12 @@ ULONG tree_signal_mask(EditorApp *app);
  *            Tree), zero for those DOS reported changed.
  */
 void tree_refresh(EditorApp *app, int all);
+/**
+ * @brief Make the folder tree show or leave out the .info files, as the
+ *        setting SHOWINFO says.
+ * @param app The application state.
+ */
+void tree_apply_info(EditorApp *app);
 /**
  * @brief Show or hide the folder tree column and relayout the window.
  *

@@ -36,7 +36,8 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
 - Folder tree of the project (the directory opened with Project/Open
   Project...): opens files with a double-click and follows changes on disk;
   the small buttons above it (also in Project/Folder Tree) make a new file
-  or drawer and rename or delete the selected entry, icons included.
+  or drawer and rename or delete the selected entry, icons included;
+  Project/Folder Tree/Hide Info Files shows or hides the `.info` files.
 - Minimap: a coloured overview of the document; click or drag in it to
   scroll.
 - Find and replace (Amiga+F) in the current document, in all open documents
@@ -177,6 +178,7 @@ the icon, "Use" keeps them for this session.
 | `TOOLBARFRAMES` | Frames around the toolbar buttons |
 | `NOSPLASH` | No splash window while TinyDev starts |
 | `NOFOLDERTREE`, `MINIMAP` | View at the start: without the folder tree, with the minimap (the View menu changes the view of the session only) |
+| `SHOWINFO` | The folder tree shows `.info` files (Project/Folder Tree/Hide Info Files changes it for the session) |
 | `WIDTH=n`, `HEIGHT=n` | Size of the main window (default: 90 % x 80 % of the screen) |
 | `LEFT=n`, `TOP=n` | Position of the main window (default: centred) |
 | `BOOKMARKLIST` | Open the bookmark list at the start |
