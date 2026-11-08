@@ -952,26 +952,18 @@ int ui_create(EditorApp *app)
 }
 
 /**
- * @brief Send an ARexx-style command to the active document's editor gadget.
+ * @brief Show the result of a command in the active document's editor.
  *
- * Issues the command (e.g. UNDO/REDO/CUT/COPY/PASTE/SELECTALL) via the
- * texteditor gadget.  Because toolbar/menu picks steal input focus, it forces
- * an immediate refresh of the editor gadget and reactivates it so the updated
- * contents and caret appear at once, then resyncs the scrollbars and requests
- * a minimap update.  Does nothing if no document is active.
+ * Toolbar buttons and menu picks steal the input focus from the editor
+ * gadget, so a command issued through them changes the buffer without the
+ * gadget redrawing right away. Forces an immediate refresh, hands the focus
+ * back to the editor so the new contents and caret appear at once, then
+ * resyncs the scrollbars and requests a minimap update.
  *
- * @param app The application whose active document receives the command.
- * @param command The ARexx command string to execute.
+ * @param app The application; it has an active document.
  */
-static void editor_command(EditorApp *app, const char *command)
+static void editor_command_done(EditorApp *app)
 {
-    if (app->active == NULL) return;
-    DoMethod(app->active->editor, GM_TEXTEDITOR_ARexxCmd, NULL, (STRPTR)command);
-    /* Toolbar buttons and menu picks steal the input focus from the editor
-     * gadget, so a command issued through them (Undo/Redo/Cut/Copy/Paste)
-     * changes the buffer without the gadget redrawing right away.  Force an
-     * immediate refresh and hand the focus back to the editor so the new
-     * contents and caret appear at once. */
     if (app->window != NULL) {
         RefreshGList((struct Gadget *)app->active->editor, app->window, NULL, 1);
         if (app->layout != NULL)
@@ -981,6 +973,54 @@ static void editor_command(EditorApp *app, const char *command)
     }
     document_sync_scrollers(app, app->active);
     minimap_request(app);
+}
+
+/**
+ * @brief Send an ARexx-style command to the active document's editor gadget.
+ *
+ * Issues the command (e.g. UNDO/REDO/CUT/COPY/PASTE) via the texteditor
+ * gadget and shows its result. Does nothing if no document is active.
+ *
+ * @param app The application whose active document receives the command.
+ * @param command The ARexx command string to execute.
+ */
+static void editor_command(EditorApp *app, const char *command)
+{
+    if (app->active == NULL) return;
+    DoMethod(app->active->editor, GM_TEXTEDITOR_ARexxCmd, NULL, (STRPTR)command);
+    editor_command_done(app);
+}
+
+/**
+ * @brief Mark the whole text of the active document.
+ *
+ * texteditor.gadget has no ARexx command for this (its MARK only switches
+ * marking on and off), so the end of the text is looked up for
+ * GM_TEXTEDITOR_MarkText: the last line by the editor's count, its length
+ * from the exported text. Does nothing if no document is active.
+ *
+ * @param app The application whose active document is marked.
+ */
+static void editor_select_all(EditorApp *app)
+{
+    Document *doc = app->active;
+    ULONG lines = 0;
+    long last, n = 0, length = 0;
+    const char *p;
+    char *text;
+    if (doc == NULL) return;
+    GetAttr(GA_TEXTEDITOR_Prop_Entries, doc->editor, &lines);
+    if (lines == 0) return;
+    last = (long)lines - 1;
+    text = (char *)DoMethod(doc->editor, GM_TEXTEDITOR_ExportText, NULL);
+    if (text == NULL) return;
+    for (p = text; *p != '\0' && n < last; ++p)
+        if (*p == '\n') ++n;
+    while (p[length] != '\0' && p[length] != '\n') ++length;
+    FreeVec(text);
+    DoGadgetMethod((struct Gadget *)doc->editor, app->window, NULL, GM_TEXTEDITOR_MarkText, 0,
+                   0UL, 0UL, (ULONG)length, (ULONG)last);
+    editor_command_done(app);
 }
 
 /**
@@ -1293,7 +1333,7 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_CUT: editor_command(app, "CUT"); break;
         case MID_COPY: editor_command(app, "COPY"); break;
         case MID_PASTE: editor_command(app, "PASTE"); break;
-        case MID_SELECT_ALL: editor_command(app, "SELECTALL"); break;
+        case MID_SELECT_ALL: editor_select_all(app); break;
         case MID_RECT:
             if (app->active != NULL)
                 ui_gadget_set(app, app->active->editor, GA_TEXTEDITOR_RectangularSelections,
