@@ -48,6 +48,7 @@ GLYPHS = {
     '<': ('....#', '...#.', '..#..', '.#...', '..#..', '...#.', '....#'),
     '?': ('.###.', '#...#', '....#', '...#.', '..#..', '.....', '..#..'),
     'H': ('#...#', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'),
+    'R': ('####.', '#...#', '#...#', '####.', '#.#..', '#..#.', '#...#'),
     'i': ('.#.', '...', '##.', '.#.', '.#.', '.#.', '###'),
     '!': ('#', '#', '#', '#', '#', '.', '#'),
 }
@@ -60,6 +61,7 @@ SMALL = {
     '<': ('..#', '.#.', '#..', '.#.', '..#'),
     '?': ('##.', '..#', '.#.', '...', '.#.'),
     'H': ('#.#', '#.#', '###', '#.#', '#.#'),
+    'R': ('##.', '#.#', '##.', '#.#', '#.#'),
     'i': ('#', '.', '#', '#', '#'),
     '!': ('#', '#', '#', '.', '#'),
 }
@@ -539,11 +541,12 @@ PARSER_MAKE = parser('M', RED, ai.N_RED)       # Makefiles
 PARSER_MD = parser('v', ai.BOX, ai.N_TAN)      # Markdown: the arrow of its logo
 PARSER_JSON = parser('J', ai.FOLDER, ai.N_YELLOW)
 PARSER_MARKUP = parser('<', ((200, 130, 230), (110, 40, 150)), ai.N_LBLUE)    # HTML and XML
+PARSER_AREXX = parser('R', ((110, 200, 190), (20, 110, 110)), ai.N_G170)    # ARexx
 
 
 # ---------------------------------------------------------------- samples ---
 
-ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, PARSER_DOS, PARSER_MAKE, PARSER_MD, PARSER_JSON, PARSER_MARKUP, 'helpviewer', 'hello', 'helppages', 'readme', 'license')
+ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, PARSER_DOS, PARSER_MAKE, PARSER_MD, PARSER_JSON, PARSER_MARKUP, PARSER_AREXX, 'helpviewer', 'hello', 'helppages', 'readme', 'license')
 
 SAMPLES = (('Drawer', 'drawer', WBDRAWER, {}),
            ('TinyDev', 'tinydev', WBTOOL, {'stack': 32768}),
@@ -554,6 +557,7 @@ SAMPLES = (('Drawer', 'drawer', WBDRAWER, {}),
            ('markdown_parser', PARSER_MD, WBTOOL, {'stack': 16384}),
            ('json_parser', PARSER_JSON, WBTOOL, {'stack': 16384}),
            ('markup_parser', PARSER_MARKUP, WBTOOL, {'stack': 16384}),
+           ('arexx_parser', PARSER_AREXX, WBTOOL, {'stack': 16384}),
            ('HelpViewer', 'helpviewer', WBTOOL, {'stack': 32768}),
            ('HelloWorld', 'hello', WBPROJECT, {}),
            ('HelpProject', 'helppages', WBPROJECT, {}),

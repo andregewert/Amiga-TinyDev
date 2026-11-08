@@ -172,7 +172,7 @@ run for every line drawn. Example for C:
 | `numbers` | `false` instead of the object: digits are normal text, for languages without numbers of their own (HTML and XML, where tokens could not be shown over them) |
 | `preprocessor.prefix` | a line whose first non-blank characters are this string is a preprocessor line as a whole (comments and strings in it still count) |
 | `preprocessor.continuation` | a line ending in this character continues the preprocessor line on the next |
-| `keywords` | words by class (see [Kinds](#7-kinds)): `keyword`, `type`, `constant`, `builtin` |
+| `keywords` | words by class (see [Kinds](#7-kinds)): `keyword`, `type`, `constant`, `builtin`. Words of a class with another name are not highlighted, only offered by completion (ARexx: its functions, whose names are common as variables too, are marked by tokens where they are called) |
 
 How a scanner applies them, from the start of a line:
 

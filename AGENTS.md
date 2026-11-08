@@ -282,6 +282,9 @@ below the tree's root.
   and links as references of kind `link` as in Markdown (`MarkupFiles`, set
   in the rpc part), tags and attributes as tokens; its rules only know comments and have
   `"numbers": false`) and `markup_parser_rpc.c`;
+  the ARexx parser is `arexx_parser.c` (clauses as ARexx reads them, labels,
+  procedures, variables, block structure, jumps, tokens; expressions are
+  not parsed) and `arexx_parser_rpc.c`;
   `include/scout_protocol.h` holds the protocol's numbers (kinds,
   severities, error codes) for Scout and all parsers.
 - `include/editor.h`: shared application types and cross-module declarations.
@@ -312,6 +315,8 @@ below the tree's root.
   (sample in `tests/data/json_parser/`, ISO-8859-1).
 - `tests/test_markup_parser.c`: host-native tests of the HTML and XML
   parser (samples in `tests/data/markup_parser/`, ISO-8859-1).
+- `tests/test_arexx_parser.c`: host-native tests of the ARexx parser
+  (sample in `tests/data/arexx_parser/`, ISO-8859-1).
 - `amiga-devkit/`: git submodule (pinned tag) with shared Amiga tools and AI
   guidelines; see `CLAUDE.md`. Do not edit files inside the submodule.
 - `external/html_gadget/`: git submodule (tag `v1.2`), html.gadget, for
@@ -385,6 +390,7 @@ make test
   `bin/parsers/c_parser`, `bin/parsers/dos_parser`,
   `bin/parsers/make_parser`, `bin/parsers/markdown_parser`,
   `bin/parsers/json_parser`, `bin/parsers/markup_parser`,
+  `bin/parsers/arexx_parser`,
   `bin/Classes/Gadgets/<name>.gadget`,
   `bin/Catalogs/<language>/TinyDev.catalog`, `bin/HelpViewer`,
   `bin/Sprout`, `bin/mdtohtml`, `bin/Templates/`,
