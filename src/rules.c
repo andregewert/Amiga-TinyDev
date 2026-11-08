@@ -125,6 +125,33 @@ static SyntaxStyle find_word(const SyntaxRules *r, const char *s, size_t len)
 }
 
 /**
+ * @brief Tell whether a word starts a comment (lineCommentWords).
+ * @param r The rules.
+ * @param word The word.
+ * @param len Its length.
+ * @return Non-zero if it does.
+ */
+static int is_comment_word(const SyntaxRules *r, const char *word, size_t len)
+{
+    int k;
+    for (k = 0; k < r->comment_word_count; k++) {
+        const char *w = r->comment_words[k];
+        size_t i;
+        if (strlen(w) != len) continue;
+        for (i = 0; i < len; i++) {
+            unsigned char a = (unsigned char)word[i], b = (unsigned char)w[i];
+            if (!r->case_sensitive) {
+                if (a >= 'a' && a <= 'z') a = (unsigned char)(a - 32);
+                if (b >= 'a' && b <= 'z') b = (unsigned char)(b - 32);
+            }
+            if (a != b) break;
+        }
+        if (i == len) return 1;
+    }
+    return 0;
+}
+
+/**
  * @brief Add the words of a keyword class.
  * @param r The rules.
  * @param list The array of words.
@@ -216,6 +243,12 @@ SyntaxRules *rules_parse(const char *json)
         const JsonValue *s = json_array_get(v, i);
         if (s != NULL && s->type == JSON_STRING && set_delim(r->column_comments[r->column_comment_count], s->u.str_val))
             r->column_comment_count++;
+    }
+    v = json_obj_get_array(root, "lineCommentWords");
+    for (i = 0; v != NULL && i < json_array_length(v) && r->comment_word_count < RULES_MAX; i++) {
+        const JsonValue *s = json_array_get(v, i);
+        if (s != NULL && s->type == JSON_STRING && set_delim(r->comment_words[r->comment_word_count], s->u.str_val))
+            r->comment_word_count++;
     }
     r->block_count = read_pairs(json_obj_get_array(root, "blockComments"), r->blocks);
     r->string_count = read_pairs(json_obj_get_array(root, "strings"), r->strings);
@@ -463,6 +496,10 @@ unsigned long rules_scan_line(const SyntaxRules *r, const char *text, unsigned l
             size_t start = i++;
             SyntaxStyle style;
             while (i < len && r->part[(unsigned char)text[i]]) i++;
+            if (!pp && is_comment_word(r, text + start, i - start)) {
+                out(emit, context, start, len, SYNTAX_COMMENT);
+                return ST_NONE;
+            }
             style = find_word(r, text + start, i - start);
             if (style != SYNTAX_NORMAL && !pp) out(emit, context, start, i, style);
             continue;

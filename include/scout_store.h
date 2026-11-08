@@ -56,6 +56,7 @@ typedef struct ScoutReference {
     char *kind;             /**< "include", "import" or "link" (allocated) */
     char *target;           /**< the name as written (allocated) */
     int system;             /**< looked up in the include paths only */
+    char *language;         /**< the language the file is written in, if the parser says (allocated, may be NULL) */
     ScoutRange range;       /**< where it is */
 } ScoutReference;
 
@@ -455,9 +456,11 @@ void scout_write_tokens(JsonWriter *w, const ScoutFile *f);
  * @param line The position's line.
  * @param col Its column.
  * @param name The name.
+ * @param case_sensitive The language tells names apart by case; if not,
+ *        names differing in case are found when the exact name is not.
  */
 void scout_write_definition(JsonWriter *w, const ScoutSession *s, const ScoutFile *f,
-                            long line, long col, const char *name);
+                            long line, long col, const char *name, int case_sensitive);
 
 /**
  * @brief Find the reference to another file at a position.

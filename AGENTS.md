@@ -294,6 +294,11 @@ below the tree's root.
   block structure, MODULE as references; expressions are not parsed; a
   compiled `.m` is walked for its symbols, which Scout offers only for
   completion, see `"binary"` in the protocol) and `e_parser_rpc.c`;
+  the ACE BASIC parser is `ace_parser.c` (statements in two passes, `~` and
+  a backslash continuing a line, SUBs, METHODs, STRUCT and CLASS, DECLARE
+  and EXTERNAL, CONST, the declared variables, labels, block structure, the
+  `#` lines; expressions are not parsed; its includes end in `.h` and say
+  so with `"language"` in their references) and `ace_parser_rpc.c`;
   `include/scout_protocol.h` holds the protocol's numbers (kinds,
   severities, error codes) for Scout and all parsers.
 - `include/editor.h`: shared application types and cross-module declarations.
@@ -330,6 +335,8 @@ below the tree's root.
   (sample in `tests/data/asm_parser/`, ISO-8859-1).
 - `tests/test_e_parser.c`: host-native tests of the AmigaE parser, with
   modules built byte by byte (sample in `tests/data/e_parser/`, ISO-8859-1).
+- `tests/test_ace_parser.c`: host-native tests of the ACE BASIC parser
+  (sample in `tests/data/ace_parser/`, ISO-8859-1).
 - `amiga-devkit/`: git submodule (pinned tag) with shared Amiga tools and AI
   guidelines; see `CLAUDE.md`. Do not edit files inside the submodule.
 - `external/html_gadget/`: git submodule (tag `v1.2`), html.gadget, for
@@ -406,6 +413,7 @@ make test
   `bin/parsers/arexx_parser`,
   `bin/parsers/asm_parser`,
   `bin/parsers/e_parser`,
+  `bin/parsers/ace_parser`,
   `bin/Classes/Gadgets/<name>.gadget`,
   `bin/Catalogs/<language>/TinyDev.catalog`, `bin/HelpViewer`,
   `bin/Sprout`, `bin/mdtohtml`, `bin/Templates/`,

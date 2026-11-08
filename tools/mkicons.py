@@ -51,6 +51,7 @@ GLYPHS = {
     'R': ('####.', '#...#', '#...#', '####.', '#.#..', '#..#.', '#...#'),
     'A': ('.###.', '#...#', '#...#', '#####', '#...#', '#...#', '#...#'),
     'E': ('#####', '#....', '#....', '####.', '#....', '#....', '#####'),
+    'B': ('####.', '#...#', '#...#', '####.', '#...#', '#...#', '####.'),
     'i': ('.#.', '...', '##.', '.#.', '.#.', '.#.', '###'),
     '!': ('#', '#', '#', '#', '#', '.', '#'),
 }
@@ -66,6 +67,7 @@ SMALL = {
     'R': ('##.', '#.#', '##.', '#.#', '#.#'),
     'A': ('.#.', '#.#', '###', '#.#', '#.#'),
     'E': ('###', '#..', '##.', '#..', '###'),
+    'B': ('##.', '#.#', '##.', '#.#', '##.'),
     'i': ('#', '.', '#', '#', '#'),
     '!': ('#', '#', '#', '.', '#'),
 }
@@ -548,11 +550,12 @@ PARSER_MARKUP = parser('<', ((200, 130, 230), (110, 40, 150)), ai.N_LBLUE)    # 
 PARSER_AREXX = parser('R', ((110, 200, 190), (20, 110, 110)), ai.N_G170)    # ARexx
 PARSER_ASM = parser('A', ((190, 190, 200), (70, 70, 90)), ai.N_G136)    # Assembler
 PARSER_E = parser('E', ((130, 190, 240), (20, 70, 150)), ai.N_BLUE)     # AmigaE
+PARSER_ACE = parser('B', ((250, 200, 130), (150, 80, 20)), ai.N_TAN)    # ACE BASIC
 
 
 # ---------------------------------------------------------------- samples ---
 
-ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, PARSER_DOS, PARSER_MAKE, PARSER_MD, PARSER_JSON, PARSER_MARKUP, PARSER_AREXX, PARSER_ASM, PARSER_E, 'helpviewer', 'hello', 'helppages', 'readme', 'license')
+ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, PARSER_DOS, PARSER_MAKE, PARSER_MD, PARSER_JSON, PARSER_MARKUP, PARSER_AREXX, PARSER_ASM, PARSER_E, PARSER_ACE, 'helpviewer', 'hello', 'helppages', 'readme', 'license')
 
 SAMPLES = (('Drawer', 'drawer', WBDRAWER, {}),
            ('TinyDev', 'tinydev', WBTOOL, {'stack': 32768}),
@@ -566,6 +569,7 @@ SAMPLES = (('Drawer', 'drawer', WBDRAWER, {}),
            ('arexx_parser', PARSER_AREXX, WBTOOL, {'stack': 16384}),
            ('asm_parser', PARSER_ASM, WBTOOL, {'stack': 16384}),
            ('e_parser', PARSER_E, WBTOOL, {'stack': 16384}),
+           ('ace_parser', PARSER_ACE, WBTOOL, {'stack': 16384}),
            ('HelpViewer', 'helpviewer', WBTOOL, {'stack': 32768}),
            ('HelloWorld', 'hello', WBPROJECT, {}),
            ('HelpProject', 'helppages', WBPROJECT, {}),

@@ -192,6 +192,7 @@ static void free_result(ScoutFile *f)
     for (i = 0; i < f->reference_count; i++) {
         free(f->references[i].kind);
         free(f->references[i].target);
+        free(f->references[i].language);
     }
     free(f->symbols);
     free(f->diagnostics);
@@ -911,6 +912,10 @@ static int read_references(ScoutFile *f, const JsonValue *list)
         const char *target = v ? json_obj_get_string(v, "target", NULL) : NULL;
         if (!target || !*target) continue;
         r->target = dup_str(target);
+        if (json_obj_get_string(v, "language", NULL)) {
+            r->language = dup_str(json_obj_get_string(v, "language", NULL));
+            if (!r->language) return 0;
+        }
         r->kind = dup_str(json_obj_get_string(v, "kind", "include"));
         if (!r->target || !r->kind) return 0;
         r->system = json_obj_get_bool(v, "system", 0);
@@ -1372,16 +1377,34 @@ static void write_locations(JsonWriter *w, const char *name, const Location *loc
 }
 
 /**
+ * @brief Compare two names.
+ * @param a The first.
+ * @param b The second.
+ * @param any_case Ignore case.
+ * @return Non-zero if they are the same.
+ */
+static int same_name(const char *a, const char *b, int any_case)
+{
+    if (!any_case) return strcmp(a, b) == 0;
+    while (*a && fold((unsigned char)*a) == fold((unsigned char)*b)) {
+        a++;
+        b++;
+    }
+    return *a == *b;
+}
+
+/**
  * @brief Collect the non-local symbols of a name in a file.
  * @param f The file.
  * @param name The name.
  * @param global_only Only symbols visible to other files.
  * @param declarations Collect declarations (otherwise definitions).
+ * @param any_case Names differing in case count as the same.
  * @param loc The locations, appended to.
  * @param n Their number, counted up.
  */
 static void collect(const ScoutFile *f, const char *name, int global_only, int declarations,
-                    Location *loc, long *n)
+                    int any_case, Location *loc, long *n)
 {
     long i;
     if (!f->valid || f->binary) return;
@@ -1389,16 +1412,26 @@ static void collect(const ScoutFile *f, const char *name, int global_only, int d
         const ScoutSymbol *s = &f->symbols[i];
         if (s->scope == SCOUT_SCOPE_LOCAL || (global_only && s->scope != SCOUT_SCOPE_GLOBAL)) continue;
         if (!s->declaration != !declarations) continue;
-        if (strcmp(s->name, name) != 0) continue;
+        if (!same_name(s->name, name, any_case)) continue;
         loc[*n].file = f;
         loc[(*n)++].sym = s;
     }
 }
 
-void scout_write_definition(JsonWriter *w, const ScoutSession *s, const ScoutFile *f,
-                            long line, long col, const char *name)
+/**
+ * @brief Find the places a name is defined.
+ * @param s The session.
+ * @param f The file the name is used in.
+ * @param line The position's line.
+ * @param col Its column.
+ * @param name The name.
+ * @param any_case Names differing in case count as the same.
+ * @param[out] loc The locations (MAX_LOCATIONS).
+ * @return Their number.
+ */
+static long find_definitions(const ScoutSession *s, const ScoutFile *f, long line, long col, const char *name,
+                             int any_case, Location *loc)
 {
-    Location loc[MAX_LOCATIONS];
     long n = 0, i, func;
     const ScoutFile *g;
     int pass;
@@ -1406,31 +1439,37 @@ void scout_write_definition(JsonWriter *w, const ScoutSession *s, const ScoutFil
     if (f && f->valid && (func = function_at(f, line, col)) >= 0) {
         for (i = func + 1; i < f->symbol_count && n < MAX_LOCATIONS; i++) {
             const ScoutSymbol *sym = &f->symbols[i];
-            if (sym->kind == SCOUT_SYMBOL_FIELD || strcmp(sym->name, name) != 0) continue;
+            if (sym->kind == SCOUT_SYMBOL_FIELD || !same_name(sym->name, name, any_case)) continue;
             if (!belongs_to(f, i, func)) continue;
             loc[n].file = f;
             loc[n++].sym = sym;
         }
-        if (n > 0) {
-            write_locations(w, name, loc, n);
-            return;
-        }
+        if (n > 0) return n;
     }
     for (pass = 0; pass < 2 && n == 0; pass++) {
-        if (f) collect(f, name, 0, pass, loc, &n);
+        if (f) collect(f, name, 0, pass, any_case, loc, &n);
         for (g = s->files; g; g = g->next) {
-            if (g != f) collect(g, name, 1, pass, loc, &n);
+            if (g != f) collect(g, name, 1, pass, any_case, loc, &n);
         }
     }
     for (g = s->files; g && n == 0; g = g->next) {
         if (!g->valid || g->binary) continue;
         for (i = 0; i < g->symbol_count && n < MAX_LOCATIONS; i++) {
-            if (g->symbols[i].kind == SCOUT_SYMBOL_FIELD && strcmp(g->symbols[i].name, name) == 0) {
+            if (g->symbols[i].kind == SCOUT_SYMBOL_FIELD && same_name(g->symbols[i].name, name, any_case)) {
                 loc[n].file = g;
                 loc[n++].sym = &g->symbols[i];
             }
         }
     }
+    return n;
+}
+
+void scout_write_definition(JsonWriter *w, const ScoutSession *s, const ScoutFile *f,
+                            long line, long col, const char *name, int case_sensitive)
+{
+    Location loc[MAX_LOCATIONS];
+    long n = find_definitions(s, f, line, col, name, 0, loc);
+    if (n == 0 && !case_sensitive) n = find_definitions(s, f, line, col, name, 1, loc);
     write_locations(w, name, loc, n);
 }
 

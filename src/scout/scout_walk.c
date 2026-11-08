@@ -68,7 +68,8 @@ int scout_index_file(ScoutServer *srv, ScoutSession *s, const char *path, int in
     if (!scout_file_stamp(path, &stamp)) return 0;
     if (!f && (f = scout_file_get(s, path)) == NULL) return 0;
     if (in_project) f->in_project = 1;
-    if (f->valid && (f->version >= 0 || memcmp(&f->stamp, &stamp, sizeof(stamp)) == 0)) return 0;
+    if (f->valid && (f->version >= 0 || memcmp(&f->stamp, &stamp, sizeof(stamp)) == 0) &&
+        (!f->language || strcmp(f->language, lang->id) == 0)) return 0;
     memset(&item, 0, sizeof(item));
     item.path = (char *)path;
     item.language = lang->id;
@@ -250,6 +251,9 @@ void scout_walk_references(ScoutServer *srv, ScoutSession *s, const ScoutFile *f
         char full[SCOUT_PATH_MAX];
         /* a link is no part of the file's program: not indexed */
         if (strcmp(r->kind, "link") == 0) continue;
-        if (scout_resolve_reference(s, f, r, full, sizeof(full))) scout_index_file(srv, s, full, 0, -1);
+        if (!scout_resolve_reference(s, f, r, full, sizeof(full))) continue;
+        /* ACE's include files end in .h, like C's: the parser says which */
+        if (r->language && !scout_session_language(s, full)) scout_session_set_language(s, full, r->language);
+        scout_index_file(srv, s, full, 0, -1);
     }
 }

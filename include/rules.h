@@ -37,6 +37,8 @@ typedef struct SyntaxRules {
     char line_comments[RULES_MAX][RULES_DELIM]; /**< what starts a comment to the end of the line */
     int line_comment_count;                     /**< number of them */
     char column_comments[RULES_MAX][RULES_DELIM]; /**< what starts a comment only in the line's first column */
+    char comment_words[RULES_MAX][RULES_DELIM]; /**< words that start a comment to the end of the line */
+    int comment_word_count; /**< number of comment_words */
     int column_comment_count;                   /**< number of them */
     RulesPair blocks[RULES_MAX];                /**< block comments */
     int block_count;                            /**< number of them */

@@ -112,7 +112,7 @@ static size_t definition(const ScoutStore *st, const ScoutSession *s, const Scou
     size_t n = 0;
     (void)st;
     json_writer_init_alloc(&w, 256);
-    scout_write_definition(&w, s, f, line, col, name);
+    scout_write_definition(&w, s, f, line, col, name, 1);
     v = parse_written(&w);
     locs = v ? json_obj_get_array(v, "locations") : NULL;
     file[0] = '\0';
@@ -427,10 +427,10 @@ static void test_sessions(ScoutStore *st)
             TEST_ASSERT(scout_file_set_result(e, "e", -1, NULL, "{}") == 1);
             TEST_ASSERT(m->binary && !e->binary);
             json_writer_init_alloc(&w, 256);
-            scout_write_definition(&w, s, e, 1, 1, "modfunc");
+            scout_write_definition(&w, s, e, 1, 1, "modfunc", 1);
             TEST_ASSERT(strstr(json_writer_get(&w), "mod.m") == NULL);
             w.length = 0;
-            scout_write_definition(&w, s, e, 1, 1, "modfield");
+            scout_write_definition(&w, s, e, 1, 1, "modfield", 1);
             TEST_ASSERT(strstr(json_writer_get(&w), "mod.m") == NULL);
             w.length = 0;
             scout_write_symbols(&w, s, NULL, NULL, NULL);
@@ -441,6 +441,29 @@ static void test_sessions(ScoutStore *st)
             json_writer_free(&w);
             scout_file_remove(s, "Work:Hello/mod.m");
             scout_file_remove(s, "Work:Hello/use.e");
+        }
+        /* a language that ignores case finds the name in any case; a
+         * reference can say what language its file is */
+        m = scout_file_get(s, "Work:Hello/a.b");
+        if (m) {
+            TEST_ASSERT(scout_file_set_result(m, "ace", -1, NULL,
+                "{\"symbols\":[{\"name\":\"Helper\",\"kind\":12,\"scope\":\"file\","
+                "\"range\":{\"start\":[3,1],\"end\":[4,1]},\"selection\":{\"start\":[3,5],\"end\":[3,11]}}],"
+                "\"references\":[{\"kind\":\"include\",\"language\":\"ace\",\"target\":\"x.h\","
+                "\"range\":{\"start\":[1,1],\"end\":[1,2]}},"
+                "{\"kind\":\"include\",\"target\":\"y.h\",\"range\":{\"start\":[2,1],\"end\":[2,2]}}]}") == 1);
+            TEST_ASSERT(m->reference_count == 2 && strcmp(m->references[0].language, "ace") == 0 && m->references[1].language == NULL);
+            json_writer_init_alloc(&w, 256);
+            scout_write_definition(&w, s, m, 1, 1, "HELPER", 1);
+            TEST_ASSERT(strstr(json_writer_get(&w), "a.b") == NULL);
+            w.length = 0;
+            scout_write_definition(&w, s, m, 1, 1, "HELPER", 0);
+            TEST_ASSERT(strstr(json_writer_get(&w), "a.b") != NULL);
+            w.length = 0;
+            scout_write_definition(&w, s, m, 1, 1, "Helper", 0);
+            TEST_ASSERT(strstr(json_writer_get(&w), "a.b") != NULL);
+            json_writer_free(&w);
+            scout_file_remove(s, "Work:Hello/a.b");
         }
     }
 

@@ -166,6 +166,7 @@ run for every line drawn. Example for C:
 | `caseSensitive` | whether keywords are matched with case (default `true`); Latin-1 letters fold too |
 | `identifier.start`, `.part` | character classes of the first and further characters of a word: characters and ranges `a-z`; `-` at the start or end stands for itself; Latin-1 characters as `ä` in JSON. Default `A-Za-z_` and `A-Za-z0-9_` |
 | `lineComments` | strings that start a comment to the end of the line |
+| `lineCommentWords` | optional: words that start a comment to the end of the line (BASIC's `REM`); only whole words, in any case if the language ignores case |
 | `firstColumnComments` | optional: strings that start a comment to the end of the line only in the line's first column (`*` in assembler, where it is otherwise an operator) |
 | `blockComments` | `open`/`close` pairs; `nested`: whether an `open` inside counts (Pascal, E) |
 | `strings` | `open`/`close` pairs; `escape`: the character that makes the next one part of the string (none if left out); `multiline`: whether the string may go on to the next line (otherwise it ends at the line end) |
@@ -285,6 +286,7 @@ index and resolve them (editors open them with Scout's `REFERENCE`).
 | Field | Meaning |
 |---|---|
 | `kind` | `include` (text included, e.g. `#include`, `INCLUDE`), `import` (a module used, e.g. `uses`, `MODULE`), `link` (a file the text points to, e.g. a Markdown link; Scout resolves it for editors but does not index it) |
+| `language` | optional: the language the file is written in, if its extension does not say (ACE's include files end in `.h`, like C's). Scout reads the file in that language unless a client chose another |
 | `target` | the name as written, without quotes or brackets; Scout resolves it (relative to `path`, then along the include paths). A parser may give the full path instead, when the name as written is no AmigaDOS path (the Markdown parser's links, with `..` and `%20`) |
 | `system` | optional: `true` for a reference that is looked up in the include paths only (`<...>` in C) |
 | `range` | where the reference is |

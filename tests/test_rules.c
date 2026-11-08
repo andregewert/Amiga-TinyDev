@@ -214,6 +214,28 @@ static void test_other_rules(void)
     rules_free(r);
 }
 
+/** @brief A word that starts a comment. */
+static void test_comment_words(void)
+{
+    SyntaxRules *r = rules_parse("{\"caseSensitive\":false,\"lineCommentWords\":[\"REM\"],"
+                                 "\"keywords\":{\"keyword\":[\"print\"]}}");
+    Capture c;
+    TEST_ASSERT(r != NULL);
+    if (r != NULL) {
+        c.count = 0;
+        TEST_ASSERT(rules_scan_line(r, "rem print", 0, capture, &c) == 0);
+        TEST_ASSERT(c.count == 1 && has(&c, 0, 9, SYNTAX_COMMENT));
+        c.count = 0;
+        rules_scan_line(r, "print REM x", 0, capture, &c);
+        TEST_ASSERT(c.count == 2 && has(&c, 0, 5, SYNTAX_KEYWORD) && has(&c, 6, 11, SYNTAX_COMMENT));
+        /* only the whole word */
+        c.count = 0;
+        rules_scan_line(r, "remark print", 0, capture, &c);
+        TEST_ASSERT(c.count == 1 && has(&c, 7, 12, SYNTAX_KEYWORD));
+    }
+    rules_free(r);
+}
+
 /** @brief A comment that only counts in the first column. */
 static void test_column_comments(void)
 {
@@ -308,6 +330,7 @@ int main(void)
     test_dos_rules();
     test_other_rules();
     test_no_numbers();
+    test_comment_words();
     test_column_comments();
     test_tokens();
     printf("Rules tests completed: %d tests run, %d failures.\n", g_test_count, g_fail_count);

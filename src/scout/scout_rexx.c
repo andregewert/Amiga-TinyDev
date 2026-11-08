@@ -557,6 +557,7 @@ static void cmd_definition(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
     char path[SCOUT_PATH_MAX], word[128];
     long line = *(LONG *)v[2], col = *(LONG *)v[3];
     ScoutFile *f;
+    const ScoutLanguage *lang;
     JsonWriter w;
     if (!s) return;
     full_name((const char *)v[1], path, sizeof(path));
@@ -568,7 +569,8 @@ static void cmd_definition(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
         word_at(srv, f, line, col, 0, word, sizeof(word));
     }
     json_writer_init_alloc(&w, 512);
-    scout_write_definition(&w, s, f, line, col, word);
+    lang = f->language ? scout_store_language(&srv->store, f->language) : NULL;
+    scout_write_definition(&w, s, f, line, col, word, !lang || lang->case_sensitive);
     finish(srv, rx, s->id, &w, NULL);
 }
 
