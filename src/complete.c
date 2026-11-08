@@ -41,6 +41,7 @@
 #include <gadgets/texteditor.h>
 #include <libraries/gadtools.h>
 #include <libraries/keymap.h>
+#include <graphics/gfxbase.h>
 #include <exec/memory.h>
 
 #include <proto/exec.h>
@@ -78,6 +79,12 @@ extern struct Library *ListBrowserBase;     /* shared with the settings window *
 #define NAME_MAX_PCT 50         /**< at most */
 /** Width of the left bar of the editor (bookmarks.c). */
 #define LEFTBAR_WIDTH 20
+/** What texteditor.gadget adds to its left bar (pixels; see cursor_box()). */
+#define LEFTBAR_MARGIN 5
+/** Width of the bookmark marks in that bar, drawn once there is a bookmark. */
+#define LEFTBAR_BOOKMARKS 8
+/** From the editor's left edge to its text area: bevel and padding. */
+#define EDITOR_INSET 4
 /** Rawkey codes of the cursor keys. */
 #define KEY_UP 0x4C
 #define KEY_DOWN 0x4D           /**< Down */
@@ -443,32 +450,78 @@ static long rebuild(void)
 }
 
 /**
+ * @brief Measure the start of a line as the editor draws it.
+ * @param rp A rastport with the editor's font.
+ * @param p The line's text.
+ * @param n The bytes to measure.
+ * @param tab The distance of the tab stops (pixels, at least 1).
+ * @return The width in pixels.
+ */
+static WORD text_width(struct RastPort *rp, const char *p, long n, WORD tab)
+{
+    WORD width = 0;
+    long start = 0, i;
+    for (i = 0; i < n; ++i) {
+        if (p[i] != '\t') continue;
+        width = (WORD)(width + TextLength(rp, (STRPTR)p + start, (UWORD)(i - start)));
+        width = (WORD)((width / tab + 1) * tab);
+        start = i + 1;
+    }
+    return (WORD)(width + TextLength(rp, (STRPTR)p + start, (UWORD)(n - start)));
+}
+
+/**
  * @brief Work out where the cursor is drawn on the screen.
+ *
+ * The editor uses a fixed font (GA_TEXTEDITOR_FixedFont), which is the
+ * system's default text font and not the screen's. Its left bar, as found
+ * in the code of texteditor.gadget 47.51: the hook's 20 pixels and a margin
+ * of 5, 8 more once there are bookmarks, and with line numbers the digits
+ * of the line count (at least 2, at most 6) in the width of a space.
+ *
  * @param app The application state.
  * @param doc The document.
  * @param[out] x Left edge for the list.
  * @param[out] y Top edge for the list (below the cursor's line).
+ * @param[out] line_height Height of the editor's lines.
  */
-static void cursor_box(EditorApp *app, Document *doc, WORD *x, WORD *y)
+static void cursor_box(EditorApp *app, Document *doc, WORD *x, WORD *y, WORD *line_height)
 {
     struct Gadget *g = (struct Gadget *)doc->editor;
-    struct RastPort *rp = &app->screen->RastPort;
-    ULONG first = 0, hfirst = 0;
-    WORD h = app->screen->Font != NULL ? (WORD)app->screen->Font->ta_YSize : 8;
-    WORD left = (WORD)(g->LeftEdge + LEFTBAR_WIDTH + 4);
+    struct TextFont *font = GfxBase->DefaultFont;
+    struct RastPort rp;
+    ULONG first = 0, hfirst = 0, lines = 0;
+    WORD h = font != NULL ? (WORD)font->tf_YSize : 8;
+    WORD space, tab, left = (WORD)(g->LeftEdge + EDITOR_INSET + LEFTBAR_WIDTH + LEFTBAR_MARGIN);
     char *text = (char *)DoMethod(doc->editor, GM_TEXTEDITOR_ExportText, NULL);
+    InitRastPort(&rp);
+    if (font != NULL) SetFont(&rp, font);
+    space = (WORD)TextLength(&rp, (STRPTR)" ", 1);
+    tab = (WORD)(space * filetypes_get(&app->filetypes, doc->ft_language)->tab_size);
+    if (tab < 1) tab = 1;
     GetAttr(GA_TEXTEDITOR_Prop_First, doc->editor, &first);
     GetAttr(GA_TEXTEDITOR_HProp_First, doc->editor, &hfirst);
-    if (doc->line_numbers) left = (WORD)(left + TextLength(rp, (STRPTR)"00000 ", 6));
+    GetAttr(GA_TEXTEDITOR_Prop_Entries, doc->editor, &lines);
+    if (doc->bm_count > 0) left = (WORD)(left + LEFTBAR_BOOKMARKS);
+    if (doc->line_numbers) {
+        WORD digits = 2;
+        ULONG limit = 99;
+        while (digits < 6 && lines > limit) {
+            ++digits;
+            limit = limit * 10 + 9;
+        }
+        left = (WORD)(left + digits * space);
+    }
     if (text != NULL) {
         const char *p = text;
         long n = 0;
         while (*p != '\0' && n < cp.line) if (*p++ == '\n') ++n;
-        left = (WORD)(left + TextLength(rp, (STRPTR)p, (UWORD)cp.start));
+        left = (WORD)(left + text_width(&rp, p, cp.start, tab));
         FreeVec(text);
     }
     *x = (WORD)(app->window->LeftEdge + left - (WORD)hfirst);
     *y = (WORD)(app->window->TopEdge + g->TopEdge + ((WORD)(cp.line - (long)first) + 1) * h + 2);
+    *line_height = h;
 }
 
 /**
@@ -479,7 +532,7 @@ static void cursor_box(EditorApp *app, Document *doc, WORD *x, WORD *y)
  */
 static int open_list(EditorApp *app, Document *doc)
 {
-    WORD x, y, height;
+    WORD x, y, height, editor_line;
     int i;
     if (ListBrowserBase == NULL &&
         (ListBrowserBase = OpenLibrary((STRPTR)"gadgets/listbrowser.gadget", 44)) == NULL)
@@ -494,11 +547,11 @@ static int open_list(EditorApp *app, Document *doc)
     cp.row_height = (WORD)((app->screen->Font != NULL ? app->screen->Font->ta_YSize : 8) + 2);
     cp.line_height = (WORD)(cp.row_height - 1);
     height = (WORD)(ROWS * cp.row_height + 8 + 2 + DETAIL_LINES * cp.line_height + 4);
-    cursor_box(app, doc, &x, &y);
+    cursor_box(app, doc, &x, &y, &editor_line);
     /* in the screen; above the line if there is no room below */
     if (x + WIN_WIDTH > app->screen->Width) x = (WORD)(app->screen->Width - WIN_WIDTH);
     if (x < 0) x = 0;
-    if (y + height > app->screen->Height) y = (WORD)(y - height - cp.row_height - 4);
+    if (y + height > app->screen->Height) y = (WORD)(y - height - editor_line - 6);
     if (y < 0) y = 0;
     cp.list = NewObject(LISTBROWSER_GetClass(), NULL, GA_RelVerify, TRUE,
         LISTBROWSER_Labels, (ULONG)&cp.nodes, LISTBROWSER_ColumnInfo, (ULONG)cp.columns,
