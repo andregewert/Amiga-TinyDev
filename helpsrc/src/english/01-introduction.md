@@ -18,6 +18,7 @@ Among other things, `TinyDev` offers the following features:
 - Symbol list
 - Auto-completion based on the symbols found  
 (**not** a simple keyword list)
+- Find and replace (Amiga+F) in multiple documents; supports regular expressions
 - Integrated documentation (work in progress)
     - The `HelpViewer` is a simple but functional tool for displaying the
       supplied documentation

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Introduction</title>
+</head>
+<body>
+<table width="100%" border="0">
+    <tr>
+        <!--<td><h1>Introduction</h1></td>-->
+        <td align="right">
+            <img src="../assets/logo-150.gif" alt="TinyDev">
+        </td>
+    </tr>
+</table>
+<hr>
+
+<h1 id="introduction">Introduction</h1>
+<p><code>TinyDev</code> is an advanced editor intended primarily for programmers. It was
+developed around the <code>TextEdit</code> gadget of AmigaOS 3.2 and therefore requires
+at least AmigaOS 3.2. It does not work on older versions of the system.</p>
+<p>Among other things, <code>TinyDev</code> offers the following features:</p>
+<ul>
+<li>ReAction-based user interface with support for translations<br>
+(English built in; German catalogs are included)</li>
+<li>Integrated directory browser</li>
+<li>Minimap</li>
+<li>Simple project management</li>
+<li>File and project templates</li>
+<li>Syntax highlighting for various languages</li>
+<li>Bookmark management</li>
+<li>Static source code analysis</li>
+<li>Symbol list</li>
+<li>Auto-completion based on the symbols found<br>
+(<strong>not</strong> a simple keyword list)</li>
+<li>Find and replace (Amiga+F) in multiple documents; supports regular expressions</li>
+<li>Integrated documentation (work in progress)<ul>
+<li>The <code>HelpViewer</code> is a simple but functional tool for displaying the
+supplied documentation</li>
+<li><code>TinyDev</code> includes a project template and all the tools needed to
+create and edit your own help pages</li>
+</ul>
+</li>
+<li>Extensibility without changing <code>TinyDev</code>:<ul>
+<li>You can add your own templates</li>
+<li>You can add your own source code parsers</li>
+</ul>
+</li>
+<li>Reusable components:<ul>
+<li>The ReAction classes <code>dirtree</code> and <code>minimap</code> can be used in your own
+ReAction applications</li>
+<li>The source code analysis tools (Scout) are designed so that they can
+be integrated into your own applications through a simple JSON-based
+protocol</li>
+<li>The <code>HelpViewer</code> is designed as a general-purpose tool. Its license
+allows it to be embedded in other projects</li>
+</ul>
+</li>
+</ul>
+<h2 id="requirements">Requirements</h2>
+<p><code>TinyDev</code> requires AmigaOS 3.2. It does not work on older versions of the
+system. It has only been tested on AmigaOS 3.2.3.</p>
+<p>The <code>HelpViewer</code> needs the ReAction class <code>htmlgadget</code>. It is
+<a href="http://aminet.net/package/dev/gui/html_gadget">available</a> on Aminet or from
+its <a href="https://github.com/andregewert/Amiga-HTML-Gadget">GitHub page</a>.</p>
+<p>To open Internet links from the <code>HelpViewer</code>, you need
+<a href="http://aminet.net/package/comm/www/OpenURL-7.18">OpenURL</a>.</p>
+<h2 id="installation">Installation</h2>
+<p>An installation script is provided. All required components are installed
+into the target drawer. Optionally, a copy of the Markdown converter
+<code>mdtohtml</code> can be copied to <code>c:</code>.</p>
+<p>Catalogs, gadgets and parsers are loaded from the application drawer and do
+not have to be copied to the system partition. The commodity for source code
+analysis (<code>TinyDev-Scout</code>) does not have to be copied to <code>WBStartup</code> either.
+Starting it automatically would hardly be useful anyway: <code>TinyDev</code> starts the
+commodity itself when needed (from the application drawer).</p>
+
+
+<br>
+<br>
+<br>
+<hr>
+<table width="100%" border="0">
+    <tr>
+        <td align="center">
+            <small>&copy; 2026 Andr&eacute; Gewert<br>
+            <a href="https://www.ubergeek.de/">www.ubergeek.de</a></small>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

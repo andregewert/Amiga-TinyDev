@@ -324,6 +324,10 @@ below the tree's root.
   generated with its `mkh` script into `build/regex/`; it is compiled
   unchanged and without our warning flags. Do not edit it; its licence
   requires the credit in `README.md`.
+- `scripts/`: `tdscout_query.rexx` sends a command to TinyDev-Scout and
+  shows the result (`rx scripts/tdscout_query.rexx STATUS`);
+  `test_scout.rexx` tests Scout's commands with the samples of
+  `tests/data/c_parser/` (it starts `bin/TinyDev-Scout` if needed).
 - `tools/mkicons.py`: motifs of the Workbench icons (TinyDev, Scout, parsers,
   HelpViewer, the templates HelloWorld and HelpProject)
   for `amiga-devkit/tools/amigaicons.py`; `make icons` writes `icons/` and
@@ -341,8 +345,7 @@ below the tree's root.
 - `tools/mkdist.py`: `make dist` builds `dist/TinyDev.lha` from `bin/`,
   the README, the sources (built without git) and icons, with
   `amiga-devkit/tools/distlib.py`.
-- `README.md`: for users: features, requirements, usage, tool types, limits
-  and building, kept short.
+- `README.md`: for users, short, maintained by the user (see `CLAUDE.md`).
 - `TECHNICAL.md`: notes that concern several modules (event flow between
   TinyDev and its classes, scrolling and highlighting, editor colours and
   texteditor.gadget, the project, help and HelpViewer, class loading, build
@@ -359,6 +362,8 @@ make test
 /opt/amiga/bin/m68k-amigaos-objdump -f bin/TinyDev
 ```
 
+- The submodules are nested: after cloning, run
+  `git submodule update --init --recursive`.
 - Run `make test` for all changes that affect the portable syntax scanner.
 - Run `make docs` (and `make docs-<class>` for a class's public header) when
   comments or interfaces change; it must finish without Doxygen warnings
@@ -477,8 +482,8 @@ Read the section of `TECHNICAL.md` before changing:
 - Read the relevant module and shared headers before editing cross-module data
   structures or ReAction object ownership.
 - Documentation goes where it is read (`amiga-devkit/docs/Dokumentation.md`,
-  "Wohin welches Wissen gehört"): a short entry in `README.md` for what
-  users see (feature bullet, tool type row, limit); module details in the
+  "Wohin welches Wissen gehört"): `README.md` only when asked (see `CLAUDE.md`);
+  module details in the
   module's Doxygen comments; what spans modules in `TECHNICAL.md`. No
   implementation details in the README.
 - Add or extend host tests for portable scanner behavior and edge cases.

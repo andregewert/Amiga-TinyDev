@@ -77,9 +77,9 @@ def main():
 
     # sources in the same layout as the repository, so "make" works there
     src = os.path.join(PKG, 'Source')
-    for d in ('src', 'include', 'sfd', 'catalogs', 'tests', 'scripts', 'tools', 'package', 'templates'):
+    for d in ('src', 'include', 'sfd', 'catalogs', 'tests', 'scripts', 'tools', 'package', 'templates', 'helpsrc'):
         copytree(b(d), os.path.join(src, d), ignore=('__pycache__',))
-    for f in ('Makefile', 'README.md', 'LICENSE', 'AGENTS.md', 'CLAUDE.md', 'TECHNICAL.md', 'FUTURE.md',
+    for f in ('Makefile', 'README.md', 'LICENSE', 'AGENTS.md', 'CLAUDE.md', 'TECHNICAL.md',
               'screenshot.png', 'logo.png'):
         copy(b(f), os.path.join(src, f))
     copy(b('icons', 'preview.png'), os.path.join(src, 'icons', 'preview.png'))

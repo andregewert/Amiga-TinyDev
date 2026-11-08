@@ -1,4 +1,4 @@
-Short:        Text editor for programmers, with project tree and help
+Short:        Text editor for programmers on OS 3.2
 Author:       André Gewert <agewert@ubergeek.de>
 Uploader:     André Gewert <agewert@ubergeek.de>
 Type:         text/edit
@@ -7,30 +7,59 @@ Architecture: m68k-amigaos >= 3.2.0
 Requires:     AmigaOS 3.2, dev/gui/html_gadget.lha (1.2, for the help)
 Distribution: Aminet
 
-TinyDev is a text editor for programmers on AmigaOS 3.2, built with
-ReAction. It runs on a 68000, but is meant for 68030 to 68060 machines.
+TinyDev is a compact native text editor for programmers on AmigaOS 3.2,
+built with ReAction. It runs on a 68000, but is meant for a 68030 or
+faster.
 
-TinyDev
--------
- - several documents in tabs, each a texteditor.gadget: selection,
-   clipboard, undo/redo, line numbers; LF, CR and CRLF line endings are
-   kept; safe saves through a temporary file
- - syntax highlighting of C, AmigaDOS scripts, Makefiles and Markdown
- - folder tree of the project (dirtree.gadget) that follows changes on
-   disk, and a minimap (minimap.gadget)
- - find and replace in the document, in all open documents or in all
-   files of the project, as plain text or with regular expressions
- - bookmarks, saved per project, with a bookmark list
- - toolbar with AISS images, images and text or text only
- - help pages in English and German, shown by the HelpViewer
- - settings saved as tool types of the TinyDev icon
+TinyDev is meant to be run on real hardware, not only in emulators and on
+PiStorm machines. Benchmark is my good old Amiga 2000, equipped with
+a TF356 (68030, 64MB RAM) and a GBAPII++.
 
-HelpViewer
-----------
-Shows a drawer of HTML help pages with html.gadget: the pages by their
-titles in a tree on the left, Back, Forward and Home. It prints a page
-to the printer or as PostScript or PDF. It runs on its own, so TinyDev
-can be quit while the help stays open.
+In the future, TinyDev aims to be a simple but complete development
+environment for AmigaOS 3.2. It supports multiple programming languages
+through a simple extendable JSON-based protocol. External build tools
+(like make or smake) can be integrated through configurable commands.
+
+The user interface supports localization via AmigaOS catalogs. Currently,
+next to built-in English texts, a German catalog is included.
+
+As you can guess, most of the code is AI-generated (using different models
+at the beginning; now Claude Opus 5.5 only). I will try to manually check
+and improve the generated code.
+
+Features
+--------
+ - ReAction-based user interface with support for translations
+ - Settings per file type
+ - Integrated directory browser
+ - Minimap: a coloured overview of the document; click or drag in it to
+   scroll.
+ - Simple project management
+ - File and project templates
+ - Syntax highlighting for various languages
+ - Bookmark management
+ - Static source code analysis
+ - Symbol list
+ - Auto-completion based on the symbols found
+   (NOT a simple keyword list)
+ - Find and replace (Amiga+F) in multiple documents; supports regular
+   expressions
+ - Integrated documentation (work in progress)
+    - The HelpViewer is a simple but functional tool for displaying the
+      supplied documentation
+    - TinyDev includes a project template and all the tools needed to
+      create and edit your own help pages
+ - Extensibility without changing TinyDev:
+    - You can add your own templates
+    - You can add your own source code parsers
+ - Reusable components:
+    - The ReAction classes dirtree and minimap can be used in your own
+      ReAction applications
+    - The source code analysis tools (Scout) are designed so that they can
+      be integrated into your own applications through a simple protocol
+      (ARexx and JSON)
+    - The HelpViewer is designed as a general-purpose tool. Its license
+      allows it to be embedded in other projects
 
 Installation
 ------------
@@ -45,7 +74,7 @@ Contents
  Install              the installer script
  TinyDev              the editor
  TinyDev-Scout        source analysis commodity (ARexx port TINYDEV_SCOUT)
- parsers/             Scout's parsers: C, scripts, Makefiles, Markdown
+ parsers/             Scout's parsers: C, scripts, Makefiles, Markdown, JSON
  HelpViewer           the help viewer
  Sprout               creates projects from templates (Shell)
  Templates/           the templates of new projects and files
@@ -54,8 +83,8 @@ Contents
  Classes/Gadgets/     dirtree.gadget and minimap.gadget
  Catalogs/            translations (German)
  Docs/                documentation (README.md)
- Icons/               the archive's icons as GlowIcons and NewIcons (and
-                      scripts that put them in place)
+ Icons/               the archive's icons as Classic, GlowIcons and
+                      NewIcons (and scripts that put them in place)
  Source/              complete source code (C, cross compiled with
                       bebbo's amiga-gcc)
 
@@ -73,20 +102,102 @@ mdtohtml: from Kickdown, with md4c (both MIT License), see
 Source/external/mdtools/.
 
 Deutsch
--------
-TinyDev ist ein Texteditor für Programmierer unter AmigaOS 3.2, gebaut
-mit ReAction: mehrere Dokumente in Reitern, Syntaxhervorhebung für C
-und AmigaDOS-Skripte, ein Verzeichnisbaum des Projekts, eine Minimap,
-Suchen und Ersetzen im Dokument, in allen offenen Dokumenten oder im
-ganzen Projekt (auch mit regulären Ausdrücken) und Lesezeichen pro
-Projekt. Die Hilfe (Deutsch und Englisch) zeigt der HelpViewer, der
-unabhängig von TinyDev weiterläuft und Seiten drucken kann (auch als
-PostScript oder PDF).
-Voraussetzungen: AmigaOS 3.2, html.gadget (Aminet dev/gui/html_gadget.lha)
-für die Hilfe und AISS für die Toolbar-Bilder. TinyDev läuft direkt
-aus dem Archiv.
+=======
+TinyDev ist ein kompakter, nativer Texteditor für Programmierer unter
+AmigaOS 3.2, gebaut mit ReAction. Er läuft auf einem 68000, ist aber für
+einen 68030 oder schneller gedacht.
+
+TinyDev ist für den Einsatz auf echter Hardware gedacht, nicht nur für
+Emulatoren und PiStorm-Rechner. Maßstab ist mein guter alter Amiga 2000,
+ausgestattet mit einer TF356 (68030, 64 MB RAM) und einer GBAPII++.
+
+Künftig soll TinyDev eine einfache, aber vollständige Entwicklungsumgebung
+für AmigaOS 3.2 werden. Über ein einfaches, erweiterbares JSON-basiertes
+Protokoll unterstützt es mehrere Programmiersprachen. Externe
+Build-Werkzeuge (wie make oder smake) lassen sich über konfigurierbare
+Befehle einbinden.
+
+Die Benutzeroberfläche lässt sich über AmigaOS-Kataloge lokalisieren.
+Neben den eingebauten englischen Texten liegt derzeit ein deutscher
+Katalog bei.
+
+Wie man sich denken kann, ist der Großteil des Codes KI-generiert (anfangs
+mit verschiedenen Modellen, inzwischen nur noch mit Claude Opus 5.5). Ich
+werde versuchen, den erzeugten Code von Hand zu prüfen und zu verbessern.
+
+Funktionen
+----------
+ - ReAction-basierte Benutzeroberfläche mit Unterstützung für Übersetzungen
+ - Einstellungen pro Dateityp
+ - Integrierter Verzeichnis-Browser
+ - Minimap: eine farbige Übersicht des Dokuments; ein Klick oder Ziehen
+   darin scrollt das Dokument.
+ - Einfache Projektverwaltung
+ - Datei- und Projekt-Vorlagen
+ - Syntax-Highlighting für verschiedene Sprachen
+ - Lesezeichenverwaltung
+ - Statische Quellcode-Analyse
+ - Symbolliste
+ - Auto-Vervollständigung anhand gefundener Symbole
+   (KEINE einfache Keyword-Liste)
+ - Suchen und Ersetzen (Amiga+F) in mehreren Dokumenten; Unterstützung für
+   reguläre Ausdrücke
+ - Integrierte Dokumentation (in Arbeit)
+    - Der HelpViewer ist ein einfaches, aber funktionales Werkzeug für die
+      Anzeige der mitgelieferten Dokumentation
+    - TinyDev enthält eine Projektvorlage und alle notwendigen Werkzeuge,
+      um eigene Hilfeseiten zu erstellen und zu bearbeiten
+ - Erweiterbarkeit ohne Anpassung von TinyDev:
+    - Eigene Vorlagen können ergänzt werden
+    - Eigene Quellcode-Parser können ergänzt werden
+ - Wiederverwendbare Komponenten:
+    - Die ReAction-Klassen dirtree und minimap können in eigenen
+      ReAction-Anwendungen genutzt werden
+    - Die Werkzeuge für die Quellcode-Analyse (Scout) sind so aufgebaut,
+      dass sie über ein einfaches Protokoll (ARexx und JSON) in eigene
+      Anwendungen eingebunden werden können
+    - Der HelpViewer ist als allgemeines Werkzeug konzipiert. Seine Lizenz
+      erlaubt die Einbettung in fremde Projekte
+
+Installation
+------------
+Doppelklick auf Install: Alles kommt in eine Schublade, wer sie löscht,
+entfernt also TinyDev. Für ein Update denselben Ort wählen; die
+Einstellungen bleiben erhalten. TinyDev läuft auch direkt aus dem Archiv,
+da es alle seine Teile neben sich findet. html.gadget muss in
+SYS:Classes/Gadgets/ installiert sein oder in der Schublade
+Classes/Gadgets von TinyDev liegen.
+
+Inhalt
+------
+ Install              das Installer-Skript
+ TinyDev              der Editor
+ TinyDev-Scout        Commodity zur Quellcode-Analyse (ARexx-Port
+                      TINYDEV_SCOUT)
+ parsers/             Scouts Parser: C, Skripte, Makefiles, Markdown, JSON
+ HelpViewer           der Hilfe-Betrachter
+ Sprout               erstellt Projekte aus Vorlagen (Shell)
+ Templates/           die Vorlagen für neue Projekte und Dateien
+ mdtohtml             Markdown nach HTML, auch ganze Schubladen
+                      (Hilfeseiten)
+ Help/                Hilfeseiten (english, deutsch)
+ Classes/Gadgets/     dirtree.gadget und minimap.gadget
+ Catalogs/            Übersetzungen (Deutsch)
+ Docs/                Dokumentation (README.md)
+ Icons/               die Icons des Archivs als Classic, GlowIcons und
+                      NewIcons (und Skripte, die sie an ihren Platz bringen)
+ Source/              vollständiger Quellcode (C, cross-kompiliert mit
+                      bebbos amiga-gcc)
 
 Versionsgeschichte
 ------------------
 1.0
  - erste Veröffentlichung
+
+Lizenz
+------
+MIT-Lizenz, siehe LICENSE.
+regex: die Bibliothek für reguläre Ausdrücke von Henry Spencer, siehe
+Source/external/regex/COPYRIGHT.
+mdtohtml: aus Kickdown, mit md4c (beide MIT-Lizenz), siehe
+Source/external/mdtools/.

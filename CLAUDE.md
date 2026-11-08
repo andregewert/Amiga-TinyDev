@@ -49,10 +49,14 @@ Wo `AGENTS.md` und die Devkit-Dokumente sich widersprechen, gilt Folgendes:
   ändert sie nicht von sich aus, auch nicht für neue Funktionen: die deutschen gar nicht,
   die englischen nur, wenn der Benutzer um eine Übersetzung bittet. Im Bericht darf Claude
   darauf hinweisen, dass eine Funktion in der Hilfe noch fehlt.
+- **README:** Die `README.md` pflegt der Benutzer und hält sie kurz. Claude ändert sie nur auf
+  Ansage; neue Funktionen, Tooltypes und Grenzen bekommen dort keinen Eintrag, anders als die
+  Devkit-Dokumente vorsehen. Die Credits (u. a. die von der Regex-Lizenz verlangte Nennung)
+  bleiben drin.
 - **Versionen:** Das erste Release von TinyDev und seinen Gadget-Klassen wird 1.0. Bis dahin
   lädt TinyDev die Klassen aus `bin/` (`PROGDIR:Classes/Gadgets/`).
 - **Schrift:** Der Editor nutzt immer die Standard-Bildschirmschrift, eine Schriftwahl gibt es
   nicht (siehe `AGENTS.md`).
 - **Zeichensatz:** Welche Dateien ISO-8859-1 sein müssen, legt `LATIN1` im `Makefile` fest
-  (Quellen, Header, Tests, Skripte, `LICENSE`, `Makefile`). `AGENTS.md`, `CLAUDE.md`,
-  `README.md` und `FUTURE.md` bleiben UTF-8.
+  (Quellen, Header, Tests, Skripte, `LICENSE`, `Makefile`). `AGENTS.md`, `CLAUDE.md` und
+  `README.md` bleiben UTF-8.

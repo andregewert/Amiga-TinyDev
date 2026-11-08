@@ -161,3 +161,14 @@ version therefore hides a fresh build; check with
 - `tools/mkdist.py` copies `bin/` as it is, so the archive runs without
   installing; the sources in it must build without git (submodule
   contents and the devkit are copied).
+
+## Ideas not done yet
+
+- Soft line wrapping as a file type setting (texteditor.gadget wraps
+  within the window when `GA_TEXTEDITOR_HorizontalScroll` is off). Low
+  priority: the minimap viewport, the completion list's position, the
+  status line's line count and the left bar's marks assume one screen
+  row per line, and how the class counts wrapped rows must be tried on
+  the Amiga first.
+- Running external tools such as linters and formatters.
+- Scout parsers for ACE BASIC, Free Pascal and Amiga E.

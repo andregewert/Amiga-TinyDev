@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Other Functions</title>
+</head>
+<body>
+<table width="100%" border="0">
+    <tr>
+        <!--<td><h1>Other Functions</h1></td>-->
+        <td align="right">
+            <img src="../assets/logo-150.gif" alt="TinyDev">
+        </td>
+    </tr>
+</table>
+<hr>
+
+<h1 id="other-functions">Other Functions</h1>
+<h2 id="helpviewer">HelpViewer</h2>
+<p><code>HelpViewer</code> shows a directory of HTML help pages: the pages by their
+titles in a tree on the left, the page on the right, with Home, Back and
+Forward; Project/Print prints the page, also as PostScript or PDF. TinyDev
+uses it for its own help, but it works with any directory of HTML pages.</p>
+<pre><code>HelpViewer [DIR] &lt;directory or page&gt; [TTF] [FONTSET Vera|DejaVu|Noto] [SIZE n]
+           [PORTNAME &lt;name&gt;]
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Option / tool type</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>DIR</code></td>
+<td>Directory or page to show; without it, a welcome text</td>
+</tr>
+<tr>
+<td><code>TTF</code></td>
+<td>Use htmlttf.gadget (TrueType fonts) instead of html.gadget</td>
+</tr>
+<tr>
+<td><code>FONTSET</code>, <code>SIZE</code></td>
+<td>Font family and text size for <code>TTF</code> (default size 10)</td>
+</tr>
+<tr>
+<td><code>PORTNAME</code></td>
+<td>Only one viewer per name: a later start with the same name shows its page in the running viewer</td>
+</tr>
+<tr>
+<td><code>WINDOW=l,t,w,h</code></td>
+<td>Window position and size (tool type, written by Project/Snapshot Window)</td>
+</tr>
+<tr>
+<td><code>PRINT_MODE=PRINTER|PS|PDF</code>, <code>PS_LEVEL=1|2</code>, <code>PRINT_TO=FILE|PRT|PS|DEVICE</code>, <code>PRINT_DEVICE</code>, <code>PRINT_IMAGEDPI</code></td>
+<td>Print options: kind of output, PostScript level and destination, picture resolution (tool types, written by the print window)</td>
+</tr>
+<tr>
+<td><code>PAPER=A4|A5|LETTER|LEGAL</code>, <code>MARGINS=l,t,r,b</code>, <code>PRINT_SERIF</code>, <code>PRINT_SIZE</code>, <code>NOPAGENUMBERS</code>, <code>NOPRINTBACKGROUNDS</code></td>
+<td>Page options: paper, margins in mm, font and size for PostScript/PDF, footer, background colours</td>
+</tr>
+</tbody>
+</table>
+<ul>
+<li>The tree lists the HTML files of the directory in natural order of their
+names (<code>2-...</code> before <code>10-...</code>); a drawer is shown by the title of its
+<code>index.html</code>. The <code>index.html</code> of the directory itself is the home page,
+its title the header of the tree.</li>
+<li>A help directory may hold one drawer per language, named like the Amiga
+locales (<code>english</code>, <code>deutsch</code> ...); the viewer opens the one of your
+language.</li>
+<li>Links between the pages are followed; <code>http:</code> and <code>https:</code> links open in
+a browser with OpenURL (without <code>openurl.library</code> the status line says so),
+other external links are only shown there.</li>
+<li>Project/Iconify (Amiga+I) or the iconify gadget puts the viewer on the
+Workbench as its icon, titled with the help&#x27;s home page; a later start
+with the same <code>PORTNAME</code> opens it again.</li>
+<li>Printing needs html.gadget 1.2. It prints to the default printer as
+graphics, or writes PostScript (to a file, <code>PRT:</code>, TurboPrint&#x27;s <code>PS:</code> or
+a device) or PDF; with TurboPrint only through PostScript.</li>
+</ul>
+<p><code>src/helpviewer/sample/</code> is a small help directory to try it with.</p>
+
+
+<br>
+<br>
+<br>
+<hr>
+<table width="100%" border="0">
+    <tr>
+        <td align="center">
+            <small>&copy; 2026 Andr&eacute; Gewert<br>
+            <a href="https://www.ubergeek.de/">www.ubergeek.de</a></small>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

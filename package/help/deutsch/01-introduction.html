@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Einführung</title>
+</head>
+<body>
+<table width="100%" border="0">
+    <tr>
+        <!--<td><h1>Einführung</h1></td>-->
+        <td align="right">
+            <img src="../assets/logo-150.gif" alt="TinyDev">
+        </td>
+    </tr>
+</table>
+<hr>
+
+<h1 id="einführung">Einführung</h1>
+<p><code>TinyDev</code> ist ein erweiterter Editor, der in erster Linie für Programmierer
+gedacht ist. Er wurde um das <code>texteditor</code>-Gadget aus AmigaOS 3.2 herum
+entwickelt und benötigt deshalb mindestens AmigaOS 3.2. Auf älteren
+Systemversionen funktioniert er nicht.</p>
+<p><code>TinyDev</code> bietet u. a. folgende Funktionen:</p>
+<ul>
+<li>ReAction-basierte Benutzeroberfläche mit Unterstützung für Übersetzungen<br>
+(Englisch eingebaut; Deutsche Kataloge sind enthalten)</li>
+<li>Einstellungen pro Dateityp</li>
+<li>Integrierter Verzeichnis-Browser</li>
+<li>Minimap: eine farbige Übersicht des geöffneten Dokuments. Mit Klicken &amp; Ziehen kann im Dokument gescrollt werden.</li>
+<li>Einfache Projektverwaltung</li>
+<li>Datei- und Projekt-Vorlagen</li>
+<li>Syntax-Highlighting für verschiedene Sprachen</li>
+<li>Lesezeichenverwaltung</li>
+<li>Statische Quellcode-Analyse</li>
+<li>Symbolliste</li>
+<li>Auto-Vervollständigung anhand gefundener Symbole<br>
+(<strong>keine</strong> einfache Keyword-Liste)</li>
+<li>Suchen und Ersetzen über mehrere Dateien; Unterstützung für reguläre Ausdrücke</li>
+<li>Integrierte Dokumentation (in Arbeit)<ul>
+<li>Mit dem <code>HelpViewer</code> steht ein einfaches, aber funktionales
+Werkzeug für die Anzeige der mitgelieferten Dokumentation bereit</li>
+<li><code>TinyDev</code> enthält eine Projektvorlage und alle notwendigen Werkzeuge,
+um eigene Hilfeseiten zu erstellen und zu bearbeiten</li>
+</ul>
+</li>
+<li>Erweiterbarkeit ohne Anpassung von <code>TinyDev</code>:<ul>
+<li>Eigene Vorlagen können ergänzt werden</li>
+<li>Eigene Quellcode-Parser können ergänzt werden</li>
+</ul>
+</li>
+<li>Wiederverwendbarkeit von Komponenten:<ul>
+<li>Die ReAction-Klassen <code>dirtree</code> und <code>minimap</code> können in eigenen ReAction-Anwendungen
+genutzt werden</li>
+<li>Die Tools für die Quellcode-Analyse (Scout) sind so aufgebaut, dass sie in
+eigene Anwendungen über ein einfaches JSON-basiertes Protokoll eingebunden
+werden können</li>
+<li>Der <code>HelpViewer</code> ist als allgemeines Werkzeug konzipiert. Seine Lizenz
+erlaubt die Einbettung in fremde Projekte</li>
+</ul>
+</li>
+</ul>
+<h2 id="anforderungen">Anforderungen</h2>
+<p><code>TinyDev</code> benötigt AmigaOS 3.2. Auf älternen Systemversionen funktioniert
+<code>TinyDev</code> nicht. Getestet wurde er ausschließlich auf AmigaOS 3.2.3.</p>
+<p>Für die Icons in der Symbolleiste wird <a href="http://aminet.net/package/util/misc/aiss46">AISS</a>
+oder <a href="http://aminet.net/package/util/misc/aissclassic">AISS Classic</a>
+benötigt. Ohne AISS funktioniert <code>TinyDev</code>, zeigt in der Symbolleiste aber keine
+Bilder an.</p>
+<p>Für den <code>HelpViewer</code> ist die ReAction-Klasse <code>html.gadget</code> erforderlich.
+Sie ist im Aminet <a href="http://aminet.net/package/dev/gui/html_gadget">verfügbar</a>
+oder über seine <a href="https://github.com/andregewert/Amiga-HTML-Gadget">github-Seite</a>.</p>
+<p>Sollen Internet-Links aus dem <code>HelpViewer</code> geöffnet werden, ist dafür
+<a href="http://aminet.net/package/comm/www/OpenURL-7.18">OpenURL</a> erforderlich.</p>
+<h2 id="installation">Installation</h2>
+<p>Für die Installation liegt ein Installationsskript vor. Alle benötigten Komponenten
+werden in das Zielverzeichnis installiert. Optional kann eine Kopie des
+Markdown-Konverters <code>mdtohtml</code> nach <code>c:</code> kopiert werden.</p>
+<p>Kataloge, Gadgets und Parser werden aus dem Anwendungsordner geladen und müssen
+nicht auf die Systempartition kopiert werden. Auch das Commodity für die
+Quellcode-Analyse (<code>TinyDev-Scout</code>) muss nicht nach <code>WBStartup</code> kopiert werden.
+Ein automatisches Starten dürfte ohnehin nicht sinnvoll sein. <code>TinyDev</code> startet
+das Commodity bei Bedarf selbst (aus dem Anwendungsordner).</p>
+
+
+<br>
+<br>
+<br>
+<hr>
+<table width="100%" border="0">
+    <tr>
+        <td align="center">
+            <small>&copy; 2026 Andr&eacute; Gewert<br>
+            <a href="https://www.ubergeek.de/">www.ubergeek.de</a></small>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

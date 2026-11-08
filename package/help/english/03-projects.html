@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Project Management</title>
+</head>
+<body>
+<table width="100%" border="0">
+    <tr>
+        <!--<td><h1>Project Management</h1></td>-->
+        <td align="right">
+            <img src="../assets/logo-150.gif" alt="TinyDev">
+        </td>
+    </tr>
+</table>
+<hr>
+
+<h1 id="project-management">Project Management</h1>
+<h2 id="sprout">Sprout</h2>
+<p><code>Sprout</code> creates a project from a template: it makes the project drawer,
+copies the template&#x27;s files and fills in placeholders (<code>{$NAME}</code>) in file
+names and texts; files can depend on a value (e.g. a Makefile per
+compiler). A file template copies its files into an existing
+drawer instead. Templates are LhA archives (<code>&lt;name&gt;.lha</code>) or drawers in
+<code>Templates/</code>.</p>
+<pre><code>Sprout &lt;template&gt; &lt;project drawer&gt; [KEY=value ...] [VALUES &lt;file&gt;] [DIR &lt;drawer&gt;] [FORCE] [QUIET]
+Sprout LIST [DIR &lt;drawer&gt;]
+Sprout &lt;template&gt; INFO [ICON &lt;file&gt;]
+</code></pre>
+<p>For example <code>Sprout HelloWorld Work:Hello AUTHOR=Me</code>; keys may be written
+in any case, and <code>PROJECT=&lt;name&gt;</code> names the project (otherwise it is named
+after its drawer).</p>
+<h2 id="bookmarks-file">Bookmarks file</h2>
+<p>The bookmarks of a project are kept in <code>.tinydev/bookmarks.json</code> in the
+project directory, a file you may edit by hand (JSON, ISO-8859-1; <code>line</code>
+counts from 1, <code>text</code> finds the line again after changes outside TinyDev):</p>
+<pre><code>{
+  &quot;version&quot;: 1,
+  &quot;bookmarks&quot;: [
+    { &quot;file&quot;: &quot;src/ui.c&quot;, &quot;line&quot;: 99, &quot;text&quot;: &quot;void tree_handle_event(EditorApp *app)&quot; }
+  ]
+}
+</code></pre>
+<h2 id="project-file">Project file</h2>
+<p>The project settings are kept in <code>.tinydev/project.json</code> in the project
+directory, a file you may edit by hand and keep with the project (JSON,
+ISO-8859-1). <code>name</code> is the project&#x27;s name, shown by the icon of the
+iconified TinyDev (otherwise the directory&#x27;s name). Each action has a list of commands; <code>command</code> is a Shell
+command line or a list of lines run as a script, <code>name</code> and <code>dir</code> (relative
+to the project) are optional, <code>default</code> marks the command the action runs.
+<code>include</code> lists drawers with headers (relative to the project or absolute,
+e.g. the NDK&#x27;s) that TinyDev-Scout indexes for Go to Definition and
+completion. <code>{file}</code>, <code>{base}</code> (without extension) and <code>{project}</code> are
+replaced with the active document and the project directory, <code>{tinydev}</code> with
+TinyDev&#x27;s drawer (<code>&quot;{tinydev}mdtohtml&quot; ...</code>, as it is not on the command path):</p>
+<pre><code>{
+  &quot;version&quot;: 1,
+  &quot;name&quot;: &quot;TinyDev&quot;,
+  &quot;build&quot;: [
+    { &quot;name&quot;: &quot;Build&quot;, &quot;command&quot;: &quot;make&quot;, &quot;default&quot;: true },
+    { &quot;name&quot;: &quot;Clean&quot;, &quot;command&quot;: [&quot;Delete build ALL QUIET&quot;, &quot;Delete bin/TinyDev QUIET&quot;] }
+  ],
+  &quot;run&quot;: [ { &quot;command&quot;: &quot;TinyDev&quot;, &quot;dir&quot;: &quot;bin&quot; } ],
+  &quot;debug&quot;: []
+}
+</code></pre>
+
+
+<br>
+<br>
+<br>
+<hr>
+<table width="100%" border="0">
+    <tr>
+        <td align="center">
+            <small>&copy; 2026 Andr&eacute; Gewert<br>
+            <a href="https://www.ubergeek.de/">www.ubergeek.de</a></small>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

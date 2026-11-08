@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Analyse-Funktionen</title>
+</head>
+<body>
+<table width="100%" border="0">
+    <tr>
+        <!--<td><h1>Analyse-Funktionen</h1></td>-->
+        <td align="right">
+            <img src="../assets/logo-150.gif" alt="TinyDev">
+        </td>
+    </tr>
+</table>
+<hr>
+
+<h1 id="analyse-funktionen">Analyse-Funktionen</h1>
+<p><code>TinyDev-Scout</code> is a commodity that analyses source code for editors. It
+runs language parsers, small standalone programs (one per language, in
+<code>Parsers/</code>), keeps their results and answers questions through its ARexx
+port <code>TINYDEV_SCOUT</code>, in JSON: symbols, diagnostics, &quot;go to definition&quot;,
+completion and highlighting. Its ideas come from the Language Server
+Protocol, but it is not LSP.</p>
+<p>Tool types of its icon (or Shell arguments of the same names):</p>
+<table>
+<thead>
+<tr>
+<th>Tool type</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TEMPDIR</code></td>
+<td><code>T:</code></td>
+<td>drawer for temporary files</td>
+</tr>
+<tr>
+<td><code>PARSERS</code></td>
+<td><code>PROGDIR:Parsers</code></td>
+<td>drawer of the parsers</td>
+</tr>
+<tr>
+<td><code>TIMEOUT</code></td>
+<td><code>10</code></td>
+<td>seconds a parser may take per file</td>
+</tr>
+<tr>
+<td><code>MINFREE</code></td>
+<td><code>1024</code></td>
+<td>free memory (KB) below which idle sessions are closed, 0: never</td>
+</tr>
+<tr>
+<td><code>CX_POPKEY</code></td>
+<td><code>ctrl alt s</code></td>
+<td>hotkey that shows Scout&#x27;s window</td>
+</tr>
+<tr>
+<td><code>CX_POPUP</code></td>
+<td><code>NO</code></td>
+<td><code>YES</code> shows the window at the start</td>
+</tr>
+<tr>
+<td><code>CX_PRIORITY</code></td>
+<td><code>0</code></td>
+<td>commodity priority</td>
+</tr>
+</tbody>
+</table>
+<p><code>scripts/tdscout_query.rexx</code> sends a command and shows the result, e.g.
+<code>rx scripts/tdscout_query.rexx STATUS</code>; <code>rx scripts/test_scout.rexx</code> tests
+the commands with the sample sources of <code>tests/data/c_parser/</code> (it starts
+<code>bin/TinyDev-Scout</code> if needed).</p>
+<p>TinyDev starts Scout (from its own drawer) at its own start, opens a
+session for the project and has the open documents analysed (status
+line, symbol list, problems). Scout notices files of the project that
+change on disk. A lamp at the right of the status line shows whether it
+is still working (yellow), done (green) or could not be started (red). Its window (Exchange&#x27;s Show, or its hotkey) shows what
+it does, its sessions and parsers.</p>
+
+
+<br>
+<br>
+<br>
+<hr>
+<table width="100%" border="0">
+    <tr>
+        <td align="center">
+            <small>&copy; 2026 Andr&eacute; Gewert<br>
+            <a href="https://www.ubergeek.de/">www.ubergeek.de</a></small>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

@@ -9,8 +9,9 @@ Systemversionen funktioniert er nicht.
 
 - ReAction-basierte Benutzeroberfläche mit Unterstützung für Übersetzungen  
 (Englisch eingebaut; Deutsche Kataloge sind enthalten)
+- Einstellungen pro Dateityp
 - Integrierter Verzeichnis-Browser
-- Minimap
+- Minimap: eine farbige Übersicht des geöffneten Dokuments. Mit Klicken & Ziehen kann im Dokument gescrollt werden.
 - Einfache Projektverwaltung
 - Datei- und Projekt-Vorlagen
 - Syntax-Highlighting für verschiedene Sprachen
@@ -19,6 +20,7 @@ Systemversionen funktioniert er nicht.
 - Symbolliste
 - Auto-Vervollständigung anhand gefundener Symbole  
 (**keine** einfache Keyword-Liste)
+- Suchen und Ersetzen über mehrere Dateien; Unterstützung für reguläre Ausdrücke
 - Integrierte Dokumentation (in Arbeit)
     - Mit dem `HelpViewer` steht ein einfaches, aber funktionales
       Werkzeug für die Anzeige der mitgelieferten Dokumentation bereit
@@ -41,6 +43,11 @@ Systemversionen funktioniert er nicht.
 
 `TinyDev` benötigt AmigaOS 3.2. Auf älternen Systemversionen funktioniert
 `TinyDev` nicht. Getestet wurde er ausschließlich auf AmigaOS 3.2.3.
+
+Für die Icons in der Symbolleiste wird [AISS](http://aminet.net/package/util/misc/aiss46)
+oder [AISS Classic](http://aminet.net/package/util/misc/aissclassic)
+benötigt. Ohne AISS funktioniert `TinyDev`, zeigt in der Symbolleiste aber keine
+Bilder an.
 
 Für den `HelpViewer` ist die ReAction-Klasse `html.gadget` erforderlich.
 Sie ist im Aminet [verfügbar](http://aminet.net/package/dev/gui/html_gadget)
