@@ -213,6 +213,8 @@ SyntaxRules *rules_parse(const char *json)
     }
     r->block_count = read_pairs(json_obj_get_array(root, "blockComments"), r->blocks);
     r->string_count = read_pairs(json_obj_get_array(root, "strings"), r->strings);
+    v = json_obj_get(root, "numbers");
+    r->no_numbers = v != NULL && v->type == JSON_BOOL && !v->u.bool_val;
     v = json_obj_get_obj(root, "numbers");
     v = v != NULL ? json_obj_get_array(v, "prefixes") : NULL;
     for (i = 0; v != NULL && i < json_array_length(v) && r->prefix_count < RULES_MAX; i++) {
@@ -423,7 +425,8 @@ unsigned long rules_scan_line(const SyntaxRules *r, const char *text, unsigned l
             continue;
         }
         /* a number: a digit not inside a word, or a prefix and a hex digit */
-        if (((c >= '0' && c <= '9') || (r->first[c] & 2)) && (i == 0 || !r->part[(unsigned char)text[i - 1]])) {
+        if (!r->no_numbers && ((c >= '0' && c <= '9') || (r->first[c] & 2)) &&
+            (i == 0 || !r->part[(unsigned char)text[i - 1]])) {
             size_t start = i;
             int number = c >= '0' && c <= '9';
             for (k = 0; !number && k < r->prefix_count; k++) {

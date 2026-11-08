@@ -214,6 +214,24 @@ static void test_other_rules(void)
     rules_free(r);
 }
 
+/** @brief Rules without numbers ("numbers": false): digits stay normal text and tokens can be shown over them. */
+static void test_no_numbers(void)
+{
+    const char *text = "<td width=\"100\">2026\n";
+    long values[8] = { 1, 5, 5, 6, 1, 11, 5, 4 };
+    SyntaxRules *r = rules_parse("{\"numbers\":false}");
+    TokenMap *map = tokenmap_build(text, strlen(text), values, 8);
+    Capture c;
+    TEST_ASSERT(r != NULL && map != NULL);
+    if (r != NULL && map != NULL) {
+        c.count = 0;
+        syntax_scan(r, map, "<td width=\"100\">2026", 0, capture, &c);
+        TEST_ASSERT(c.count == 2 && has(&c, 4, 9, SYNTAX_VARIABLE) && has(&c, 10, 15, SYNTAX_CONSTANT));
+    }
+    rules_free(r);
+    tokenmap_free(map);
+}
+
 /** @brief The token map: reading TOKENS, building, finding lines by text; syntax_scan() with tokens. */
 static void test_tokens(void)
 {
@@ -263,6 +281,7 @@ int main(void)
     test_c_rules();
     test_dos_rules();
     test_other_rules();
+    test_no_numbers();
     test_tokens();
     printf("Rules tests completed: %d tests run, %d failures.\n", g_test_count, g_fail_count);
     return g_fail_count ? 1 : 0;

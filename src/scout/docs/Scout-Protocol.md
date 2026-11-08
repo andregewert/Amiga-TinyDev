@@ -169,6 +169,7 @@ run for every line drawn. Example for C:
 | `blockComments` | `open`/`close` pairs; `nested`: whether an `open` inside counts (Pascal, E) |
 | `strings` | `open`/`close` pairs; `escape`: the character that makes the next one part of the string (none if left out); `multiline`: whether the string may go on to the next line (otherwise it ends at the line end) |
 | `numbers.prefixes` | strings that start a number when a digit or a letter `a-f`/`A-F` follows (`0x`, `$`, `%`); a digit always starts a number unless it is part of a word |
+| `numbers` | `false` instead of the object: digits are normal text, for languages without numbers of their own (HTML and XML, where tokens could not be shown over them) |
 | `preprocessor.prefix` | a line whose first non-blank characters are this string is a preprocessor line as a whole (comments and strings in it still count) |
 | `preprocessor.continuation` | a line ending in this character continues the preprocessor line on the next |
 | `keywords` | words by class (see [Kinds](#7-kinds)): `keyword`, `type`, `constant`, `builtin` |

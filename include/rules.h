@@ -42,6 +42,7 @@ typedef struct SyntaxRules {
     int string_count;                           /**< number of them */
     char prefixes[RULES_MAX][RULES_DELIM];      /**< prefixes of numbers ("0x", "$") */
     int prefix_count;                           /**< number of them */
+    int no_numbers;                             /**< digits are normal text ("numbers": false) */
     char pp_prefix[RULES_DELIM];                /**< prefix of a preprocessor line, "" for none */
     unsigned char pp_continuation;              /**< a preprocessor line ending in it goes on, 0 */
     char **words;                               /**< the keywords (lower case if not case sensitive) */

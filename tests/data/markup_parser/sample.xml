@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!-- a comment -->
+<catalog xmlns:t="urn:x">
+  <item id="1" t:name='cafä'>Text &amp; more &#65; &#x41;</item>
+  <empty/>
+  <code><![CDATA[a < b && c]]></code>
+</catalog>

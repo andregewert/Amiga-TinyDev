@@ -206,6 +206,16 @@ static void test_parsers(ScoutStore *st)
         ".H") == 1);
     TEST_ASSERT(scout_store_language_for(st, "x.h") == scout_store_language(st, "mine"));
     TEST_ASSERT(scout_store_language(st, "c")->extension_count == 1);
+    /* one parser with several languages */
+    TEST_ASSERT(scout_store_add_parser(st, "Scout:Parsers/markup_parser",
+        "{\"protocol\":1,\"name\":\"markup_parser\",\"languages\":["
+        "{\"id\":\"html\",\"extensions\":[\".html\"],\"syntax\":{\"numbers\":false}},"
+        "{\"id\":\"xml\",\"extensions\":[\".xml\"]}]}", NULL) == 1);
+    TEST_ASSERT(scout_store_language(st, "html") && scout_store_language(st, "xml") &&
+                scout_store_language(st, "html")->parser == scout_store_language(st, "xml")->parser);
+    TEST_ASSERT(scout_store_language_for(st, "a.xml") == scout_store_language(st, "xml"));
+    TEST_ASSERT(scout_store_language(st, "html")->syntax &&
+                strstr(scout_store_language(st, "html")->syntax, "false") != NULL);
     /* languages known by the whole file name */
     TEST_ASSERT(scout_store_add_parser(st, "Scout:Parsers/make_parser",
         "{\"protocol\":1,\"name\":\"make_parser\",\"languages\":[{\"id\":\"make\",\"extensions\":[\".mk\"],"

@@ -74,7 +74,8 @@ Contents
  Install              the installer script
  TinyDev              the editor
  TinyDev-Scout        source analysis commodity (ARexx port TINYDEV_SCOUT)
- parsers/             Scout's parsers: C, scripts, Makefiles, Markdown, JSON
+ parsers/             Scout's parsers: C, scripts, Makefiles, Markdown,
+                      JSON, HTML, XML
  HelpViewer           the help viewer
  Sprout               creates projects from templates (Shell)
  Templates/           the templates of new projects and files
@@ -174,7 +175,8 @@ Inhalt
  TinyDev              der Editor
  TinyDev-Scout        Commodity zur Quellcode-Analyse (ARexx-Port
                       TINYDEV_SCOUT)
- parsers/             Scouts Parser: C, Skripte, Makefiles, Markdown, JSON
+ parsers/             Scouts Parser: C, Skripte, Makefiles, Markdown,
+                      JSON, HTML, XML
  HelpViewer           der Hilfe-Betrachter
  Sprout               erstellt Projekte aus Vorlagen (Shell)
  Templates/           die Vorlagen für neue Projekte und Dateien
