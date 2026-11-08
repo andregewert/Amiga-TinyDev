@@ -2,8 +2,8 @@
   "version": 1,
   "name": "TinyHelp",
   "build": [
-    { "name": "Build", "command": "\"{tinydev}mdtohtml\" FROM src ALL TO ram:Help TEMPLATE template.html", "default": true },
-    { "name": "Rebuild", "command": ["If EXISTS ram:Help", "Delete ram:Help ALL QUIET FORCE", "EndIf", "\"{tinydev}mdtohtml\" FROM src ALL TO ram:Help TEMPLATE template.html"] }
+    { "name": "Build", "command": "\"{tinydev}mdtohtml\" FROM src ALL TO ram:Help TEMPLATE template.html" },
+    { "name": "Rebuild", "command": ["If EXISTS ram:Help", "Delete ram:Help ALL QUIET FORCE", "EndIf", "\"{tinydev}mdtohtml\" FROM src ALL TO ram:Help TEMPLATE template.html"], "default": true }
   ],
   "run": [
     { "name": "HelpViewer", "command": "\"{tinydev}HelpViewer\" ram:Help", "default": true }
