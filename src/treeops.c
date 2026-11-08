@@ -640,6 +640,7 @@ void treeops_new_file(EditorApp *app)
     }
     Close(fh);
     document_open(app, path);
+    ui_focus_editor(app, 1);
 }
 
 void treeops_new_drawer(EditorApp *app)

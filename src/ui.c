@@ -658,6 +658,18 @@ void ui_refresh_page(EditorApp *app, Document *doc)
     RefreshPageGadget((struct Gadget *)doc->page, app->pages, app->window, NULL);
 }
 
+void ui_focus_editor(EditorApp *app, int from_dialog)
+{
+    if (app->window == NULL || app->layout == NULL || app->active == NULL) return;
+    if (app->window->Flags & WFLG_WINDOWACTIVE)
+        ActivateLayoutGadget((struct Gadget *)app->layout, app->window, NULL,
+                             (ULONG)app->active->editor);
+    else if (from_dialog) {
+        app->focus_editor = 1;          /* when the window is active */
+        ActivateWindow(app->window);
+    }
+}
+
 void ui_gadget_set(EditorApp *app, Object *obj, ULONG tag1, ULONG data1,
                    ULONG tag2, ULONG data2)
 {
@@ -1302,8 +1314,8 @@ static void menu_action(EditorApp *app, ULONG id)
         return;
     }
     switch (id) {
-        case MID_NEW: document_new(app); break;
-        case MID_OPEN: file_request_open(app); break;
+        case MID_NEW: document_new(app); ui_focus_editor(app, 0); break;
+        case MID_OPEN: file_request_open(app); ui_focus_editor(app, 1); break;
         case MID_OPEN_DIRECTORY: tree_request_directory(app); break;
         case MID_SAVE:
         case MID_SAVE_AS:
@@ -1314,7 +1326,7 @@ static void menu_action(EditorApp *app, ULONG id)
                 ActivateLayoutGadget((struct Gadget *)app->layout, app->window, NULL,
                                      (ULONG)app->active->editor);
             break;
-        case MID_CLOSE: document_close(app, app->active, 1); break;
+        case MID_CLOSE: document_close(app, app->active, 1); ui_focus_editor(app, 1); break;
         case MID_CLOSE_ALL: document_close_all(app); break;
         case MID_CLOSE_PROJECT: tree_close_project(app); break;
         case MID_ABOUT: ui_about(app); break;
@@ -1322,8 +1334,8 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_SHELL: shell_open(app); break;
         case MID_SETTINGS: edit_settings(app); break;
         case MID_PROJECT_SETTINGS: project_settings(app); break;
-        case MID_NEW_PROJECT: new_project(app); break;
-        case MID_NEW_FROM_TEMPLATE: new_from_template(app); break;
+        case MID_NEW_PROJECT: new_project(app); ui_focus_editor(app, 1); break;
+        case MID_NEW_FROM_TEMPLATE: new_from_template(app); ui_focus_editor(app, 1); break;
         case MID_BUILD: case MID_RUN: case MID_DEBUG: case MID_STOP:
             build_action(app, id);
             break;
@@ -1528,6 +1540,7 @@ static void tab_event(EditorApp *app)
             /* Switching tabs changes the active document, so the minimap must
              * be re-rendered from the newly selected document's contents. */
             minimap_request(app);
+            ui_focus_editor(app, 0);
         }
     }
 }

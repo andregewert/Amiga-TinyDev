@@ -759,6 +759,19 @@ void ui_relayout(EditorApp *app);
  */
 void ui_refresh_page(EditorApp *app, Document *doc);
 /**
+ * @brief Give the active document's editor the input focus.
+ *
+ * For what the user opened or brought to the front. Without a window that
+ * is active it does nothing, as a search in a tool window also changes the
+ * document, unless a dialog has just closed.
+ *
+ * @param app The application state.
+ * @param from_dialog Non-zero after a dialog or requester: if the window is
+ *        not active it is activated, and the editor gets the focus once
+ *        WMHI_ACTIVE arrives (ActivateWindow() is asynchronous).
+ */
+void ui_focus_editor(EditorApp *app, int from_dialog);
+/**
  * @brief Set up to two attributes of a gadget in the window.
  *
  * Always with the window (SetGadgetAttrs()) when it is open: clicktab.gadget

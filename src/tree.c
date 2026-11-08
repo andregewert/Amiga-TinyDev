@@ -193,7 +193,10 @@ void tree_handle_event(EditorApp *app)
     report_status(app, status, S(MSG_TREE_TITLE), S(MSG_ERR_TREEMEM));
     if (event == DIRTREE_EV_ACTIVATE) {
         GetAttr(DIRTREE_ActivePath, app->tree, (ULONG *)&path);
-        if (path != NULL) document_open(app, (const char *)path);
+        if (path != NULL) {
+            document_open(app, (const char *)path);
+            ui_focus_editor(app, 0);
+        }
     }
 }
 
