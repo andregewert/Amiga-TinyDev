@@ -71,6 +71,7 @@ def main():
     latin1_copy(b('README.md'), os.path.join(docs, 'README.md'))
     # what the README shows or links to, at the same relative paths
     copy(b('screenshot.png'), os.path.join(docs, 'screenshot.png'))
+    copy(b('logo.png'), os.path.join(docs, 'logo.png'))
     copy(b('icons', 'preview.png'), os.path.join(docs, 'icons', 'preview.png'))
     copy(b('LICENSE'), os.path.join(docs, 'LICENSE'))
 
@@ -79,7 +80,7 @@ def main():
     for d in ('src', 'include', 'sfd', 'catalogs', 'tests', 'scripts', 'tools', 'package', 'templates'):
         copytree(b(d), os.path.join(src, d), ignore=('__pycache__',))
     for f in ('Makefile', 'README.md', 'LICENSE', 'AGENTS.md', 'CLAUDE.md', 'TECHNICAL.md', 'FUTURE.md',
-              'screenshot.png'):
+              'screenshot.png', 'logo.png'):
         copy(b(f), os.path.join(src, f))
     copy(b('icons', 'preview.png'), os.path.join(src, 'icons', 'preview.png'))
     copytree(b('external', 'regex'), os.path.join(src, 'external', 'regex'), ignore=('.git',))

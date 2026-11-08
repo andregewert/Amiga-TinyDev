@@ -1,4 +1,4 @@
-# TinyDev
+# ![TinyDev](logo.png)
 
 TinyDev is a compact native text editor for programmers on AmigaOS 3.2,
 built with ReAction. It runs on a 68000, but is meant for a 68030 or
