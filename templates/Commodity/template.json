@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "kind": "project",
+  "name": "Commodity program",
+  "name[deutsch]": "Commodity-Programm",
+  "description": "A commodity with a broker and a hotkey that answers Exchange (enable, disable, quit), with a Makefile for vbcc, gcc or SAS/C.",
+  "description[deutsch]": "Eine Commodity mit Broker und Hotkey, die auf Exchange reagiert (Aktivieren, Deaktivieren, Beenden), mit einem Makefile für vbcc, gcc oder SAS/C.",
+  "category": "C",
+  "icon": { "type": "program" },
+  "placeholders": [
+    { "key": "NAME", "label": "Program name", "label[deutsch]": "Programmname",
+      "default": "{$PROJECT:ident}",
+      "description": "The name of the program and of its source file",
+      "description[deutsch]": "Der Name des Programms und seiner Quelldatei" },
+    { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor", "required": true },
+    { "key": "AUTHORMAIL", "label": "E-mail", "label[deutsch]": "E-Mail",
+      "description": "The author's e-mail address (optional), below the author",
+      "description[deutsch]": "Die E-Mail-Adresse des Autors (wahlweise), unter dem Autor" },
+    { "key": "PURPOSE", "label": "Description", "label[deutsch]": "Beschreibung",
+      "default": "A commodity with a hotkey",
+      "default[deutsch]": "Eine Commodity mit Hotkey" },
+    { "key": "HOTKEY", "label": "Hotkey", "default": "ctrl alt h",
+      "description": "The hotkey in the notation of commodities.library",
+      "description[deutsch]": "Der Hotkey in der Schreibweise der commodities.library" },
+    { "key": "CC", "label": "Compiler", "choices": ["vbcc", "gcc", "sasc"],
+      "description": "The compiler the Makefile and the Build menu use (sasc: SAS/C with smake)",
+      "description[deutsch]": "Der Compiler, den das Makefile und das Menü Erstellen benutzen (sasc: SAS/C mit smake)" }
+  ],
+  "open": ["{$NAME}.c"]
+}

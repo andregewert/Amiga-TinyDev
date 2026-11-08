@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "name": "{$PROJECT}",
+  "build": [
+    { "name": "Build", "command": "fpc -O2 {$NAME}.pas", "default": true },
+    { "name": "Rebuild", "command": "fpc -B -O2 {$NAME}.pas" },
+    { "name": "Compile file", "command": "fpc -O2 \"{file}\"" }
+  ],
+  "run": [
+    { "name": "{$NAME}", "command": "{$NAME}", "default": true },
+    { "name": "With an argument", "command": "{$NAME} Amiga" }
+  ]
+}

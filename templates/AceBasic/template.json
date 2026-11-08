@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "kind": "project",
+  "name": "ACE BASIC program",
+  "name[deutsch]": "ACE-BASIC-Programm",
+  "description": "A small ACE BASIC program with a window and a SUB. Built with the script bas of ACE.",
+  "description[deutsch]": "Ein kleines ACE-BASIC-Programm mit einem Fenster und einem SUB. Übersetzt mit dem Skript bas von ACE.",
+  "category": "BASIC",
+  "icon": { "type": "program" },
+  "placeholders": [
+    { "key": "NAME", "label": "Program name", "label[deutsch]": "Programmname",
+      "default": "{$PROJECT:ident}",
+      "description": "The name of the program and of its source file",
+      "description[deutsch]": "Der Name des Programms und seiner Quelldatei" },
+    { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor", "required": true },
+    { "key": "AUTHORMAIL", "label": "E-mail", "label[deutsch]": "E-Mail",
+      "description": "The author's e-mail address (optional), below the author",
+      "description[deutsch]": "Die E-Mail-Adresse des Autors (wahlweise), unter dem Autor" },
+    { "key": "PURPOSE", "label": "Description", "label[deutsch]": "Beschreibung",
+      "default": "A program that greets the world",
+      "default[deutsch]": "Ein Programm, das die Welt grüßt" }
+  ],
+  "open": ["{$NAME}.b"]
+}

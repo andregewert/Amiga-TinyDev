@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "kind": "file",
+  "name": "Markdown page",
+  "name[deutsch]": "Markdown-Seite",
+  "description": "A Markdown file with a heading and a section.",
+  "description[deutsch]": "Eine Markdown-Datei mit Überschrift und Abschnitt.",
+  "category": "Documentation",
+  "category[deutsch]": "Dokumentation",
+  "icon": { "type": "document" },
+  "placeholders": [
+    { "key": "NAME", "label": "File name", "label[deutsch]": "Dateiname", "required": true,
+      "description": "The name of the file without its extension",
+      "description[deutsch]": "Der Name der Datei ohne ihre Endung" },
+    { "key": "TITLE", "label": "Title", "label[deutsch]": "Titel", "default": "{$NAME}",
+      "description": "The title of the page",
+      "description[deutsch]": "Der Titel der Seite" }
+  ],
+  "open": ["{$NAME}.md"]
+}

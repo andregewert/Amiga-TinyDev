@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "name": "{$PROJECT}",
+  "build": [
+    { "name": "Build", "command": "ec {$NAME}.e", "default": true }
+  ],
+  "run": [
+    { "name": "{$NAME}", "command": "{$NAME}", "default": true },
+    { "name": "With arguments", "command": "{$NAME} Amiga 3" }
+  ]
+}

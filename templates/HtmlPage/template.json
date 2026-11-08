@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "kind": "file",
+  "name": "HTML page",
+  "name[deutsch]": "HTML-Seite",
+  "description": "An HTML page in ISO-8859-1 with its head and a heading.",
+  "description[deutsch]": "Eine HTML-Seite in ISO-8859-1 mit Kopf und Überschrift.",
+  "category": "Documentation",
+  "category[deutsch]": "Dokumentation",
+  "icon": { "type": "document" },
+  "placeholders": [
+    { "key": "NAME", "label": "File name", "label[deutsch]": "Dateiname", "required": true,
+      "description": "The name of the file without its extension",
+      "description[deutsch]": "Der Name der Datei ohne ihre Endung" },
+    { "key": "TITLE", "label": "Title", "label[deutsch]": "Titel", "default": "{$NAME}",
+      "description": "The title of the page",
+      "description[deutsch]": "Der Titel der Seite" },
+    { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor" },
+    { "key": "AUTHORMAIL", "label": "E-mail", "label[deutsch]": "E-Mail",
+      "description": "The author's e-mail address (optional), below the author",
+      "description[deutsch]": "Die E-Mail-Adresse des Autors (wahlweise), unter dem Autor" }
+  ],
+  "open": ["{$NAME}.html"]
+}

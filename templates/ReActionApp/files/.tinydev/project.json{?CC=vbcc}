@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "name": "{$PROJECT}",
+  "build": [
+    { "name": "Build", "command": "make", "default": true },
+    { "name": "Rebuild", "command": ["make clean", "make"] },
+    { "name": "Compile file", "command": "vc -O1 -c \"{file}\" -o \"{base}.o\"" }
+  ],
+  "run": [
+    { "name": "{$NAME}", "command": "{$NAME}", "default": true }
+  ]
+}

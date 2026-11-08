@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "name": "{$PROJECT}",
+  "build": [
+    { "name": "Build", "command": "vasmm68k_mot -Fhunkexe -nosym -o {$NAME} {$NAME}.s -I{$INCDIR}", "default": true }
+  ],
+  "run": [
+    { "name": "{$NAME}", "command": "{$NAME}", "default": true }
+  ]
+}

@@ -231,7 +231,11 @@ below the tree's root.
   depend on TinyDev.
 - `templates/`: the templates that come with TinyDev (HelpProject, help
   pages in Markdown built with `mdtohtml`; HelloWorld, a
-  project; CModule, a file template) (`templates/<Id>/`
+  project; the starter projects Assembler, AmigaE, AceBasic, FreePascal,
+  ARexxScript, ReActionApp, Commodity, SharedLibrary and GadgetClass;
+  TemplateProject, a template for making templates; the file templates
+  CModule, AsmModule, EModule, PascalUnit, ARexxFile, DosScript,
+  MakefileFile, HtmlPage, MarkdownPage and AminetReadme) (`templates/<Id>/`
   with `template.json` and `files/`, ISO-8859-1); `make` copies them to
   `bin/Templates/` with `cp` and checks them with `charcheck-templates`,
   as their names may contain `{$...}`, which make and the Shell would
@@ -315,7 +319,7 @@ below the tree's root.
 - `tests/test_projconf.c`: host-native tests of the project settings.
 - `tests/test_filetypes.c`: host-native tests of the settings per file type.
 - `tests/test_sprout_tmpl.c`: host-native tests of Sprout's core (also
-  reads the `template.json` of `templates/HelloWorld` and `templates/HelpProject`).
+  reads the `template.json` of the templates that come with TinyDev).
 - `tests/test_sprout_lha.c`: host-native tests of the LhA reader with the
   archives of `tests/data/sprout/` (binary, left out of `charcheck`),
   made by `tools/mksprouttests.py` with jlha.

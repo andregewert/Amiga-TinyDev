@@ -1,0 +1,21 @@
+.KEY FILE/A,QUIET/S
+;
+; {$NAME} - {$PURPOSE}
+; 
+; Project: {$PROJECT}
+; Copyright (c) {$YEAR} {$AUTHOR}
+; {$AUTHORMAIL}
+; Created {$DATE}
+;
+; Usage: Execute {$NAME} FILE [QUIET]
+;
+If NOT EXISTS "<FILE>"
+    Echo "<FILE> not found."
+    Quit 10
+EndIf
+
+If "<QUIET>" EQ ""
+    Echo "Working on <FILE>"
+EndIf
+
+Quit 0

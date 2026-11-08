@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "name": "{$PROJECT}",
+  "build": [
+    { "name": "Build", "command": "make", "default": true },
+    { "name": "Rebuild", "command": ["make clean", "make"] }
+  ],
+  "run": [
+    { "name": "test{$NAME}", "command": "test{$NAME}", "default": true }
+  ]
+}

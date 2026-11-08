@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "kind": "file",
+  "name": "AmigaE module",
+  "name[deutsch]": "AmigaE-Modul",
+  "description": "An E source file that compiles to a module (OPT MODULE) with an exported PROC.",
+  "description[deutsch]": "Eine E-Quelldatei, die zu einem Modul (OPT MODULE) mit einer exportierten PROC übersetzt wird.",
+  "category": "E",
+  "icon": { "type": "document" },
+  "placeholders": [
+    { "key": "NAME", "label": "Module name", "label[deutsch]": "Modulname", "required": true,
+      "description": "The name of the file without its extension",
+      "description[deutsch]": "Der Name der Datei ohne ihre Endung" },
+    { "key": "PURPOSE", "label": "Description", "label[deutsch]": "Beschreibung", "default": "",
+      "description": "One line about what it does",
+      "description[deutsch]": "Eine Zeile dazu, was es tut" },
+    { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor" },
+    { "key": "AUTHORMAIL", "label": "E-mail", "label[deutsch]": "E-Mail",
+      "description": "The author's e-mail address (optional), below the author",
+      "description[deutsch]": "Die E-Mail-Adresse des Autors (wahlweise), unter dem Autor" }
+  ],
+  "open": ["{$NAME}.e"]
+}

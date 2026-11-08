@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "name": "{$PROJECT}",
+  "run": [
+    { "name": "{$NAME}", "command": "rx {$NAME}.rexx", "default": true },
+    { "name": "With arguments", "command": "rx {$NAME}.rexx Amiga 3" }
+  ]
+}

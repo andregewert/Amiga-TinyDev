@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "kind": "project",
+  "name": "ReAction gadget class",
+  "name[deutsch]": "ReAction-Gadget-Klasse",
+  "description": "A BOOPSI gadget class as a class library: frame, dispatcher with an attribute, drawing and a click, the public header and a ReAction test program. With a Makefile for vbcc or gcc.",
+  "description[deutsch]": "Eine BOOPSI-Gadget-Klasse als Klassenbibliothek: Rahmen, Dispatcher mit einem Attribut, Zeichnen und Klick, öffentlicher Header und ein ReAction-Testprogramm. Mit einem Makefile für vbcc oder gcc.",
+  "category": "C",
+  "icon": { "type": "class" },
+  "placeholders": [
+    { "key": "NAME", "label": "Class name", "label[deutsch]": "Klassenname",
+      "default": "{$PROJECT:ident}",
+      "description": "A C identifier: the file is NAME.gadget in lower case, the attributes start with NAME_",
+      "description[deutsch]": "Ein C-Bezeichner: Die Datei heißt NAME.gadget in Kleinbuchstaben, die Attribute beginnen mit NAME_" },
+    { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor", "required": true },
+    { "key": "AUTHORMAIL", "label": "E-mail", "label[deutsch]": "E-Mail",
+      "description": "The author's e-mail address (optional), below the author",
+      "description[deutsch]": "Die E-Mail-Adresse des Autors (wahlweise), unter dem Autor" },
+    { "key": "PURPOSE", "label": "Description", "label[deutsch]": "Beschreibung",
+      "default": "A gadget class",
+      "default[deutsch]": "Eine Gadget-Klasse" },
+    { "key": "CC", "label": "Compiler", "choices": ["vbcc", "gcc"],
+      "description": "The compiler the Makefile uses",
+      "description[deutsch]": "Der Compiler, den das Makefile benutzt" }
+  ],
+  "open": ["{$NAME}_class.c"]
+}

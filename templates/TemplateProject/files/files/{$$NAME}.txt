@@ -1,0 +1,6 @@
+{$$NAME}
+
+Everything below files/ is copied into the new project. Placeholders are
+replaced in the names of files and in their contents.
+
+Created {$$DATE} by {$$AUTHOR}.

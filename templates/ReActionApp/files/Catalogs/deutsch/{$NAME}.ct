@@ -1,0 +1,24 @@
+## version $VER: {$NAME}.catalog 1.0 ({$DATE})
+## codeset 0
+## language deutsch
+;
+MSG_MENU_PROJECT
+Projekt
+;
+MSG_MENU_ABOUT
+Über...
+;
+MSG_MENU_QUIT
+Beenden
+;
+MSG_NAME_GAD
+Dein Name 
+;
+MSG_GREET_GAD
+Grüßen
+;
+MSG_GREETING
+Hallo, %s!
+;
+MSG_ERR_CLASS
+%s (Version 47) lässt sich nicht öffnen.

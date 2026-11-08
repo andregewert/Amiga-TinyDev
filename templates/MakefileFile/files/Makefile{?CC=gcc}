@@ -1,0 +1,23 @@
+# Makefile of {$TARGET}.
+#
+# Needs gcc for AmigaOS 68k (with libnix, for -noixemul) and a make for AmigaOS (GNU make); the commands run in the
+# AmigaShell.
+
+CC = gcc
+CFLAGS = -O2 -noixemul
+LDFLAGS =
+
+TARGET = {$TARGET}
+SOURCES = {$SOURCES}
+OBJECTS = $(SOURCES:.c=.o)
+
+$(TARGET): $(OBJECTS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(OBJECTS) $(LDFLAGS)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+clean:
+	-Delete $(TARGET) $(OBJECTS) QUIET
+
+.PHONY: clean

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "name": "{$PROJECT}",
+  "build": [
+    { "name": "Build", "command": "smake", "default": true },
+    { "name": "Rebuild", "command": ["smake clean", "smake"] },
+    { "name": "Compile file", "command": "sc OPTIMIZE \"{file}\" OBJNAME=\"{base}.o\"" }
+  ],
+  "run": [
+    { "name": "{$NAME}", "command": "{$NAME}", "default": true }
+  ]
+}

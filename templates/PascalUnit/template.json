@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "kind": "file",
+  "name": "Free Pascal unit",
+  "name[deutsch]": "Free-Pascal-Unit",
+  "description": "A Free Pascal unit with an interface and an implementation section.",
+  "description[deutsch]": "Eine Free-Pascal-Unit mit Interface- und Implementation-Teil.",
+  "category": "Pascal",
+  "icon": { "type": "document" },
+  "placeholders": [
+    { "key": "NAME", "label": "Unit name", "label[deutsch]": "Unit-Name", "required": true,
+      "description": "The name of the file without its extension",
+      "description[deutsch]": "Der Name der Datei ohne ihre Endung" },
+    { "key": "PURPOSE", "label": "Description", "label[deutsch]": "Beschreibung", "default": "",
+      "description": "One line about what it does",
+      "description[deutsch]": "Eine Zeile dazu, was es tut" },
+    { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor" },
+    { "key": "AUTHORMAIL", "label": "E-mail", "label[deutsch]": "E-Mail",
+      "description": "The author's e-mail address (optional), below the author",
+      "description[deutsch]": "Die E-Mail-Adresse des Autors (wahlweise), unter dem Autor" }
+  ],
+  "open": ["{$NAME}.pas"]
+}

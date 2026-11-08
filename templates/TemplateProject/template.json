@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "kind": "project",
+  "name": "Template for Sprout",
+  "name[deutsch]": "Vorlage für Sprout",
+  "description": "A new template: its template.json with example placeholders, the files/ drawer, and commands that check it, try it out and install it.",
+  "description[deutsch]": "Eine neue Vorlage: ihre template.json mit Beispiel-Platzhaltern, das Verzeichnis files/ und Befehle, die sie prüfen, ausprobieren und installieren.",
+  "category": "Templates",
+  "category[deutsch]": "Vorlagen",
+  "icon": { "type": "generic" },
+  "placeholders": [
+    { "key": "ID", "label": "Identifier", "label[deutsch]": "Bezeichner",
+      "default": "{$PROJECT:ident}",
+      "description": "The name of the template's drawer in Templates/",
+      "description[deutsch]": "Der Name des Verzeichnisses der Vorlage in Templates/" },
+    { "key": "KIND", "label": "Kind", "label[deutsch]": "Art", "choices": ["project", "file"],
+      "description": "A whole project, or files for an existing project",
+      "description[deutsch]": "Ein ganzes Projekt oder Dateien für ein bestehendes Projekt" },
+    { "key": "CATEGORY", "label": "Category", "label[deutsch]": "Kategorie", "default": "My templates",
+      "default[deutsch]": "Meine Vorlagen" }
+  ],
+  "open": ["template.json"]
+}

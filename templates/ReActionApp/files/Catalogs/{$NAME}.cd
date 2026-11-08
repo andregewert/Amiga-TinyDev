@@ -1,0 +1,23 @@
+; {$NAME}.cd - the texts of {$NAME}; English is built into the program.
+; Keep every %s in the translations.
+;
+MSG_MENU_PROJECT (//)
+Project
+;
+MSG_MENU_ABOUT (//)
+About...
+;
+MSG_MENU_QUIT (//)
+Quit
+;
+MSG_NAME_GAD (//)
+Name 
+;
+MSG_GREET_GAD (//)
+Greet
+;
+MSG_GREETING (//)
+Hello, %s!
+;
+MSG_ERR_CLASS (//)
+Cannot open %s (version 47).

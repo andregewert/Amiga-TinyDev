@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "kind": "project",
+  "name": "Shared library",
+  "name[deutsch]": "Shared Library",
+  "description": "An AmigaOS shared library in C: frame, two functions, the .sfd file, a proto header for callers and a test program. With a Makefile for vbcc or gcc.",
+  "description[deutsch]": "Eine AmigaOS-Shared-Library in C: Rahmen, zwei Funktionen, die .sfd-Datei, ein Proto-Header für Aufrufer und ein Testprogramm. Mit einem Makefile für vbcc oder gcc.",
+  "category": "C",
+  "icon": { "type": "library" },
+  "placeholders": [
+    { "key": "NAME", "label": "Library name", "label[deutsch]": "Bibliotheksname",
+      "default": "{$PROJECT:ident}",
+      "description": "A C identifier: the file is NAME.library in lower case, the functions start with NAME",
+      "description[deutsch]": "Ein C-Bezeichner: Die Datei heißt NAME.library in Kleinbuchstaben, die Funktionen beginnen mit NAME" },
+    { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor", "required": true },
+    { "key": "AUTHORMAIL", "label": "E-mail", "label[deutsch]": "E-Mail",
+      "description": "The author's e-mail address (optional), below the author",
+      "description[deutsch]": "Die E-Mail-Adresse des Autors (wahlweise), unter dem Autor" },
+    { "key": "PURPOSE", "label": "Description", "label[deutsch]": "Beschreibung",
+      "default": "A shared library",
+      "default[deutsch]": "Eine Shared Library" },
+    { "key": "CC", "label": "Compiler", "choices": ["vbcc", "gcc"],
+      "description": "The compiler the Makefile uses",
+      "description[deutsch]": "Der Compiler, den das Makefile benutzt" }
+  ],
+  "open": ["{$NAME}.c"]
+}

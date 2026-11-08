@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "kind": "project",
+  "name": "Assembler program",
+  "name[deutsch]": "Assembler-Programm",
+  "description": "A 68k program in Motorola syntax that starts from the Shell and the Workbench, opens dos.library and prints a text. Built with vasm.",
+  "description[deutsch]": "Ein 68k-Programm in Motorola-Syntax, das aus der Shell und von der Workbench startet, die dos.library öffnet und einen Text ausgibt. Übersetzt mit vasm.",
+  "category": "Assembler",
+  "icon": { "type": "program" },
+  "placeholders": [
+    { "key": "NAME", "label": "Program name", "label[deutsch]": "Programmname",
+      "default": "{$PROJECT:ident}",
+      "description": "The name of the program and of its source file",
+      "description[deutsch]": "Der Name des Programms und seiner Quelldatei" },
+    { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor", "required": true },
+    { "key": "AUTHORMAIL", "label": "E-mail", "label[deutsch]": "E-Mail",
+      "description": "The author's e-mail address (optional), below the author",
+      "description[deutsch]": "Die E-Mail-Adresse des Autors (wahlweise), unter dem Autor" },
+    { "key": "PURPOSE", "label": "Description", "label[deutsch]": "Beschreibung",
+      "default": "A program that greets the world",
+      "default[deutsch]": "Ein Programm, das die Welt grüßt" },
+    { "key": "INCDIR", "label": "Include drawer", "label[deutsch]": "Include-Verzeichnis",
+      "default": "INCLUDE:",
+      "description": "The drawer with the assembler includes of the NDK (Include_I), for vasm's -I option",
+      "description[deutsch]": "Das Verzeichnis mit den Assembler-Includes des NDK (Include_I), für die Option -I von vasm" }
+  ],
+  "open": ["{$NAME}.s"]
+}

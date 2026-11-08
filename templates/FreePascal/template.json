@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "kind": "project",
+  "name": "Free Pascal program",
+  "name[deutsch]": "Free-Pascal-Programm",
+  "description": "A small Free Pascal program for the Shell together with a unit of its own.",
+  "description[deutsch]": "Ein kleines Free-Pascal-Programm für die Shell zusammen mit einer eigenen Unit.",
+  "category": "Pascal",
+  "icon": { "type": "program" },
+  "placeholders": [
+    { "key": "NAME", "label": "Program name", "label[deutsch]": "Programmname",
+      "default": "{$PROJECT:ident}",
+      "description": "The name of the program and of its source file; the unit is called NAME_util",
+      "description[deutsch]": "Der Name des Programms und seiner Quelldatei; die Unit heißt NAME_util" },
+    { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor", "required": true },
+    { "key": "AUTHORMAIL", "label": "E-mail", "label[deutsch]": "E-Mail",
+      "description": "The author's e-mail address (optional), below the author",
+      "description[deutsch]": "Die E-Mail-Adresse des Autors (wahlweise), unter dem Autor" },
+    { "key": "PURPOSE", "label": "Description", "label[deutsch]": "Beschreibung",
+      "default": "A program that greets the world",
+      "default[deutsch]": "Ein Programm, das die Welt grüßt" }
+  ],
+  "open": ["{$NAME}.pas"]
+}

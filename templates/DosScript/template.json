@@ -1,0 +1,24 @@
+{
+  "version": 1,
+  "kind": "file",
+  "name": "AmigaDOS script",
+  "name[deutsch]": "AmigaDOS-Skript",
+  "description": "An AmigaDOS script with its arguments declared by .KEY. Started with Execute, or directly after Protect +s.",
+  "description[deutsch]": "Ein AmigaDOS-Skript, das seine Argumente mit .KEY deklariert. Gestartet mit Execute oder nach Protect +s direkt.",
+  "category": "Scripts",
+  "category[deutsch]": "Skripte",
+  "icon": { "type": "script" },
+  "placeholders": [
+    { "key": "NAME", "label": "Script name", "label[deutsch]": "Skriptname", "required": true,
+      "description": "The name of the script",
+      "description[deutsch]": "Der Name des Skripts" },
+    { "key": "PURPOSE", "label": "Description", "label[deutsch]": "Beschreibung", "default": "",
+      "description": "One line about what it does",
+      "description[deutsch]": "Eine Zeile dazu, was es tut" },
+    { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor" },
+    { "key": "AUTHORMAIL", "label": "E-mail", "label[deutsch]": "E-Mail",
+      "description": "The author's e-mail address (optional), below the author",
+      "description[deutsch]": "Die E-Mail-Adresse des Autors (wahlweise), unter dem Autor" }
+  ],
+  "open": ["{$NAME}"]
+}

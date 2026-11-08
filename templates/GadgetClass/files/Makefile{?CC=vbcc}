@@ -1,0 +1,26 @@
+# Makefile of {$NAME}.
+#
+# Needs vbcc (the command vc, set up for AmigaOS 68k) and a make for
+# AmigaOS (GNU make); the commands run in the AmigaShell.
+
+CC = vc
+CFLAGS = -O1 -Iinclude
+
+all: {$NAME:lower}.gadget test{$NAME}
+
+{$NAME:lower}.gadget: libframe.o {$NAME}_class.o
+	$(CC) -nostdlib -o {$NAME:lower}.gadget libframe.o {$NAME}_class.o
+
+libframe.o: libframe.c {$NAME}_private.h
+	$(CC) $(CFLAGS) -c -o libframe.o libframe.c
+
+{$NAME}_class.o: {$NAME}_class.c {$NAME}_private.h
+	$(CC) $(CFLAGS) -c -o {$NAME}_class.o {$NAME}_class.c
+
+test{$NAME}: test{$NAME}.c
+	$(CC) $(CFLAGS) -o test{$NAME} test{$NAME}.c -lamiga
+
+clean:
+	-Delete {$NAME:lower}.gadget test{$NAME} libframe.o {$NAME}_class.o QUIET
+
+.PHONY: all clean

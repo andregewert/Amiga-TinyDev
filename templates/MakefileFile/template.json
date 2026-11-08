@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "kind": "file",
+  "name": "Makefile for a program",
+  "name[deutsch]": "Makefile für ein Programm",
+  "description": "A Makefile for GNU make that compiles the C sources of a program with vbcc or gcc, one object for each source.",
+  "description[deutsch]": "Ein Makefile für GNU make, das die C-Quellen eines Programms mit vbcc oder gcc übersetzt, je Quelle ein Objekt.",
+  "category": "Scripts",
+  "category[deutsch]": "Skripte",
+  "icon": { "type": "document" },
+  "placeholders": [
+    { "key": "TARGET", "label": "Program name", "label[deutsch]": "Programmname", "required": true,
+      "description": "The name of the program to build",
+      "description[deutsch]": "Der Name des zu bauenden Programms" },
+    { "key": "SOURCES", "label": "Sources", "label[deutsch]": "Quellen", "default": "{$TARGET}.c",
+      "description": "The C sources, separated by spaces",
+      "description[deutsch]": "Die C-Quellen, durch Leerzeichen getrennt" },
+    { "key": "CC", "label": "Compiler", "choices": ["vbcc", "gcc"],
+      "description": "The compiler the Makefile uses",
+      "description[deutsch]": "Der Compiler, den das Makefile benutzt" }
+  ],
+  "open": ["Makefile"]
+}

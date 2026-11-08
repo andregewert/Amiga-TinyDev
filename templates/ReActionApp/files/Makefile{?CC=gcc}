@@ -1,0 +1,24 @@
+# Makefile of {$NAME}.
+#
+# Needs gcc for AmigaOS 68k (with libnix, for -noixemul) and a make for
+# AmigaOS (GNU make); the commands run in the AmigaShell.
+# Needs the headers of the NDK 3.2 where the compiler finds them, and
+# its CatComp in the command path.
+
+CC = gcc
+CFLAGS = -O2 -noixemul
+LDFLAGS = -Wl,-u,___stkinit
+
+{$NAME}: {$NAME}.c {$NAME}_strings.h Catalogs/deutsch/{$NAME}.catalog
+	$(CC) $(CFLAGS) -o {$NAME} {$NAME}.c $(LDFLAGS)
+
+{$NAME}_strings.h: Catalogs/{$NAME}.cd
+	CatComp Catalogs/{$NAME}.cd CFILE {$NAME}_strings.h
+
+Catalogs/deutsch/{$NAME}.catalog: Catalogs/{$NAME}.cd Catalogs/deutsch/{$NAME}.ct
+	CatComp Catalogs/{$NAME}.cd Catalogs/deutsch/{$NAME}.ct CATALOG Catalogs/deutsch/{$NAME}.catalog
+
+clean:
+	-Delete {$NAME}_strings.h Catalogs/deutsch/{$NAME}.catalog {$NAME} QUIET
+
+.PHONY: clean

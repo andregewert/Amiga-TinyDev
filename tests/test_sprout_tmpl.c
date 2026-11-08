@@ -591,6 +591,77 @@ static void test_shipped_help(void)
 }
 
 /**
+ * @brief The other templates that come with TinyDev: each one's metadata is
+ *        valid, has a German name, and its file to open comes out right.
+ */
+static void test_shipped_others(void)
+{
+    static const struct {
+        const char *id;     /**< the drawer below templates/ */
+        const char *open;   /**< the file to open with the values below */
+        const char *set[4]; /**< the values given, NULL-terminated */
+    } shipped[] = {
+        { "Assembler", "My_Tool.s", { "AUTHOR=Me", NULL } },
+        { "AmigaE", "My_Tool.e", { "AUTHOR=Me", NULL } },
+        { "AceBasic", "My_Tool.b", { "AUTHOR=Me", NULL } },
+        { "FreePascal", "My_Tool.pas", { "AUTHOR=Me", NULL } },
+        { "ARexxScript", "My_Tool.rexx", { "AUTHOR=Me", NULL } },
+        { "ReActionApp", "My_Tool.c", { "AUTHOR=Me", NULL } },
+        { "Commodity", "My_Tool.c", { "AUTHOR=Me", NULL } },
+        { "SharedLibrary", "My_Tool.c", { "AUTHOR=Me", NULL } },
+        { "GadgetClass", "My_Tool_class.c", { "AUTHOR=Me", NULL } },
+        { "TemplateProject", "template.json", { NULL } },
+        { "AsmModule", "m.s", { "NAME=m", NULL } },
+        { "EModule", "m.e", { "NAME=m", NULL } },
+        { "PascalUnit", "m.pas", { "NAME=m", NULL } },
+        { "ARexxFile", "m.rexx", { "NAME=m", NULL } },
+        { "DosScript", "m", { "NAME=m", NULL } },
+        { "MakefileFile", "Makefile", { "TARGET=m", NULL } },
+        { "HtmlPage", "m.html", { "NAME=m", NULL } },
+        { "MarkdownPage", "m.md", { "NAME=m", NULL } },
+        { "AminetReadme", "m.readme", { "NAME=m", "SHORT=s", "AUTHOR=Me", "AUTHORMAIL=a@b" } }
+    };
+    static const char *const german[] = { "deutsch", NULL };
+    size_t i;
+
+    for (i = 0; i < sizeof(shipped) / sizeof(shipped[0]); i++) {
+        SproutTemplate t, g;
+        SproutValues given, out;
+        char path[64], json[8192];
+        char *name;
+        size_t n, k;
+        int bad;
+        FILE *f;
+
+        sprintf(path, "templates/%s/template.json", shipped[i].id);
+        f = fopen(path, "rb");
+        assert(f != NULL);
+        n = fread(json, 1, sizeof(json) - 1, f);
+        assert(feof(f));
+        fclose(f);
+        json[n] = '\0';
+        reset();
+        assert(sprout_template_parse(&t, json, NULL, report, NULL) == 1);
+        assert(sprout_template_parse(&g, json, german, report, NULL) == 1);
+        assert(strcmp(g.name, t.name) != 0);
+        sprout_template_free(&g);
+        sprout_values_init(&given);
+        for (k = 0; k < 4 && shipped[i].set[k] != NULL; k++) {
+            assert(sprout_values_parse_assign(&given, shipped[i].set[k]) == 1);
+        }
+        assert(sprout_resolve(&t, &given, "My Tool", 17835, &out, report, NULL) == 1);
+        assert(errors == 0 && warnings == 0);
+        assert(t.nopen == 1);
+        name = sprout_expand_path(t.open[0], &out, &bad);
+        assert(name != NULL && strcmp(name, shipped[i].open) == 0);
+        free(name);
+        sprout_values_free(&out);
+        sprout_values_free(&given);
+        sprout_template_free(&t);
+    }
+}
+
+/**
  * @brief The template that comes with TinyDev (templates/HelloWorld): its
  *        metadata is valid, and its values and names come out right.
  */
@@ -683,6 +754,7 @@ int main(void)
     test_paths();
     test_text();
     test_shipped();
+    test_shipped_others();
     test_shipped_help();
     puts("sprout template tests passed");
     return 0;

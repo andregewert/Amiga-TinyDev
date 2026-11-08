@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "kind": "file",
+  "name": "Assembler module",
+  "name[deutsch]": "Assembler-Modul",
+  "description": "A 68k source file that exports a routine with XDEF, to be linked with other objects.",
+  "description[deutsch]": "Eine 68k-Quelldatei, die eine Routine mit XDEF exportiert und mit anderen Objekten gelinkt wird.",
+  "category": "Assembler",
+  "icon": { "type": "document" },
+  "placeholders": [
+    { "key": "NAME", "label": "Module name", "label[deutsch]": "Modulname", "required": true,
+      "description": "The name of the file without its extension",
+      "description[deutsch]": "Der Name der Datei ohne ihre Endung" },
+    { "key": "PURPOSE", "label": "Description", "label[deutsch]": "Beschreibung", "default": "",
+      "description": "One line about what it does",
+      "description[deutsch]": "Eine Zeile dazu, was es tut" },
+    { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor" },
+    { "key": "AUTHORMAIL", "label": "E-mail", "label[deutsch]": "E-Mail",
+      "description": "The author's e-mail address (optional), below the author",
+      "description[deutsch]": "Die E-Mail-Adresse des Autors (wahlweise), unter dem Autor" }
+  ],
+  "open": ["{$NAME}.s"]
+}

@@ -1,0 +1,18 @@
+Short:        {$SHORT}
+Author:       {$AUTHOR} <{$AUTHORMAIL}>
+Uploader:     {$AUTHOR} <{$AUTHORMAIL}>
+Type:         {$TYPE}
+Version:      {$VERSION}
+Architecture: m68k-amigaos >= 3.2.0
+Distribution: Aminet
+
+Describe the program here.
+
+Requirements
+------------
+
+History
+-------
+
+{$VERSION} ({$DATE})
+  First release.

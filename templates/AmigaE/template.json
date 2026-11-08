@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "kind": "project",
+  "name": "AmigaE program",
+  "name[deutsch]": "AmigaE-Programm",
+  "description": "A small E program for the Shell with its arguments read by ReadArgs() and exception handling. Built with E-VO or EC.",
+  "description[deutsch]": "Ein kleines E-Programm für die Shell, das seine Argumente mit ReadArgs() liest und Ausnahmen behandelt. Übersetzt mit E-VO oder EC.",
+  "category": "E",
+  "icon": { "type": "program" },
+  "placeholders": [
+    { "key": "NAME", "label": "Program name", "label[deutsch]": "Programmname",
+      "default": "{$PROJECT:ident}",
+      "description": "The name of the program and of its source file",
+      "description[deutsch]": "Der Name des Programms und seiner Quelldatei" },
+    { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor", "required": true },
+    { "key": "AUTHORMAIL", "label": "E-mail", "label[deutsch]": "E-Mail",
+      "description": "The author's e-mail address (optional), below the author",
+      "description[deutsch]": "Die E-Mail-Adresse des Autors (wahlweise), unter dem Autor" },
+    { "key": "PURPOSE", "label": "Description", "label[deutsch]": "Beschreibung",
+      "default": "A program that greets the world",
+      "default[deutsch]": "Ein Programm, das die Welt grüßt" },
+    { "key": "COMPILER", "label": "Compiler", "choices": ["evo", "ec"],
+      "description": "The compiler the Build menu uses (evo: E-VO, ec: the classic Amiga E)",
+      "description[deutsch]": "Der Compiler, den das Menü Erstellen benutzt (evo: E-VO, ec: das klassische Amiga E)" }
+  ],
+  "open": ["{$NAME}.e"]
+}

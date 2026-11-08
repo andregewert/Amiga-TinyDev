@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "kind": "file",
+  "name": "Aminet readme",
+  "name[deutsch]": "Aminet-Readme",
+  "description": "The readme of an Aminet upload with its header. Lines must not be longer than 78 columns.",
+  "description[deutsch]": "Die Readme eines Aminet-Uploads mit ihrem Kopf. Zeilen dürfen höchstens 78 Spalten lang sein.",
+  "category": "Documentation",
+  "category[deutsch]": "Dokumentation",
+  "icon": { "type": "document" },
+  "placeholders": [
+    { "key": "NAME", "label": "Archive name", "label[deutsch]": "Archivname", "required": true,
+      "description": "The name of the archive without .lha",
+      "description[deutsch]": "Der Name des Archivs ohne .lha" },
+    { "key": "SHORT", "label": "Short description", "label[deutsch]": "Kurzbeschreibung", "required": true,
+      "description": "One line of at most 40 characters",
+      "description[deutsch]": "Eine Zeile mit höchstens 40 Zeichen" },
+    { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor", "required": true },
+    { "key": "AUTHORMAIL", "label": "E-mail", "label[deutsch]": "E-Mail", "required": true },
+    { "key": "TYPE", "label": "Aminet drawer", "label[deutsch]": "Aminet-Verzeichnis", "default": "util/misc",
+      "description": "Where the archive goes on Aminet, for example dev/misc",
+      "description[deutsch]": "Wohin das Archiv auf Aminet kommt, zum Beispiel dev/misc" },
+    { "key": "VERSION", "label": "Version", "default": "1.0" }
+  ],
+  "open": ["{$NAME}.readme"]
+}

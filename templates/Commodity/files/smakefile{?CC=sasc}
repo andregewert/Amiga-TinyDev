@@ -1,0 +1,9 @@
+# smakefile of {$NAME}.
+#
+# Needs SAS/C 6 (sc and smake); the commands run in the AmigaShell.
+
+{$NAME}: {$NAME}.c
+	sc LINK OPTIMIZE NOICONS {$NAME}.c PROGRAMNAME={$NAME}
+
+clean:
+	-Delete {$NAME} {$NAME}.o {$NAME}.lnk QUIET

@@ -1,0 +1,17 @@
+# smakefile of {$NAME}.
+#
+# Needs SAS/C 6 (sc and smake); the commands run in the AmigaShell.
+# Needs the headers of the NDK 3.2 where the compiler finds them, and
+# its CatComp in the command path.
+
+{$NAME}: {$NAME}.c {$NAME}_strings.h Catalogs/deutsch/{$NAME}.catalog
+	sc LINK OPTIMIZE NOICONS {$NAME}.c PROGRAMNAME={$NAME}
+
+{$NAME}_strings.h: Catalogs/{$NAME}.cd
+	CatComp Catalogs/{$NAME}.cd CFILE {$NAME}_strings.h
+
+Catalogs/deutsch/{$NAME}.catalog: Catalogs/{$NAME}.cd Catalogs/deutsch/{$NAME}.ct
+	CatComp Catalogs/{$NAME}.cd Catalogs/deutsch/{$NAME}.ct CATALOG Catalogs/deutsch/{$NAME}.catalog
+
+clean:
+	-Delete {$NAME}_strings.h Catalogs/deutsch/{$NAME}.catalog {$NAME} {$NAME}.o {$NAME}.lnk QUIET

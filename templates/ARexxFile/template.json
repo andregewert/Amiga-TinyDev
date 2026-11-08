@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "kind": "file",
+  "name": "ARexx script file",
+  "name[deutsch]": "ARexx-Skriptdatei",
+  "description": "A single ARexx script with handlers for errors.",
+  "description[deutsch]": "Ein einzelnes ARexx-Skript mit Fehlerbehandlung.",
+  "category": "ARexx",
+  "icon": { "type": "script" },
+  "placeholders": [
+    { "key": "NAME", "label": "Script name", "label[deutsch]": "Skriptname", "required": true,
+      "description": "The name of the file without its extension",
+      "description[deutsch]": "Der Name der Datei ohne ihre Endung" },
+    { "key": "PURPOSE", "label": "Description", "label[deutsch]": "Beschreibung", "default": "",
+      "description": "One line about what it does",
+      "description[deutsch]": "Eine Zeile dazu, was es tut" },
+    { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor" },
+    { "key": "AUTHORMAIL", "label": "E-mail", "label[deutsch]": "E-Mail",
+      "description": "The author's e-mail address (optional), below the author",
+      "description[deutsch]": "Die E-Mail-Adresse des Autors (wahlweise), unter dem Autor" }
+  ],
+  "open": ["{$NAME}.rexx"]
+}

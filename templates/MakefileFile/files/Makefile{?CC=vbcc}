@@ -1,0 +1,23 @@
+# Makefile of {$TARGET}.
+#
+# Needs vbcc (the command vc, set up for AmigaOS 68k) and a make for AmigaOS (GNU make); the commands run in the
+# AmigaShell.
+
+CC = vc
+CFLAGS = -O1
+LDFLAGS =
+
+TARGET = {$TARGET}
+SOURCES = {$SOURCES}
+OBJECTS = $(SOURCES:.c=.o)
+
+$(TARGET): $(OBJECTS)
+	$(CC) $(CFLAGS) -o $(TARGET) $(OBJECTS) $(LDFLAGS)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c -o $@ $<
+
+clean:
+	-Delete $(TARGET) $(OBJECTS) QUIET
+
+.PHONY: clean

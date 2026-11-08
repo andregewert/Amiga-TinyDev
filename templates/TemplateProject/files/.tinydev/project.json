@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "name": "{$PROJECT}",
+  "build": [
+    { "name": "Check", "command": "\"{tinydev}Sprout\" \"{project}\" INFO", "default": true }
+  ],
+  "run": [
+    { "name": "Try out", "command": "\"{tinydev}Sprout\" \"{project}\" RAM:TemplateTest FORCE AUTHOR=Test", "default": true },
+    { "name": "Install", "command": "Copy \"{project}\" \"{tinydev}Templates/{$ID}\" ALL CLONE QUIET" }
+  ]
+}

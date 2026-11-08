@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "kind": "project",
+  "name": "ReAction application",
+  "name[deutsch]": "ReAction-Anwendung",
+  "description": "A program with a ReAction window: layout, string gadget, button, status line, menu, iconifying and a catalog (English, German), with a Makefile for vbcc, gcc or SAS/C. Needs AmigaOS 3.2, the headers of the NDK 3.2 and its CatComp in the command path.",
+  "description[deutsch]": "Ein Programm mit einem ReAction-Fenster: Layout, Eingabefeld, Knopf, Statuszeile, Menü, Ikonifizieren und einem Katalog (Englisch, Deutsch), mit einem Makefile für vbcc, gcc oder SAS/C. Braucht AmigaOS 3.2, die Header des NDK 3.2 und dessen CatComp im Befehlspfad.",
+  "category": "C",
+  "icon": { "type": "program" },
+  "placeholders": [
+    { "key": "NAME", "label": "Program name", "label[deutsch]": "Programmname",
+      "default": "{$PROJECT:ident}",
+      "description": "The name of the program and of its source file",
+      "description[deutsch]": "Der Name des Programms und seiner Quelldatei" },
+    { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor", "required": true },
+    { "key": "AUTHORMAIL", "label": "E-mail", "label[deutsch]": "E-Mail",
+      "description": "The author's e-mail address (optional), below the author",
+      "description[deutsch]": "Die E-Mail-Adresse des Autors (wahlweise), unter dem Autor" },
+    { "key": "PURPOSE", "label": "Description", "label[deutsch]": "Beschreibung",
+      "default": "A program with a ReAction window",
+      "default[deutsch]": "Ein Programm mit einem ReAction-Fenster" },
+    { "key": "CC", "label": "Compiler", "choices": ["vbcc", "gcc", "sasc"],
+      "description": "The compiler the Makefile and the Build menu use (sasc: SAS/C with smake)",
+      "description[deutsch]": "Der Compiler, den das Makefile und das Menü Erstellen benutzen (sasc: SAS/C mit smake)" }
+  ],
+  "open": ["{$NAME}.c"]
+}

@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "name": "{$PROJECT}",
+  "build": [
+    { "name": "Build", "command": "make", "default": true },
+    { "name": "Rebuild", "command": ["make clean", "make"] },
+    { "name": "Compile file", "command": "gcc -O2 -noixemul -c \"{file}\" -o \"{base}.o\"" }
+  ],
+  "run": [
+    { "name": "{$NAME}", "command": "{$NAME}", "default": true }
+  ]
+}
