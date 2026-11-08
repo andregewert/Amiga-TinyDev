@@ -35,6 +35,7 @@
 #include <gadgets/button.h>
 #include <gadgets/dirtree.h>
 #include <gadgets/layout.h>
+#include <images/bevel.h>
 #include <gadgets/string.h>
 #include <images/label.h>
 #include <intuition/gadgetclass.h>
@@ -76,6 +77,9 @@ static struct {
     Object *images[TREEOPS_BUTTONS];    /**< their symbols (disposed by treeops_dispose()) */
     int state;                          /**< TS_ bits shown */
 } to;
+
+/** Distance of the buttons from the frame of their row. */
+#define ROW_INSET 3
 
 /** Symbols of the buttons, in the order of their gadget IDs. */
 static const TmplSymType symbols[TREEOPS_BUTTONS] = {
@@ -780,11 +784,18 @@ Object *treeops_create(EditorApp *app)
             GA_RelVerify, TRUE,
             GA_Disabled, TRUE,              /* no project yet (to.state 0) */
             BUTTON_RenderImage, (ULONG)to.images[i],
+            /* frames or none like the toolbar's (TOOLBARFRAMES) */
+            BUTTON_BevelStyle, (ULONG)(app->settings.tbframes ? BVS_BUTTON : BVS_NONE),
             TAG_END);
         if (to.buttons[i] == NULL) goto failed;
     }
     row = NewObject(LAYOUT_GetClass(), NULL,
         LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+        LAYOUT_BevelStyle, BVS_THIN,
+        LAYOUT_LeftSpacing, ROW_INSET,
+        LAYOUT_RightSpacing, ROW_INSET,
+        LAYOUT_TopSpacing, ROW_INSET,
+        LAYOUT_BottomSpacing, ROW_INSET,
         LAYOUT_InnerSpacing, 2,
         LAYOUT_AddChild, (ULONG)to.buttons[0], CHILD_WeightedWidth, 0,
         LAYOUT_AddChild, (ULONG)to.buttons[1], CHILD_WeightedWidth, 0,
@@ -794,9 +805,10 @@ Object *treeops_create(EditorApp *app)
         LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL, TAG_END),
         TAG_END);
     if (row == NULL) goto failed;
+    /* no space between them: the row's frame adjoins the tree's */
     column = NewObject(LAYOUT_GetClass(), NULL,
         LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
-        LAYOUT_InnerSpacing, 2,
+        LAYOUT_InnerSpacing, 0,
         LAYOUT_AddChild, (ULONG)row,
         CHILD_WeightedHeight, 0,
         CHILD_MinWidth, 0,
