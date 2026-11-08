@@ -914,6 +914,11 @@ int ui_create(EditorApp *app)
     app->window_object = NewObject(WINDOW_GetClass(), NULL,
         WA_Title, (ULONG)"TinyDev", WA_DragBar, TRUE, WA_DepthGadget, TRUE,
         WA_CloseGadget, TRUE, WA_SizeGadget, TRUE, WA_Activate, TRUE,
+        /* Not left to the user's ReAction preference: texteditor.gadget scrolls
+         * with ScrollRasterBF() and draws only the rows it thinks are new. In a
+         * simple refresh window, what comes up from under another window is
+         * damage, repaired only later and over text that has moved on by then. */
+        WA_SmartRefresh, TRUE,
         /* The window.class only enables the IDCMP flags its gadgets need.
          * IDCMP_NEWSIZE and IDCMP_MOUSEMOVE (reported while a WeightBar is
          * dragged) wake the event loop after the minimap's size changed, so

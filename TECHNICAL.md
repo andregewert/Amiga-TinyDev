@@ -51,6 +51,12 @@ and tokens are read by the editor's hook and by the minimap's render
 process: rules stay until TinyDev quits, token maps are swapped under
 `Forbid()` and the old one is freed only at the next swap.
 
+The main window is always a smart refresh window, whatever the user's
+ReAction preference says: `texteditor.gadget` scrolls with `ScrollRasterBF()`
+and draws only the rows that are new, so in a simple refresh window the part
+coming up from under another window is left to a later refresh, which does
+not fit the text any more when scrolling goes on.
+
 ## Editor colours and texteditor.gadget
 
 TinyDev's syntax colours are real screen pens (`ObtainBestPen`), handed to
