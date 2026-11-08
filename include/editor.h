@@ -1894,6 +1894,10 @@ void scoutlink_cleanup(EditorApp *app);
 void scoutlink_choose_language(EditorApp *app, Document *doc, const char *id);
 /**
  * @brief Return the number of Scout's languages (LANGUAGES).
+ *
+ * scoutlink_language_id() and scoutlink_language_name() count them in the
+ * natural order of their names, as the menu and the settings show them.
+ *
  * @return The number (0 before the answer).
  */
 int scoutlink_language_count(void);

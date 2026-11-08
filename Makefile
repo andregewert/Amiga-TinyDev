@@ -8,6 +8,8 @@ BIN_DIR := bin
 TARGET := $(BIN_DIR)/TinyDev
 SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/treeops.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/splash.c src/prefswin.c src/closeimage.c src/tmplsym.c src/newproj.c src/sprout/sprout_tmpl.c src/search.c src/find.c src/filescan.c src/locale.c src/bookmarks.c src/bmstore.c src/projconf.c src/projdata.c src/projwin.c src/build.c src/outwin.c src/json.c src/toolwin.c src/bmlist.c src/help.c src/shell.c src/filetypes.c src/ftprefs.c src/tempfile.c src/cmdpath.c src/scoutlink.c src/symlist.c src/diag.c src/diaglist.c src/navigate.c src/rules.c src/tokenmap.c src/complete.c src/statuslamp.c
 OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
+# dirtree.gadget's natural order, also used for the list of file types
+OBJECTS += $(BUILD_DIR)/natural_sort.o
 DEPS := $(OBJECTS:.o=.d)
 CPPFLAGS := -Iinclude
 CFLAGS := -std=gnu99 -m68000 -msoft-float -noixemul -Os -Wall -Wextra -Wshadow -Wconversion -Wno-pointer-sign -MMD -MP
@@ -272,6 +274,10 @@ $(PARSER_MARKDOWN_TARGET): src/parsers/markdown_parser.c src/parsers/markdown_pa
 $(PARSER_JSON_TARGET): src/parsers/json_parser.c src/parsers/json_parser_rpc.c src/scout/scout_rpc.c src/json.c include/json_parser.h include/scout_protocol.h include/scout_rpc.h include/json.h
 	@mkdir -p $(BIN_DIR)/parsers
 	$(TARGET_CC) $(CPPFLAGS) $(filter-out -MMD -MP,$(CFLAGS)) $(LDFLAGS) -Wl,-u,___stkinit -o $@ src/parsers/json_parser.c src/parsers/json_parser_rpc.c src/scout/scout_rpc.c src/json.c
+
+$(BUILD_DIR)/natural_sort.o: src/classes/dirtree/dirtree_sort.c
+	@mkdir -p $(dir $@)
+	$(TARGET_CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
 $(BUILD_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)

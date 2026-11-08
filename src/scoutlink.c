@@ -60,6 +60,7 @@
  * changed.
  */
 #include "editor.h"
+#include "classes/dirtree/dirtree_sort.h"
 #include "json.h"
 #include "rules.h"
 #include "tokenmap.h"
@@ -172,6 +173,7 @@ static struct {
     char lang_names[MAX_LANGUAGES][32]; /**< their names */
     ProjConf choices;           /**< the project's settings, for its chosen languages */
     SyntaxRules *rules[MAX_LANGUAGES];  /**< their lexical rules (kept until quitting), NULL */
+    int lang_order[MAX_LANGUAGES];      /**< indices of the languages by their names (natural order) */
     int language_count;         /**< number of languages */
     unsigned long project_generation;   /**< see scoutlink_project_generation() */
     int indexing;               /**< the project is being indexed (STATUS is asked) */
@@ -703,6 +705,22 @@ static long result_int(const char *result, const char *key, long fallback)
 }
 
 /**
+ * @brief Order the languages by their names for the menu and the settings.
+ *
+ * The languages themselves keep their places: requests on their way and the
+ * extensions refer to them by index.
+ */
+static void sort_languages(void)
+{
+    int i, j;
+    for (i = 0; i < sl.language_count; ++i) {
+        for (j = i; j > 0 && dirtree_natural_compare(sl.lang_names[i], sl.lang_names[sl.lang_order[j - 1]]) < 0; --j)
+            sl.lang_order[j] = sl.lang_order[j - 1];
+        sl.lang_order[j] = i;
+    }
+}
+
+/**
  * @brief Remember the extensions and file names of LANGUAGES' answer
  *        (a file name has no leading dot in sl.extensions).
  * @param result The answer.
@@ -746,6 +764,7 @@ static void read_languages(const char *result)
             send_command(command, RQ_SYNTAX, (unsigned long)k, -1);
         }
     }
+    sort_languages();
     json_value_free(v);
 }
 
@@ -1108,12 +1127,12 @@ int scoutlink_language_count(void)
 
 const char *scoutlink_language_id(int index)
 {
-    return sl.lang_ids[index];
+    return sl.lang_ids[sl.lang_order[index]];
 }
 
 const char *scoutlink_language_name(int index)
 {
-    return sl.lang_names[index];
+    return sl.lang_names[sl.lang_order[index]];
 }
 
 const char *scoutlink_document_language(const Document *doc)
