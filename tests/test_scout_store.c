@@ -412,6 +412,38 @@ static void test_sessions(ScoutStore *st)
     TEST_ASSERT(scout_file_set_result(c, "c", -1, &stamp, "{}") == 1);
     TEST_ASSERT(c->valid && c->stamp.size == 4 && c->tokens == NULL);
 
+    /* the symbols of a compiled file are for completion only */
+    {
+        ScoutFile *m = scout_file_get(s, "Work:Hello/mod.m");
+        ScoutFile *e = scout_file_get(s, "Work:Hello/use.e");
+        TEST_ASSERT(m && e);
+        if (m && e) {
+            m->in_project = 1;
+            TEST_ASSERT(scout_file_set_result(m, "e", -1, NULL,
+                "{\"binary\":true,\"symbols\":[{\"name\":\"modfunc\",\"kind\":12,\"scope\":\"global\","
+                "\"range\":{\"start\":[1,1],\"end\":[1,1]},\"selection\":{\"start\":[1,1],\"end\":[1,1]}},"
+                "{\"name\":\"modfield\",\"kind\":8,\"scope\":\"local\","
+                "\"range\":{\"start\":[1,1],\"end\":[1,1]},\"selection\":{\"start\":[1,1],\"end\":[1,1]}}]}") == 1);
+            TEST_ASSERT(scout_file_set_result(e, "e", -1, NULL, "{}") == 1);
+            TEST_ASSERT(m->binary && !e->binary);
+            json_writer_init_alloc(&w, 256);
+            scout_write_definition(&w, s, e, 1, 1, "modfunc");
+            TEST_ASSERT(strstr(json_writer_get(&w), "mod.m") == NULL);
+            w.length = 0;
+            scout_write_definition(&w, s, e, 1, 1, "modfield");
+            TEST_ASSERT(strstr(json_writer_get(&w), "mod.m") == NULL);
+            w.length = 0;
+            scout_write_symbols(&w, s, NULL, NULL, NULL);
+            TEST_ASSERT(strstr(json_writer_get(&w), "modfunc") == NULL);
+            w.length = 0;
+            scout_write_complete(&w, st, s, e, 1, 1, "modf", 10);
+            TEST_ASSERT(strstr(json_writer_get(&w), "modfunc") != NULL);
+            json_writer_free(&w);
+            scout_file_remove(s, "Work:Hello/mod.m");
+            scout_file_remove(s, "Work:Hello/use.e");
+        }
+    }
+
     /* a deleted file leaves the session */
     {
         long before = s->file_count;

@@ -592,6 +592,11 @@ static void cmd_reference(ScoutServer *srv, struct RexxMsg *rx, LONG *v)
     if ((f = ready_file(srv, rx, s, path)) == NULL) return;
     r = scout_reference_at(f, *(LONG *)v[2], *(LONG *)v[3]);
     found = r && scout_resolve_reference(s, f, r, full, sizeof(full));
+    if (found) {
+        /* not a file to open in an editor */
+        const ScoutFile *target = scout_file_find(s, full);
+        if (target && target->binary) found = 0;
+    }
     json_writer_init_alloc(&w, 512);
     scout_write_reference(&w, r, found ? full : NULL);
     finish(srv, rx, s->id, &w, NULL);

@@ -240,6 +240,12 @@ Result:
 }
 ```
 
+`binary` is optional and defaults to `false`: `true` says that the file is
+compiled and its symbols were read from it (AmigaE's `.m` modules). Scout
+then offers them for completion only: "go to definition" does not lead
+there, the project's symbol list does not show them, and a reference to the
+file does not open it.
+
 ### Symbols
 
 | Field | Meaning |

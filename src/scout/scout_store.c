@@ -945,6 +945,7 @@ int scout_file_set_result(ScoutFile *f, const char *language, long version,
     memset(&tmp, 0, sizeof(tmp));
     tmp.tokens = tokens;
     tmp.language = dup_str(language);
+    tmp.binary = json_obj_get_bool(root, "binary", 0);
     if (!tmp.language ||
         !read_symbols(&tmp, json_obj_get_array(root, "symbols")) ||
         !read_diagnostics(&tmp, json_obj_get_array(root, "diagnostics")) ||
@@ -957,6 +958,7 @@ int scout_file_set_result(ScoutFile *f, const char *language, long version,
 
     free_result(f);
     f->language = tmp.language;
+    f->binary = tmp.binary;
     f->symbols = tmp.symbols;
     f->symbol_count = tmp.symbol_count;
     f->diagnostics = tmp.diagnostics;
@@ -1188,7 +1190,7 @@ void scout_write_symbols(JsonWriter *w, const ScoutSession *s, const ScoutFile *
     }
     json_write_raw(w, "{\"symbols\":[");
     for (f = s->files; f; f = f->next) {
-        if (!f->in_project || !f->valid) continue;
+        if (!f->in_project || !f->valid || f->binary) continue;
         for (i = 0; i < f->symbol_count; i++) {
             const ScoutSymbol *sym = &f->symbols[i];
             if (sym->scope == SCOUT_SCOPE_LOCAL || (match && !match(context, sym->name))) continue;
@@ -1382,7 +1384,7 @@ static void collect(const ScoutFile *f, const char *name, int global_only, int d
                     Location *loc, long *n)
 {
     long i;
-    if (!f->valid) return;
+    if (!f->valid || f->binary) return;
     for (i = 0; i < f->symbol_count && *n < MAX_LOCATIONS; i++) {
         const ScoutSymbol *s = &f->symbols[i];
         if (s->scope == SCOUT_SCOPE_LOCAL || (global_only && s->scope != SCOUT_SCOPE_GLOBAL)) continue;
@@ -1421,7 +1423,7 @@ void scout_write_definition(JsonWriter *w, const ScoutSession *s, const ScoutFil
         }
     }
     for (g = s->files; g && n == 0; g = g->next) {
-        if (!g->valid) continue;
+        if (!g->valid || g->binary) continue;
         for (i = 0; i < g->symbol_count && n < MAX_LOCATIONS; i++) {
             if (g->symbols[i].kind == SCOUT_SYMBOL_FIELD && strcmp(g->symbols[i].name, name) == 0) {
                 loc[n].file = g;

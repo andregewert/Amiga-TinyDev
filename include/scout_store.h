@@ -73,6 +73,7 @@ typedef struct ScoutFile {
     char *language;         /**< language of the result (allocated, NULL before) */
     int valid;              /**< there is a result */
     int in_project;         /**< below the project drawer (or analysed for the client), not only included */
+    int binary;             /**< the file is compiled (a module): its symbols are for completion, there is no place to go to */
     long version;           /**< the client's version of a snapshot, -1 for the file on disk */
     ScoutStamp stamp;       /**< the file on disk at the analysis (version -1) */
     ScoutSymbol *symbols;           /**< its symbols */
