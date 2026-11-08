@@ -6,7 +6,8 @@
 ; Everything goes into one drawer: TinyDev finds its classes, catalogs, help
 ; pages, parsers, HelpViewer and mdtohtml there (PROGDIR:), so removing the
 ; drawer removes TinyDev. The icons of TinyDev, TinyDev-Scout and HelpViewer
-; hold the user's settings as tool types: an update keeps them.
+; hold the user's settings as tool types: if there are such icons already,
+; the user chooses to keep them or to take those of the chosen set.
 ;
 (set #l (if (= @language "deutsch") 1 0))
 (set @app-name "TinyDev")
@@ -110,19 +111,37 @@
 (if (IN #parts 1)
     (P_COPYDIR "Source"))
 
-; the chosen icons, but not over the settings of an earlier installation
-(P_KEEP "TinyDev")
-(P_KEEP "TinyDev-Scout")
-(P_KEEP "HelpViewer")
+; icons already there may hold settings, or be others from the archive
+(set #keep 0)
+(if (OR (exists (tackon #dest "TinyDev.info"))
+        (OR (exists (tackon #dest "TinyDev-Scout.info"))
+            (exists (tackon #dest "HelpViewer.info"))))
+    (set #keep
+        (askbool
+            (prompt (select #l
+                "There are icons of TinyDev in this drawer already. They hold your settings as tool types. Keep them, or replace them with the chosen icons?"
+                "In dieser Schublade liegen bereits Icons von TinyDev. Sie enthalten Ihre Einstellungen als Tooltypes. Behalten oder durch die gewählten Icons ersetzen?"))
+            (help @askbool-help)
+            (choices (select #l "Keep" "Behalten") (select #l "Replace" "Ersetzen"))
+            (default 1))))
+
+; the chosen icons, unless the ones there are to stay
+(if #keep
+    (
+        (P_KEEP "TinyDev")
+        (P_KEEP "TinyDev-Scout")
+        (P_KEEP "HelpViewer")))
 (copyfiles
     (prompt (select #l "Copying the icons" "Kopiere die Icons"))
     (help @copyfiles-help)
     (source #set)
     (dest #dest)
     (all))
-(P_RESTORE "TinyDev")
-(P_RESTORE "TinyDev-Scout")
-(P_RESTORE "HelpViewer")
+(if #keep
+    (
+        (P_RESTORE "TinyDev")
+        (P_RESTORE "TinyDev-Scout")
+        (P_RESTORE "HelpViewer")))
 
 ; the set also holds icons of what is not installed here
 (P_DROP "TinyDev-Drawer.info")
@@ -136,9 +155,9 @@
 (if (= (exists (tackon #dest "Source")) 0)
     (P_DROP "Source.info"))
 
-; the drawer's own icon
+; the drawer's own icon: an update leaves it where the user has put it
 (set #parent (pathonly #dest))
-(if (= (exists (tackon #parent "TinyDev.info")) 0)
+(if (OR (= #keep 0) (= (exists (tackon #parent "TinyDev.info")) 0))
     (copyfiles
         (prompt (select #l "Copying the drawer's icon" "Kopiere das Icon der Schublade"))
         (help @copyfiles-help)
