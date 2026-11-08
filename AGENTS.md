@@ -341,9 +341,6 @@ below the tree's root.
 - `tools/mkdist.py`: `make dist` builds `dist/TinyDev.lha` from `bin/`,
   the README, the sources (built without git) and icons, with
   `amiga-devkit/tools/distlib.py`.
-- `examples/HelloWorld/`: a demo project for the Build menu (hello.c, a
-  Makefile for vbcc, error.c that fails on purpose, and its
-  `.tinydev/project.json`); ISO-8859-1 like the sources.
 - `README.md`: for users: features, requirements, usage, tool types, limits
   and building, kept short.
 - `TECHNICAL.md`: notes that concern several modules (event flow between
