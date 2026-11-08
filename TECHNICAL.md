@@ -61,6 +61,12 @@ OS 3.2 `texteditor.gadget` paints its text area with the screen's
 `GA_TEXTEDITOR_Transparent` is OS4 only (details in `ui.c`). The minimap
 uses the same background pen so both look alike.
 
+The editors always export LF (`GA_TEXTEDITOR_LineEndingExport`,
+`LINEENDING_LF`), and `file_save()` writes the file's own line ends. Never
+let `texteditor.gadget` export CRLF (or `LINEENDING_ASIMPORT` for a CRLF
+file): in 47.69, `GM_TEXTEDITOR_ExportText` counts one byte per line end but
+writes two, so every export overruns the heap by nearly a byte per line.
+
 ## The project
 
 The directory opened in the folder tree is the project. What refers to it:

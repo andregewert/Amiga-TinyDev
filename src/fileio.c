@@ -3,7 +3,11 @@
  * @brief Loading and saving documents: line endings, safe saves through a temporary file, file requesters.
  *
  * Contents are 8-bit text (no UTF-8 decoding); files with NUL bytes are
- * refused. LF, CR and CRLF are kept as loaded. A save writes a temporary
+ * refused. LF, CR and CRLF are kept as loaded: the editor always exports
+ * LF, and a save puts the file's line ends back. texteditor.gadget 47.69
+ * must not export CRLF: GM_TEXTEDITOR_ExportText allocates one byte per
+ * line end but writes two, overrunning its buffer by a byte per line (seen
+ * in its machine code). A save writes a temporary
  * file first, so a failed write leaves the original intact. The temporary
  * file gets the original's protection bits and comment before it takes
  * the original's place (AmigaDOS cannot create a file with them): without
@@ -83,7 +87,7 @@ int file_load(EditorApp *app, Document *doc, const char *path)
     doc->eol = imported <= LINEENDING_CRLF ? (LineEnding)imported : EOL_LF;
     document_set_path(app, doc, canonical);
     SetAttrs(doc->editor, GA_TEXTEDITOR_HasChanged, FALSE,
-             GA_TEXTEDITOR_LineEndingExport, LINEENDING_ASIMPORT, TAG_END);
+             GA_TEXTEDITOR_LineEndingExport, LINEENDING_LF, TAG_END);
     document_set_dirty(app, doc, 0); ok = 1;
     bookmarks_document_loaded(app, doc);
     scoutlink_document_saved(doc);
@@ -155,6 +159,40 @@ static int read_attributes(const char *path, LONG *protection, char *comment, si
     return ok;
 }
 
+/**
+ * @brief Write the text exported from the editor with the line ends of its
+ *        file.
+ *
+ * @param file The file.
+ * @param text The text, with LF line ends.
+ * @param length Its length.
+ * @param eol The line ends to write.
+ * @return Non-zero on success.
+ */
+static int write_text(BPTR file, const char *text, LONG length, LineEnding eol)
+{
+    LONG i, lines = 0, n = 0;
+    char *out;
+    int ok;
+    if (eol != EOL_CR && eol != EOL_CRLF) return write_complete(file, text, length);
+    for (i = 0; i < length; i++) {
+        if (text[i] == '\n') lines++;
+    }
+    out = AllocVec((ULONG)(length + lines + 1), MEMF_ANY);
+    if (out == NULL) return 0;
+    for (i = 0; i < length; i++) {
+        if (text[i] != '\n') {
+            out[n++] = text[i];
+        } else {
+            out[n++] = '\r';
+            if (eol == EOL_CRLF) out[n++] = '\n';
+        }
+    }
+    ok = write_complete(file, out, n);
+    FreeVec(out);
+    return ok;
+}
+
 int file_save(EditorApp *app, Document *doc, const char *path)
 {
     char canonical[EDITOR_PATH_MAX], resolved[EDITOR_PATH_MAX];
@@ -178,7 +216,7 @@ int file_save(EditorApp *app, Document *doc, const char *path)
     collision = Lock(backup, ACCESS_READ);
     if (collision != 0) { UnLock(collision); FreeVec(text); ui_error(app, S(MSG_SAVE_FAILED), S(MSG_ERR_BACKUPEXISTS)); return 0; }
     file = Open(temp, MODE_NEWFILE);
-    wrote = file != 0 && write_complete(file, text, length);
+    wrote = file != 0 && write_text(file, text, length, doc->eol);
     /* the editor exports the text without the line end at its end */
     if (wrote && doc->final_eol && length > 0 && text[length - 1] != '\n' && text[length - 1] != '\r') {
         static const char *const eols[] = { "\n", "\r", "\r\n" };

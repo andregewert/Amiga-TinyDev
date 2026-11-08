@@ -103,7 +103,8 @@ static Object *create_editor(EditorApp *app, Document *doc,
         GA_TEXTEDITOR_ShowLineNumbers, (ULONG)app->filetypes.standard.line_numbers,
         GA_TEXTEDITOR_HighlighterHook, (ULONG)&doc->highlight.hook,
         GA_TEXTEDITOR_LeftBarHook, (ULONG)&doc->leftbar_hook,
-        GA_TEXTEDITOR_LineEndingExport, LINEENDING_ASIMPORT,
+        /* never CRLF: see fileio.c */
+        GA_TEXTEDITOR_LineEndingExport, LINEENDING_LF,
         TAG_END);
 }
 
