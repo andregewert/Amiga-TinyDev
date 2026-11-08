@@ -166,6 +166,14 @@ int html_link_is_external(const char *url)
     return 0;
 }
 
+int html_link_is_web(const char *url)
+{
+    if (lower(url[0]) != 'h' || lower(url[1]) != 't' || lower(url[2]) != 't' ||
+        lower(url[3]) != 'p')
+        return 0;
+    return url[4] == ':' || (lower(url[4]) == 's' && url[5] == ':');
+}
+
 int html_link_to_path(const char *url, char *out, long out_size)
 {
     long n = 0;

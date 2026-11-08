@@ -63,6 +63,13 @@ int main(void)
     assert(!html_link_is_external("file:x.html"));
     assert(!html_link_is_external("kapitel.html#a:b"));
     assert(!html_link_is_external("x/y:z.html"));
+    assert(html_link_is_web("http://aminet.net/"));
+    assert(html_link_is_web("HTTPS://aminet.net/"));
+    assert(!html_link_is_web("mailto:a@b.de"));
+    assert(!html_link_is_web("ftp://aminet.net/"));
+    assert(!html_link_is_web("httpd:x"));
+    assert(!html_link_is_web("http"));
+    assert(!html_link_is_web("kapitel.html"));
     puts("htmltitle tests passed");
     return 0;
 }

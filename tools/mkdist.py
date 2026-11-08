@@ -85,6 +85,9 @@ def main():
     copytree(b('external', 'regex'), os.path.join(src, 'external', 'regex'), ignore=('.git',))
     copytree(b('external', 'html_gadget', 'include'), os.path.join(src, 'external', 'html_gadget', 'include'))
     copy(b('external', 'html_gadget', 'LICENSE'), os.path.join(src, 'external', 'html_gadget', 'LICENSE'))
+    copytree(b('external', 'openurl', 'developer', 'C', 'include'),
+             os.path.join(src, 'external', 'openurl', 'developer', 'C', 'include'))
+    copy(b('external', 'openurl', 'COPYING'), os.path.join(src, 'external', 'openurl', 'COPYING'))
     # mdtohtml: only what the Makefile compiles of the Kickdown project
     mdtools = os.path.join(src, 'external', 'mdtools')
     for f in MDTOHTML_SOURCES:

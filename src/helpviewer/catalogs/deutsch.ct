@@ -107,6 +107,18 @@ MSG_EXTERNAL
 Externer Link, nicht geöffnet: %s
 ; External link, not opened: %s
 ;
+MSG_WEB_OPENED
+Im Browser geöffnet: %s
+; Opened in the browser: %s
+;
+MSG_WEB_FAILED
+Konnte nicht im Browser geöffnet werden: %s
+; Could not open in a browser: %s
+;
+MSG_NO_OPENURL
+openurl.library ist nicht installiert, kann nicht öffnen: %s
+; openurl.library is not installed, cannot open: %s
+;
 MSG_COPIED
 In die Zwischenablage kopiert
 ; Copied to the clipboard

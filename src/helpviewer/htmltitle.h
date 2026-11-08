@@ -46,4 +46,12 @@ int html_link_to_path(const char *url, char *out, long out_size);
  */
 int html_link_is_external(const char *url);
 
+/**
+ * @brief Tell whether a link is one for a web browser (http: or https:,
+ *        ignoring case).
+ * @param url The link.
+ * @return Non-zero for a web link.
+ */
+int html_link_is_web(const char *url);
+
 #endif

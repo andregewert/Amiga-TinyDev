@@ -82,6 +82,15 @@ Not a directory: %s
 MSG_EXTERNAL (//)
 External link, not opened: %s
 ;
+MSG_WEB_OPENED (//)
+Opened in the browser: %s
+;
+MSG_WEB_FAILED (//)
+Could not open in a browser: %s
+;
+MSG_NO_OPENURL (//)
+openurl.library is not installed, cannot open: %s
+;
 MSG_COPIED (//)
 Copied to the clipboard
 ;

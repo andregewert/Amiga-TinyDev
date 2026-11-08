@@ -91,6 +91,8 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
   text.
 - For the help: html.gadget from the
   [HTML gadget](https://github.com/andregewert/Amiga-HTML-Gadget) project.
+- Optional: [openurl.library](https://github.com/jens-maus/libopenurl), for
+  opening web links of the help in a browser.
 
 ## Installation
 
@@ -238,8 +240,9 @@ uses it for its own help, but it works with any directory of HTML pages.
 - A help directory may hold one drawer per language, named like the Amiga
   locales (`english`, `deutsch` ...); the viewer opens the one of your
   language.
-- Links between the pages are followed; links to the web are only shown in
-  the status line.
+- Links between the pages are followed; `http:` and `https:` links open in
+  a browser with OpenURL (without `openurl.library` the status line says so),
+  other external links are only shown there.
 - Project/Iconify (Amiga+I) or the iconify gadget puts the viewer on the
   Workbench as its icon, titled with the help's home page; a later start
   with the same `PORTNAME` opens it again.
@@ -307,9 +310,9 @@ is described in [src/sprout/docs/Sprout.md](src/sprout/docs/Sprout.md).
 
 The shared tools in `amiga-devkit/` are a git submodule
 ([Amiga-Devkit](https://github.com/andregewert/Amiga-Devkit)), and so are
-Henry Spencer's regex library (`external/regex/`) and the headers of
-html.gadget (`external/html_gadget/`) and the Kickdown project for `mdtohtml`
-(`external/mdtools/`). Clone with `git clone --recursive` or run
+Henry Spencer's regex library (`external/regex/`), the headers of
+html.gadget (`external/html_gadget/`) and of OpenURL (`external/openurl/`)
+and the Kickdown project for `mdtohtml` (`external/mdtools/`). Clone with `git clone --recursive` or run
 `git submodule update --init --recursive` once. The toolchain is bebbo's amiga-gcc
 in `/opt/amiga`.
 
@@ -362,6 +365,10 @@ help pages go to `package/help/<language>/`.
 Regular expressions: the regex library by Henry Spencer (alpha3.8 patch 1,
 <https://github.com/garyhouston/regex>), Copyright 1992, 1993, 1994, 1997
 Henry Spencer, used unchanged as a submodule.
+
+Web links of the help: the headers of
+[openurl.library](https://github.com/jens-maus/libopenurl), used unchanged
+as a submodule; the library is installed separately.
 
 Markdown: `mdtohtml` from [Kickdown](https://github.com/andregewert/Amiga-Kickdown)
 with [md4c](https://github.com/mity/md4c) (MIT License), used unchanged as a submodule.

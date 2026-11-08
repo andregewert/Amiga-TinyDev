@@ -309,6 +309,10 @@ below the tree's root.
 - `external/html_gadget/`: git submodule (tag `v1.2`), html.gadget, for
   the headers the HelpViewer is built with (the class itself is installed
   separately). Do not edit it.
+- `external/openurl/`: git submodule (tag `7.18`), for the headers of
+  `openurl.library` (`developer/C/include`), with which the HelpViewer opens
+  `http:` and `https:` links. The library is optional and opened at the
+  first such link. Do not edit it.
 - `external/mdtools/`: git submodule (tag `v1.2-beta1`; the Kickdown project,
   repository Amiga-Kickdown) for `bin/mdtohtml`, which turns a tree of Markdown files
   into HTML pages. The Makefile compiles only its converter, unchanged and

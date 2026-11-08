@@ -62,6 +62,8 @@ HV_SOURCES := src/helpviewer/helpviewer.c src/helpviewer/printwin.c src/helpview
 HV_OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(HV_SOURCES))
 HV_DEPS := $(HV_OBJECTS:.o=.d)
 HTML_GADGET := external/html_gadget
+# OpenURL (submodule external/openurl): only its headers, the library is optional
+OPENURL := external/openurl
 
 # Help pages (package/help/<language>/, HTML in ISO-8859-1, language drawers
 # named like the Amiga locales): copied to bin/Help/, where TinyDev's
@@ -162,6 +164,9 @@ $(foreach c,$(CLASS_NAMES),$(eval $(call DOXYGEN_DOCS,docs-$(c),$(c).gadget,1.0,
 ifeq ($(wildcard $(HTML_GADGET)/include/gadgets/html.h),)
 $(error $(HTML_GADGET) is missing: git submodule update --init)
 endif
+ifeq ($(wildcard $(OPENURL)/developer/C/include/libraries/openurl.h),)
+$(error $(OPENURL) is missing: git submodule update --init)
+endif
 
 src/scout/scout_strings.h: src/scout/catalogs/TinyDev-Scout.cd $(CATCOMP)
 	python3 $(CATCOMP) header $< $@ SCOUT_STRINGS
@@ -177,7 +182,7 @@ $(BIN_DIR)/Catalogs/%/HelpViewer.catalog: src/helpviewer/catalogs/%.ct src/helpv
 	@mkdir -p $(dir $@)
 	python3 $(CATCOMP) catalog src/helpviewer/catalogs/HelpViewer.cd $< $@
 
-$(HV_OBJECTS): CPPFLAGS += -Isrc/helpviewer -I$(HTML_GADGET)/include
+$(HV_OBJECTS): CPPFLAGS += -Isrc/helpviewer -I$(HTML_GADGET)/include -I$(OPENURL)/developer/C/include
 
 $(HV_TARGET): $(HV_OBJECTS)
 	@mkdir -p $(BIN_DIR)

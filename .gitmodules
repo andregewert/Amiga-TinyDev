@@ -10,3 +10,6 @@
 [submodule "external/mdtools"]
 	path = external/mdtools
 	url = https://github.com/andregewert/Amiga-Kickdown.git
+[submodule "external/openurl"]
+	path = external/openurl
+	url = https://github.com/jens-maus/libopenurl.git

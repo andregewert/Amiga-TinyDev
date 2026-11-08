@@ -69,6 +69,7 @@
 #include <proto/icon.h>
 #include <proto/asl.h>
 #include <proto/locale.h>
+#include <proto/openurl.h>
 #include <clib/alib_protos.h>
 
 #include <string.h>
@@ -104,6 +105,7 @@ struct Library *ListBrowserBase = NULL; /**< listbrowser.gadget (superclass of d
 struct Library *DirTreeBase = NULL;     /**< dirtree.gadget */
 struct Library *HTMLBase = NULL;        /**< html.gadget or htmlttf.gadget */
 struct LocaleBase *LocaleBase = NULL;   /**< locale.library, NULL without it */
+struct Library *OpenURLBase = NULL;     /**< openurl.library, opened with the first web link */
 /** @} */
 
 /** Gadget IDs. */
@@ -611,6 +613,26 @@ static void go(int delta)
         SetGadgetAttrs((struct Gadget *)hv.html, hv.win, NULL, HTML_Top, top, TAG_DONE);
 }
 
+/**
+ * @brief Open a web link in the user's browser with openurl.library and
+ *        say in the status line how it went.
+ *
+ * The library is optional: it is opened only here, and tried again on the
+ * next link if it is missing. No tags are passed, so the choices of the
+ * user's OpenURL settings apply (new window, bringing the browser to front).
+ *
+ * @param url The link.
+ */
+static void open_web_link(const char *url)
+{
+    LONG message;
+    if (OpenURLBase == NULL) OpenURLBase = OpenLibrary((STRPTR)"openurl.library", 0);
+    if (OpenURLBase == NULL) message = MSG_NO_OPENURL;
+    else message = URL_Open((STRPTR)url, TAG_DONE) ? MSG_WEB_OPENED : MSG_WEB_FAILED;
+    format(hv.status_text, sizeof(hv.status_text), S(message), url);
+    set_status(hv.status_text);
+}
+
 /** @brief Follow the link the user clicked. */
 static void follow_link(void)
 {
@@ -621,6 +643,10 @@ static void follow_link(void)
     GetAttr(HTML_BaseDir, hv.html, (ULONG *)&base);
     if (url == NULL) return;
     if (url[0] == '#') return;                  /* HTML_AutoAnchors scrolled there */
+    if (html_link_is_web((const char *)url)) {
+        open_web_link((const char *)url);
+        return;
+    }
     if (html_link_is_external((const char *)url)) {
         format(hv.status_text, sizeof(hv.status_text), S(MSG_EXTERNAL), (const char *)url);
         set_status(hv.status_text);
@@ -1500,6 +1526,7 @@ out:
         UnlockPubScreen(NULL, hv.screen);
     }
     print_cleanup();
+    if (OpenURLBase != NULL) CloseLibrary(OpenURLBase);
     if (HTMLBase != NULL) CloseLibrary(HTMLBase);
     if (DirTreeBase != NULL) CloseLibrary(DirTreeBase);
     if (ListBrowserBase != NULL) CloseLibrary(ListBrowserBase);
