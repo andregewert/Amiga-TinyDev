@@ -214,6 +214,32 @@ static void test_other_rules(void)
     rules_free(r);
 }
 
+/** @brief A comment that only counts in the first column. */
+static void test_column_comments(void)
+{
+    SyntaxRules *r = rules_parse("{\"lineComments\":[\";\"],\"firstColumnComments\":[\"*\"],"
+                                 "\"blockComments\":[{\"open\":\"/*\",\"close\":\"*/\"}]}");
+    Capture c;
+    unsigned long state;
+    TEST_ASSERT(r != NULL);
+    if (r != NULL) {
+        c.count = 0;
+        TEST_ASSERT(rules_scan_line(r, "* word", 0, capture, &c) == 0);
+        TEST_ASSERT(c.count == 1 && has(&c, 0, 6, SYNTAX_COMMENT));
+        c.count = 0;
+        rules_scan_line(r, " a*2 ; b", 0, capture, &c);
+        TEST_ASSERT(c.count == 2 && has(&c, 3, 4, SYNTAX_CONSTANT) && has(&c, 5, 8, SYNTAX_COMMENT));
+        /* inside a block comment a star in the first column ends nothing and starts nothing */
+        c.count = 0;
+        state = rules_scan_line(r, "/* x", 0, capture, &c);
+        TEST_ASSERT(state != 0);
+        c.count = 0;
+        rules_scan_line(r, "*/ 5", state, capture, &c);
+        TEST_ASSERT(c.count == 2 && has(&c, 0, 2, SYNTAX_COMMENT) && has(&c, 3, 4, SYNTAX_CONSTANT));
+    }
+    rules_free(r);
+}
+
 /** @brief Rules without numbers ("numbers": false): digits stay normal text and tokens can be shown over them. */
 static void test_no_numbers(void)
 {
@@ -282,6 +308,7 @@ int main(void)
     test_dos_rules();
     test_other_rules();
     test_no_numbers();
+    test_column_comments();
     test_tokens();
     printf("Rules tests completed: %d tests run, %d failures.\n", g_test_count, g_fail_count);
     return g_fail_count ? 1 : 0;

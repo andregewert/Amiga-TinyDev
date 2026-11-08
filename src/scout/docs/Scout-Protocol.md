@@ -166,6 +166,7 @@ run for every line drawn. Example for C:
 | `caseSensitive` | whether keywords are matched with case (default `true`); Latin-1 letters fold too |
 | `identifier.start`, `.part` | character classes of the first and further characters of a word: characters and ranges `a-z`; `-` at the start or end stands for itself; Latin-1 characters as `ä` in JSON. Default `A-Za-z_` and `A-Za-z0-9_` |
 | `lineComments` | strings that start a comment to the end of the line |
+| `firstColumnComments` | optional: strings that start a comment to the end of the line only in the line's first column (`*` in assembler, where it is otherwise an operator) |
 | `blockComments` | `open`/`close` pairs; `nested`: whether an `open` inside counts (Pascal, E) |
 | `strings` | `open`/`close` pairs; `escape`: the character that makes the next one part of the string (none if left out); `multiline`: whether the string may go on to the next line (otherwise it ends at the line end) |
 | `numbers.prefixes` | strings that start a number when a digit or a letter `a-f`/`A-F` follows (`0x`, `$`, `%`); a digit always starts a number unless it is part of a word |

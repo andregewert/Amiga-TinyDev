@@ -36,6 +36,8 @@ typedef struct SyntaxRules {
     unsigned char first[256];                   /**< 1: a comment or string may start with it; 2: a number prefix may */
     char line_comments[RULES_MAX][RULES_DELIM]; /**< what starts a comment to the end of the line */
     int line_comment_count;                     /**< number of them */
+    char column_comments[RULES_MAX][RULES_DELIM]; /**< what starts a comment only in the line's first column */
+    int column_comment_count;                   /**< number of them */
     RulesPair blocks[RULES_MAX];                /**< block comments */
     int block_count;                            /**< number of them */
     RulesPair strings[RULES_MAX];               /**< strings */

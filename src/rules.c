@@ -211,6 +211,12 @@ SyntaxRules *rules_parse(const char *json)
         if (s != NULL && s->type == JSON_STRING && set_delim(r->line_comments[r->line_comment_count], s->u.str_val))
             r->line_comment_count++;
     }
+    v = json_obj_get_array(root, "firstColumnComments");
+    for (i = 0; v != NULL && i < json_array_length(v) && r->column_comment_count < RULES_MAX; i++) {
+        const JsonValue *s = json_array_get(v, i);
+        if (s != NULL && s->type == JSON_STRING && set_delim(r->column_comments[r->column_comment_count], s->u.str_val))
+            r->column_comment_count++;
+    }
     r->block_count = read_pairs(json_obj_get_array(root, "blockComments"), r->blocks);
     r->string_count = read_pairs(json_obj_get_array(root, "strings"), r->strings);
     v = json_obj_get(root, "numbers");
@@ -389,6 +395,16 @@ unsigned long rules_scan_line(const SyntaxRules *r, const char *text, unsigned l
         out(emit, context, 0, end, SYNTAX_STRING);
         if (!closed) return pack(ST_STRING, index, 0, 0);
         i = end;
+    }
+
+    /* a comment that only counts in the first column */
+    if (i == 0 && kind == ST_NONE && !pp) {
+        int k;
+        for (k = 0; k < r->column_comment_count; k++)
+            if (at(text, 0, r->column_comments[k])) {
+                out(emit, context, 0, len, SYNTAX_COMMENT);
+                return ST_NONE;
+            }
     }
 
     while (i < len) {
