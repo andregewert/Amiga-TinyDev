@@ -1588,6 +1588,18 @@ MSG_STATUS_TABS
  · Einrückung: Tab (%ld)
 ; · Indent: tab (%ld)
 ;
+MSG_STATUS_LF
+ · LF
+; · LF
+;
+MSG_STATUS_CR
+ · CR
+; · CR
+;
+MSG_STATUS_CRLF
+ · CRLF
+; · CRLF
+;
 MSG_MENU_CLOSEALL
 Alle Dateien schließen
 ; Close All Files

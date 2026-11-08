@@ -550,7 +550,8 @@ void ui_update_file_types(EditorApp *app)
 
 /**
  * @brief Append the indentation of the active document's file type to a
- *        status text: the spaces per level, or tabs with their width.
+ *        status text (the spaces per level, or tabs with their width) and
+ *        the line ends of its file.
  * @param app The application state.
  * @param text The status text.
  * @param size Size of @p text.
@@ -563,6 +564,9 @@ static void append_indent(EditorApp *app, char *text, size_t size)
     o = filetypes_get(&app->filetypes, app->active->ft_language);
     if (o->indent > 0) snprintf(text + n, size - n, S(MSG_STATUS_SPACES), (long)o->indent);
     else snprintf(text + n, size - n, S(MSG_STATUS_TABS), (long)o->tab_size);
+    n = strlen(text);
+    snprintf(text + n, size - n, "%s", S(app->active->eol == EOL_CRLF ? MSG_STATUS_CRLF :
+                                         app->active->eol == EOL_CR ? MSG_STATUS_CR : MSG_STATUS_LF));
 }
 
 /** The message of ui_status_message(). */
