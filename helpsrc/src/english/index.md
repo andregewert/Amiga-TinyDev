@@ -1,8 +1,14 @@
-# TinyDev Help
+# TinyDev: Help
 
-Welcome. This is the home page; replace it with an introduction.
+These help pages are intended to give an overview
+of the most important features of TinyDev.
 
-* [Getting started](1-getting-started.md)
-* [A chapter](2-chapter/index.md)
+This documentation is still under construction and
+is **not complete**.
 
-Written by André Gewert.
+* [Introduction](01-introduction.md)
+* [Editing Files](02-edit.md)
+* [Project Management](03-projects.md)
+* [Analysis Functions](04-scout.md)
+* [Other Functions](05-misc.md)
+* [Extending TinyDev](06-extending-tinydev.md)

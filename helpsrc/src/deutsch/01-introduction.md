@@ -1,7 +1,7 @@
 # Einführung
 
-`TinyDev` ist ein erweiterter Editor, der in erste Linie für Programmierer
-gedacht ist. Er wurde um das `TextEdit`-Gadget aus AmigaOS 3.2 herum
+`TinyDev` ist ein erweiterter Editor, der in erster Linie für Programmierer
+gedacht ist. Er wurde um das `texteditor`-Gadget aus AmigaOS 3.2 herum
 entwickelt und benötigt deshalb mindestens AmigaOS 3.2. Auf älteren
 Systemversionen funktioniert er nicht.
 
@@ -42,7 +42,7 @@ Systemversionen funktioniert er nicht.
 `TinyDev` benötigt AmigaOS 3.2. Auf älternen Systemversionen funktioniert
 `TinyDev` nicht. Getestet wurde er ausschließlich auf AmigaOS 3.2.3.
 
-Für den `HelpViewer` ist die ReAction-Klasse `htmlgadget` notwendig.
+Für den `HelpViewer` ist die ReAction-Klasse `html.gadget` erforderlich.
 Sie ist im Aminet [verfügbar](http://aminet.net/package/dev/gui/html_gadget)
 oder über seine [github-Seite](https://github.com/andregewert/Amiga-HTML-Gadget).
 

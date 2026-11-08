@@ -1,1 +1,1 @@
-# Sonstiges Funktionen
+# Sonstige Funktionen
