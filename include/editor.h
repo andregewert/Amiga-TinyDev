@@ -1943,6 +1943,14 @@ const char *scoutlink_language_name(int index);
  */
 const char *scoutlink_document_language(const Document *doc);
 /**
+ * @brief Return the name of the language a document is highlighted and
+ *        analysed as, as shown in menus.
+ * @param app The application state.
+ * @param doc The document.
+ * @return The name; NULL for none (plain text, or Scout is switched off).
+ */
+const char *scoutlink_document_language_name(const EditorApp *app, const Document *doc);
+/**
  * @brief Ask Scout for symbols: those of a document, or those of the
  *        project; the answer goes to symlist_symbols().
  * @param app The application state.

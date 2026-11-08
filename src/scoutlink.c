@@ -1141,6 +1141,12 @@ const char *scoutlink_document_language(const Document *doc)
     return k >= 0 ? sl.lang_ids[k] : "";
 }
 
+const char *scoutlink_document_language_name(const EditorApp *app, const Document *doc)
+{
+    int k = app->settings.scout ? doc_language(doc) : -1;
+    return k >= 0 ? sl.lang_names[k] : NULL;
+}
+
 void scoutlink_document_closing(EditorApp *app, Document *doc)
 {
     char command[EDITOR_PATH_MAX + 32];
