@@ -299,6 +299,11 @@ below the tree's root.
   and EXTERNAL, CONST, the declared variables, labels, block structure, the
   `#` lines; expressions are not parsed; its includes end in `.h` and say
   so with `"language"` in their references) and `ace_parser_rpc.c`;
+  the Free Pascal parser is `pascal_parser.c` (the source read into tokens,
+  then two passes over sections and blocks: program or unit, uses, const,
+  type, var, labels, routines and methods, records and classes, directives;
+  expressions are not parsed; a unit's `.ppu` is not read) and
+  `pascal_parser_rpc.c`;
   `include/scout_protocol.h` holds the protocol's numbers (kinds,
   severities, error codes) for Scout and all parsers.
 - `include/editor.h`: shared application types and cross-module declarations.
@@ -337,6 +342,8 @@ below the tree's root.
   modules built byte by byte (sample in `tests/data/e_parser/`, ISO-8859-1).
 - `tests/test_ace_parser.c`: host-native tests of the ACE BASIC parser
   (sample in `tests/data/ace_parser/`, ISO-8859-1).
+- `tests/test_pascal_parser.c`: host-native tests of the Free Pascal parser
+  (samples in `tests/data/pascal_parser/`, ISO-8859-1).
 - `amiga-devkit/`: git submodule (pinned tag) with shared Amiga tools and AI
   guidelines; see `CLAUDE.md`. Do not edit files inside the submodule.
 - `external/html_gadget/`: git submodule (tag `v1.2`), html.gadget, for
@@ -414,6 +421,7 @@ make test
   `bin/parsers/asm_parser`,
   `bin/parsers/e_parser`,
   `bin/parsers/ace_parser`,
+  `bin/parsers/pascal_parser`,
   `bin/Classes/Gadgets/<name>.gadget`,
   `bin/Catalogs/<language>/TinyDev.catalog`, `bin/HelpViewer`,
   `bin/Sprout`, `bin/mdtohtml`, `bin/Templates/`,

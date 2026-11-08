@@ -14,7 +14,7 @@
 import os, shutil, subprocess, sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from mkicons import ROOT, PARSER_C, PARSER_DOS, PARSER_MAKE, PARSER_MD, PARSER_JSON, PARSER_MARKUP, PARSER_AREXX, PARSER_ASM, PARSER_E, PARSER_ACE, WBDRAWER, WBTOOL, WBPROJECT  # noqa: E402  (registers the motifs)
+from mkicons import ROOT, PARSER_C, PARSER_DOS, PARSER_MAKE, PARSER_MD, PARSER_JSON, PARSER_MARKUP, PARSER_AREXX, PARSER_ASM, PARSER_E, PARSER_ACE, PARSER_PASCAL, WBDRAWER, WBTOOL, WBPROJECT  # noqa: E402  (registers the motifs)
 from distlib import copy, copytree, copy_devkit, latin1_copy, package_icons, pack  # noqa: E402
 
 NAME = 'TinyDev'
@@ -64,7 +64,7 @@ def main():
               os.path.join('parsers', 'markdown_parser'), os.path.join('parsers', 'json_parser'),
               os.path.join('parsers', 'markup_parser'), os.path.join('parsers', 'arexx_parser'),
               os.path.join('parsers', 'asm_parser'),
-              os.path.join('parsers', 'e_parser'), os.path.join('parsers', 'ace_parser')):
+              os.path.join('parsers', 'e_parser'), os.path.join('parsers', 'ace_parser'), os.path.join('parsers', 'pascal_parser')):
         copy(b('bin', f), os.path.join(PKG, f))
     for d in ('Classes', 'Catalogs', 'Help'):
         copytree(b('bin', d), os.path.join(PKG, d))
@@ -118,6 +118,7 @@ def main():
              ('parsers/asm_parser', PARSER_ASM, WBTOOL, dict(stack=16384)),
              ('parsers/e_parser', PARSER_E, WBTOOL, dict(stack=16384)),
              ('parsers/ace_parser', PARSER_ACE, WBTOOL, dict(stack=16384)),
+             ('parsers/pascal_parser', PARSER_PASCAL, WBTOOL, dict(stack=16384)),
              ('HelpViewer', 'helpviewer', WBTOOL,
               dict(stack=32768, tooltypes=('(TTF)', '(FONTSET=Vera)', '(SIZE=10)'))),
              (NAME + '.readme', 'readme', WBPROJECT, dict(default_tool=MULTIVIEW)),
