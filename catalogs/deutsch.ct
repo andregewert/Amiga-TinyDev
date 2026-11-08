@@ -1145,8 +1145,8 @@ Verzeichnis für temporäre Dateien
 ; Drawer for temporary files
 ;
 MSG_PREFS_ADVNOTE
-Alles wirkt sofort. TinyDev-Scout findet die Symbole und\nFehler der Quelltexte. Temporäre Dateien: Scouts Kopien\ngeänderter Dokumente und die Skripte des Menüs Erstellen.\nT: (in der RAM-Disk) ist am schnellsten. Shell-Fenster: die\nKonsole von Projekt/Neue Shell, z. B. CON: oder VNC:, oder ein\nganzes Fenster wie CON:0/20/640/200/Shell/CLOSE.
-; All take effect at once. TinyDev-Scout finds the symbols\nand errors of the sources. Temporary files: Scout's copies of\nchanged documents and the scripts of the Build menu.\nT: (in the RAM disk) is fastest. Shell window: the console of\nProject/New Shell, e.g. CON: or VNC:, or a whole window\nsuch as CON:0/20/640/200/Shell/CLOSE.
+Änderungen wirken sofort.
+; Changes take effect at once.
 ;
 MSG_MENU_SYMLIST
 Symbolliste
@@ -1569,8 +1569,8 @@ Ohne Auswahl die Zeile ausschneiden oder kopieren
 ; Cut and co_py the line when nothing is selected
 ;
 MSG_PREFS_FT_NOTE
-Umschalt+Tab rückt immer ein, Tab eine Auswahl.\nAlles wirkt sofort. Ansicht/Zeilennummern ändert\nnur die Zeilennummern des aktuellen Dokuments.
-; Shift+Tab always indents, Tab indents a selection.\nAll take effect at once. View/Line Numbers changes\nthe line numbers of the current document only.
+Änderungen wirken sofort.
+; Changes take effect at once.
 ;
 MSG_ERR_FTPREFS_READ
 TinyDev.json in der Schublade von TinyDev konnte nicht\ngelesen werden. Es gelten die eingebauten\nDateityp-Einstellungen, die Datei bleibt unverändert.
@@ -1785,8 +1785,8 @@ E-Mail
 ; E-mail 
 ;
 MSG_PREFS_PROJNOTE
-Alles wirkt sofort. Projekt/Neues Projekt... schlägt das\nProjektverzeichnis vor (wenn leer, das Verzeichnis, in dem\ndas aktuelle Projekt liegt) und trägt Autor und E-Mail-Adresse\nin die Vorlagen ein, wo sie sich noch ändern lassen.
-; All take effect at once. Project/New Project... suggests\nthe project drawer (if empty, the drawer that holds the\ncurrent project) and fills author and e-mail address into\nthe templates, where they can still be changed.
+Änderungen wirken sofort.\nAlle Werte lassen sich bei Anlage eines Projektes ändern.
+; Changes take effect at once.\nAll values can be changed when a project is created.
 ;
 MSG_MENU_CLOSEPROJECT
 Projekt schließen

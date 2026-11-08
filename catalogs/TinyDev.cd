@@ -885,7 +885,7 @@ MSG_PREFS_ASL_TEMPDIR (//)
 Drawer for temporary files
 ;
 MSG_PREFS_ADVNOTE (//)
-All take effect at once. TinyDev-Scout finds the symbols\nand errors of the sources. Temporary files: Scout's copies of\nchanged documents and the scripts of the Build menu.\nT: (in the RAM disk) is fastest. Shell window: the console of\nProject/New Shell, e.g. CON: or VNC:, or a whole window\nsuch as CON:0/20/640/200/Shell/CLOSE.
+Changes take effect at once.
 ;
 MSG_MENU_SYMLIST (//)
 Symbol List
@@ -1203,7 +1203,7 @@ MSG_PREFS_FT_CUTCOPY (//)
 Cut and co_py the line when nothing is selected
 ;
 MSG_PREFS_FT_NOTE (//)
-Shift+Tab always indents, Tab indents a selection.\nAll take effect at once. View/Line Numbers changes\nthe line numbers of the current document only.
+Changes take effect at once.
 ;
 MSG_ERR_FTPREFS_READ (//)
 TinyDev.json in the drawer of TinyDev could not be read.\nThe built-in file type settings are used,\nand the file is not changed.
@@ -1365,7 +1365,7 @@ MSG_PREFS_AUTHORMAIL (//)
 E-mail 
 ;
 MSG_PREFS_PROJNOTE (//)
-All take effect at once. Project/New Project... suggests\nthe project drawer (if empty, the drawer that holds the\ncurrent project) and fills author and e-mail address into\nthe templates, where they can still be changed.
+Changes take effect at once.\nAll values can be changed when a project is created.
 ;
 MSG_MENU_CLOSEPROJECT (//)
 Close Project
