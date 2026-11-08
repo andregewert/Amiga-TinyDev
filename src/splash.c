@@ -245,9 +245,14 @@ static int card_init(Card *c, struct Screen *screen, const char *icon_name)
     if ((c->pen_title = obtain(cm, 0x0a2a8a)) >= 0 && c->pen_title != c->bg)
         c->title = (UWORD)c->pen_title;
 
-    /* the program icon, laid out for this screen (icon.library V44) */
+    /* the program icon, laid out for this screen (icon.library V44): the
+       old GetDiskObject() and GetDiskObjectNew() ask for the planar image
+       only (ICONGETA_GetPaletteMappedIcon FALSE, seen in icon.library 47),
+       which is the classic picture of a GlowIcon or NewIcon */
     if (IconBase != NULL && icon_name != NULL && icon_name[0] != '\0' &&
-        (c->icon = GetDiskObjectNew((STRPTR)icon_name)) != NULL) {
+        (c->icon = GetIconTags((STRPTR)icon_name,
+                               ICONGETA_FailIfUnavailable, FALSE,
+                               ICONGETA_RemapIcon, FALSE, TAG_END)) != NULL) {
         LayoutIconA(c->icon, screen, NULL);
         if (GetIconRectangle(NULL, c->icon, NULL, &rect,
                              ICONDRAWA_Frameless, TRUE, ICONDRAWA_Borderless, TRUE, TAG_END)) {

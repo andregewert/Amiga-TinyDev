@@ -881,10 +881,12 @@ int ui_create(EditorApp *app)
     app->diaglist_was_open = app->settings.diaglist;
     set_menu_checks(app, app->settings.bmlist);
     app->outwin_was_open = app->symlist_was_open = app->diaglist_was_open = 0;
-    /* AppPort: the window can be iconified, with the program icon as AppIcon */
+    /* AppPort: the window can be iconified, with the program icon as AppIcon;
+       GetIconTags(), as GetDiskObject() gives only the planar image, the
+       classic picture of a GlowIcon or NewIcon */
     app->app_port = CreateMsgPort();
     if (app->app_port != NULL && IconBase != NULL && app->settings.icon_name[0] != '\0' &&
-        (icon = GetDiskObject((STRPTR)app->settings.icon_name)) != NULL)
+        (icon = GetIconTags((STRPTR)app->settings.icon_name, TAG_END)) != NULL)
         icon->do_CurrentX = icon->do_CurrentY = (LONG)NO_ICON_POSITION;
     /* the folder tree as the settings want it at the start, before the
      * window opens (the layout has it shown) */

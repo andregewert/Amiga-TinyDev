@@ -1124,7 +1124,7 @@ static int open_window(void)
     set_icon_title(NULL);
     hv.app_port = CreateMsgPort();
     if (hv.app_port != NULL && IconBase != NULL && opt.icon[0] != '\0' &&
-        (icon = GetDiskObject((STRPTR)opt.icon)) != NULL)
+        (icon = GetIconTags((STRPTR)opt.icon, TAG_END)) != NULL) /* with its colour image */
         icon->do_CurrentX = icon->do_CurrentY = (LONG)NO_ICON_POSITION;
     if (opt.box[2] > 0) {               /* snapshot: pushed into the screen */
         w = (WORD)(opt.box[2] < hv.screen->Width ? opt.box[2] : hv.screen->Width);
