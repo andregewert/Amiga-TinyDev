@@ -103,7 +103,9 @@ below the tree's root.
   of its own (synchronous `SystemTags()`, return code by message) with
   its output in a file in `T:` read every 0.25 s (timer.device) into the
   output window; Stop sends Ctrl-C to its Shell. Run and Debug start
-  detached in a console window.
+  detached in a console window. A submenu per action in the Build menu
+  (slots of the table in `ui.c`, filled by `build_commands_poll()`) chooses
+  the default command and saves it in `project.json`.
 - `src/scoutlink.c`: TinyDev as a client of TinyDev-Scout (ARexx
   messages answered to a port of the event loop): starts Scout when
   needed, a session per project (the tree's root), analyses documents

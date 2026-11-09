@@ -44,6 +44,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "projconf.h"
 
 /** One toolbar button. */
 typedef struct ToolSpec {
@@ -280,6 +281,44 @@ static int make_button(EditorApp *app, ULONG i)
     return 1;
 }
 
+
+/** The help bubbles of Build, Run and Debug, with the command each runs. */
+static char action_hints[PROJ_ACTIONS][128];
+
+/**
+ * @brief The project action of a toolbar button.
+ * @param tool Index in tools[].
+ * @return Its PROJ_ value, -1 if it is none.
+ */
+static int tool_action(ULONG tool)
+{
+    switch (tools[tool].command) {
+        case MID_BUILD: return PROJ_BUILD;
+        case MID_RUN: return PROJ_RUN;
+        case MID_DEBUG: return PROJ_DEBUG;
+        default: return -1;
+    }
+}
+
+/**
+ * @brief Write the help bubble of a project action's button.
+ * @param tool Index in tools[].
+ */
+static void fill_action_hint(ULONG tool)
+{
+    int action = tool_action(tool), active = build_command_active(action);
+    if (active >= 0) snprintf(action_hints[action], sizeof(action_hints[action]), "%s \xB7 %s",
+                              S(tools[tool].help), build_command_name(action, active));
+    else snprintf(action_hints[action], sizeof(action_hints[action]), "%s", S(tools[tool].help));
+}
+
+void toolbar_update_action_hints(void)
+{
+    ULONG i;
+    for (i = 0; i < NUMTOOLS; ++i)
+        if (tool_action(i) >= 0) fill_action_hint(i);
+}
+
 /**
  * @brief Load the ghosted look of button i the first time it is needed.
  *
@@ -330,6 +369,10 @@ int toolbar_create(EditorApp *app)
         tb.hints[i].hi_GadgetID = GID_TOOLBAR;
         tb.hints[i].hi_Code = (WORD)tools[i].command;
         tb.hints[i].hi_Text = (STRPTR)S(tools[i].help);
+        if (tool_action(i) >= 0) {
+            tb.hints[i].hi_Text = (STRPTR)action_hints[tool_action(i)];
+            fill_action_hint(i);
+        }
         tb.hints[i].hi_Flags = 0;
     }
     tb.hints[i].hi_GadgetID = GID_OVERFLOW;

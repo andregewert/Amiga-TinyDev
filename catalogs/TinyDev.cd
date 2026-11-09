@@ -789,6 +789,15 @@ Debug
 MSG_MENU_STOP (//)
 Stop Build
 ;
+MSG_MENU_CMD_BUILD (//)
+Build Command
+;
+MSG_MENU_CMD_RUN (//)
+Run Command
+;
+MSG_MENU_CMD_DEBUG (//)
+Debug Command
+;
 MSG_MENU_OUTPUT (//)
 Output Window
 ;
@@ -850,6 +859,12 @@ The command could not be prepared in the drawer of the temporary files.
 ;
 MSG_BUILD_BUSY (//)
 A build is already running.
+;
+MSG_BUILD_CHOSEN (//)
+%s now runs: %s
+;
+MSG_BUILD_MENU_STALE (//)
+The project's commands have changed; the menu is now up to date.
 ;
 MSG_BUILD_QUIT (//)
 A build is running. Stop it and quit?

@@ -235,6 +235,18 @@ static void close_editor_colors(EditorApp *app)
 /** The mutual exclusion of the File Type menu's item at a position. */
 #define FT_EXCLUDE(pos) (FT_ALL & ~(1L << (pos)))
 
+/** The items of a submenu of commands that exclude each other. */
+#define PC_ALL ((1L << PROJCMD_SLOTS) - 1)
+/** The mutual exclusion of the command at a position of its submenu. */
+#define PC_EXCLUDE(pos) (PC_ALL & ~(1L << (pos)))
+/** A slot of a submenu of commands (NM_IGNORE until a project names it). */
+#define PC_SLOT(action, pos) {NM_IGNORE, "", NULL, CHECKIT, PC_EXCLUDE(pos), UD(MID_PC_FIRST + (action) * PROJCMD_SLOTS + (pos))}
+/** All slots of a submenu of commands. */
+#define PC_SLOTS(a) PC_SLOT(a, 0), PC_SLOT(a, 1), PC_SLOT(a, 2), PC_SLOT(a, 3), PC_SLOT(a, 4), PC_SLOT(a, 5), \
+                    PC_SLOT(a, 6), PC_SLOT(a, 7), PC_SLOT(a, 8), PC_SLOT(a, 9), PC_SLOT(a, 10), PC_SLOT(a, 11)
+/** The entries of menu_texts[] for the slots of a submenu of commands. */
+#define PC_NO_TEXTS -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+
 /** The menu; the texts are filled in from menu_texts[] (catalog). The
  *  File Type menu has a slot per language (NM_IGNORE until Scout names
  *  them, ui_update_file_types()). */
@@ -311,6 +323,13 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NULL, "R", 0, 0, UD(MID_RUN)},
     {NM_ITEM, NULL, "D", 0, 0, UD(MID_DEBUG)},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_STOP)},
+    {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
+    {NM_ITEM, NULL, NULL, NM_ITEMDISABLED, 0, UD(MID_PC_PARENT + PROJ_BUILD)},
+    PC_SLOTS(PROJ_BUILD),
+    {NM_ITEM, NULL, NULL, NM_ITEMDISABLED, 0, UD(MID_PC_PARENT + PROJ_RUN)},
+    PC_SLOTS(PROJ_RUN),
+    {NM_ITEM, NULL, NULL, NM_ITEMDISABLED, 0, UD(MID_PC_PARENT + PROJ_DEBUG)},
+    PC_SLOTS(PROJ_DEBUG),
     {NM_TITLE, NULL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_FOLDER_TREE)},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_LINE_NUMBERS)},
@@ -400,6 +419,13 @@ static const LONG menu_texts[] = {
     MSG_MENU_DO_RUN,
     MSG_MENU_DO_DEBUG,
     MSG_MENU_STOP,
+    -1,
+    MSG_MENU_CMD_BUILD,
+    PC_NO_TEXTS,
+    MSG_MENU_CMD_RUN,
+    PC_NO_TEXTS,
+    MSG_MENU_CMD_DEBUG,
+    PC_NO_TEXTS,
     MSG_MENU_VIEW,
     MSG_MENU_TREE,
     MSG_MENU_LINENUMBERS,
@@ -690,21 +716,88 @@ void ui_gadget_set(EditorApp *app, Object *obj, ULONG tag1, ULONG data1,
     else SetAttrs(obj, tag1, data1, tag2, data2, TAG_END);
 }
 
+/**
+ * @brief Find an item of a menu strip by its ID, also in the submenus.
+ * @param strip The menu strip.
+ * @param id The item's MID_.
+ * @return The item, or NULL.
+ */
+static struct MenuItem *find_menu_item(struct Menu *strip, ULONG id)
+{
+    struct Menu *m;
+    struct MenuItem *item, *sub;
+    for (m = strip; m != NULL; m = m->NextMenu)
+        for (item = m->FirstItem; item != NULL; item = item->NextItem) {
+            if ((ULONG)GTMENUITEM_USERDATA(item) == id) return item;
+            for (sub = item->SubItem; sub != NULL; sub = sub->NextItem)
+                if ((ULONG)GTMENUITEM_USERDATA(sub) == id) return sub;
+        }
+    return NULL;
+}
+
 void ui_set_menu_check(EditorApp *app, ULONG id, int on)
 {
-    struct Menu *strip = NULL, *m;
+    struct Menu *strip = NULL;
     struct MenuItem *item;
     if (app->window_object == NULL || app->window == NULL) return;
     GetAttr(WINDOW_MenuStrip, app->window_object, (ULONG *)&strip);
     if (strip == NULL) return;
     ClearMenuStrip(app->window);
-    for (m = strip; m != NULL; m = m->NextMenu)
-        for (item = m->FirstItem; item != NULL; item = item->NextItem)
-            if ((ULONG)GTMENUITEM_USERDATA(item) == id) {
-                if (on) item->Flags |= CHECKED;
-                else item->Flags &= (UWORD)~CHECKED;
-            }
+    if ((item = find_menu_item(strip, id)) != NULL) {
+        if (on) item->Flags |= CHECKED;
+        else item->Flags &= (UWORD)~CHECKED;
+    }
     ResetMenuStrip(app->window, strip);
+}
+
+void ui_update_project_commands(EditorApp *app)
+{
+    struct Menu *strip = NULL;
+    int i;
+    if (app->window_object != NULL && app->window != NULL)
+        GetAttr(WINDOW_MenuStrip, app->window_object, (ULONG *)&strip);
+    for (i = 0; menus[i].nm_Type != NM_END; ++i) {
+        ULONG ud = (ULONG)menus[i].nm_UserData;
+        if (ud >= MID_PC_PARENT && ud < MID_PC_PARENT + PROJ_ACTIONS) {
+            if (build_command_count((int)(ud - MID_PC_PARENT)) > 0) menus[i].nm_Flags &= (UWORD)~NM_ITEMDISABLED;
+            else menus[i].nm_Flags |= NM_ITEMDISABLED;
+        } else if (ud >= MID_PC_FIRST && ud < MID_PC_PARENT) {
+            int action = (int)(ud - MID_PC_FIRST) / PROJCMD_SLOTS, k = (int)(ud - MID_PC_FIRST) % PROJCMD_SLOTS;
+            menus[i].nm_Flags &= (UWORD)~CHECKED;
+            if (k < build_command_count(action)) {
+                menus[i].nm_Type = NM_SUB;
+                menus[i].nm_Label = (STRPTR)build_command_name(action, k);
+                if (k == build_command_active(action)) menus[i].nm_Flags |= CHECKED;
+            } else {
+                menus[i].nm_Type = NM_IGNORE;
+            }
+        } else if (strip != NULL && (menus[i].nm_Flags & CHECKIT) && ud != 0 && menus[i].nm_Type != NM_IGNORE) {
+            /* the table's other marks are only kept up to date for
+             * iconifying: the strip about to be replaced has them */
+            struct MenuItem *item = find_menu_item(strip, ud);
+            if (item != NULL) {
+                if (item->Flags & CHECKED) menus[i].nm_Flags |= CHECKED;
+                else menus[i].nm_Flags &= (UWORD)~CHECKED;
+            }
+        }
+    }
+    /* window.class builds the menus anew from the table; a closed window
+     * does that at WM_OPEN */
+    if (strip != NULL) SetAttrs(app->window_object, WINDOW_NewMenu, (ULONG)menus, TAG_END);
+}
+
+void ui_check_project_command(EditorApp *app, int action)
+{
+    int i;
+    for (i = 0; menus[i].nm_Type != NM_END; ++i) {
+        ULONG ud = (ULONG)menus[i].nm_UserData;
+        if (ud >= MID_PC_FIRST + (ULONG)action * PROJCMD_SLOTS && ud < MID_PC_FIRST + ((ULONG)action + 1) * PROJCMD_SLOTS) {
+            int on = (int)(ud - MID_PC_FIRST) % PROJCMD_SLOTS == build_command_active(action);
+            if (on) menus[i].nm_Flags |= CHECKED;
+            else menus[i].nm_Flags &= (UWORD)~CHECKED;
+            if (menus[i].nm_Type != NM_IGNORE) ui_set_menu_check(app, ud, on);
+        }
+    }
 }
 
 void ui_begin_update(EditorApp *app)
@@ -1319,6 +1412,10 @@ static int ui_uniconify(EditorApp *app)
 
 static void menu_action(EditorApp *app, ULONG id)
 {
+    if (id >= MID_PC_FIRST && id < MID_PC_PARENT) {
+        build_choose_command(app, (int)(id - MID_PC_FIRST) / PROJCMD_SLOTS, (int)(id - MID_PC_FIRST) % PROJCMD_SLOTS);
+        return;
+    }
     if (id >= MID_FT_AUTO && id < MID_FT_FIRST + FILETYPE_SLOTS) {
         int k = (int)id - MID_FT_FIRST;
         if (app->active == NULL) return;
@@ -1348,7 +1445,7 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_HELP: help_open(app); break;
         case MID_SHELL: shell_open(app); break;
         case MID_SETTINGS: edit_settings(app); break;
-        case MID_PROJECT_SETTINGS: project_settings(app); break;
+        case MID_PROJECT_SETTINGS: project_settings(app); build_commands_changed(); break;
         case MID_NEW_PROJECT: new_project(app); ui_focus_editor(app, 1); break;
         case MID_NEW_FROM_TEMPLATE: new_from_template(app); ui_focus_editor(app, 1); break;
         case MID_BUILD: case MID_RUN: case MID_DEBUG: case MID_STOP:
@@ -1654,6 +1751,7 @@ int ui_run(EditorApp *app)
                 if (item != NULL) menu_action(app, (ULONG)GTMENUITEM_USERDATA(item));
             }
         }
+        build_commands_poll(app);
         find_handle(app);
         bookmarks_poll(app);
         bmlist_handle(app);

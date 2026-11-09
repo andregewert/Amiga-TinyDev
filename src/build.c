@@ -62,6 +62,8 @@
 
 /** The project file in \<project\>/.tinydev/. */
 #define PROJECT_FILE "project.json"
+/** Size of a command's name in the Build menu's submenus. */
+#define COMMAND_LABEL 48
 /** Stack the commands get (bytes). */
 #define COMMAND_STACK 65536
 /** Interval of reading the output (microseconds). */
@@ -618,6 +620,135 @@ static void start_detached(EditorApp *app, ProjAction action)
         snprintf(console, sizeof(console), S(MSG_BUILD_NOSTART), name);
         report(app, action, console);
     }
+}
+
+/**
+ * @brief Make the text of a command's menu entry.
+ * @param[out] label The text (COMMAND_LABEL bytes).
+ * @param name The command's name.
+ */
+static void make_label(char *label, const char *name)
+{
+    size_t n = strlen(name);
+    if (n < COMMAND_LABEL) {
+        memcpy(label, name, n + 1);
+    } else {
+        memcpy(label, name, COMMAND_LABEL - 4);
+        strcpy(label + COMMAND_LABEL - 4, "...");
+    }
+}
+
+/** Texts of the submenus of commands (they must stay while the menu exists). */
+static char cmd_labels[PROJ_ACTIONS][PROJCMD_SLOTS][COMMAND_LABEL];
+/** Number of commands shown per action. */
+static int cmd_counts[PROJ_ACTIONS];
+/** The command each action runs, -1 if none of those shown. */
+static int cmd_active[PROJ_ACTIONS] = { -1, -1, -1 };
+/** build_commands_poll() has to read the commands; set for the first turn. */
+static int cmd_changed = 1;
+
+void build_commands_changed(void)
+{
+    cmd_changed = 1;
+}
+
+void build_document_saved(const char *path)
+{
+    static const char name[] = ".tinydev/" PROJECT_FILE;
+    size_t n = strlen(path), m = sizeof(name) - 1;
+    if (n >= m && strcmp(path + n - m, name) == 0) cmd_changed = 1;
+}
+
+int build_command_count(int action)
+{
+    return cmd_counts[action];
+}
+
+const char *build_command_name(int action, int index)
+{
+    return cmd_labels[action][index];
+}
+
+int build_command_active(int action)
+{
+    return cmd_active[action];
+}
+
+/**
+ * @brief Note what an action's commands are.
+ * @param action The action.
+ * @param c The settings.
+ */
+static void remember_commands(int action, const ProjConf *c)
+{
+    long active = projconf_default(c, (ProjAction)action), k;
+    cmd_counts[action] = c->count[action] < PROJCMD_SLOTS ? (int)c->count[action] : PROJCMD_SLOTS;
+    for (k = 0; k < cmd_counts[action]; ++k) make_label(cmd_labels[action][k], c->commands[action][k].name);
+    cmd_active[action] = active >= 0 && active < cmd_counts[action] ? (int)active : -1;
+}
+
+void build_commands_poll(EditorApp *app)
+{
+    char root[EDITOR_PATH_MAX], *text = NULL;
+    ProjConf c;
+    int a;
+
+    if (!cmd_changed) return;
+    cmd_changed = 0;
+    for (a = 0; a < PROJ_ACTIONS; ++a) {
+        cmd_counts[a] = 0;
+        cmd_active[a] = -1;
+    }
+    projconf_init(&c);
+    if (tree_project_root(app, root, sizeof(root)) && projdata_read(root, PROJECT_FILE, &text) > 0) {
+        if (projconf_parse(&c, text) > 0)
+            for (a = 0; a < PROJ_ACTIONS; ++a) remember_commands(a, &c);
+        free(text);
+    }
+    projconf_clear(&c);
+    ui_update_project_commands(app);
+    toolbar_update_action_hints();
+}
+
+void build_choose_command(EditorApp *app, int action, int index)
+{
+    char root[EDITOR_PATH_MAX], label[COMMAND_LABEL], path[EDITOR_PATH_MAX], message[EDITOR_PATH_MAX + 200];
+    char *old = NULL, *json = NULL;
+    ProjConf c;
+    int ok;
+
+    if (!load_settings(app, (ProjAction)action, root, &c)) {
+        cmd_changed = 1;
+        return;
+    }
+    if (index < c.count[action]) make_label(label, c.commands[action][index].name);
+    if (index >= c.count[action] || index >= cmd_counts[action] || strcmp(label, cmd_labels[action][index]) != 0) {
+        projconf_clear(&c);
+        cmd_changed = 1;
+        ui_status_message(app, S(MSG_BUILD_MENU_STALE));
+        return;
+    }
+    if (projconf_default(&c, (ProjAction)action) != index) {
+        projconf_set_default(&c, (ProjAction)action, index);
+        if (projdata_read(root, PROJECT_FILE, &old) > 0) json = projconf_format(&c, old);
+        ok = json != NULL && projdata_write(root, PROJECT_FILE, json);
+        free(old);
+        free(json);
+        if (!ok) {
+            projconf_clear(&c);
+            if (!projdata_path(root, PROJECT_FILE, path, sizeof(path))) strcpy(path, PROJECT_FILE);
+            snprintf(message, sizeof(message), S(MSG_PJ_WRITE), path);
+            report(app, (ProjAction)action, message);
+            cmd_changed = 1;    /* Intuition has moved the check mark */
+            return;
+        }
+    }
+    projconf_clear(&c);
+    cmd_active[action] = index;
+    ui_check_project_command(app, action);
+    toolbar_update_action_hints();
+    snprintf(message, sizeof(message), S(MSG_BUILD_CHOSEN), S(action_names[action]), cmd_labels[action][index]);
+    ui_status_message(app, message);
 }
 
 void build_action(EditorApp *app, ULONG id)

@@ -255,6 +255,7 @@ int file_save(EditorApp *app, Document *doc, const char *path)
     document_set_dirty(app, doc, 0);
     bookmarks_save(app);                /* the lines of its bookmarks may have moved */
     scoutlink_document_saved(doc);
+    build_document_saved(doc->path);    /* it may be the project file */
     return 1;
 replace_failed:
     doc->saved_hash = old_hash; doc->saved_length = old_length;    /* the file did not change */

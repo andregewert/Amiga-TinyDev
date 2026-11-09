@@ -1023,6 +1023,15 @@ Debuggen
 MSG_MENU_STOP
 Erstellen abbrechen
 ; Stop Build
+MSG_MENU_CMD_BUILD
+Erstellen-Befehl
+; Build Command
+MSG_MENU_CMD_RUN
+Ausführen-Befehl
+; Run Command
+MSG_MENU_CMD_DEBUG
+Debuggen-Befehl
+; Debug Command
 ;
 MSG_MENU_OUTPUT
 Ausgabefenster
@@ -1099,6 +1108,12 @@ Das Kommando konnte im Verzeichnis für temporäre Dateien nicht vorbereitet werde
 MSG_BUILD_BUSY
 Es läuft bereits ein Erstellen.
 ; A build is already running.
+MSG_BUILD_CHOSEN
+%s führt jetzt aus: %s
+; %s now runs: %s
+MSG_BUILD_MENU_STALE
+Die Befehle des Projekts haben sich geändert; das Menü ist jetzt aktuell.
+; The project's commands have changed; the menu is now up to date.
 ;
 MSG_BUILD_QUIT
 Ein Erstellen läuft noch. Abbrechen und beenden?

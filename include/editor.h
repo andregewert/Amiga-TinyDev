@@ -30,6 +30,7 @@ struct HintInfo;
 #define EDITOR_PATH_MAX 1024                /**< size of path buffers */
 #define EDITOR_TITLE_MAX 128                /**< size of a document's title */
 #define FILETYPE_SLOTS 12                   /**< most languages in the File Type menu */
+#define PROJCMD_SLOTS 12                    /**< most commands of an action in its submenu of the Build menu */
 #define EDITOR_COLOR_COUNT 11               /**< number of editor colours (enum EditorColor) */
 /** @} */
 
@@ -206,6 +207,11 @@ enum MenuId {
     MID_FT_TEXT,        /**< File Type/Plain Text: no highlighting, no analysis */
     MID_FT_FIRST        /**< File Type: the first language (FILETYPE_SLOTS of them follow) */
 };
+
+/** First ID of the commands in the Build menu's submenus (PROJCMD_SLOTS per action, in the order of the actions). */
+#define MID_PC_FIRST (MID_FT_FIRST + FILETYPE_SLOTS)
+/** First ID of the items holding those submenus (one per action). */
+#define MID_PC_PARENT (MID_PC_FIRST + 3 * PROJCMD_SLOTS)
 
 /** Bookmarks of a document that TinyDev keeps track of. */
 #define BOOKMARKS_MAX 64
@@ -630,6 +636,14 @@ void toolbar_window_closed(void);
  */
 void toolbar_update(EditorApp *app);
 /**
+ * @brief Name the commands that Build, Run and Debug run in the help
+ *        bubbles of their buttons.
+ *
+ * The texts are changed in place, as the window's list of hints points to
+ * them.
+ */
+void toolbar_update_action_hints(void);
+/**
  * @brief Return the menu command of an entry of the overflow chooser.
  * @param index The entry's index (the GADGETUP code).
  * @return The MID_ command, or 0 if none.
@@ -800,6 +814,21 @@ void ui_set_menu_check(EditorApp *app, ULONG id, int on);
  * @param app The application state.
  */
 void ui_update_file_types(EditorApp *app);
+/**
+ * @brief Build the submenus of the Build menu from build_command_name()
+ *        and friends, and set the window's menu anew.
+ *
+ * Not while a menu pick is being handled, see build_commands_poll().
+ *
+ * @param app The application state.
+ */
+void ui_update_project_commands(EditorApp *app);
+/**
+ * @brief Move the check mark of an action's submenu to its active command.
+ * @param app The application state.
+ * @param action PROJ_ value.
+ */
+void ui_check_project_command(EditorApp *app, int action);
 /**
  * @brief Start collecting relayouts and page redraws (nestable).
  *
@@ -1281,6 +1310,59 @@ void bookmarks_document_closing(EditorApp *app, Document *doc);
  * @param id MID_BUILD, MID_RUN, MID_DEBUG or MID_STOP.
  */
 void build_action(EditorApp *app, ULONG id);
+/**
+ * @brief Note that the project's commands may have changed (another
+ *        project, its settings saved); build_commands_poll() reads them.
+ */
+void build_commands_changed(void);
+/**
+ * @brief Read the project's commands and update the Build menu and the
+ *        help bubbles, if build_commands_changed() asked for it.
+ *
+ * Called from the event loop, outside the handling of a menu pick, as the
+ * menu strip is replaced here. Unreadable settings are not reported here
+ * (the action does it); the submenus are then empty.
+ *
+ * @param app The application state.
+ */
+void build_commands_poll(EditorApp *app);
+/**
+ * @brief Note that a document was saved; its being the project file
+ *        counts as build_commands_changed().
+ * @param path The document's path.
+ */
+void build_document_saved(const char *path);
+/**
+ * @brief The number of commands of an action shown in its submenu.
+ * @param action PROJ_ value.
+ * @return The number, at most PROJCMD_SLOTS.
+ */
+int build_command_count(int action);
+/**
+ * @brief The name of a command in its submenu.
+ * @param action PROJ_ value.
+ * @param index The command, below build_command_count().
+ * @return The name (a static buffer, shortened if long).
+ */
+const char *build_command_name(int action, int index);
+/**
+ * @brief The command an action runs.
+ * @param action PROJ_ value.
+ * @return Its index, or -1 if there is none or it is beyond the submenu.
+ */
+int build_command_active(int action);
+/**
+ * @brief Make a command the one its action runs and save that in the
+ *        project file, as the check box of the project settings does.
+ *
+ * Reads the file anew first; if the command is no longer the one the menu
+ * shows (the file was changed elsewhere) nothing is changed but the menu.
+ *
+ * @param app The application state.
+ * @param action PROJ_ value.
+ * @param index The command in the submenu.
+ */
+void build_choose_command(EditorApp *app, int action, int index);
 /**
  * @brief Stop the build that runs (Ctrl-C to its Shell).
  * @param app The application state.
