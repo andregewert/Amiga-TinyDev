@@ -47,6 +47,7 @@ GLYPHS = {
     'E': ('#####', '#....', '#....', '####.', '#....', '#....', '#####'),
     'B': ('####.', '#...#', '#...#', '####.', '#...#', '#...#', '####.'),
     'P': ('####.', '#...#', '#...#', '####.', '#....', '#....', '#....'),
+    'G': ('.####', '#....', '#....', '#.###', '#...#', '#...#', '.####'),
     'i': ('.#.', '...', '##.', '.#.', '.#.', '.#.', '###'),
     '!': ('#', '#', '#', '#', '#', '.', '#'),
 }
@@ -64,6 +65,7 @@ SMALL = {
     'E': ('###', '#..', '##.', '#..', '###'),
     'B': ('##.', '#.#', '##.', '#.#', '##.'),
     'P': ('##.', '#.#', '##.', '#..', '#..'),
+    'G': ('.##', '#..', '#.#', '#.#', '.##'),
     'i': ('#', '.', '#', '#', '#'),
     '!': ('#', '#', '#', '.', '#'),
 }
@@ -432,11 +434,12 @@ PARSER_ASM = parser('A', ((190, 190, 200), (70, 70, 90)), ai.N_G136)    # Assemb
 PARSER_E = parser('E', ((130, 190, 240), (20, 70, 150)), ai.N_BLUE)     # AmigaE
 PARSER_ACE = parser('B', ((250, 200, 130), (150, 80, 20)), ai.N_TAN)    # ACE BASIC
 PARSER_PASCAL = parser('P', ((190, 170, 240), (70, 40, 150)), ai.N_LBLUE)   # Free Pascal
+PARSER_GUIDE = parser('G', ((240, 170, 190), (150, 30, 70)), ai.N_RED)    # AmigaGuide
 
 
 # ---------------------------------------------------------------- samples ---
 
-ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, PARSER_DOS, PARSER_MAKE, PARSER_MD, PARSER_JSON, PARSER_MARKUP, PARSER_AREXX, PARSER_ASM, PARSER_E, PARSER_ACE, PARSER_PASCAL, 'helpviewer', 'readme', 'license')
+ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, PARSER_DOS, PARSER_MAKE, PARSER_MD, PARSER_JSON, PARSER_MARKUP, PARSER_AREXX, PARSER_ASM, PARSER_E, PARSER_ACE, PARSER_PASCAL, PARSER_GUIDE, 'helpviewer', 'readme', 'license')
 
 SAMPLES = (('Drawer', 'drawer', WBDRAWER, {}),
            ('TinyDev', 'tinydev', WBTOOL, {'stack': 32768}),
@@ -452,6 +455,7 @@ SAMPLES = (('Drawer', 'drawer', WBDRAWER, {}),
            ('e_parser', PARSER_E, WBTOOL, {'stack': 16384}),
            ('ace_parser', PARSER_ACE, WBTOOL, {'stack': 16384}),
            ('pascal_parser', PARSER_PASCAL, WBTOOL, {'stack': 16384}),
+           ('guide_parser', PARSER_GUIDE, WBTOOL, {'stack': 16384}),
            ('HelpViewer', 'helpviewer', WBTOOL, {'stack': 32768}),
            ('ReadMe', 'readme', WBPROJECT, {'default_tool': 'SYS:Utilities/MultiView'}),
            ('License', 'license', WBPROJECT, {'default_tool': 'SYS:Utilities/MultiView'}))

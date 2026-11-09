@@ -309,6 +309,10 @@ below the tree's root.
   type, var, labels, routines and methods, records and classes, directives;
   expressions are not parsed; a unit's `.ppu` is not read) and
   `pascal_parser_rpc.c`;
+  the AmigaGuide parser is `guide_parser.c` (two passes over the lines, nodes
+  and macros first, then the checks: @database, nodes, commands in their
+  place, arguments, dead links; the OS 3.2 command `@{IMG}`; commands as
+  tokens, the nodes as symbols of kind heading, the macros of kind macro) and `guide_parser_rpc.c`;
   `include/scout_protocol.h` holds the protocol's numbers (kinds,
   severities, error codes) for Scout and all parsers.
 - `include/editor.h`: shared application types and cross-module declarations.
@@ -349,6 +353,8 @@ below the tree's root.
   (sample in `tests/data/ace_parser/`, ISO-8859-1).
 - `tests/test_pascal_parser.c`: host-native tests of the Free Pascal parser
   (samples in `tests/data/pascal_parser/`, ISO-8859-1).
+- `tests/test_guide_parser.c`: host-native tests of the AmigaGuide parser
+  (sample in `tests/data/guide_parser/`, ISO-8859-1).
 - `amiga-devkit/`: git submodule (pinned tag) with shared Amiga tools and AI
   guidelines; see `CLAUDE.md`. Do not edit files inside the submodule.
 - `external/html_gadget/`: git submodule (tag `v1.2`), html.gadget, for
@@ -431,6 +437,7 @@ make test
   `bin/parsers/e_parser`,
   `bin/parsers/ace_parser`,
   `bin/parsers/pascal_parser`,
+  `bin/parsers/guide_parser`,
   `bin/Classes/Gadgets/<name>.gadget`,
   `bin/Catalogs/<language>/TinyDev.catalog`, `bin/HelpViewer`,
   `bin/Sprout`, `bin/mdtohtml`, `bin/Templates/`,

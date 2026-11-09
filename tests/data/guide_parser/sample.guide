@@ -1,0 +1,21 @@
+@database sample.guide
+@$VER: sample.guide 1.0 (09.11.2026)
+@author "André Gewert"
+@(c) "2026"
+@wordwrap
+@macro bold "@{b}$1@{ub}"
+@rem A comment with @{ and " in it
+@remark Another one
+@node Main "Das Hauptmenü"
+@next Second
+@toc Main
+Plain text, a mail address like me@home.example and \@{ escaped.
+@{"Second page" link Second}  @{"Line 3" link "Second" 3}
+@{"Other file" link other.guide/main}  @{"Picture" system "Display pic"}
+@{b}bold@{ub} @{BOLD "macro"} @{fg shine}colour@{fg text} @{pari -2}
+@{IMG "guidedir:pics/logo.iff"} @{settabs 8 16} @{"u"}underlined@{"uu"}
+@endnode
+@NODE second
+@prev main
+@{"Back" LINK MAIN}
+@ENDNODE
