@@ -385,6 +385,9 @@ below the tree's root.
   names in every language; `make` copies them to `bin/Help/`).
 - `tools/mksprouttests.py`: makes the LhA archives of
   `tests/test_sprout_lha.c` (`tests/data/sprout/`) with jlha.
+- `tools/check_templates.py`, `tests/tmpl_generate.c`: `make check-templates`
+  makes the C templates with the portable core of Sprout and builds them
+  with vbcc (`/opt/vbcc`, if installed) and the gcc cross compiler.
 - `tools/mkdist.py`: `make dist` builds `dist/TinyDev.lha` from `bin/`,
   the README, the sources (built without git) and icons, with
   `amiga-devkit/tools/distlib.py`.
@@ -408,6 +411,9 @@ make test
 - The submodules are nested: after cloning, run
   `git submodule update --init --recursive`.
 - Run `make test` for all changes that affect the portable syntax scanner.
+- Run `make check-templates` for changes below `templates/`; it is optional
+  and skips a compiler that is not installed. It shows that a template
+  compiles and links, not that it runs on the Amiga.
 - Run `make docs` (and `make docs-<class>` for a class's public header) when
   comments or interfaces change; it must finish without Doxygen warnings
   (rules: `amiga-devkit/docs/Dokumentation.md`).

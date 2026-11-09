@@ -145,7 +145,7 @@ HV_CATALOGS := $(foreach l,$(HV_LANGUAGES),$(BIN_DIR)/Catalogs/$(l)/HelpViewer.c
 SCOUT_LANGUAGES := $(basename $(notdir $(wildcard src/scout/catalogs/*.ct)))
 SCOUT_CATALOGS := $(foreach l,$(SCOUT_LANGUAGES),$(BIN_DIR)/Catalogs/$(l)/TinyDev-Scout.catalog)
 
-.PHONY: all clean test icons dist templates charcheck-templates
+.PHONY: all clean test icons dist templates charcheck-templates check-templates
 all: charcheck charcheck-templates $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(SCOUT_CATALOGS) $(PARSER_C_TARGET) $(PARSER_DOS_TARGET) $(PARSER_MAKE_TARGET) $(PARSER_MARKDOWN_TARGET) $(PARSER_JSON_TARGET) $(PARSER_MARKUP_TARGET) $(PARSER_AREXX_TARGET) $(PARSER_ASM_TARGET) $(PARSER_E_TARGET) $(PARSER_ACE_TARGET) $(PARSER_PASCAL_TARGET) $(CATALOGS) \
      $(HV_TARGET) $(HV_CATALOGS) $(HELP_FILES) $(SPROUT_TARGET) $(MDTOHTML_TARGET) templates
 
@@ -363,6 +363,18 @@ $(BUILD_DIR)/test_htmltitle: src/helpviewer/htmltitle.c tests/test_htmltitle.c s
 $(BUILD_DIR)/test_sprout_lha: src/sprout/sprout_lha.c tests/test_sprout_lha.c include/sprout_lha.h $(wildcard tests/data/sprout/*)
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/sprout/sprout_lha.c tests/test_sprout_lha.c
+
+# Build the C templates with the compilers installed here (optional: not part
+# of "make" or "make test"; a compiler that is missing is skipped).
+VBCC_DIR ?= /opt/vbcc
+TEMPLATE_NDK ?= /opt/amiga/m68k-amigaos/ndk-include
+check-templates: $(BUILD_DIR)/tmpl_generate
+	python3 tools/check_templates.py --generator $(BUILD_DIR)/tmpl_generate --templates templates \
+		--work $(BUILD_DIR)/check-templates --vbcc $(VBCC_DIR) --ndk $(TEMPLATE_NDK) --gcc $(TARGET_CC)
+
+$(BUILD_DIR)/tmpl_generate: src/sprout/sprout_tmpl.c src/json.c tests/tmpl_generate.c include/sprout_tmpl.h include/json.h
+	@mkdir -p $(dir $@)
+	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/sprout/sprout_tmpl.c src/json.c tests/tmpl_generate.c
 
 $(BUILD_DIR)/test_sprout_tmpl: src/sprout/sprout_tmpl.c src/json.c tests/test_sprout_tmpl.c include/sprout_tmpl.h include/json.h
 	@mkdir -p $(BUILD_DIR)

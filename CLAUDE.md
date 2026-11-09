@@ -31,6 +31,9 @@ Wo `AGENTS.md` und die Devkit-Dokumente sich widersprechen, gilt Folgendes:
   ändert, laufen sie ohne Warnung (Doxygen muss auf dem Host installiert sein).
 - **Host-Tests** heißen `make test` (nicht `make check`), ohne ASan/UBSan und ohne
   `.expected`-Referenzausgaben. Vor einem Commit: `make` (enthält `charcheck`) und `make test`.
+- **Vorlagen:** Nach Änderungen unter `templates/` zusätzlich `make check-templates`: baut
+  die C-Vorlagen mit vbcc (`/opt/vbcc`) und dem gcc-Cross-Compiler und überspringt, was nicht
+  installiert ist. Kein Ersatz für den Test mit gcc 2.95.3 und auf dem Amiga.
 - **Kataloge:** Sichtbare Texte von TinyDev (nicht von Scout und den Gadget-Klassen) kommen
   aus `catalogs/TinyDev.cd` über `S(MSG_…)` (`src/locale.c`); jeder neue Text bekommt dort
   einen Eintrag und eine Übersetzung in `catalogs/deutsch.ct`. Bis zum ersten Release dürfen
