@@ -630,7 +630,7 @@ static void token_args(Parser *P, const Command *c, const Args *a, int first)
     int i;
     for (i = first; i < a->count; i++) {
         int node = i == first && c && (c->flags & F_NODE);
-        add_token(P, a->arg[i].outer, a->arg[i].after, node ? SCOUT_TOKEN_LABEL : SCOUT_TOKEN_PARAMETER);
+        add_token(P, a->arg[i].outer, a->arg[i].after, node ? SCOUT_TOKEN_TYPE : SCOUT_TOKEN_PARAMETER);
     }
 }
 
@@ -662,7 +662,7 @@ static void node_command(Parser *P, const Args *a, const char *at, const char *s
             report(P, SCOUT_SEVERITY_WARNING, name->outer, name->after, "node '", name->start, length, "' is defined twice");
         P->open_symbol = add_symbol(P, name, a->count > 1 ? a->arg[1].start : NULL, a->count > 1 ? a->arg[1].end : NULL,
                                     SCOUT_SYMBOL_HEADING);
-        add_token(P, name->outer, name->after, SCOUT_TOKEN_LABEL);
+        add_token(P, name->outer, name->after, SCOUT_TOKEN_TYPE);
         if (a->count > 1) add_token(P, a->arg[1].outer, a->arg[1].after, SCOUT_TOKEN_CONSTANT);
     }
 }

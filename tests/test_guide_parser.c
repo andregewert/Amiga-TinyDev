@@ -126,12 +126,12 @@ static void test_sample(void)
         TEST_ASSERT(r->symbol_count == 3);
         TEST_ASSERT(has_token(r, 1, 1, 9, SCOUT_TOKEN_FUNCTION));       /* @database */
         TEST_ASSERT(has_token(r, 9, 1, 5, SCOUT_TOKEN_FUNCTION));       /* @node */
-        TEST_ASSERT(has_token(r, 9, 7, 4, SCOUT_TOKEN_LABEL));          /* Main */
+        TEST_ASSERT(has_token(r, 9, 7, 4, SCOUT_TOKEN_TYPE));          /* Main */
         TEST_ASSERT(has_token(r, 9, 12, 15, SCOUT_TOKEN_CONSTANT));     /* its title */
         TEST_ASSERT(has_token(r, 13, 1, 2, SCOUT_TOKEN_MACRO));         /* @{ */
         TEST_ASSERT(has_token(r, 13, 3, 13, SCOUT_TOKEN_CONSTANT));     /* the label */
         TEST_ASSERT(has_token(r, 13, 17, 4, SCOUT_TOKEN_FUNCTION));     /* link */
-        TEST_ASSERT(has_token(r, 13, 22, 6, SCOUT_TOKEN_LABEL));        /* the target */
+        TEST_ASSERT(has_token(r, 13, 22, 6, SCOUT_TOKEN_TYPE));        /* the target */
         TEST_ASSERT(has_token(r, 13, 28, 1, SCOUT_TOKEN_MACRO));        /* } */
         TEST_ASSERT(!has_token(r, 7, 1, 4, SCOUT_TOKEN_FUNCTION));      /* @rem is a comment */
     }

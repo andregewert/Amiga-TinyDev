@@ -50,9 +50,9 @@ void make_parser_describe(JsonWriter *w)
                       "\"syntax\":{\"caseSensitive\":true,"
                       "\"identifier\":{\"start\":\"A-Za-z_\",\"part\":\"A-Za-z0-9_-\"},"
                       "\"lineComments\":[\"#\"],"
-                      "\"keywords\":{\"keyword\":");
+                      "\"keywords\":{\"directive\":");
     write_words(w, make_parser_keywords);
-    json_write_raw(w, ",\"builtin\":");
+    json_write_raw(w, ",\"function\":");
     write_words(w, make_parser_functions);
     json_write_raw(w, "}}}],\"capabilities\":{\"symbols\":true,\"diagnostics\":true,"
                       "\"references\":true,\"tokens\":true}}");

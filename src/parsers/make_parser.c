@@ -351,19 +351,6 @@ static size_t close_of(const char *s, size_t i, size_t end)
 }
 
 /**
- * @brief Tell whether a name is an automatic variable: @, <, ^, ?, *,
- *        %, + or |, maybe followed by D or F.
- * @param s The name.
- * @param len Its length.
- * @return Non-zero if it is.
- */
-static int automatic(const char *s, size_t len)
-{
-    if (len < 1 || len > 2 || !strchr("@<^?*%+|", s[0]) || s[0] == '\0') return 0;
-    return len == 1 || s[1] == 'D' || s[1] == 'F';
-}
-
-/**
  * @brief Mark the variable references in part of a line and check them:
  *        an unterminated reference, an unknown function.
  * @param P The parser.
@@ -386,8 +373,7 @@ static void scan_refs(Parser *P, const Line *L, size_t i, size_t end)
         }
         if (s[i + 1] != '(' && s[i + 1] != '{') {
             /* $@, $X */
-            if (strchr("@<^?*%+|", s[i + 1])) add_token(P, L, i, i + 2, SCOUT_TOKEN_PARAMETER);
-            else if (!blank(s[i + 1])) add_token(P, L, i, i + 2, SCOUT_TOKEN_VARIABLE);
+            if (!blank(s[i + 1])) add_token(P, L, i, i + 2, SCOUT_TOKEN_PARAMETER);
             i += 2;
             continue;
         }
@@ -406,14 +392,16 @@ static void scan_refs(Parser *P, const Line *L, size_t i, size_t end)
             for (k = name; k < n; k++) {
                 if (!((s[k] >= 'a' && s[k] <= 'z') || s[k] == '-')) lower = 0;
             }
-            if (lower && !word_in(s + name, n - name, make_parser_functions))
+            if (word_in(s + name, n - name, make_parser_functions))
+                add_token(P, L, name, n, SCOUT_TOKEN_FUNCTION);
+            else if (lower)
                 add_diagnostic(P, L, SCOUT_SEVERITY_WARNING, name, n, "Unknown function %s", s + name, n - name);
             scan_refs(P, L, n, close);
         } else if (memchr(s + name, '$', close - name)) {
             /* a computed name: $($(X)_FLAGS) */
             scan_refs(P, L, name, close);
         } else {
-            add_token(P, L, i, close + 1, automatic(s + name, n - name) ? SCOUT_TOKEN_PARAMETER : SCOUT_TOKEN_VARIABLE);
+            add_token(P, L, i, close + 1, SCOUT_TOKEN_PARAMETER);
         }
         i = close + 1;
     }
@@ -553,7 +541,7 @@ static void assignment(Parser *P, const Line *L, size_t start, size_t op, size_t
         if (find_symbol(P, SCOUT_SYMBOL_VARIABLE, s + start, e - start) < 0 &&
             find_symbol(P, SCOUT_SYMBOL_MACRO, s + start, e - start) < 0)
             add_symbol(P, L, SCOUT_SYMBOL_VARIABLE, start, e);
-        add_token(P, L, start, e, SCOUT_TOKEN_VARIABLE);
+        add_token(P, L, start, e, SCOUT_TOKEN_PARAMETER);
     } else {
         scan_refs(P, L, start, e);
     }
@@ -625,6 +613,9 @@ static void conditional(Parser *P, const Line *L, size_t w, size_t n, size_t res
         while (k < end && blank(s[k])) k++;
         m = k;
         while (m < end && !blank(s[m]) && s[m] != '(') m++;
+        if (word_is(s + k, m - k, "ifeq") || word_is(s + k, m - k, "ifneq") ||
+            word_is(s + k, m - k, "ifdef") || word_is(s + k, m - k, "ifndef"))
+            add_token(P, L, k, m, SCOUT_TOKEN_TYPE);
         if (P->cond_count == 0) {
             add_diagnostic(P, L, SCOUT_SEVERITY_ERROR, w, w + n, "else without if", NULL, 0);
         } else if (P->cond_count <= COND_MAX) {
@@ -731,6 +722,7 @@ static void logical_line(Parser *P, const Line *L)
     /* export, override and private may stand before an assignment or define */
     while (word_is(s + w, n, "export") || word_is(s + w, n, "override") || word_is(s + w, n, "private")) {
         exported |= word_is(s + w, n, "export");
+        add_token(P, L, w, w + n, SCOUT_TOKEN_TYPE);
         while (i < end && blank(s[i])) i++;
         if (i >= end) {
             P->in_rule = 0;
@@ -744,11 +736,13 @@ static void logical_line(Parser *P, const Line *L)
 
     if (word_is(s + w, n, "ifdef") || word_is(s + w, n, "ifndef") || word_is(s + w, n, "ifeq") ||
         word_is(s + w, n, "ifneq") || word_is(s + w, n, "else") || word_is(s + w, n, "endif")) {
+        add_token(P, L, w, w + n, SCOUT_TOKEN_TYPE);
         conditional(P, L, w, n, i, end);
         return;
     }
     if (word_is(s + w, n, "define")) {
         size_t k = i, m;
+        add_token(P, L, w, w + n, SCOUT_TOKEN_TYPE);
         while (k < end && blank(s[k])) k++;
         m = k;
         while (m < end && !blank(s[m]) && s[m] != '=' && s[m] != ':' && s[m] != '?' && s[m] != '+' && s[m] != '!')
@@ -759,7 +753,7 @@ static void logical_line(Parser *P, const Line *L)
             if (find_symbol(P, SCOUT_SYMBOL_MACRO, s + k, m - k) < 0 &&
                 find_symbol(P, SCOUT_SYMBOL_VARIABLE, s + k, m - k) < 0)
                 add_symbol(P, L, SCOUT_SYMBOL_MACRO, k, m);
-            add_token(P, L, k, m, SCOUT_TOKEN_VARIABLE);
+            add_token(P, L, k, m, SCOUT_TOKEN_PARAMETER);
         }
         P->in_define = 1;
         P->define_line = L->lines[w];
@@ -768,11 +762,13 @@ static void logical_line(Parser *P, const Line *L)
         return;
     }
     if (word_is(s + w, n, "endef")) {
+        add_token(P, L, w, w + n, SCOUT_TOKEN_TYPE);
         add_diagnostic(P, L, SCOUT_SEVERITY_ERROR, w, w + n, "endef without define", NULL, 0);
         return;
     }
     if (word_is(s + w, n, "include") || word_is(s + w, n, "-include") || word_is(s + w, n, "sinclude")) {
         size_t k = i;
+        add_token(P, L, w, w + n, SCOUT_TOKEN_TYPE);
         while (k < end) {
             size_t m;
             while (k < end && blank(s[k])) k++;
@@ -789,6 +785,7 @@ static void logical_line(Parser *P, const Line *L)
         return;
     }
     if (word_is(s + w, n, "vpath") || word_is(s + w, n, "unexport") || word_is(s + w, n, "undefine")) {
+        add_token(P, L, w, w + n, SCOUT_TOKEN_TYPE);
         scan_refs(P, L, i, end);
         P->in_rule = 0;
         return;
@@ -966,7 +963,12 @@ MakeParseResult *make_parser_analyze(const char *source, size_t length)
             break;
         }
         if (P.in_define) {
-            if (is_endef(&L)) P.in_define = 0;
+            if (is_endef(&L)) {
+                size_t w = 0;
+                while (w < L.len && blank(L.text[w])) w++;
+                add_token(&P, &L, w, w + 5, SCOUT_TOKEN_TYPE);
+                P.in_define = 0;
+            }
         } else {
             logical_line(&P, &L);
         }

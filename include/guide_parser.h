@@ -87,7 +87,7 @@ extern int (*guide_parser_should_stop)(void);
  *
  * Tokens: the name of a line command and of a text command as
  * SCOUT_TOKEN_FUNCTION, "\@{" and "}" as SCOUT_TOKEN_MACRO, a link's label
- * as SCOUT_TOKEN_CONSTANT, a node name as SCOUT_TOKEN_LABEL, other
+ * as SCOUT_TOKEN_CONSTANT, a node name as SCOUT_TOKEN_TYPE, other
  * arguments as SCOUT_TOKEN_PARAMETER. The lexical rules only know \@rem.
  *
  * @param source The text (any bytes; need not be terminated).

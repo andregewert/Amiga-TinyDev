@@ -189,18 +189,30 @@ static void test_sample(void)
     TEST_ASSERT(r->reference_count == 2 && strcmp(r->references[0].target, "config.mk") == 0 &&
                 r->references[0].range.start_line == 28 && r->references[0].range.start_col == 9);
     TEST_ASSERT(r->reference_count == 2 && strcmp(r->references[1].target, "local.mk") == 0);
-    TEST_ASSERT(token(r, 2, 1, 2, SCOUT_TOKEN_VARIABLE));
+    TEST_ASSERT(token(r, 2, 1, 2, SCOUT_TOKEN_PARAMETER));
     TEST_ASSERT(token(r, 9, 1, 3, SCOUT_TOKEN_FUNCTION));
-    TEST_ASSERT(token(r, 11, 8, 7, SCOUT_TOKEN_VARIABLE));
-    TEST_ASSERT(token(r, 12, 2, 5, SCOUT_TOKEN_VARIABLE));
+    TEST_ASSERT(token(r, 11, 8, 7, SCOUT_TOKEN_PARAMETER));
+    TEST_ASSERT(token(r, 12, 2, 5, SCOUT_TOKEN_PARAMETER));
     TEST_ASSERT(token(r, 12, 11, 2, SCOUT_TOKEN_PARAMETER));
     TEST_ASSERT(token(r, 12, 14, 2, SCOUT_TOKEN_PARAMETER));
     /* a continuation line keeps its own positions */
     TEST_ASSERT(token(r, 15, 21, 2, SCOUT_TOKEN_PARAMETER));
     TEST_ASSERT(token(r, 16, 6, 2, SCOUT_TOKEN_PARAMETER));
     /* inside define nothing is looked at */
-    TEST_ASSERT(!token(r, 25, 17, 4, SCOUT_TOKEN_VARIABLE));
-    TEST_ASSERT(token(r, 32, 9, 7, SCOUT_TOKEN_VARIABLE));
+    TEST_ASSERT(!token(r, 25, 17, 4, SCOUT_TOKEN_PARAMETER));
+    TEST_ASSERT(token(r, 32, 9, 7, SCOUT_TOKEN_PARAMETER));
+    TEST_ASSERT(token(r, 34, 10, 8, SCOUT_TOKEN_FUNCTION));
+    TEST_ASSERT(token(r, 34, 26, 8, SCOUT_TOKEN_FUNCTION));
+    /* directives, where they are directives */
+    TEST_ASSERT(token(r, 5, 1, 6, SCOUT_TOKEN_TYPE));
+    TEST_ASSERT(token(r, 18, 1, 5, SCOUT_TOKEN_TYPE));
+    TEST_ASSERT(token(r, 20, 1, 4, SCOUT_TOKEN_TYPE));
+    TEST_ASSERT(token(r, 22, 1, 5, SCOUT_TOKEN_TYPE));
+    TEST_ASSERT(token(r, 24, 1, 6, SCOUT_TOKEN_TYPE));
+    TEST_ASSERT(token(r, 24, 8, 6, SCOUT_TOKEN_PARAMETER));
+    TEST_ASSERT(token(r, 26, 1, 5, SCOUT_TOKEN_TYPE));
+    TEST_ASSERT(token(r, 28, 1, 7, SCOUT_TOKEN_TYPE));
+    TEST_ASSERT(token(r, 29, 1, 8, SCOUT_TOKEN_TYPE));
     make_parse_result_free(r);
 }
 
@@ -244,6 +256,28 @@ static void test_diagnostics(void)
     TEST_ASSERT(no_diagnostics("\n\n"));
 }
 
+/** @brief A directive's word in a path is no directive. */
+static void test_directive_words(void)
+{
+    MakeParseResult *r = analyze("include/x.h: a\n\t$(CC) -I$(D)/include\nelse ifeq (a,b)\n");
+    TEST_ASSERT(token(r, 1, 1, 11, SCOUT_TOKEN_FUNCTION));
+    TEST_ASSERT(!token(r, 1, 1, 7, SCOUT_TOKEN_TYPE));
+    TEST_ASSERT(token(r, 2, 2, 5, SCOUT_TOKEN_PARAMETER));
+    TEST_ASSERT(!token(r, 2, 15, 7, SCOUT_TOKEN_TYPE));
+    TEST_ASSERT(token(r, 3, 1, 4, SCOUT_TOKEN_TYPE));
+    TEST_ASSERT(token(r, 3, 6, 4, SCOUT_TOKEN_TYPE));
+    make_parse_result_free(r);
+
+    /* the same for a function's name */
+    r = analyze("all:\n\tdir $(dir $@) ${sort x} $(file)\n");
+    TEST_ASSERT(!token(r, 2, 2, 3, SCOUT_TOKEN_FUNCTION));
+    TEST_ASSERT(token(r, 2, 8, 3, SCOUT_TOKEN_FUNCTION));
+    TEST_ASSERT(token(r, 2, 12, 2, SCOUT_TOKEN_PARAMETER));
+    TEST_ASSERT(token(r, 2, 18, 4, SCOUT_TOKEN_FUNCTION));
+    TEST_ASSERT(token(r, 2, 26, 7, SCOUT_TOKEN_PARAMETER));     /* no arguments: a variable */
+    make_parse_result_free(r);
+}
+
 /** @brief The Scout protocol: describe and analyze. */
 static void test_rpc(void)
 {
@@ -259,6 +293,11 @@ static void test_rpc(void)
     TEST_ASSERT(lang && strcmp(json_obj_get_string(lang, "id", ""), "make") == 0);
     TEST_ASSERT(json_array_length(json_obj_get_array(lang, "filenames")) == 4);
     TEST_ASSERT(json_obj_get(json_obj_get(lang, "syntax"), "keywords") != NULL);
+    /* not highlighted by the rules: the words also occur in paths */
+    TEST_ASSERT(json_obj_get(json_obj_get(json_obj_get(lang, "syntax"), "keywords"), "keyword") == NULL);
+    TEST_ASSERT(json_obj_get(json_obj_get(json_obj_get(lang, "syntax"), "keywords"), "directive") != NULL);
+    TEST_ASSERT(json_obj_get(json_obj_get(json_obj_get(lang, "syntax"), "keywords"), "builtin") == NULL);
+    TEST_ASSERT(json_obj_get(json_obj_get(json_obj_get(lang, "syntax"), "keywords"), "function") != NULL);
     json_value_free(v);
 
     out.length = 0;
@@ -293,6 +332,7 @@ int main(void)
 {
     test_sample();
     test_diagnostics();
+    test_directive_words();
     test_rpc();
     printf("make_parser: %d tests, %d failures\n", g_test_count, g_fail_count);
     return g_fail_count ? 1 : 0;

@@ -71,8 +71,8 @@ extern int (*make_parser_should_stop)(void);
 
 /** @name Words of the lexical rules (NULL-terminated lists) */
 /** @{ */
-extern const char *const make_parser_keywords[];    /**< directives (class "keyword") */
-extern const char *const make_parser_functions[];   /**< functions of GNU make (class "builtin") */
+extern const char *const make_parser_keywords[];    /**< directives: offered by completion only (class "directive"), as the words also occur in paths; the tokens mark them where they are directives */
+extern const char *const make_parser_functions[];   /**< functions of GNU make: offered by completion only (class "function"); the tokens mark them where they are called */
 /** @} */
 
 /**
@@ -88,10 +88,12 @@ extern const char *const make_parser_functions[];   /**< functions of GNU make (
  * neither a rule, an assignment nor a directive ("missing separator"),
  * else, endif and endef without their opening line, conditionals and
  * define blocks left open, an unterminated variable reference, an unknown
- * function, a target with two recipes. Tokens: variable references as
- * SCOUT_TOKEN_VARIABLE, automatic variables ($@, $<, ...) as
- * SCOUT_TOKEN_PARAMETER, defined variables as SCOUT_TOKEN_VARIABLE and
- * targets as SCOUT_TOKEN_FUNCTION.
+ * function, a target with two recipes. Tokens: variable references,
+ * automatic variables ($@, $<, ...) and defined variables as
+ * SCOUT_TOKEN_PARAMETER (the kind with a colour of its own in the editor;
+ * SCOUT_TOKEN_VARIABLE has none), targets and the functions of make where
+ * they are called as SCOUT_TOKEN_FUNCTION, and directives where they are
+ * directives as SCOUT_TOKEN_TYPE.
  *
  * @param source The text (any bytes; need not be terminated).
  * @param length Its length.
