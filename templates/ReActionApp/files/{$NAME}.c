@@ -40,7 +40,7 @@
 /* The stack the C startup code gives the program. */
 unsigned long __stack = 32768;
 
-static const char version[] = "$VER: {$NAME} 1.0";
+static const char version[] = "$VER: {$NAME} 1.0 ({$DATE.amiga})";
 
 /* The commands of the gadgets (GA_ID) and of the menu (user data). */
 enum {

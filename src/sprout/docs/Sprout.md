@@ -197,6 +197,7 @@ TinyDev's wizard gives them from its settings (Project Defaults).
 | `upper` | upper case (ISO-8859-1) |
 | `lower` | lower case |
 | `ident` | a C identifier: other characters become `_`, a leading digit gets a `_` before it |
+| `amiga` | a date `YYYY-MM-DD` as `DD.MM.YYYY`, the form of `$VER` strings (`{$DATE.amiga}`); any other value stays as it is |
 
 `{$NAME.upper.ident}` is not supported; `ident` keeps the case, so a
 header guard is written `{$NAME.upper}_H` only for names that are already

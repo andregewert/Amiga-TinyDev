@@ -9,7 +9,7 @@
  * in src/sprout/docs/Sprout.md.
  *
  * A placeholder is written {$KEY} or {$KEY.modifier} (modifiers upper,
- * lower, ident); keys are A-Z, 0-9 and _, starting with a letter. Only
+ * lower, ident, amiga); keys are A-Z, 0-9 and _, starting with a letter. Only
  * defined keys are replaced; a placeholder with one more $ ({$$KEY}) is
  * written without that $ instead. Names of files may also hold conditions
  * ({\@KEY=value}, see sprout_expand_path()). Both forms use only characters

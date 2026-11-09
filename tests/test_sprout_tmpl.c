@@ -440,6 +440,8 @@ static void test_expand(void)
     assert(sprout_values_set(&v, "LATIN", "\xc4rger \xe4\xdf\xff") == 1);
     assert(sprout_values_set(&v, "NUM", "3d") == 1);
     assert(sprout_values_set(&v, "EMPTY", "") == 1);
+    assert(sprout_values_set(&v, "DAY", "2026-11-09") == 1);
+    assert(sprout_values_set(&v, "NOTDAY", "2026-1-09") == 1);
 
     check_expand(&v, "", "");
     check_expand(&v, "no placeholders", "no placeholders");
@@ -457,6 +459,11 @@ static void test_expand(void)
     check_expand(&v, "{$LATIN.upper}", "\xc4RGER \xc4\xdf\xff");
     check_expand(&v, "{$LATIN.lower}", "\xe4rger \xe4\xdf\xff");
     check_expand(&v, "{$LATIN.ident}", "_rger____");
+    check_expand(&v, "({$DAY.amiga})", "(09.11.2026)");
+    check_expand(&v, "{$DAY}", "2026-11-09");
+    check_expand(&v, "{$NOTDAY.amiga}", "2026-1-09");   /* not a date: as it is */
+    check_expand(&v, "{$NAME.amiga}", "Hello World");
+    check_expand(&v, "{$EMPTY.amiga}x", "x");
     check_expand(&v, "{{$NAME}}", "{Hello World}");
     check_expand(&v, "{$NAME}{$NAME}", "Hello WorldHello World");
 
@@ -623,6 +630,7 @@ static void test_shipped_others(void)
         { "MakefileFile", "Makefile", { "TARGET=m", NULL } },
         { "HtmlPage", "m.html", { "NAME=m", NULL } },
         { "MarkdownPage", "m.md", { "NAME=m", NULL } },
+        { "AmigaGuide", "m.guide", { "NAME=m", NULL } },
         { "AminetReadme", "m.readme", { "NAME=m", "SHORT=s", "AUTHOR=Me", "AUTHORMAIL=a@b" } }
     };
     static const char *const german[] = { "deutsch", NULL };

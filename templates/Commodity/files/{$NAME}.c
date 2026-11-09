@@ -24,7 +24,7 @@
 /* The stack the C startup code gives the program. */
 unsigned long __stack = 16384;
 
-static const char version[] = "$VER: {$NAME} 1.0";
+static const char version[] = "$VER: {$NAME} 1.0 ({$DATE.amiga})";
 
 struct IntuitionBase *IntuitionBase = NULL;
 struct Library *CxBase = NULL;

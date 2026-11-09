@@ -120,4 +120,4 @@ text:
 text_end:
         even
 
-        dc.b    "$VER: {$NAME} 1.0",0
+        dc.b    "$VER: {$NAME} 1.0 ({$DATE.amiga})",0

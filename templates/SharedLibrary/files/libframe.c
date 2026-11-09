@@ -29,7 +29,7 @@ static BPTR seg_list = 0;
 #define XSTR(x) STR(x)
 
 static const char lib_name[] = LIBNAME;
-static const char lib_id[] = "$VER: " LIBNAME " " XSTR(LIBVERSION) "." XSTR(LIBREVISION) "\r\n";
+static const char lib_id[] = "$VER: " LIBNAME " " XSTR(LIBVERSION) "." XSTR(LIBREVISION) " ({$DATE.amiga})\r\n";
 
 static struct Library *LibInit(REG(d0, struct Library *base), REG(a0, BPTR seglist),
                                REG(a6, struct ExecBase *sysbase));

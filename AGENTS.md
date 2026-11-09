@@ -236,7 +236,7 @@ below the tree's root.
   ARexxScript, ReActionApp, Commodity, SharedLibrary and GadgetClass;
   TemplateProject, a template for making templates; the file templates
   CModule, AsmModule, EModule, PascalUnit, ARexxFile, DosScript,
-  MakefileFile, HtmlPage, MarkdownPage and AminetReadme) (`templates/<Id>/`
+  MakefileFile, HtmlPage, MarkdownPage, AmigaGuide and AminetReadme) (`templates/<Id>/`
   with `template.json` and `files/`, ISO-8859-1); `make` copies them to
   `bin/Templates/` with `cp` and checks them with `charcheck-templates`,
   as their names may contain `{$...}`, which make and the Shell would

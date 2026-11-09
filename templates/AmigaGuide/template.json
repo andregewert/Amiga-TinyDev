@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "kind": "file",
+  "name": "AmigaGuide file",
+  "name[deutsch]": "AmigaGuide-Datei",
+  "description": "An AmigaGuide document with a table of contents and two pages.",
+  "description[deutsch]": "Ein AmigaGuide-Dokument mit Inhaltsverzeichnis und zwei Seiten.",
+  "category": "Documentation",
+  "category[deutsch]": "Dokumentation",
+  "icon": { "type": "document" },
+  "placeholders": [
+    { "key": "NAME", "label": "File name", "label[deutsch]": "Dateiname", "required": true,
+      "description": "The name of the file without its extension",
+      "description[deutsch]": "Der Name der Datei ohne ihre Endung" },
+    { "key": "TITLE", "label": "Title", "label[deutsch]": "Titel", "default": "{$NAME}",
+      "description": "The title of the document",
+      "description[deutsch]": "Der Titel des Dokuments" },
+    { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor" }
+  ],
+  "open": ["{$NAME}.guide"]
+}

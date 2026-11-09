@@ -703,7 +703,7 @@ static unsigned char to_lower(unsigned char c)
 }
 
 /** The modifiers of a placeholder. */
-enum Modifier { MOD_NONE, MOD_UPPER, MOD_LOWER, MOD_IDENT, MOD_UNKNOWN };
+enum Modifier { MOD_NONE, MOD_UPPER, MOD_LOWER, MOD_IDENT, MOD_AMIGA, MOD_UNKNOWN };
 
 /**
  * @brief Recognise a modifier.
@@ -717,7 +717,26 @@ static enum Modifier modifier(const char *s, size_t n)
     if (n == 5 && memcmp(s, "upper", 5) == 0) return MOD_UPPER;
     if (n == 5 && memcmp(s, "lower", 5) == 0) return MOD_LOWER;
     if (n == 5 && memcmp(s, "ident", 5) == 0) return MOD_IDENT;
+    if (n == 5 && memcmp(s, "amiga", 5) == 0) return MOD_AMIGA;
     return MOD_UNKNOWN;
+}
+
+/**
+ * @brief Tell whether a value is a date of the form YYYY-MM-DD.
+ * @param s The value.
+ * @return Non-zero if it is.
+ */
+static int is_iso_date(const char *s)
+{
+    int i;
+    for (i = 0; i < 10; ++i) {
+        if (i == 4 || i == 7) {
+            if (s[i] != '-') return 0;
+        } else if (s[i] < '0' || s[i] > '9') {
+            return 0;
+        }
+    }
+    return s[10] == '\0';
 }
 
 /**
@@ -729,8 +748,16 @@ static enum Modifier modifier(const char *s, size_t n)
 static void put_value(Buf *b, const char *val, enum Modifier mod)
 {
     const unsigned char *p = (const unsigned char *)val;
-    if (mod == MOD_NONE) {
+    if (mod == MOD_NONE || (mod == MOD_AMIGA && !is_iso_date(val))) {
         put(b, val, strlen(val));
+        return;
+    }
+    if (mod == MOD_AMIGA) {     /* DD.MM.YYYY, as in $VER */
+        put(b, val + 8, 2);
+        put(b, ".", 1);
+        put(b, val + 5, 2);
+        put(b, ".", 1);
+        put(b, val, 4);
         return;
     }
     if (mod == MOD_IDENT && (*p == '\0' || (*p >= '0' && *p <= '9'))) put(b, "_", 1);

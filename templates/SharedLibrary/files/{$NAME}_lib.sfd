@@ -1,4 +1,4 @@
-==id $Id: {$NAME}_lib.sfd 1.0 ({$DATE}) $
+==id $Id: {$NAME}_lib.sfd 1.0 ({$DATE.amiga}) $
 * "{$NAME.lower}.library"
 ==base _{$NAME}Base
 ==basetype struct Library *

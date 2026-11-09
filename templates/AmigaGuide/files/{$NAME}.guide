@@ -1,0 +1,32 @@
+@database {$NAME}.guide
+@$VER: {$NAME}.guide 1.0 ({$DATE.amiga})
+@author "{$AUTHOR}"
+@(c) "{$YEAR} {$AUTHOR}"
+@wordwrap
+
+@node Main "{$TITLE}"
+@next Introduction
+
+@{b}{$TITLE}@{ub}
+
+  @{" Introduction " link Introduction}
+  @{" Usage " link Usage}
+
+@endnode
+
+@node Introduction "Introduction"
+@toc Main
+@prev Main
+@next Usage
+
+Describe here what this is about.
+
+@endnode
+
+@node Usage "Usage"
+@toc Main
+@prev Introduction
+
+Describe here how it is used.
+
+@endnode
