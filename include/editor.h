@@ -72,10 +72,11 @@ enum GadgetId {
     GID_TOOLBAR = 6,    /**< speedbar; the GADGETUP code is the MID_ of the button */
     GID_OVERFLOW = 7,   /**< chooser with the buttons that do not fit */
     GID_STATUSLAMP = 8, /**< Scout's lamp right of the status line */
-    GID_TREE_NEW_FILE = 9,  /**< button above the folder tree: New File */
-    GID_TREE_NEW_DRAWER = 10, /**< button above the folder tree: New Drawer */
-    GID_TREE_RENAME = 11,   /**< button above the folder tree: Rename */
-    GID_TREE_DELETE = 12,   /**< button above the folder tree: Delete */
+    GID_TREE_FROM_TEMPLATE = 9, /**< button above the folder tree: New File from Template */
+    GID_TREE_NEW_FILE = 10, /**< button above the folder tree: New File */
+    GID_TREE_NEW_DRAWER = 11, /**< button above the folder tree: New Drawer */
+    GID_TREE_RENAME = 12,   /**< button above the folder tree: Rename */
+    GID_TREE_DELETE = 13,   /**< button above the folder tree: Delete */
     GID_LAST            /**< first free ID */
 };
 
@@ -196,6 +197,7 @@ enum MenuId {
     MID_NEW_PROJECT,    /**< Project/New Project...: the wizard of Sprout's templates */
     MID_NEW_FROM_TEMPLATE, /**< Project/New File from Template...: the wizard of file templates */
     MID_CLOSE_PROJECT,  /**< Project/Close Project: all files and the folder tree's root */
+    MID_TREE_FROM_TEMPLATE, /**< Project/Folder Tree/New File from Template...: into the selected drawer */
     MID_TREE_NEW_FILE,  /**< Project/Folder Tree/New File...: an empty file, opened */
     MID_TREE_NEW_DRAWER, /**< Project/Folder Tree/New Drawer... */
     MID_TREE_RENAME,    /**< Project/Folder Tree/Rename...: the selected entry */
@@ -467,11 +469,18 @@ void new_project(EditorApp *app);
 /**
  * @brief Show the same wizard for file templates (Project/New File from
  *        Template...): their files go into an existing drawer (suggested:
- *        the active document's, else the project's), PROJECT is the open
- *        project's name; then the template's files to open are opened.
+ *        the drawer selected in the folder tree, else the active
+ *        document's, else the project's), PROJECT is the open project's
+ *        name; then the template's files to open are opened.
  * @param app The application state (main window and screen).
  */
 void new_from_template(EditorApp *app);
+/**
+ * @brief The wizard for file templates with a given drawer suggested.
+ * @param app The application state (main window and screen).
+ * @param drawer The drawer.
+ */
+void new_from_template_in(EditorApp *app, const char *drawer);
 /**
  * @brief Take over edited settings.
  *
@@ -524,6 +533,7 @@ typedef enum TmplSymType {
     TMPLSYM_NEW_DRAWER,         /**< button of the folder tree: New Drawer */
     TMPLSYM_RENAME,             /**< button of the folder tree: Rename */
     TMPLSYM_DELETE,             /**< button of the folder tree: Delete */
+    TMPLSYM_FROM_TEMPLATE,      /**< button of the folder tree: New File from Template */
     TMPLSYM_ALL                 /**< number of symbols */
 } TmplSymType;
 
@@ -1858,7 +1868,7 @@ void tree_set_visible(EditorApp *app, int visible);
 /* treeops.c */
 
 /** Number of buttons above the folder tree. */
-#define TREEOPS_BUTTONS 4
+#define TREEOPS_BUTTONS 5
 
 /**
  * @brief Make the column of the folder tree: the buttons New File, New
@@ -1894,6 +1904,22 @@ void treeops_dispose(void);
  * @param app The application state.
  */
 void treeops_new_file(EditorApp *app);
+/**
+ * @brief Project/Folder Tree/New File from Template...: the wizard for file
+ *        templates, suggesting the selected drawer (that of a selected
+ *        file, or the project's).
+ * @param app The application state.
+ */
+void treeops_new_from_template(EditorApp *app);
+/**
+ * @brief Get the drawer selected in the folder tree.
+ * @param app The application state.
+ * @param[out] out Its path.
+ * @param size Size of @p out.
+ * @return Non-zero if a drawer below the project's root is selected; zero
+ *         for a file or no selection. Calls DOS.
+ */
+int treeops_selected_drawer(EditorApp *app, char *out, size_t size);
 /**
  * @brief Project/Folder Tree/New Drawer...: ask for a name and make a
  *        drawer there.

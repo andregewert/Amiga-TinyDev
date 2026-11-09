@@ -467,33 +467,34 @@
 #define MSG_MENU_TREE_NEWDRAWER      462
 #define MSG_MENU_TREE_RENAME         463
 #define MSG_MENU_TREE_DELETE         464
-#define MSG_TREEOPS_HINT_NEWFILE     465
-#define MSG_TREEOPS_HINT_NEWDRAWER   466
-#define MSG_TREEOPS_HINT_RENAME      467
-#define MSG_TREEOPS_HINT_DELETE      468
-#define MSG_TREEOPS_NEWFILE_TITLE    469
-#define MSG_TREEOPS_NEWDRAWER_TITLE  470
-#define MSG_TREEOPS_RENAME_TITLE     471
-#define MSG_TREEOPS_IN               472
-#define MSG_TREEOPS_RENAME_WHAT      473
-#define MSG_TREEOPS_NAME             474
-#define MSG_TREEOPS_NEEDCLASS        475
-#define MSG_TREEOPS_NOPROJECT        476
-#define MSG_TREEOPS_NOSELECTION      477
-#define MSG_TREEOPS_BADNAME          478
-#define MSG_TREEOPS_EXISTS           479
-#define MSG_TREEOPS_ERR_CREATE       480
-#define MSG_TREEOPS_ERR_RENAME       481
-#define MSG_TREEOPS_ERR_DELETE       482
-#define MSG_TREEOPS_ERR_READ         483
-#define MSG_TREEOPS_PROTECTED        484
-#define MSG_TREEOPS_TOODEEP          485
-#define MSG_TREEOPS_DEL_TITLE        486
-#define MSG_TREEOPS_DEL_FILE         487
-#define MSG_TREEOPS_DEL_DRAWER       488
-#define MSG_TREEOPS_DEL_FULL         489
-#define MSG_TREEOPS_DEL_GADGETS      490
-#define MSG_COUNT                    491
+#define MSG_TREEOPS_HINT_FROMTEMPLATE 465
+#define MSG_TREEOPS_HINT_NEWFILE     466
+#define MSG_TREEOPS_HINT_NEWDRAWER   467
+#define MSG_TREEOPS_HINT_RENAME      468
+#define MSG_TREEOPS_HINT_DELETE      469
+#define MSG_TREEOPS_NEWFILE_TITLE    470
+#define MSG_TREEOPS_NEWDRAWER_TITLE  471
+#define MSG_TREEOPS_RENAME_TITLE     472
+#define MSG_TREEOPS_IN               473
+#define MSG_TREEOPS_RENAME_WHAT      474
+#define MSG_TREEOPS_NAME             475
+#define MSG_TREEOPS_NEEDCLASS        476
+#define MSG_TREEOPS_NOPROJECT        477
+#define MSG_TREEOPS_NOSELECTION      478
+#define MSG_TREEOPS_BADNAME          479
+#define MSG_TREEOPS_EXISTS           480
+#define MSG_TREEOPS_ERR_CREATE       481
+#define MSG_TREEOPS_ERR_RENAME       482
+#define MSG_TREEOPS_ERR_DELETE       483
+#define MSG_TREEOPS_ERR_READ         484
+#define MSG_TREEOPS_PROTECTED        485
+#define MSG_TREEOPS_TOODEEP          486
+#define MSG_TREEOPS_DEL_TITLE        487
+#define MSG_TREEOPS_DEL_FILE         488
+#define MSG_TREEOPS_DEL_DRAWER       489
+#define MSG_TREEOPS_DEL_FULL         490
+#define MSG_TREEOPS_DEL_GADGETS      491
+#define MSG_COUNT                    492
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -963,6 +964,7 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "New Drawer...",
     "Rename...",
     "Delete...",
+    "New file from template in the selected drawer",
     "New file in the selected drawer",
     "New drawer in the selected drawer",
     "Rename the selected file or drawer",

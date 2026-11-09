@@ -1517,8 +1517,9 @@ static void open_project(const NpTemplate *p, const char *drawer, const SproutVa
  * @brief The wizard for project or file templates.
  * @param app The application state.
  * @param files Non-zero for file templates.
+ * @param into The drawer to suggest for file templates, NULL to choose one.
  */
-static void wizard(EditorApp *app, int files)
+static void wizard(EditorApp *app, int files, const char *into)
 {
     char drawer[EDITOR_PATH_MAX], root[EDITOR_PATH_MAX];
     struct DateStamp ds;
@@ -1551,8 +1552,9 @@ static void wizard(EditorApp *app, int files)
     SetAttrs(app->window_object, WA_BusyPointer, FALSE, TAG_END);
     if (!c) goto out;
 
-    /* suggested drawer: for files the active document's, else the
-     * project's; where a project is created: the setting PROJECTDIR, else
+    /* suggested drawer: for files the one asked for, else the one selected
+     * in the tree, else the active document's, else the project's; where a
+     * project is created: the setting PROJECTDIR, else
      * the drawer holding the current project */
     drawer[0] = '\0';
     if (!files && app->settings.projectdir[0] != '\0') {
@@ -1562,7 +1564,12 @@ static void wizard(EditorApp *app, int files)
         n = strlen(drawer);
         if (n > 1 && drawer[n - 1] == '/') drawer[n - 1] = '\0';
     } else if (files) {
-        if (app->active != NULL && app->active->path != NULL) {
+        if (into != NULL) {
+            strncpy(drawer, into, sizeof(drawer) - 1);
+            drawer[sizeof(drawer) - 1] = '\0';
+        } else if (treeops_selected_drawer(app, drawer, sizeof(drawer))) {
+            /* drawer is set */
+        } else if (app->active != NULL && app->active->path != NULL) {
             strncpy(drawer, app->active->path, sizeof(drawer) - 1);
             drawer[sizeof(drawer) - 1] = '\0';
             *PathPart((STRPTR)drawer) = '\0';
@@ -1666,10 +1673,15 @@ out:
 
 void new_project(EditorApp *app)
 {
-    wizard(app, 0);
+    wizard(app, 0, NULL);
 }
 
 void new_from_template(EditorApp *app)
 {
-    wizard(app, 1);
+    wizard(app, 1, NULL);
+}
+
+void new_from_template_in(EditorApp *app, const char *drawer)
+{
+    wizard(app, 1, drawer);
 }

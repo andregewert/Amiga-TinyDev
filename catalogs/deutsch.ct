@@ -1867,6 +1867,9 @@ MSG_MENU_TREE_DELETE
 Löschen...
 ; Delete...
 ;
+MSG_TREEOPS_HINT_FROMTEMPLATE
+Neue Datei aus Vorlage in der gewählten Schublade
+; New file from template in the selected drawer
 MSG_TREEOPS_HINT_NEWFILE
 Neue Datei in der gewählten Schublade
 ; New file in the selected drawer

@@ -89,6 +89,11 @@ static const char *const symbols[TMPLSYM_ALL][TMPLSYM_SIZE] = {
         ".o##o##o##o.", ".o##o##o##o.", ".o##o##o##o.", ".o##o##o##o.",
         ".o##o##o##o.", ".o##o##o##o.", ".o##o##o##o.", ".oooooooooo.",
     },
+    {   /* new file from template: a sheet with text and a plus */
+        "oooooo......", "o####oo.....", "o+++#o#o....", "o####oooo...",
+        "o++++++#o...", "o######.....", "o+++##..++..", "o####...++..",
+        "o+++#.++++++", "o####.++++++", "o####...++..", "ooooooo.++..",
+    },
 };
 
 /** Names of the icon types in template.json, in the order of TmplSymType. */

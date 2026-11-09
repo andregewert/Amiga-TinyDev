@@ -92,7 +92,7 @@ below the tree's root.
   class, which also shows a template's own icon).
 - `src/treeops.c`: the folder tree's file operations: a row of small
   buttons above the tree (symbols of `tmplsym.c`, no AISS images) and
-  Project/Folder Tree: New File, New Drawer, Rename, Delete on the entry
+  Project/Folder Tree: New File from Template, New File, New Drawer, Rename, Delete on the entry
   selected in the tree (icons taken along; Delete asks, walks a drawer
   without following links and deletes nothing if something is protected;
   open documents follow a rename or are marked changed), and the small

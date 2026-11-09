@@ -1430,6 +1430,9 @@ Rename...
 MSG_MENU_TREE_DELETE (//)
 Delete...
 ;
+MSG_TREEOPS_HINT_FROMTEMPLATE (//)
+New file from template in the selected drawer
+;
 MSG_TREEOPS_HINT_NEWFILE (//)
 New file in the selected drawer
 ;

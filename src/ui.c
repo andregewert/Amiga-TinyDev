@@ -258,6 +258,7 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_OPEN_DIRECTORY)},
     {NM_ITEM, NULL, NULL, 0, 0, UD(MID_NEW_PROJECT)},
     {NM_ITEM, NULL, NULL, 0, 0, NULL},
+    {NM_SUB, NULL, NULL, 0, 0, UD(MID_TREE_FROM_TEMPLATE)},
     {NM_SUB, NULL, NULL, 0, 0, UD(MID_TREE_NEW_FILE)},
     {NM_SUB, NULL, NULL, 0, 0, UD(MID_TREE_NEW_DRAWER)},
     {NM_SUB, NULL, NULL, 0, 0, UD(MID_TREE_RENAME)},
@@ -354,6 +355,7 @@ static const LONG menu_texts[] = {
     MSG_MENU_OPENDIR,
     MSG_MENU_NEWPROJECT,
     MSG_MENU_TREE,
+    MSG_MENU_NEWFROMTEMPLATE,
     MSG_MENU_TREE_NEWFILE,
     MSG_MENU_TREE_NEWDRAWER,
     MSG_MENU_TREE_RENAME,
@@ -1494,6 +1496,7 @@ static void menu_action(EditorApp *app, ULONG id)
             /* the table, from which the menus may be built anew */
             set_menu_checks(app, bmlist_is_open());
             break;
+        case MID_TREE_FROM_TEMPLATE: treeops_new_from_template(app); ui_focus_editor(app, 1); break;
         case MID_TREE_NEW_FILE: treeops_new_file(app); break;
         case MID_TREE_NEW_DRAWER: treeops_new_drawer(app); break;
         case MID_TREE_RENAME: treeops_rename(app); break;
@@ -1722,10 +1725,10 @@ int ui_run(EditorApp *app)
             }
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_TABS) tab_event(app);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_TREE) tree_handle_event(app);
-            else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) >= GID_TREE_NEW_FILE &&
+            else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) >= GID_TREE_FROM_TEMPLATE &&
                      (result & WMHI_GADGETMASK) <= GID_TREE_DELETE)
                 /* the buttons above the tree, in the order of their menu items */
-                menu_action(app, MID_TREE_NEW_FILE + ((result & WMHI_GADGETMASK) - GID_TREE_NEW_FILE));
+                menu_action(app, MID_TREE_FROM_TEMPLATE + ((result & WMHI_GADGETMASK) - GID_TREE_FROM_TEMPLATE));
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_VSCROLL) document_scroll_finish(app, 0);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_HSCROLL) document_scroll_finish(app, 1);
             else if (kind == WMHI_INTUITICK) { document_scroll_tick(app); document_change_tick(app); }

@@ -83,12 +83,12 @@ static struct {
 
 /** Symbols of the buttons, in the order of their gadget IDs. */
 static const TmplSymType symbols[TREEOPS_BUTTONS] = {
-    TMPLSYM_NEW_FILE, TMPLSYM_NEW_DRAWER, TMPLSYM_RENAME, TMPLSYM_DELETE
+    TMPLSYM_FROM_TEMPLATE, TMPLSYM_NEW_FILE, TMPLSYM_NEW_DRAWER, TMPLSYM_RENAME, TMPLSYM_DELETE
 };
 
 /** Help bubbles of the buttons, in the order of their gadget IDs. */
 static const LONG hints[TREEOPS_BUTTONS] = {
-    MSG_TREEOPS_HINT_NEWFILE, MSG_TREEOPS_HINT_NEWDRAWER,
+    MSG_TREEOPS_HINT_FROMTEMPLATE, MSG_TREEOPS_HINT_NEWFILE, MSG_TREEOPS_HINT_NEWDRAWER,
     MSG_TREEOPS_HINT_RENAME, MSG_TREEOPS_HINT_DELETE
 };
 
@@ -629,6 +629,19 @@ static int ask_new(EditorApp *app, LONG title, char *path, size_t size)
     return 1;
 }
 
+int treeops_selected_drawer(EditorApp *app, char *out, size_t size)
+{
+    LONG type = 0, protection = 0;
+    return selected_path(app, out, size) && examine(out, &type, &protection) && type > 0;
+}
+
+void treeops_new_from_template(EditorApp *app)
+{
+    char drawer[EDITOR_PATH_MAX];
+    if (target_drawer(app, drawer, sizeof(drawer))) new_from_template_in(app, drawer);
+    else new_from_template(app);
+}
+
 void treeops_new_file(EditorApp *app)
 {
     char path[EDITOR_PATH_MAX];
@@ -769,7 +782,7 @@ void treeops_delete(EditorApp *app)
  */
 static int button_on(int i, int state)
 {
-    return i < 2 ? (state & TS_PROJECT) != 0 : (state & TS_SELECTED) != 0;
+    return i < 3 ? (state & TS_PROJECT) != 0 : (state & TS_SELECTED) != 0;
 }
 
 Object *treeops_create(EditorApp *app)
@@ -781,7 +794,7 @@ Object *treeops_create(EditorApp *app)
         if ((to.images[i] = tmplsym_image_new(1, TMPLSYM_SIZE, TMPLSYM_SIZE)) == NULL) goto failed;
         SetAttrs(to.images[i], TMPLSYM_Type, (ULONG)symbols[i], TAG_END);
         to.buttons[i] = NewObject(BUTTON_GetClass(), NULL,
-            GA_ID, (ULONG)(GID_TREE_NEW_FILE + i),
+            GA_ID, (ULONG)(GID_TREE_FROM_TEMPLATE + i),
             GA_RelVerify, TRUE,
             GA_Disabled, TRUE,              /* no project yet (to.state 0) */
             BUTTON_RenderImage, (ULONG)to.images[i],
@@ -802,6 +815,7 @@ Object *treeops_create(EditorApp *app)
         LAYOUT_AddChild, (ULONG)to.buttons[1], CHILD_WeightedWidth, 0,
         LAYOUT_AddChild, (ULONG)to.buttons[2], CHILD_WeightedWidth, 0,
         LAYOUT_AddChild, (ULONG)to.buttons[3], CHILD_WeightedWidth, 0,
+        LAYOUT_AddChild, (ULONG)to.buttons[4], CHILD_WeightedWidth, 0,
         /* takes the rest, so the buttons stay on the left */
         LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL, TAG_END),
         TAG_END);
@@ -854,7 +868,7 @@ void treeops_hints(struct HintInfo *h)
 {
     int i;
     for (i = 0; i < TREEOPS_BUTTONS; ++i) {
-        h[i].hi_GadgetID = (WORD)(GID_TREE_NEW_FILE + i);
+        h[i].hi_GadgetID = (WORD)(GID_TREE_FROM_TEMPLATE + i);
         h[i].hi_Code = -1;
         h[i].hi_Text = (STRPTR)S(hints[i]);
         h[i].hi_Flags = 0;
