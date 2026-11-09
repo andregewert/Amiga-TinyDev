@@ -373,10 +373,8 @@ below the tree's root.
   `test_scout.rexx` tests Scout's commands with the samples of
   `tests/data/c_parser/` (it starts `bin/TinyDev-Scout` if needed).
 - `tools/mkicons.py`: motifs of the Workbench icons (TinyDev, Scout, parsers,
-  HelpViewer, the templates HelloWorld and HelpProject)
-  for `amiga-devkit/tools/amigaicons.py`; `make icons` writes `icons/` and
-  `templates/<Id>/template.info` of both. These files are generated, never
-  edited by hand.
+  HelpViewer) for `amiga-devkit/tools/amigaicons.py`; `make icons` writes
+  `icons/`. These files are generated, never edited by hand.
 - `package/`: what the Aminet archive needs besides the build:
   `TinyDev.readme` (the Aminet readme, ISO-8859-1, at most 78 columns),
   `Install` (the Installer script, ISO-8859-1: everything into one drawer,

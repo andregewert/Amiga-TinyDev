@@ -7,11 +7,11 @@
 * Created {$DATE}
 *
 
-        XDEF    _{$NAME:ident}
+        XDEF    _{$NAME.ident}
 
         section code,code
 
 * The exported routine. Out: d0 = 0.
-_{$NAME:ident}:
+_{$NAME.ident}:
         moveq   #0,d0
         rts

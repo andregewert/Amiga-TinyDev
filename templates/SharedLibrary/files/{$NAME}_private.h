@@ -1,12 +1,12 @@
 /*
- * {$NAME}_private.h - What the parts of {$NAME:lower}.library share.
+ * {$NAME}_private.h - What the parts of {$NAME.lower}.library share.
  *
  * Copyright (c) {$YEAR} {$AUTHOR}
  * {$AUTHORMAIL}
  * Created {$DATE}
  */
-#ifndef {$NAME:upper}_PRIVATE_H
-#define {$NAME:upper}_PRIVATE_H
+#ifndef {$NAME.upper}_PRIVATE_H
+#define {$NAME.upper}_PRIVATE_H
 
 #include <exec/types.h>
 
@@ -19,7 +19,7 @@
 #error This frame knows gcc and vbcc.
 #endif
 
-#define LIBNAME     "{$NAME:lower}.library"
+#define LIBNAME     "{$NAME.lower}.library"
 #define LIBVERSION  1
 #define LIBREVISION 0
 

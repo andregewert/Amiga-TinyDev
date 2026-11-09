@@ -9,7 +9,7 @@
   "icon": { "type": "library" },
   "placeholders": [
     { "key": "NAME", "label": "Library name", "label[deutsch]": "Bibliotheksname",
-      "default": "{$PROJECT:ident}",
+      "default": "{$PROJECT.ident}",
       "description": "A C identifier: the file is NAME.library in lower case, the functions start with NAME",
       "description[deutsch]": "Ein C-Bezeichner: Die Datei heiﬂt NAME.library in Kleinbuchstaben, die Funktionen beginnen mit NAME" },
     { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor", "required": true },

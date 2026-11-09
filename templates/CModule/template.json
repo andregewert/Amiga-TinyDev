@@ -12,7 +12,7 @@
       "description": "The name of the files without .c and .h",
       "description[deutsch]": "Der Name der Dateien ohne .c und .h" },
     { "key": "GUARD", "label": "Include guard", "label[deutsch]": "Include-Guard",
-      "default": "{$NAME:ident}_H",
+      "default": "{$NAME.ident}_H",
       "description": "The macro that keeps the header from being read twice",
       "description[deutsch]": "Das Makro, das verhindert, dass der Header zweimal gelesen wird" },
     { "key": "PURPOSE", "label": "Description", "label[deutsch]": "Beschreibung", "default": "",

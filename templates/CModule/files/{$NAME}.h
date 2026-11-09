@@ -6,7 +6,7 @@
  * {$AUTHORMAIL}
  * Created {$DATE}
  */
-#ifndef {$GUARD:upper}
-#define {$GUARD:upper}
+#ifndef {$GUARD.upper}
+#define {$GUARD.upper}
 
-#endif /* {$GUARD:upper} */
+#endif /* {$GUARD.upper} */

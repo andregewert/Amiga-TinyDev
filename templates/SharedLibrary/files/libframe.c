@@ -1,5 +1,5 @@
 /*
- * libframe.c - The frame of {$NAME:lower}.library: the resident tag and the
+ * libframe.c - The frame of {$NAME.lower}.library: the resident tag and the
  * standard functions Open, Close and Expunge. It uses no C runtime.
  *
  * Copyright (c) {$YEAR} {$AUTHOR}

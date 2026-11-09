@@ -1,12 +1,12 @@
 /*
- * gadgets/{$NAME:lower}.h - The public interface of {$NAME:lower}.gadget.
+ * gadgets/{$NAME.lower}.h - The public interface of {$NAME.lower}.gadget.
  *
  * Copyright (c) {$YEAR} {$AUTHOR}
  * {$AUTHORMAIL}
  * Created {$DATE}
  */
-#ifndef GADGETS_{$NAME:upper}_H
-#define GADGETS_{$NAME:upper}_H
+#ifndef GADGETS_{$NAME.upper}_H
+#define GADGETS_{$NAME.upper}_H
 
 #include <utility/tagitem.h>
 

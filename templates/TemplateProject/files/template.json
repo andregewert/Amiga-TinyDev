@@ -6,7 +6,7 @@
   "category": "{$CATEGORY}",
   "icon": { "type": "generic" },
   "placeholders": [
-    { "key": "NAME", "label": "Name", "default": "{$$PROJECT:ident}",
+    { "key": "NAME", "label": "Name", "default": "{$$PROJECT.ident}",
       "description": "Shown as a help bubble in the wizard" },
     { "key": "AUTHOR", "label": "Author", "required": true }
   ],

@@ -1,5 +1,5 @@
 /*
- * test{$NAME}.c - A window with {$NAME:lower}.gadget in it.
+ * test{$NAME}.c - A window with {$NAME.lower}.gadget in it.
  *
  * Copyright (c) {$YEAR} {$AUTHOR}
  * {$AUTHORMAIL}
@@ -18,7 +18,7 @@
 #include <proto/layout.h>
 #include <proto/window.h>
 
-#include <gadgets/{$NAME:lower}.h>
+#include <gadgets/{$NAME.lower}.h>
 
 struct IntuitionBase *IntuitionBase = NULL;
 struct Library *WindowBase = NULL;
@@ -34,7 +34,7 @@ int main(void)
     WindowBase = OpenLibrary((STRPTR)"window.class", 44);
     LayoutBase = OpenLibrary((STRPTR)"gadgets/layout.gadget", 44);
     /* Opening the library makes its class public. */
-    ClassBase = OpenLibrary((STRPTR)"PROGDIR:{$NAME:lower}.gadget", 1);
+    ClassBase = OpenLibrary((STRPTR)"PROGDIR:{$NAME.lower}.gadget", 1);
 
     if (IntuitionBase != NULL && WindowBase != NULL && LayoutBase != NULL && ClassBase != NULL) {
         window_object = NewObject(WINDOW_GetClass(), NULL,
@@ -47,7 +47,7 @@ int main(void)
             WINDOW_Position, WPOS_CENTERSCREEN,
             WINDOW_Layout, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
                 LAYOUT_SpaceOuter, TRUE,
-                LAYOUT_AddChild, (ULONG)NewObject(NULL, (STRPTR)"{$NAME:lower}.gadget",
+                LAYOUT_AddChild, (ULONG)NewObject(NULL, (STRPTR)"{$NAME.lower}.gadget",
                     GA_ID, 1,
                     GA_RelVerify, TRUE,
                     {$NAME}_On, TRUE,

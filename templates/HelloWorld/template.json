@@ -6,10 +6,10 @@
   "description": "A small C program for the Shell, with a Makefile for vbcc, gcc or SAS/C and the commands of the Build menu.",
   "description[deutsch]": "Ein kleines C-Programm für die Shell, mit einem Makefile für vbcc, gcc oder SAS/C und den Befehlen des Menüs Erstellen.",
   "category": "C",
-  "icon": { "type": "program", "file": "template.info" },
+  "icon": { "type": "program" },
   "placeholders": [
     { "key": "NAME", "label": "Program name", "label[deutsch]": "Programmname",
-      "default": "{$PROJECT:ident}",
+      "default": "{$PROJECT.ident}",
       "description": "The name of the program and of its source file",
       "description[deutsch]": "Der Name des Programms und seiner Quelldatei" },
     { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor", "required": true },

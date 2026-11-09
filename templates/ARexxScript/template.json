@@ -9,7 +9,7 @@
   "icon": { "type": "script" },
   "placeholders": [
     { "key": "NAME", "label": "Script name", "label[deutsch]": "Skriptname",
-      "default": "{$PROJECT:ident}",
+      "default": "{$PROJECT.ident}",
       "description": "The name of the script without .rexx",
       "description[deutsch]": "Der Name des Skripts ohne .rexx" },
     { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor", "required": true },

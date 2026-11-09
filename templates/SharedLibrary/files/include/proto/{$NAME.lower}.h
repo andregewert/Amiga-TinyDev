@@ -1,9 +1,9 @@
 /*
- * proto/{$NAME:lower}.h - Calling the functions of {$NAME:lower}.library.
+ * proto/{$NAME.lower}.h - Calling the functions of {$NAME.lower}.library.
  * The caller defines {$NAME}Base and opens the library.
  */
-#ifndef PROTO_{$NAME:upper}_H
-#define PROTO_{$NAME:upper}_H
+#ifndef PROTO_{$NAME.upper}_H
+#define PROTO_{$NAME.upper}_H
 
 #include <exec/types.h>
 #include <exec/libraries.h>

@@ -19,7 +19,7 @@
 #include <proto/intuition.h>
 #include <proto/utility.h>
 
-#include <gadgets/{$NAME:lower}.h>
+#include <gadgets/{$NAME.lower}.h>
 #include "{$NAME}_private.h"
 
 /* The data of one object. */

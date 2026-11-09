@@ -8,11 +8,13 @@
  * it too, to show the defaults Sprout would use. The format is described
  * in src/sprout/docs/Sprout.md.
  *
- * A placeholder is written {$KEY} or {$KEY:modifier} (modifiers upper,
+ * A placeholder is written {$KEY} or {$KEY.modifier} (modifiers upper,
  * lower, ident); keys are A-Z, 0-9 and _, starting with a letter. Only
  * defined keys are replaced; a placeholder with one more $ ({$$KEY}) is
  * written without that $ instead. Names of files may also hold conditions
- * ({?KEY=value}, see sprout_expand_path()).
+ * ({\@KEY=value}, see sprout_expand_path()). Both forms use only characters
+ * that are valid in file names and mean nothing in AmigaDOS patterns, as
+ * the names of a template's files hold them.
  */
 #ifndef SPROUT_TMPL_H
 #define SPROUT_TMPL_H
@@ -291,14 +293,13 @@ int sprout_path_safe(const char *path);
  * @brief Replace the placeholders in a relative path, part by part, and
  *        take out its conditions.
  *
- * A part may hold conditions {?KEY=value}, {?KEY=a|b} (one of the values)
- * or {?KEY!=a|b} (none of them); values are compared exactly, an undefined
+ * A part may hold conditions {\@KEY=value}, {\@KEY=a,b} (one of the values)
+ * or {\@KEY!=a,b} (none of them); values are compared exactly, an undefined
  * key counts as "". The conditions are removed from the name; if one does
  * not hold, the path is left out (a condition on a drawer leaves out all
  * below it, as their paths contain it).
  * Fails if the path or an expanded part is not safe, e.g. because a value
- * contains '/' or ':'. A ':' before the replacement is allowed (it may
- * belong to a modifier); one left after it is not.
+ * contains '/' or ':'.
  * @param path The path ('/' separated).
  * @param v The values.
  * @param[out] bad Why NULL was returned: #SPROUT_PATH_UNSAFE,

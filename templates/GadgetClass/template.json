@@ -9,7 +9,7 @@
   "icon": { "type": "class" },
   "placeholders": [
     { "key": "NAME", "label": "Class name", "label[deutsch]": "Klassenname",
-      "default": "{$PROJECT:ident}",
+      "default": "{$PROJECT.ident}",
       "description": "A C identifier: the file is NAME.gadget in lower case, the attributes start with NAME_",
       "description[deutsch]": "Ein C-Bezeichner: Die Datei heiﬂt NAME.gadget in Kleinbuchstaben, die Attribute beginnen mit NAME_" },
     { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor", "required": true },

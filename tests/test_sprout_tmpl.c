@@ -359,7 +359,7 @@ static void test_resolve(void)
     const char *json =
         "{ \"name\": \"T\", \"placeholders\": [\n"
         "  { \"key\": \"NAME\", \"default\": \"{$PROJECT}\" },\n"
-        "  { \"key\": \"GUARD\", \"default\": \"{$NAME:upper}_H\" },\n"
+        "  { \"key\": \"GUARD\", \"default\": \"{$NAME.upper}_H\" },\n"
         "  { \"key\": \"AUTHOR\", \"required\": true },\n"
         "  { \"key\": \"CC\", \"choices\": [\"gcc\", \"vbcc\"] },\n"
         "  { \"key\": \"NOTE\" } ] }";
@@ -445,36 +445,39 @@ static void test_expand(void)
     check_expand(&v, "no placeholders", "no placeholders");
     check_expand(&v, "{$NAME}", "Hello World");
     check_expand(&v, "a {$NAME} b {$NAME}.", "a Hello World b Hello World.");
-    check_expand(&v, "{$NAME:upper}_H", "HELLO WORLD_H");
-    check_expand(&v, "{$NAME:lower}", "hello world");
-    check_expand(&v, "{$NAME:ident}", "Hello_World");
-    check_expand(&v, "{$NUM:ident}", "_3d");
-    check_expand(&v, "{$EMPTY:ident}x", "_x");
+    check_expand(&v, "{$NAME.upper}_H", "HELLO WORLD_H");
+    check_expand(&v, "{$NAME:upper}", "{$NAME:upper}");                 /* no longer a placeholder */
+    check_expand(&v, "{$NAME.nosuch}", "{$NAME.nosuch}");
+    check_expand(&v, "{$NAME}.c", "Hello World.c");
+    check_expand(&v, "{$NAME.lower}", "hello world");
+    check_expand(&v, "{$NAME.ident}", "Hello_World");
+    check_expand(&v, "{$NUM.ident}", "_3d");
+    check_expand(&v, "{$EMPTY.ident}x", "_x");
     check_expand(&v, "{$EMPTY}x", "x");
-    check_expand(&v, "{$LATIN:upper}", "\xc4RGER \xc4\xdf\xff");
-    check_expand(&v, "{$LATIN:lower}", "\xe4rger \xe4\xdf\xff");
-    check_expand(&v, "{$LATIN:ident}", "_rger____");
+    check_expand(&v, "{$LATIN.upper}", "\xc4RGER \xc4\xdf\xff");
+    check_expand(&v, "{$LATIN.lower}", "\xe4rger \xe4\xdf\xff");
+    check_expand(&v, "{$LATIN.ident}", "_rger____");
     check_expand(&v, "{{$NAME}}", "{Hello World}");
     check_expand(&v, "{$NAME}{$NAME}", "Hello WorldHello World");
 
     /* escapes: one $ fewer, defined or not */
     check_expand(&v, "{$$NAME}", "{$NAME}");
-    check_expand(&v, "{$$NAME:upper}", "{$NAME:upper}");
+    check_expand(&v, "{$$NAME.upper}", "{$NAME.upper}");
     check_expand(&v, "{$$$NAME}", "{$$NAME}");
     check_expand(&v, "{$$OTHER}", "{$OTHER}");
     check_expand(&v, "x{$$NAME}y{$NAME}", "x{$NAME}yHello World");
 
     /* left as they are: undefined keys, other forms, Pascal directives */
     check_expand(&v, "{$OTHER}", "{$OTHER}");
-    check_expand(&v, "{$NAME:shout}", "{$NAME:shout}");
-    check_expand(&v, "{$NAME:}", "{$NAME:}");
+    check_expand(&v, "{$NAME.shout}", "{$NAME.shout}");
+    check_expand(&v, "{$NAME.}", "{$NAME.}");
     check_expand(&v, "{$name}", "{$name}");
     check_expand(&v, "{$MODE OBJFPC}{$H+}{$I file.inc}{$IFDEF NAME}", "{$MODE OBJFPC}{$H+}{$I file.inc}{$IFDEF NAME}");
     check_expand(&v, "{$} {$$} $$ ${NAME} $NAME {NAME} {project}", "{$} {$$} $$ ${NAME} $NAME {NAME} {project}");
     check_expand(&v, "{$NAME", "{$NAME");
     check_expand(&v, "{", "{");
     check_expand(&v, "{$", "{$");
-    check_expand(&v, "{$NAME:upper", "{$NAME:upper");
+    check_expand(&v, "{$NAME.upper", "{$NAME.upper");
 
     {   /* NUL bytes and a length shorter than the string */
         size_t n;
@@ -505,7 +508,7 @@ static void test_paths(void)
     assert(!sprout_path_safe("Work:a") && !sprout_path_safe("../a") && !sprout_path_safe("a/./b"));
 
     check_path(&v, "src/{$NAME}.c", "src/Hello.c");
-    check_path(&v, "{$NAME}/{$NAME:lower}.h", "Hello/hello.h");
+    check_path(&v, "{$NAME}/{$NAME.lower}.h", "Hello/hello.h");
     check_path(&v, ".tinydev/project.json", ".tinydev/project.json");
     check_path(&v, "{$OTHER}.c", "{$OTHER}.c");
     check_path(&v, "{$$NAME}", "{$NAME}");
@@ -515,30 +518,31 @@ static void test_paths(void)
     check_path(&v, "{$EMPTY}/x", NULL);
     check_path(&v, "/x", NULL);
     check_path(&v, "a//x", NULL);
-    check_path(&v, "{$OTHER:upper}", NULL);
-    check_path(&v, "{$NAME:upper}", "HELLO");
+    check_path(&v, "{$OTHER.upper}", "{$OTHER.upper}");                 /* not defined: left as it is */
+    check_path(&v, "{$NAME.upper}", "HELLO");
+    check_path_bad(&v, "{$NAME:upper}", NULL, SPROUT_PATH_UNSAFE);      /* a colon is never valid in a name */
 
     /* conditions */
     assert(sprout_values_set(&v, "CC", "gcc") == 1);
-    check_path(&v, "Makefile{?CC=gcc}", "Makefile");
-    check_path(&v, "Makefile{?CC=vbcc|gcc}", "Makefile");
-    check_path(&v, "{?CC=gcc}{$NAME}.c", "Hello.c");
-    check_path(&v, "src{?CC!=vbcc}/a{?NAME=Hello}.c", "src/a.c");
-    check_path_bad(&v, "Makefile{?CC=vbcc}", NULL, SPROUT_PATH_LEFTOUT);
-    check_path_bad(&v, "Makefile{?CC!=gcc|sasc}", NULL, SPROUT_PATH_LEFTOUT);
-    check_path_bad(&v, "gcc{?CC=vbcc}/Makefile", NULL, SPROUT_PATH_LEFTOUT);
-    check_path_bad(&v, "a{?CC=gcc}{?NAME=x}", NULL, SPROUT_PATH_LEFTOUT);
-    check_path_bad(&v, "a{?OTHER=x}", NULL, SPROUT_PATH_LEFTOUT);
-    check_path(&v, "a{?OTHER=}", "a");
-    check_path(&v, "a{?OTHER=x|}", "a");
-    check_path(&v, "a{?OTHER!=x}", "a");
-    check_path_bad(&v, "a{?CC}", NULL, SPROUT_PATH_BADCOND);
-    check_path_bad(&v, "a{?CC=gcc", NULL, SPROUT_PATH_BADCOND);
-    check_path_bad(&v, "a{?=gcc}", NULL, SPROUT_PATH_BADCOND);
-    check_path_bad(&v, "a{?cc=gcc}", NULL, SPROUT_PATH_BADCOND);
-    check_path_bad(&v, "a{?CC!gcc}", NULL, SPROUT_PATH_BADCOND);
-    check_path_bad(&v, "{?CC=gcc}", NULL, SPROUT_PATH_UNSAFE);          /* nothing left of the name */
-    check_path_bad(&v, "{?CC=gcc}/x", NULL, SPROUT_PATH_UNSAFE);
+    check_path(&v, "Makefile{@CC=gcc}", "Makefile");
+    check_path(&v, "Makefile{@CC=vbcc,gcc}", "Makefile");
+    check_path(&v, "{@CC=gcc}{$NAME}.c", "Hello.c");
+    check_path(&v, "src{@CC!=vbcc}/a{@NAME=Hello}.c", "src/a.c");
+    check_path_bad(&v, "Makefile{@CC=vbcc}", NULL, SPROUT_PATH_LEFTOUT);
+    check_path_bad(&v, "Makefile{@CC!=gcc,sasc}", NULL, SPROUT_PATH_LEFTOUT);
+    check_path_bad(&v, "gcc{@CC=vbcc}/Makefile", NULL, SPROUT_PATH_LEFTOUT);
+    check_path_bad(&v, "a{@CC=gcc}{@NAME=x}", NULL, SPROUT_PATH_LEFTOUT);
+    check_path_bad(&v, "a{@OTHER=x}", NULL, SPROUT_PATH_LEFTOUT);
+    check_path(&v, "a{@OTHER=}", "a");
+    check_path(&v, "a{@OTHER=x,}", "a");
+    check_path(&v, "a{@OTHER!=x}", "a");
+    check_path_bad(&v, "a{@CC}", NULL, SPROUT_PATH_BADCOND);
+    check_path_bad(&v, "a{@CC=gcc", NULL, SPROUT_PATH_BADCOND);
+    check_path_bad(&v, "a{@=gcc}", NULL, SPROUT_PATH_BADCOND);
+    check_path_bad(&v, "a{@cc=gcc}", NULL, SPROUT_PATH_BADCOND);
+    check_path_bad(&v, "a{@CC!gcc}", NULL, SPROUT_PATH_BADCOND);
+    check_path_bad(&v, "{@CC=gcc}", NULL, SPROUT_PATH_UNSAFE);          /* nothing left of the name */
+    check_path_bad(&v, "{@CC=gcc}/x", NULL, SPROUT_PATH_UNSAFE);
     sprout_values_free(&v);
 }
 
@@ -698,13 +702,13 @@ static void test_shipped(void)
         sprout_template_free(&g);
     }
     assert(strcmp(sprout_values_get(&out, "CC"), "vbcc") == 0);
-    check_path(&out, "Makefile{?CC=vbcc}", "Makefile");
-    check_path_bad(&out, "smakefile{?CC=sasc}", NULL, SPROUT_PATH_LEFTOUT);
+    check_path(&out, "Makefile{@CC=vbcc}", "Makefile");
+    check_path_bad(&out, "smakefile{@CC=sasc}", NULL, SPROUT_PATH_LEFTOUT);
     sprout_values_free(&out);
     assert(sprout_values_parse_assign(&given, "CC=sasc") == 1);
     assert(sprout_resolve(&t, &given, "My Tool", 17835, &out, report, NULL) == 1);
-    check_path(&out, "smakefile{?CC=sasc}", "smakefile");
-    check_path_bad(&out, ".tinydev/project.json{?CC=gcc}", NULL, SPROUT_PATH_LEFTOUT);
+    check_path(&out, "smakefile{@CC=sasc}", "smakefile");
+    check_path_bad(&out, ".tinydev/project.json{@CC=gcc}", NULL, SPROUT_PATH_LEFTOUT);
     sprout_values_free(&out);
     assert(sprout_values_parse_assign(&given, "CC=icc") == 1);
     assert(sprout_resolve(&t, &given, "My Tool", 17835, &out, report, NULL) == 0);    /* not a choice */

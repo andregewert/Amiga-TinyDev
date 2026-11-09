@@ -9,7 +9,7 @@
   "icon": { "type": "program" },
   "placeholders": [
     { "key": "NAME", "label": "Program name", "label[deutsch]": "Programmname",
-      "default": "{$PROJECT:ident}",
+      "default": "{$PROJECT.ident}",
       "description": "The name of the program and of its source file",
       "description[deutsch]": "Der Name des Programms und seiner Quelldatei" },
     { "key": "AUTHOR", "label": "Author", "label[deutsch]": "Autor", "required": true },

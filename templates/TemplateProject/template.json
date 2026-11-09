@@ -10,7 +10,7 @@
   "icon": { "type": "generic" },
   "placeholders": [
     { "key": "ID", "label": "Identifier", "label[deutsch]": "Bezeichner",
-      "default": "{$PROJECT:ident}",
+      "default": "{$PROJECT.ident}",
       "description": "The name of the template's drawer in Templates/",
       "description[deutsch]": "Der Name des Verzeichnisses der Vorlage in Templates/" },
     { "key": "KIND", "label": "Kind", "label[deutsch]": "Art", "choices": ["project", "file"],

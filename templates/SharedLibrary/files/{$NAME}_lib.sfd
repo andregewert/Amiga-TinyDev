@@ -1,8 +1,8 @@
 ==id $Id: {$NAME}_lib.sfd 1.0 ({$DATE}) $
-* "{$NAME:lower}.library"
+* "{$NAME.lower}.library"
 ==base _{$NAME}Base
 ==basetype struct Library *
-==libname {$NAME:lower}.library
+==libname {$NAME.lower}.library
 ==bias 30
 ==public
 LONG {$NAME}Add(LONG a, LONG b) (d0,d1)

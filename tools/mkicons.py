@@ -13,15 +13,9 @@
 #   scout      a page of code under a magnifying glass
 #   parser_<x> a chip with the label of the parser's language (parser())
 #   helpviewer a blue handbook with a question mark on its cover
-#   hello      a Shell window that says "Hi!" in a speech bubble (the
-#              template HelloWorld)
-#   helppages  the handbook of the HelpViewer with a pencil that writes it
-#              (the template HelpProject)
 #
 # Run directly (or "make icons") to write sample icons of all styles to
-# icons/<Style>/ and a preview picture icons/preview.png, and the icons of
-# the templates HelloWorld and HelpProject (templates/<Id>/template.info,
-# GlowIcons with the classic picture for older systems).
+# icons/<Style>/ and a preview picture icons/preview.png.
 
 import os, sys
 
@@ -180,30 +174,6 @@ def pic_helpviewer():
     return c
 
 
-def pic_hello():
-    c = ai.Canvas(38, 24)
-    c.rect(1, 1, 27, 19, 2)                   # the Shell window
-    c.frame(1, 1, 27, 19, 1, 1)
-    c.rect(2, 2, 26, 4, 3)                    # title bar
-    c.rect(4, 7, 5, 7, 1)                     # prompt "1>" and a command
-    c.rect(7, 7, 18, 7, 1)
-    c.rect(4, 10, 15, 10, 3)                  # its output
-    c.rect(4, 13, 5, 13, 1)                   # the next prompt, cursor
-    c.rect(7, 13, 8, 14, 3)
-    c.rect(20, 11, 36, 21, 2)                 # the speech bubble
-    c.frame(20, 11, 36, 21, 1, 1)
-    for i in range(3):                        # its tail, open to the bubble
-        y = 21 + i
-        c.rect(22, y, 22, y, 1)
-        c.rect(23, y, 24 - i, y, 2)
-        c.rect(25 - i, y, 25 - i, y, 1)
-    x = 24
-    for letter in 'Hi!':
-        glyph(c, x, 14, letter, 1, small=True)
-        x += len(SMALL[letter][0]) + 2
-    return c
-
-
 def pencil(put, tx, ty, length, half, colours):
     """ a pencil at 45 degrees, its tip at (tx, ty), pointing to the lower
         left. u runs along it (one diagonal step is 2), v across it, so its
@@ -230,24 +200,6 @@ def pencil(put, tx, ty, length, half, colours):
             else:
                 p = colours['body'][0 if v < -half // 3 else 2 if v > half // 3 else 1]
             put(tx + (u + v) // 2, ty - (u - v) // 2, p)
-
-
-def pic_helppages():
-    c = ai.Canvas(38, 24)
-    c.rect(22, 3, 25, 22, 2)                  # the handbook: pages, cover
-    for y in range(5, 22, 3):
-        c.rect(23, y, 25, y, 0)
-    c.frame(22, 3, 25, 22, 1, 1)
-    c.rect(3, 1, 23, 21, 3)
-    c.frame(3, 1, 23, 21, 1, 1)
-    c.rect(5, 1, 5, 21, 1)
-    for dy, row in enumerate(SMALL['?']):
-        for dx, p in enumerate(row):
-            if p == '#':
-                c.rect(9 + 3 * dx, 4 + 3 * dy, 11 + 3 * dx, 6 + 3 * dy, 2)
-    pencil(lambda x, y, p: c.rect(x, y, x, y, p), 15, 23, 34, 2,
-           {'edge': 1, 'lead': 1, 'wood': 0, 'body': (2, 2, 2), 'band': 0, 'eraser': 3})
-    return c
 
 
 # --------------------------------------------- GlowIcons motifs ---
@@ -291,54 +243,6 @@ def m_helpviewer(s, c):
         for dx, p in enumerate(row):
             if p == '#':
                 c.rect(12 + 3 * dx, 7 + 3 * dy, 14 + 3 * dx, 9 + 3 * dy, WHITE)
-
-
-def m_hello(s, c):
-    frame = s.line(GREY[1])
-    c.rect(1, 2, 31, 28, frame)                               # the Shell window
-    c.rect(2, 3, 30, 7, s.ramp(*BLUE)(2, 3, 30, 7))           # title bar
-    c.rect(3, 4, 5, 6, WHITE)                                 # close gadget
-    c.rect(2, 8, 30, 27, s.ramp(WHITE, PAPER[1])(2, 8, 30, 27))
-    c.line(4, 11, 6, 11, TEXT)                                # 1> hello
-    c.line(8, 11, 20, 11, KEYWORD)
-    c.line(4, 15, 18, 15, TEXT)                               # its output
-    c.line(4, 19, 6, 19, TEXT)                                # 1> and the cursor
-    c.rect(8, 18, 10, 20, BLUE[1])
-    # the speech bubble with its tail, lower right
-    yellow = ((255, 244, 170), (240, 200, 70))
-    bubble = s.ramp(*yellow)(19, 17, 41, 33)
-    edge = s.line(yellow[1])
-    c.poly([(23, 32), (29, 32), (21, 37)], bubble, edge)
-    c.rect(19, 17, 41, 33, edge)
-    c.rect(20, 18, 40, 32, bubble)
-    for x, y in ((19, 17), (41, 17), (19, 33), (41, 33)):     # rounded corners
-        c.put(x, y, None)
-    c.line(24, 33, 28, 33, bubble(24, 32))                    # open towards the tail
-    x = 22
-    for letter in 'Hi!':                                      # bold letters
-        glyph(c, x, 21, letter, RED[1])
-        glyph(c, x + 1, 21, letter, RED[1])
-        x += len(GLYPHS[letter][0]) + 3
-
-
-def m_helppages(s, c):
-    m_book = BLUE
-    pages = [(26, 6), (31, 9), (31, 37), (26, 37)]
-    c.poly(pages, s.ramp(*PAPER)(26, 6, 31, 37), s.line(GREY[1]))
-    for y in range(10, 36, 3):
-        c.line(27, y, 30, y, GREY[0])
-    c.rect(1, 2, 27, 34, s.line(m_book[1]))                     # the cover
-    c.rect(2, 3, 26, 33, s.ramp(*m_book)(2, 3, 26, 33))
-    c.rect(2, 3, 4, 33, s.ramp(m_book[1], ai.mix(m_book[1], BLACK, 0.4))(2, 3, 4, 33))
-    c.line(5, 3, 5, 33, ai.mix(m_book[0], WHITE, 0.4))
-    for dy, row in enumerate(GLYPHS['?']):
-        for dx, p in enumerate(row):
-            if p == '#':
-                c.rect(8 + 3 * dx, 7 + 3 * dy, 10 + 3 * dx, 9 + 3 * dy, WHITE)
-    pencil(c.put, 17, 38, 44, 4,
-           {'edge': (84, 56, 24), 'lead': (40, 44, 56), 'wood': (244, 208, 160),
-            'body': ((255, 232, 120), (250, 196, 60), (222, 140, 28)),
-            'band': GREY[1], 'eraser': RED[0]})
 
 
 def ring(c, cx, cy, r, colour):
@@ -459,30 +363,6 @@ def n_helpviewer(c, sel):
                     book.face_line(c, t, u, u + 1, mark)
 
 
-def n_hello(c, sel):
-    """ the monitor with a Shell: a prompt, the greeting in yellow, the
-        cursor; selected: the next line is typed                          """
-    def screen(c, box, u0, u1, t0, t1, sel):
-        box.face_line(c, t0 + 1, u0, u0 + 1, ai.N_G170)              # 1>
-        box.face_line(c, t0 + 1, u0 + 3, u1 - 4, WHITE)              # hello
-        box.face_line(c, t0 + 3, u0, u1 - 2, ai.N_YELLOW)            # Hi!
-        box.face_line(c, t0 + 5, u0, u0 + 1, ai.N_G170)              # 1>
-        if sel:
-            box.face_line(c, t0 + 5, u0 + 3, u0 + 8, WHITE)
-        box.face_line(c, t0 + 5, u0 + (9 if sel else 3), u0 + (10 if sel else 4), ai.N_LBLUE)
-    ai.n_monitor(c, screen, sel)
-
-
-def n_helppages(c, sel):
-    """ the handbook of the HelpViewer on its platform, a pencil in front of
-        it; selected: the question mark lights up yellow, as there         """
-    n_helpviewer(c, sel)
-    pencil(c.put, 18, 38, 38, 3,
-           {'edge': BLACK, 'lead': BLACK, 'wood': ai.N_G204,
-            'body': (ai.N_YELLOW, ai.N_YELLOW, ai.N_TAN),
-            'band': ai.N_G136, 'eraser': ai.N_RED})
-
-
 def ni_parser(letter, colour):
     def n(c, sel):
         """ a chip on its platform, pins along its long side, the language
@@ -541,8 +421,6 @@ def parser(letter, colour=BLUE, ni_colour=ai.N_BLUE):
 ai.register('tinydev', pic_tinydev, m_tinydev, n_tinydev)
 ai.register('scout', pic_scout, m_scout, n_scout)
 ai.register('helpviewer', pic_helpviewer, m_helpviewer, n_helpviewer)
-ai.register('hello', pic_hello, m_hello, n_hello)
-ai.register('helppages', pic_helppages, m_helppages, n_helppages)
 PARSER_C = parser('C')
 PARSER_DOS = parser('S', GREEN, ai.N_GREEN)    # AmigaDOS scripts
 PARSER_MAKE = parser('M', RED, ai.N_RED)       # Makefiles
@@ -558,7 +436,7 @@ PARSER_PASCAL = parser('P', ((190, 170, 240), (70, 40, 150)), ai.N_LBLUE)   # Fr
 
 # ---------------------------------------------------------------- samples ---
 
-ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, PARSER_DOS, PARSER_MAKE, PARSER_MD, PARSER_JSON, PARSER_MARKUP, PARSER_AREXX, PARSER_ASM, PARSER_E, PARSER_ACE, PARSER_PASCAL, 'helpviewer', 'hello', 'helppages', 'readme', 'license')
+ROLES = ('drawer', 'tinydev', 'scout', PARSER_C, PARSER_DOS, PARSER_MAKE, PARSER_MD, PARSER_JSON, PARSER_MARKUP, PARSER_AREXX, PARSER_ASM, PARSER_E, PARSER_ACE, PARSER_PASCAL, 'helpviewer', 'readme', 'license')
 
 SAMPLES = (('Drawer', 'drawer', WBDRAWER, {}),
            ('TinyDev', 'tinydev', WBTOOL, {'stack': 32768}),
@@ -575,15 +453,9 @@ SAMPLES = (('Drawer', 'drawer', WBDRAWER, {}),
            ('ace_parser', PARSER_ACE, WBTOOL, {'stack': 16384}),
            ('pascal_parser', PARSER_PASCAL, WBTOOL, {'stack': 16384}),
            ('HelpViewer', 'helpviewer', WBTOOL, {'stack': 32768}),
-           ('HelloWorld', 'hello', WBPROJECT, {}),
-           ('HelpProject', 'helppages', WBPROJECT, {}),
            ('ReadMe', 'readme', WBPROJECT, {'default_tool': 'SYS:Utilities/MultiView'}),
            ('License', 'license', WBPROJECT, {'default_tool': 'SYS:Utilities/MultiView'}))
 
 
 if __name__ == '__main__':
     ai.write_samples(os.path.join(ROOT, 'icons'), SAMPLES, ROLES)
-    # the templates' icons, shown by TinyDev's wizard
-    for tid, role in (('HelloWorld', 'hello'), ('HelpProject', 'helppages')):
-        write_icon(os.path.join(ROOT, 'templates', tid, 'template'), 'GlowIcons', role, WBPROJECT)
-        print('template icon written to templates/%s/template.info' % tid)

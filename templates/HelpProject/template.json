@@ -7,7 +7,7 @@
   "description[deutsch]": "Hilfeseiten in Markdown, übersetzt in HTML-Seiten für den HelpViewer: ein Baum von Beispielseiten, eine Seitenvorlage und die Befehle des Menüs Erstellen.",
   "category": "Documentation",
   "category[deutsch]": "Dokumentation",
-  "icon": { "type": "document", "file": "template.info" },
+  "icon": { "type": "document" },
   "placeholders": [
     { "key": "TITLE", "label": "Title", "label[deutsch]": "Titel", "default": "{$PROJECT}",
       "description": "The title of the first page, which the HelpViewer also shows above its tree",

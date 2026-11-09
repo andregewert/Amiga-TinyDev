@@ -1,12 +1,12 @@
 /*
- * {$NAME}_private.h - What the parts of {$NAME:lower}.gadget share.
+ * {$NAME}_private.h - What the parts of {$NAME.lower}.gadget share.
  *
  * Copyright (c) {$YEAR} {$AUTHOR}
  * {$AUTHORMAIL}
  * Created {$DATE}
  */
-#ifndef {$NAME:upper}_PRIVATE_H
-#define {$NAME:upper}_PRIVATE_H
+#ifndef {$NAME.upper}_PRIVATE_H
+#define {$NAME.upper}_PRIVATE_H
 
 #include <exec/types.h>
 
@@ -21,7 +21,7 @@
 
 #include <intuition/classes.h>
 
-#define LIBNAME     "{$NAME:lower}.gadget"
+#define LIBNAME     "{$NAME.lower}.gadget"
 #define LIBVERSION  1
 #define LIBREVISION 0
 

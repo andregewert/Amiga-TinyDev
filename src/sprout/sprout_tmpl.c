@@ -759,7 +759,7 @@ char *sprout_expand(const char *text, size_t len, const SproutValues *v, size_t 
             ++i;
             continue;
         }
-        /* {, a run of $, KEY, optionally :modifier, } */
+        /* {, a run of $, KEY, optionally .modifier, } */
         k = i + 1;
         while (k < len && text[k] == '$') ++k;
         dollars = k - (i + 1);
@@ -769,11 +769,11 @@ char *sprout_expand(const char *text, size_t len, const SproutValues *v, size_t 
             ++k;
         keylen = k - key;
         mod = modlen = 0;
-        if (k < len && text[k] == ':') {
+        if (k < len && text[k] == '.') {
             mod = ++k;
             while (k < len && text[k] >= 'a' && text[k] <= 'z') ++k;
             modlen = k - mod;
-            if (modlen == 0) keylen = 0;            /* "{$KEY:}" is no placeholder */
+            if (modlen == 0) keylen = 0;            /* "{$KEY.}" is no placeholder */
         }
         if (keylen == 0 || !sprout_key_valid(text + key, keylen) || k >= len || text[k] != '}') {
             ++i;
@@ -818,46 +818,33 @@ char *sprout_expand(const char *text, size_t len, const SproutValues *v, size_t 
  * @brief Tell whether one part of a path is safe.
  * @param s The part.
  * @param n Its length.
- * @param colon Non-zero to allow ':' (in a part before replacement, where
- *        it may belong to a modifier).
- * @return Non-zero if it is not empty, not "." or ".." and has no '/'
- *         (nor ':' unless allowed).
+ * @return Non-zero if it is not empty, not "." or ".." and has no '/' or
+ *         ':'.
  */
-static int part_safe(const char *s, size_t n, int colon)
+static int part_safe(const char *s, size_t n)
 {
     size_t i;
     if (n == 0 || (n == 1 && s[0] == '.') || (n == 2 && s[0] == '.' && s[1] == '.')) return 0;
     for (i = 0; i < n; ++i)
-        if (s[i] == '/' || (s[i] == ':' && !colon) || s[i] == '\0') return 0;
+        if (s[i] == '/' || s[i] == ':' || s[i] == '\0') return 0;
     return 1;
 }
 
-/**
- * @brief Check the parts of a path.
- * @param path The path ('/' separated).
- * @param colon Non-zero to allow ':' in the parts.
- * @return Non-zero if every part is safe.
- */
-static int parts_safe(const char *path, int colon)
+int sprout_path_safe(const char *path)
 {
     const char *p = path;
     for (;;) {
         const char *slash = strchr(p, '/');
         size_t n = slash != NULL ? (size_t)(slash - p) : strlen(p);
-        if (!part_safe(p, n, colon)) return 0;
+        if (!part_safe(p, n)) return 0;
         if (slash == NULL) return 1;
         p = slash + 1;
     }
 }
 
-int sprout_path_safe(const char *path)
-{
-    return parts_safe(path, 0);
-}
-
 /**
- * @brief Tell whether a condition {?KEY=a|b} or {?KEY!=a|b} holds.
- * @param c The text between "{?" and "}".
+ * @brief Tell whether a condition {\@KEY=a,b} or {\@KEY!=a,b} holds.
+ * @param c The text between "{\@" and "}".
  * @param n Its length.
  * @param v The values (an undefined key counts as "").
  * @return 1 if it holds, 0 if not, -1 if it is malformed.
@@ -878,11 +865,11 @@ static int condition(const char *c, size_t n, const SproutValues *v)
     if ((val = sprout_values_get(v, key)) == NULL) val = "";
     len = strlen(val);
     for (;;) {
-        const char *bar = p;
-        while (bar < end && *bar != '|') ++bar;
-        if ((size_t)(bar - p) == len && memcmp(p, val, len) == 0) match = 1;
-        if (bar == end) break;
-        p = bar + 1;
+        const char *comma = p;
+        while (comma < end && *comma != ',') ++comma;
+        if ((size_t)(comma - p) == len && memcmp(p, val, len) == 0) match = 1;
+        if (comma == end) break;
+        p = comma + 1;
     }
     return match != neg;
 }
@@ -900,7 +887,7 @@ static int strip_conditions(const char *part, size_t n, const SproutValues *v, B
     size_t i = 0, start = 0;
     int all = 1;
     while (i + 1 < n) {
-        if (part[i] == '{' && part[i + 1] == '?') {
+        if (part[i] == '{' && part[i + 1] == '@') {
             const char *close = memchr(part + i, '}', n - i);
             int r;
             if (close == NULL) return -1;
@@ -922,8 +909,7 @@ char *sprout_expand_path(const char *path, const SproutValues *v, int *bad)
     const char *p = path;
 
     *bad = SPROUT_PATH_OK;
-    /* ':' is checked after the replacement ({$NAME:lower}) */
-    if (!parts_safe(path, 1)) {
+    if (!sprout_path_safe(path)) {
         *bad = SPROUT_PATH_UNSAFE;
         return NULL;
     }
@@ -953,7 +939,7 @@ char *sprout_expand_path(const char *path, const SproutValues *v, int *bad)
             free(b.data);
             return NULL;
         }
-        if (!part_safe(part, m, 0)) {
+        if (!part_safe(part, m)) {
             free(part);
             free(plain.data);
             free(b.data);

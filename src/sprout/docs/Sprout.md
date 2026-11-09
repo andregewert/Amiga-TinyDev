@@ -151,19 +151,23 @@ member of its own beside the English one, with the language in brackets:
 
 ## 5. Placeholders
 
-**Syntax:** `{$KEY}`, optionally with a modifier: `{$KEY:upper}`.
+**Syntax:** `{$KEY}`, optionally with a modifier: `{$KEY.upper}`.
+
+Placeholders and conditions appear in the names of a template's files, so
+they use only characters that are valid in AmigaDOS and Windows file names
+and mean nothing in AmigaDOS patterns.
 
 - Only defined keys are replaced: a `{$...}` whose key is not defined is
   left as it is. So are Free Pascal's directives (`{$MODE OBJFPC}`,
-  `{$I file}`, `{$H+}`): only the exact form `{$KEY}` or `{$KEY:modifier}`
+  `{$I file}`, `{$H+}`): only the exact form `{$KEY}` or `{$KEY.modifier}`
   is a placeholder, and keys are upper case only.
 - It does not clash with TinyDev's build placeholders (`{project}`,
   `{tinydev}`, `{file}`, `{base}` in `project.json`), which a template's `project.json`
   must keep, nor with `${VAR}` in Makefiles or `$VAR` in AmigaDOS scripts.
 
 **Escaping:** a placeholder written with one more `$` is not replaced but
-loses that `$`: `{$$NAME}` becomes `{$NAME}`, `{$$NAME:upper}` becomes
-`{$NAME:upper}`, `{$$$NAME}` becomes `{$$NAME}`. This holds whether the
+loses that `$`: `{$$NAME}` becomes `{$NAME}`, `{$$NAME.upper}` becomes
+`{$NAME.upper}`, `{$$$NAME}` becomes `{$$NAME}`. This holds whether the
 key is defined or not, so a template can show placeholders literally,
 e.g. in a template for templates or in its documentation. Nothing else
 with `$$` is touched (`$$` in a Shell line, `{$$}` stay). For a file with
@@ -194,8 +198,8 @@ TinyDev's wizard gives them from its settings (Project Defaults).
 | `lower` | lower case |
 | `ident` | a C identifier: other characters become `_`, a leading digit gets a `_` before it |
 
-`{$NAME:upper:ident}` is not supported; `ident` keeps the case, so a
-header guard is written `{$NAME:upper}_H` only for names that are already
+`{$NAME.upper.ident}` is not supported; `ident` keeps the case, so a
+header guard is written `{$NAME.upper}_H` only for names that are already
 identifiers. (Chaining may come later if templates need it.)
 
 **Where they are replaced:**
@@ -212,14 +216,14 @@ decide whether the file (or the drawer with all below it) is copied:
 
 | Condition | Holds if the value of `KEY` |
 |---|---|
-| `{?KEY=a}` | is `a` |
-| `{?KEY=a\|b}` | is one of `a`, `b` |
-| `{?KEY!=a\|b}` | is none of them |
+| `{@KEY=a}` | is `a` |
+| `{@KEY=a,b}` | is one of `a`, `b` |
+| `{@KEY!=a,b}` | is none of them |
 
 Values are compared exactly (case matters); an undefined key counts as
-empty (`{?KEY=}` holds then). Several conditions in a name must all hold.
+empty (`{@KEY=}` holds then). Several conditions in a name must all hold.
 They are taken out of the name before the placeholders are replaced:
-`Makefile{?CC=gcc}` becomes `Makefile` if `CC` is `gcc` and is left out
+`Makefile{@CC=gcc}` becomes `Makefile` if `CC` is `gcc` and is left out
 otherwise. A malformed condition (no `=`, no `}`, a key that is not
 valid) is an error; so is a name that is empty without its conditions.
 The `verbatim` patterns are matched against the name as it is in the
@@ -246,8 +250,7 @@ a given value; if two do, the later one copied replaces the earlier.
 
 **Safe paths:** a path from the template, before and after replacement,
 must not start with `/` (the parent drawer in AmigaDOS), contain an empty
-part (`a//b`) or the parts `.`/`..`; after replacement it must not
-contain `:` either (before, a `:` may belong to a modifier). Such an
+part (`a//b`) or the parts `.`/`..`, or contain `:`. Such an
 entry is an error. A value that contains `/` or `:` cannot be used in a
 name. Links in a template drawer are left out with a warning.
 
@@ -257,7 +260,7 @@ name. Links in a template drawer are left out with a warning.
 
 - **File names and identifiers** (source files, program names, Makefile
   targets, C identifiers) get a placeholder of the template, e.g. `NAME`,
-  with the default `{$PROJECT:ident}`. A project's name may contain
+  with the default `{$PROJECT.ident}`. A project's name may contain
   spaces and other characters that Makefiles and the Shell handle badly
   (`Hello World` becomes `Hello_World`); the wizard shows the derived
   value, and the user can change it.
@@ -274,7 +277,7 @@ project's name use `PROJECT`. With
 |---|---|
 | `PROJECT` | `Hello World` |
 | `DRAWER` | `hello` |
-| `NAME` | `Hello_World` (from its default `{$PROJECT:ident}`) |
+| `NAME` | `Hello_World` (from its default `{$PROJECT.ident}`) |
 
 **Further hints:**
 
@@ -289,7 +292,7 @@ project's name use `PROJECT`. With
 - Files for different choices (a compiler, a GUI toolkit) get
   conditions in their names: `templates/HelloWorld/` has a placeholder
   `CC` with the choices `vbcc`, `gcc` and `sasc` and the files
-  `Makefile{?CC=vbcc}`, `Makefile{?CC=gcc}`, `smakefile{?CC=sasc}` and a
+  `Makefile{@CC=vbcc}`, `Makefile{@CC=gcc}`, `smakefile{@CC=sasc}` and a
   `.tinydev/project.json` for each.
 - Try a template in the Shell before packing it:
   `Sprout <drawer of the template> RAM:Test AUTHOR=x`.
@@ -465,5 +468,5 @@ wizard's defaults; Sprout uses nothing of TinyDev.
 2. (done) LhA reading, `LIST`, `INFO` and `ICON`, archives in `make dist`.
 3. (done) The wizard in TinyDev with the built-in symbols per icon type.
 4. (done) Icon files from the template in the wizard; then file templates.
-5. (done) Conditional files (`{?KEY=value}` in names), used by
+5. (done) Conditional files (`{@KEY=value}` in names), used by
    `templates/HelloWorld/` for its compilers.
