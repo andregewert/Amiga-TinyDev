@@ -200,3 +200,42 @@ version therefore hides a fresh build; check with
   the Amiga first.
 - Running external tools such as linters and formatters.
 - Scout parsers for ACE BASIC, Free Pascal and Amiga E.
+- Git through am-git (<https://github.com/anderskjeldsen/am-git>, a native
+  client written in AmLang, on Aminet; https needs AmiSSL, ssh an external
+  client). After the first release, strictly optional: TinyDev only runs
+  the command if it is there and does not link or ship it (the repository
+  has no licence file). The steps, each useful alone:
+  1. `am-git init` as an option of the New Project wizard, with a
+     `.gitignore` for `.info` files and `.tinydev/`'s temporary files.
+  2. Status: `am-git status --porcelain` (branch, then `XY path`) in a
+     process of its own, as in `build.c`, at most one run at a time, after
+     saving and when the tree's notifications report a change. The parser
+     of its output stays portable and host-tested. The colours in the tree
+     need a generic option of `dirtree.gadget` (a colour per entry through
+     a hook, nothing about git in the class). The branch goes to the
+     status line.
+  3. A commit window built like the project settings: changed files with
+     check boxes, message, `add`, `unstage`, `commit -m`. A diff window
+     from `am-git diff` (a read-only editor with `+`/`-` lines coloured).
+  4. Fetch, pull and push with their output in the output window; remotes
+     through `am-git config` (it has no `remote` command).
+
+  To try on the Amiga before starting: how long `status` takes on a real
+  project on a 68030 (0.12.3 made it much faster, but it walks the tree);
+  how umlauts in file names and commit messages come through, as git
+  expects UTF-8 and TinyDev works in ISO-8859-1 (`codesets.library`?);
+  multi-line messages through the AmigaShell. am-git wants a stack of
+  100000 bytes, more than the 65536 of the Build scripts. Credentials stay
+  with am-git (`ENV:AM_GIT_NETRC`); TinyDev stores none. Pull and checkout
+  change files that may be open, so documents must be compared with the
+  disk afterwards.
+- Claude in TinyDev, after the first release and strictly optional:
+  TinyDev talks to the Claude API itself (HTTPS over `bsdsocket.library` and
+  AmiSSL, `src/json.c`), as a separate part like Scout (a process of its
+  own, an ARexx port) with a tool window. A simple first stage takes the
+  selection or the file as context; tools can come later. A bridge running
+  `claude -p` on a host was the alternative considered. Every user needs an
+  API key of their own, which costs extra. Between ISO-8859-1 and UTF-8 it
+  would use `codesets.library`
+  (<https://aminet.net/package/util/libs/codesets-6.22>, not looked at yet)
+  instead of a conversion of its own.
