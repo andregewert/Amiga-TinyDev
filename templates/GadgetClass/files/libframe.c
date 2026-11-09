@@ -9,6 +9,7 @@
  * This object must come first when linking.
  */
 #include <exec/types.h>
+#include <dos/dos.h>
 #include <exec/execbase.h>
 #include <exec/libraries.h>
 #include <exec/resident.h>
