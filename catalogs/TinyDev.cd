@@ -802,6 +802,15 @@ _Stop
 MSG_OUT_CLEAR (//)
 C_lear
 ;
+MSG_OUT_COPYLINE (//)
+Copy li_ne
+;
+MSG_OUT_COPYALL (//)
+Copy _all
+;
+MSG_OUT_COPYFAILED (//)
+Could not copy to the clipboard.
+;
 MSG_OUT_NEEDCLASSES (//)
 The output window needs listbrowser.gadget.
 ;

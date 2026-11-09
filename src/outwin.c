@@ -14,7 +14,12 @@
  * listbrowser.gadget only gets them while it is the active gadget.
  *
  * Below the list a status line tells what runs or how it ended, beside it
- * Stop ends the build (build_stop()). The window opens below the main
+ * Stop ends the build (build_stop()). Two buttons put the selected line
+ * or all lines into the clipboard: as FTXT, written straight to
+ * clipboard.device (unit 0), so no further library is needed. The selection
+ * is kept here as a row number, as the list is detached and attached again
+ * for every piece of output and the oldest nodes get freed; copying is
+ * silent, only a failure is reported. The window opens below the main
  * window, as wide as it (toolwin.c); its box is kept for the session and
  * written into the program icon by View/Snapshot Tool Windows.
  */
@@ -27,6 +32,8 @@
 #include <gadgets/listbrowser.h>
 #include <images/bevel.h>
 #include <libraries/keymap.h>
+#include <devices/clipboard.h>
+#include <exec/memory.h>
 
 #include <proto/exec.h>
 #include <proto/intuition.h>
@@ -41,7 +48,7 @@
 
 extern struct Library *ListBrowserBase;     /* shared with the settings window */
 
-enum { OG_LIST = 500, OG_STATUS, OG_STOP, OG_CLEAR };
+enum { OG_LIST = 500, OG_STATUS, OG_STOP, OG_CLEAR, OG_COPYLINE, OG_COPYALL };
 
 #define MIN_WIDTH 200               /**< smallest width of the window */
 #define MIN_HEIGHT 80               /**< smallest height of the window */
@@ -51,10 +58,13 @@ enum { OG_LIST = 500, OG_STATUS, OG_STOP, OG_CLEAR };
 
 /** State of the output window and its lines (there is one). */
 static struct {
-    Object *winobj, *root, *list, *status, *stop;
+    Object *winobj, *root, *list, *status, *stop, *copy_line, *copy_all;
     struct Window *win;
     struct List lines;              /* listbrowser nodes */
     long count;                     /* number of lines */
+    long selected;                  /* row of the selected line, -1: none */
+    int line_enabled;               /* Copy line is not ghosted */
+    int all_enabled;                /* Copy all is not ghosted */
     char partial[OUT_LINE_MAX];     /* the unfinished last line */
     size_t partial_length;
     int escape;                     /* inside an escape sequence: 1 after ESC, 2 in CSI */
@@ -71,7 +81,10 @@ static int open_classes(EditorApp *app)
 {
     if (ListBrowserBase == NULL) ListBrowserBase = OpenLibrary((STRPTR)"gadgets/listbrowser.gadget", 44);
     if (ListBrowserBase != NULL) {
-        if (ow.lines.lh_Head == NULL) NewList(&ow.lines);
+        if (ow.lines.lh_Head == NULL) {
+            NewList(&ow.lines);
+            ow.selected = -1;
+        }
         return 1;
     }
     ui_error(app, APP_NAME, S(MSG_OUT_NEEDCLASSES));
@@ -91,16 +104,36 @@ static Object *button(ULONG id, const char *text)
 }
 
 /**
- * @brief Show the lines anew (after lines were added or removed) and
- *        follow the end.
+ * @brief Ghost the copy buttons that would do nothing (only on a change).
+ */
+static void update_copy_buttons(void)
+{
+    int line = ow.selected >= 0;
+    int all = ow.count > 0;
+    if (ow.win == NULL) return;
+    if (line != ow.line_enabled) {
+        ow.line_enabled = line;
+        SetGadgetAttrs((struct Gadget *)ow.copy_line, ow.win, NULL, GA_Disabled, (ULONG)!line, TAG_END);
+    }
+    if (all != ow.all_enabled) {
+        ow.all_enabled = all;
+        SetGadgetAttrs((struct Gadget *)ow.copy_all, ow.win, NULL, GA_Disabled, (ULONG)!all, TAG_END);
+    }
+}
+
+/**
+ * @brief Show the lines anew (after lines were added or removed), keep the
+ *        selection and follow the end.
  */
 static void show_lines(void)
 {
     if (ow.win == NULL) return;
     SetGadgetAttrs((struct Gadget *)ow.list, ow.win, NULL,
                    LISTBROWSER_Labels, (ULONG)&ow.lines,
+                   LISTBROWSER_Selected, (ULONG)ow.selected,
                    ow.count > 0 ? LISTBROWSER_MakeVisible : TAG_IGNORE, (ULONG)(ow.count - 1),
                    TAG_END);
+    update_copy_buttons();
 }
 
 /**
@@ -131,7 +164,102 @@ static void add_line(const char *text, size_t length)
         struct Node *first = RemHead(&ow.lines);
         FreeListBrowserNode(first);
         --ow.count;
+        if (ow.selected >= 0) --ow.selected;    /* the rows moved up; row 0 is gone */
     }
+}
+
+/**
+ * @brief The text of a line.
+ * @param n The line's node.
+ * @return Its text, owned by the node; never NULL.
+ */
+static const char *line_text(struct Node *n)
+{
+    STRPTR text = NULL;
+    GetListBrowserNodeAttrs(n, LBNA_Column, 0, LBNCA_Text, (ULONG)&text, TAG_END);
+    return text != NULL ? (const char *)text : "";
+}
+
+/**
+ * @brief Write data as the new contents of the clipboard (unit 0).
+ * @param data A complete IFF file.
+ * @param length Its length.
+ * @return Non-zero if it was written.
+ */
+static int clip_write(APTR data, ULONG length)
+{
+    struct MsgPort *port = CreateMsgPort();
+    struct IOClipReq *io = NULL;
+    int ok = 0;
+    if (port != NULL) io = (struct IOClipReq *)CreateIORequest(port, sizeof(struct IOClipReq));
+    if (io != NULL && OpenDevice((STRPTR)"clipboard.device", PRIMARY_CLIP, (struct IORequest *)io, 0) == 0) {
+        io->io_Command = CMD_WRITE;
+        io->io_Data = (STRPTR)data;
+        io->io_Length = length;
+        io->io_Offset = 0;
+        io->io_ClipID = 0;
+        ok = DoIO((struct IORequest *)io) == 0 && io->io_Actual == length;
+        /* always, even after a failed write: it ends the write */
+        io->io_Command = CMD_UPDATE;
+        if (DoIO((struct IORequest *)io) != 0) ok = 0;
+        CloseDevice((struct IORequest *)io);
+    }
+    if (io != NULL) DeleteIORequest((struct IORequest *)io);
+    if (port != NULL) DeleteMsgPort(port);
+    return ok;
+}
+
+/**
+ * @brief Put lines into the clipboard as FTXT.
+ *
+ * Each line ends with a line feed, except a single line, which can then be
+ * pasted within a line.
+ *
+ * @param app The application state (for the requester).
+ * @param first The first line.
+ * @param rows The number of lines, at least 1.
+ */
+static void copy_lines(EditorApp *app, struct Node *first, long rows)
+{
+    struct Node *n = first;
+    ULONG size = 0, total;
+    ULONG *buffer;
+    char *p;
+    long i;
+    for (i = 0; i < rows; ++i, n = n->ln_Succ) size += strlen(line_text(n)) + 1;
+    if (rows == 1) --size;
+    total = 20 + size + (size & 1);     /* IFF chunks have an even length */
+    buffer = (ULONG *)AllocVec(total, MEMF_ANY);
+    if (buffer != NULL) {
+        buffer[0] = 0x464F524DUL;       /* FORM */
+        buffer[1] = total - 8;
+        buffer[2] = 0x46545854UL;       /* FTXT */
+        buffer[3] = 0x43485253UL;       /* CHRS */
+        buffer[4] = size;
+        p = (char *)(buffer + 5);
+        for (i = 0, n = first; i < rows; ++i, n = n->ln_Succ) {
+            size_t length = strlen(line_text(n));
+            memcpy(p, line_text(n), length);
+            p += length;
+            if (rows > 1) *p++ = '\n';
+        }
+        if (size & 1) *p = '\0';
+    }
+    if (buffer == NULL || !clip_write(buffer, total)) ui_error(app, APP_NAME, S(MSG_OUT_COPYFAILED));
+    if (buffer != NULL) FreeVec(buffer);
+}
+
+/**
+ * @brief Put the selected line into the clipboard, if there is one.
+ * @param app The application state.
+ */
+static void copy_selected_line(EditorApp *app)
+{
+    struct Node *n = ow.lines.lh_Head;
+    long i;
+    if (ow.selected < 0 || ow.selected >= ow.count) return;
+    for (i = 0; i < ow.selected; ++i) n = n->ln_Succ;
+    copy_lines(app, n, 1);
 }
 
 void outwin_add_text(EditorApp *app, const char *text, long length)
@@ -178,6 +306,7 @@ void outwin_clear(EditorApp *app)
     FreeListBrowserList(&ow.lines);
     NewList(&ow.lines);
     ow.count = 0;
+    ow.selected = -1;
     ow.partial_length = 0;
     ow.escape = 0;
     show_lines();
@@ -222,6 +351,12 @@ void outwin_open(EditorApp *app)
         TAG_END);
     ow.stop = button(OG_STOP, S(MSG_OUT_STOP));
     if (ow.stop != NULL) SetAttrs(ow.stop, GA_Disabled, (ULONG)!ow.running, TAG_END);
+    ow.copy_line = button(OG_COPYLINE, S(MSG_OUT_COPYLINE));
+    ow.copy_all = button(OG_COPYALL, S(MSG_OUT_COPYALL));
+    ow.line_enabled = ow.selected >= 0;
+    ow.all_enabled = ow.count > 0;
+    if (ow.copy_line != NULL) SetAttrs(ow.copy_line, GA_Disabled, (ULONG)!ow.line_enabled, TAG_END);
+    if (ow.copy_all != NULL) SetAttrs(ow.copy_all, GA_Disabled, (ULONG)!ow.all_enabled, TAG_END);
     ow.winobj = NewObject(WINDOW_GetClass(), NULL,
         WA_Title, (ULONG)S(MSG_OUT_TITLE),
         WA_PubScreen, (ULONG)app->screen,
@@ -242,6 +377,10 @@ void outwin_open(EditorApp *app)
                 LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
                 LAYOUT_InnerSpacing, 4,
                 LAYOUT_AddChild, (ULONG)ow.status,
+                LAYOUT_AddChild, (ULONG)ow.copy_line,
+                CHILD_WeightedWidth, 0,
+                LAYOUT_AddChild, (ULONG)ow.copy_all,
+                CHILD_WeightedWidth, 0,
                 LAYOUT_AddChild, (ULONG)ow.stop,
                 CHILD_WeightedWidth, 0,
                 LAYOUT_AddChild, (ULONG)button(OG_CLEAR, S(MSG_OUT_CLEAR)),
@@ -253,9 +392,16 @@ void outwin_open(EditorApp *app)
     if (ow.winobj == NULL || (ow.win = (struct Window *)DoMethod(ow.winobj, WM_OPEN, NULL)) == NULL) {
         if (ow.winobj != NULL) DisposeObject(ow.winobj);
         ow.winobj = NULL;
-        ow.list = ow.status = ow.stop = ow.root = NULL;
+        ow.list = ow.status = ow.stop = ow.copy_line = ow.copy_all = ow.root = NULL;
         return;
     }
+    /* a remembered box may be too small for the buttons */
+    if (box[2] < ow.win->MinWidth) box[2] = ow.win->MinWidth;
+    if (box[3] < ow.win->MinHeight) box[3] = ow.win->MinHeight;
+    if (box[0] + box[2] > ow.win->WScreen->Width) box[0] = (WORD)(ow.win->WScreen->Width - box[2]);
+    if (box[1] + box[3] > ow.win->WScreen->Height) box[1] = (WORD)(ow.win->WScreen->Height - box[3]);
+    if (box[0] < 0) box[0] = 0;
+    if (box[1] < 0) box[1] = 0;
     /* window.class may change the box it was given: set it again */
     if (ow.win->LeftEdge != box[0] || ow.win->TopEdge != box[1] ||
         ow.win->Width != box[2] || ow.win->Height != box[3])
@@ -277,7 +423,7 @@ void outwin_close(EditorApp *app)
     DisposeObject(ow.winobj);
     ow.winobj = NULL;
     ow.win = NULL;
-    ow.list = ow.status = ow.stop = ow.root = NULL;
+    ow.list = ow.status = ow.stop = ow.copy_line = ow.copy_all = ow.root = NULL;
 }
 
 ULONG outwin_sigmask(void)
@@ -310,6 +456,17 @@ void outwin_handle(EditorApp *app)
             break;
         case WMHI_GADGETUP:
             switch (result & WMHI_GADGETMASK) {
+            case OG_LIST: {
+                ULONG row = ~0UL;
+                GetAttr(LISTBROWSER_Selected, ow.list, &row);
+                ow.selected = (long)row;
+                update_copy_buttons();
+                break;
+            }
+            case OG_COPYLINE: copy_selected_line(app); break;
+            case OG_COPYALL:
+                if (ow.count > 0) copy_lines(app, ow.lines.lh_Head, ow.count);
+                break;
             case OG_STOP: build_stop(app); break;
             case OG_CLEAR: outwin_clear(app); break;
             }

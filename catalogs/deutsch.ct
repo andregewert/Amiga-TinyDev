@@ -1040,6 +1040,18 @@ MSG_OUT_CLEAR
 _Leeren
 ; C_lear
 ;
+MSG_OUT_COPYLINE
+_Zeile kopieren
+; Copy li_ne
+;
+MSG_OUT_COPYALL
+Alles _kopieren
+; Copy _all
+;
+MSG_OUT_COPYFAILED
+Konnte nicht in die Zwischenablage kopieren.
+; Could not copy to the clipboard.
+;
 MSG_OUT_NEEDCLASSES
 Das Ausgabefenster benötigt listbrowser.gadget.
 ; The output window needs listbrowser.gadget.

@@ -138,7 +138,8 @@ below the tree's root.
   (so commands added with `Path ... ADD` are found).
 - `src/outwin.c`: the output window, a tool window (View/Output Window,
   first placed below the main window, as wide as it): the build's lines
-  (kept also while it is closed, at most 2000), status line, Stop, Clear.
+  (kept also while it is closed, at most 2000), status line, Stop, Clear,
+  copying the selected or all lines to the clipboard.
 - `src/toolwin.c`: placement of tool windows (remembered box pushed into
   the screen, otherwise docked right of the main window or over its right
   edge). Their boxes are kept for the session (`EditorApp`); only
