@@ -817,6 +817,17 @@ void ui_begin_update(EditorApp *app);
  */
 void ui_end_update(EditorApp *app);
 /**
+ * @brief Tell whether the left or right mouse button is held down.
+ *
+ * While one is, the user may be moving a window or using a menu, and work
+ * that updates gadgets in the background waits (see "Background updates and
+ * the mouse" in TECHNICAL.md). Opens input.device at the first call.
+ *
+ * @return Non-zero if a button is held; 0 also without input.device.
+ */
+int ui_mouse_held(void);
+
+/**
  * @brief Display a simple modal error/notification requester with an OK button.
  *
  * @param app The application; its window is used as the requester parent (may

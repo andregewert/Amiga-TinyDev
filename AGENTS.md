@@ -513,6 +513,8 @@ Read the section of `TECHNICAL.md` before changing:
 
 - tree.c, minimap.c or the event loop's handling of the classes' signals:
   "Event flow between TinyDev and its classes";
+- work that updates gadgets in the background (timers, messages, build):
+  "Background updates and the mouse";
 - scrolling, the highlighter hook or the minimap viewport: "Scrolling,
   highlighting and the minimap viewport";
 - editor pens, backfill or colour settings: "Editor colours and

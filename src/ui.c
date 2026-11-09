@@ -27,6 +27,7 @@
 #include <graphics/gfx.h>
 #include <graphics/rastport.h>
 #include <graphics/view.h>
+#include <devices/inputevent.h>
 #include <intuition/icclass.h>
 #include <workbench/workbench.h>
 #include <proto/clicktab.h>
@@ -36,6 +37,7 @@
 #include <proto/exec.h>
 #include <proto/graphics.h>
 #include <proto/icon.h>
+#include <proto/input.h>
 #include <proto/intuition.h>
 #include <proto/layout.h>
 #include <proto/texteditor.h>
@@ -1558,9 +1560,26 @@ static void tab_event(EditorApp *app)
     }
 }
 
+/** Library base of input.device, for PeekQualifier(). */
+struct Device *InputBase = NULL;
+
+/** The request that keeps input.device open (never sent). */
+static struct IOStdReq input_request;
+
+int ui_mouse_held(void)
+{
+    if (InputBase == NULL) {
+        if (OpenDevice((STRPTR)"input.device", 0, (struct IORequest *)&input_request, 0) != 0) return 0;
+        InputBase = input_request.io_Device;
+    }
+    return (PeekQualifier() & (IEQUALIFIER_LEFTBUTTON | IEQUALIFIER_RBUTTON)) != 0;
+}
+
 int ui_run(EditorApp *app)
 {
     ULONG signals = 0, result, mask;
+    int tree_changed = 0;       /* a refresh of the tree waits for the mouse */
+    int defer;
     /* WM_HANDLEINPUT stores the gadget/IDCMP code through a WORD* (wmh_Code),
      * so this must be a 16-bit WORD.  Using a ULONG here made the returned
      * value land in the high word on the big-endian 68000, so (UWORD)code was
@@ -1580,10 +1599,17 @@ int ui_run(EditorApp *app)
                        bmlist_sigmask() | outwin_sigmask() | build_sigmask() | scoutlink_sigmask() |
                        symlist_sigmask() | diaglist_sigmask() | complete_sigmask() |
                        SIGBREAKF_CTRL_C);
+        /* See "Background updates and the mouse" in TECHNICAL.md. Only
+         * during a build, whose timer wakes the loop again. */
+        defer = build_running() && ui_mouse_held();
         build_handle(app, signals);
-        scoutlink_handle(app);
+        if (!defer) scoutlink_handle(app);
         /* a shown directory changed (a file was made, deleted, renamed) */
-        if ((signals & tree_mask) != 0) tree_refresh(app, 0);
+        if ((signals & tree_mask) != 0) tree_changed = 1;
+        if (tree_changed && !defer) {
+            tree_changed = 0;
+            tree_refresh(app, 0);
+        }
         if ((signals & scroll_mask) != 0) document_scroll_live(app);
         if (signals & SIGBREAKF_CTRL_C) { if (close_all(app)) break; }
         while ((result = DoMethod(app->window_object, WM_HANDLEINPUT, &code)) != WMHI_LASTMSG) {
@@ -1684,6 +1710,10 @@ void ui_destroy(EditorApp *app)
     minimap_forget_document(app, NULL);
     document_free_all(app);
     scoutlink_free_rules();       /* the editors that used them are gone */
+    if (InputBase != NULL) {
+        CloseDevice((struct IORequest *)&input_request);
+        InputBase = NULL;
+    }
     if (app->window_object != NULL) {
         if (app->window != NULL) DoMethod(app->window_object, WM_CLOSE, NULL);
         DisposeObject(app->window_object);  /* also the AppIcon and the icon */

@@ -29,6 +29,22 @@ process:
   the document, so a document is disconnected
   (`minimap_forget_document()`) before its editor is disposed.
 
+## Background updates and the mouse
+
+While the user moves a window or uses a menu, Intuition holds the layers,
+and a gadget method called from TinyDev's task can then hang the system
+(seen: moving the output window during a build). So, during a build, the
+event loop does not update gadgets from the background while a mouse button
+is held (`ui_mouse_held()`, with `PeekQualifier()`, which also works with
+mice that do not go through the CIA): the build's output and its end, the
+answers of Scout and the tree's refresh wait for a later turn. The build's
+timer guarantees that turn; without a build nothing would wake the loop, so
+nothing waits then.
+
+Do not protect such calls with `LockLayerInfo()`: the autodoc of
+`intuition.library/BeginRefresh` forbids Intuition functions dealing with
+gadgets while that lock is held.
+
 ## Scrolling, highlighting and the minimap viewport
 
 While a scrollbar is dragged, the syntax highlighting is suspended and the

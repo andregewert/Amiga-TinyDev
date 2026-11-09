@@ -22,6 +22,8 @@
  * through this handle, and with its buffer the text would only arrive in
  * the file when the buffer is full or the handle closed. It stays after
  * the build (for a look with Type) until the next build or quit.
+ * While a mouse button is held nothing is read and the end is not shown
+ * yet (ui_mouse_held()): the timer goes on and the next turn catches up.
  * Stop sends Ctrl-C to the Shell of the build, found as the CLI whose
  * output is that file. Only one build runs at a time; TinyDev waits for
  * it before quitting.
@@ -72,6 +74,7 @@ static const LONG action_names[PROJ_ACTIONS] = { MSG_PJ_CAT_BUILD, MSG_PJ_CAT_RU
 static struct {
     int running;
     int stopping;                       /* Stop was used */
+    int done;                           /* the process has reported its end */
     char name[128];                     /* the command's name */
     char script[EDITOR_PATH_MAX];       /* the build's script */
     char output[EDITOR_PATH_MAX];       /* its output */
@@ -392,7 +395,7 @@ static void finished(EditorApp *app)
     else snprintf(text, sizeof(text), S(MSG_BUILD_FAILED), bj.name, (long)bj.rc);
     outwin_set_status(text, 0);
     if (bj.rc != 0 && !bj.stopping && app->screen != NULL) DisplayBeep(app->screen);
-    bj.running = bj.stopping = 0;
+    bj.running = bj.stopping = bj.done = 0;
     release();
 }
 
@@ -453,7 +456,7 @@ static void start_build(EditorApp *app)
     bj.msg.mn_Node.ln_Type = NT_MESSAGE;
     bj.msg.mn_Length = sizeof(bj.msg);
     bj.rc = -1;
-    bj.stopping = 0;
+    bj.stopping = bj.done = 0;
 
     outwin_clear(app);
     snprintf(text, sizeof(text), S(MSG_BUILD_RUNNING), bj.name);
@@ -516,14 +519,20 @@ ULONG build_sigmask(void)
 
 void build_handle(EditorApp *app, ULONG signals)
 {
+    int held;
     if (!bj.running) return;
+    held = ui_mouse_held();
     if (bj.timer_port != NULL && (signals & (1UL << bj.timer_port->mp_SigBit)) != 0 &&
         GetMsg(bj.timer_port) != NULL) {
         bj.timer_pending = 0;
-        read_output(app);
+        if (!held) read_output(app);
         start_timer();
     }
-    if (GetMsg(bj.port) != NULL) finished(app);
+    if (!bj.done && GetMsg(bj.port) != NULL) bj.done = 1;
+    if (bj.done) {
+        if (held) start_timer();    /* to come back when the button is up */
+        else finished(app);
+    }
 }
 
 int build_may_quit(EditorApp *app)
@@ -540,7 +549,7 @@ void build_cleanup(EditorApp *app)
         /* stop it and wait: the process runs code of TinyDev; Ctrl-C again
          * every turn of the timer, in case the first came too early */
         build_stop(app);
-        while (GetMsg(bj.port) == NULL) {
+        while (!bj.done && GetMsg(bj.port) == NULL) {
             ULONG got = Wait(build_sigmask());
             if (bj.timer_port != NULL && (got & (1UL << bj.timer_port->mp_SigBit)) != 0 &&
                 GetMsg(bj.timer_port) != NULL) {
