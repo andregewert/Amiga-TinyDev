@@ -4,7 +4,7 @@
 # AmigaOS (GNU make); the commands run in the AmigaShell.
 
 CC = gcc
-CFLAGS = -O2 -noixemul -Iinclude -fno-common -fomit-frame-pointer -fno-toplevel-reorder
+CFLAGS = -O2 -noixemul -Iinclude -fno-common -fomit-frame-pointer
 
 all: {$NAME.lower}.library test{$NAME}
 
