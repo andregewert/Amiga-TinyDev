@@ -391,6 +391,13 @@ below the tree's root.
   `help/<language>/` (TinyDev's help pages, HTML in ISO-8859-1 with
   entities; language drawers named like the Amiga locales, the same file
   names in every language; `make` copies them to `bin/Help/`).
+- `fonts/Holstein/`: Holstein, the monospaced bitmap font that comes with
+  TinyDev (derived from DejaVu Sans Mono, Bitstream Vera licence in
+  `LICENSE`; the name may not contain "Bitstream" or "Vera"):
+  `glyphs.txt` is its source, every glyph as rows of `#` and `.` (cell
+  8 x 16, baseline row 11), edited by hand. `tools/mkfont.py` builds
+  `bin/Fonts/Holstein.font` with the sizes 16 and 17 (17 adds an empty row
+  below); the Installer copies it to `FONTS:` if chosen.
 - `tools/mksprouttests.py`: makes the LhA archives of
   `tests/test_sprout_lha.c` (`tests/data/sprout/`) with jlha.
 - `tools/check_templates.py`, `tests/tmpl_generate.c`: `make check-templates`
@@ -443,6 +450,8 @@ make test
   `bin/Classes/Gadgets/<name>.gadget`,
   `bin/Catalogs/<language>/TinyDev.catalog`, `bin/HelpViewer`,
   `bin/Sprout`, `bin/mdtohtml`, `bin/Templates/`,
+  `bin/Fonts/Holstein.font` (with `Holstein/16`, `Holstein/17` and
+  `Holstein.license`),
   `bin/Help/<language>/`), laid out as on
   the Amiga; nothing else goes there. All intermediate files (objects,
   dependency files, `.debug` files, host test binaries) go to `build/`; gadget

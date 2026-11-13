@@ -78,6 +78,12 @@ OPENURL := external/openurl
 HELP_SOURCES := $(shell find package/help -type f 2>/dev/null)
 HELP_FILES := $(patsubst package/help/%,$(BIN_DIR)/Help/%,$(HELP_SOURCES))
 
+# Holstein, TinyDev's monospaced bitmap font (fonts/Holstein/glyphs.txt,
+# derived from DejaVu Sans Mono): built with tools/mkfont.py into bin/Fonts/
+# in the sizes 16 and 17, with its licence beside it.
+FONT_TARGET := $(BIN_DIR)/Fonts/Holstein.font
+FONT_LICENSE := $(BIN_DIR)/Fonts/Holstein.license
+
 # Gadget classes (src/classes/<name>/), each a disk-based class library for
 # SYS:Classes/Gadgets/. They are written to bin/Classes/Gadgets/ so that
 # TinyDev finds them as PROGDIR:Classes/Gadgets/<name>.gadget when they are
@@ -132,7 +138,7 @@ REGEX_CFLAGS := -DPOSIX_MISTAKE -I$(REGEX_GEN) -I$(REGEX_DIR) -w
 REGEX_OBJECTS := $(foreach n,$(REGEX_NAMES),$(REGEX_GEN)/$(n).o)
 REGEX_HOST_OBJECTS := $(foreach n,$(REGEX_NAMES),$(REGEX_GEN)/host/$(n).o)
 # (the LhA archives of tests/data/sprout/ are binary)
-LATIN1 := $(filter-out tests/data/sprout/%,$(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h src/helpviewer/*.h src/helpviewer/catalogs/* src/scout/*.h src/scout/catalogs/* sfd/*.sfd tests/*.c scripts/* tests-host/* catalogs/* package/*.readme package/Install $(filter %.html,$(HELP_SOURCES)) tests/data/*/* LICENSE Makefile))
+LATIN1 := $(filter-out tests/data/sprout/%,$(wildcard src/*.c src/*/*.c include/*.h include/*/*.h src/classes/*/*.c src/classes/*/*.h src/helpviewer/*.h src/helpviewer/catalogs/* src/scout/*.h src/scout/catalogs/* sfd/*.sfd tests/*.c scripts/* tests-host/* catalogs/* package/*.readme package/Install $(filter %.html,$(HELP_SOURCES)) tests/data/*/* fonts/*/* LICENSE Makefile))
 
 # Translations: catalogs/TinyDev.cd holds the built-in English strings,
 # catalogs/<language>.ct the translations. include/tinydev_strings.h is in
@@ -148,7 +154,7 @@ SCOUT_CATALOGS := $(foreach l,$(SCOUT_LANGUAGES),$(BIN_DIR)/Catalogs/$(l)/TinyDe
 
 .PHONY: all clean test icons dist templates charcheck-templates check-templates
 all: charcheck charcheck-templates $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(SCOUT_CATALOGS) $(PARSER_C_TARGET) $(PARSER_DOS_TARGET) $(PARSER_MAKE_TARGET) $(PARSER_MARKDOWN_TARGET) $(PARSER_JSON_TARGET) $(PARSER_MARKUP_TARGET) $(PARSER_AREXX_TARGET) $(PARSER_ASM_TARGET) $(PARSER_E_TARGET) $(PARSER_ACE_TARGET) $(PARSER_PASCAL_TARGET) $(PARSER_GUIDE_TARGET) $(CATALOGS) \
-     $(HV_TARGET) $(HV_CATALOGS) $(HELP_FILES) $(SPROUT_TARGET) $(MDTOHTML_TARGET) templates
+     $(HV_TARGET) $(HV_CATALOGS) $(HELP_FILES) $(SPROUT_TARGET) $(MDTOHTML_TARGET) $(FONT_TARGET) $(FONT_LICENSE) templates
 
 # Included after "all" so that charcheck does not become the default goal.
 include $(DEVKIT)/make/charcheck.mk
@@ -248,6 +254,14 @@ $(MDTOHTML_TARGET): $(MDTOHTML_OBJECTS)
 	@mkdir -p $(BIN_DIR)
 	$(TARGET_CC) $(LDFLAGS) -Wl,-u,___stkinit -o $(MDTOHTML_OBJ_DIR)/mdtohtml.debug $(MDTOHTML_OBJECTS)
 	$(TARGET_STRIP) -o $@ $(MDTOHTML_OBJ_DIR)/mdtohtml.debug
+
+$(FONT_TARGET): fonts/Holstein/glyphs.txt tools/mkfont.py
+	@mkdir -p $(BIN_DIR)/Fonts
+	python3 tools/mkfont.py $< Holstein $(BIN_DIR)/Fonts 16 17
+
+$(FONT_LICENSE): fonts/Holstein/LICENSE
+	@mkdir -p $(BIN_DIR)/Fonts
+	cp $< $@
 
 # copied again every time (cheap), so removed files go too
 templates:

@@ -5,7 +5,8 @@
 ;
 ; Everything goes into one drawer: TinyDev finds its classes, catalogs, help
 ; pages, parsers, HelpViewer and mdtohtml there (PROGDIR:), so removing the
-; drawer removes TinyDev. The icons of TinyDev, TinyDev-Scout and HelpViewer
+; drawer removes TinyDev. Only the font Holstein may also go to FONTS:, if
+; chosen. The icons of TinyDev, TinyDev-Scout and HelpViewer
 ; hold the user's settings as tool types: if there are such icons already,
 ; the user chooses to keep them or to take those of the chosen set.
 ;
@@ -70,7 +71,8 @@
         (choices
             (select #l "Documentation" "Dokumentation")
             (select #l "Source code" "Quelltexte")
-            (select #l "An additional copy of mdtohtml in C:" "Eine zusätzliche Kopie von mdtohtml in C:"))
+            (select #l "An additional copy of mdtohtml in C:" "Eine zusätzliche Kopie von mdtohtml in C:")
+            (select #l "The bitmap font Holstein in FONTS:" "Die Bitmap-Schrift Holstein in FONTS:"))
         (default 1)))
 
 (set #style
@@ -106,6 +108,7 @@
 (P_COPYDIR "Catalogs")
 (P_COPYDIR "Help")
 (P_COPYDIR "Templates")
+(P_COPYDIR "Fonts")
 (if (IN #parts 0)
     (P_COPYDIR "Docs"))
 (if (IN #parts 1)
@@ -172,6 +175,24 @@
         (source "mdtohtml")
         (dest "C:")
         (confirm)))
+
+; Holstein, a monospaced bitmap font (sizes 16 and 17) for the screen font;
+; it also stays in the drawer Fonts of TinyDev, with its licence
+(if (IN #parts 3)
+    (
+        (copyfiles
+            (prompt (select #l "Copying the font Holstein to FONTS:" "Die Schrift Holstein wird nach FONTS: kopiert"))
+            (help @copyfiles-help)
+            (source "Fonts/Holstein.font")
+            (dest "FONTS:"))
+        (if (= (exists "FONTS:Holstein") 0)
+            (makedir "FONTS:Holstein"))
+        (copyfiles
+            (prompt (select #l "Copying the font Holstein to FONTS:" "Die Schrift Holstein wird nach FONTS: kopiert"))
+            (help @copyfiles-help)
+            (source "Fonts/Holstein")
+            (dest "FONTS:Holstein")
+            (all))))
 
 ; html.gadget is needed for the help (Aminet dev/gui/html_gadget.lha)
 (if (AND (= (exists "SYS:Classes/Gadgets/html.gadget" (noreq)) 0)

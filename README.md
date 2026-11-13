@@ -174,3 +174,7 @@ as a submodule; the library is installed separately.
 
 Markdown: `mdtohtml` from [Kickdown](https://github.com/andregewert/Amiga-Kickdown)
 with [md4c](https://github.com/mity/md4c) (MIT License), used unchanged as a submodule.
+
+Font: Holstein is derived from [DejaVu Sans Mono](https://dejavu-fonts.github.io/)
+(Bitstream Vera Sans Mono with the DejaVu changes), rendered as a bitmap and
+redrawn in parts by hand; licence in `fonts/Holstein/LICENSE`.

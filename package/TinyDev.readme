@@ -37,6 +37,8 @@ Features
  - Simple project management
  - File and project templates
  - Syntax highlighting for various languages
+ - Holstein, a monospaced bitmap font for the screen (sizes 16 and 17,
+   derived from DejaVu Sans Mono)
  - Bookmark management
  - Static source code analysis
  - Symbol list
@@ -84,6 +86,8 @@ Contents
  Help/                help pages (english, deutsch)
  Classes/Gadgets/     dirtree.gadget and minimap.gadget
  Catalogs/            translations (German)
+ Fonts/               Holstein, a monospaced bitmap font (sizes 16, 17),
+                      with its licence
  Docs/                documentation (README.md)
  Icons/               the archive's icons as Classic, GlowIcons and
                       NewIcons (and scripts that put them in place)
@@ -102,6 +106,8 @@ regex: Henry Spencer's regular expression library, see
 Source/external/regex/COPYRIGHT.
 mdtohtml: from Kickdown, with md4c (both MIT License), see
 Source/external/mdtools/.
+Holstein: derived from DejaVu Sans Mono (Bitstream Vera licence), see
+Fonts/Holstein.license.
 
 Deutsch
 =======
@@ -137,6 +143,8 @@ Funktionen
  - Einfache Projektverwaltung
  - Datei- und Projekt-Vorlagen
  - Syntax-Highlighting für verschiedene Sprachen
+ - Holstein, eine Bitmap-Schrift mit fester Zeichenbreite für den
+   Bildschirm (Größen 16 und 17, abgeleitet von DejaVu Sans Mono)
  - Lesezeichenverwaltung
  - Statische Quellcode-Analyse
  - Symbolliste
@@ -187,6 +195,8 @@ Inhalt
  Help/                Hilfeseiten (english, deutsch)
  Classes/Gadgets/     dirtree.gadget und minimap.gadget
  Catalogs/            Übersetzungen (Deutsch)
+ Fonts/               Holstein, eine Bitmap-Schrift mit fester
+                      Zeichenbreite (Größen 16, 17), mit ihrer Lizenz
  Docs/                Dokumentation (README.md)
  Icons/               die Icons des Archivs als Classic, GlowIcons und
                       NewIcons (und Skripte, die sie an ihren Platz bringen)
@@ -205,3 +215,5 @@ regex: die Bibliothek für reguläre Ausdrücke von Henry Spencer, siehe
 Source/external/regex/COPYRIGHT.
 mdtohtml: aus Kickdown, mit md4c (beide MIT-Lizenz), siehe
 Source/external/mdtools/.
+Holstein: abgeleitet von DejaVu Sans Mono (Bitstream-Vera-Lizenz), siehe
+Fonts/Holstein.license.

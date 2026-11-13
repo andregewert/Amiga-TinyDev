@@ -4,7 +4,8 @@
 # Copyright (c) 2026 André Gewert <agewert@ubergeek.de>, MIT License
 #
 # Creates dist/TinyDev/ with the installer script, the programs, classes,
-# catalogs and help pages from bin/ (laid out as on the Amiga, so it runs from the archive),
+# catalogs, help pages and the font Holstein from bin/ (laid out as on the Amiga, so it runs
+# from the archive),
 # the templates packed as LhA archives (Templates/<Id>.lha, for Sprout),
 # the documentation (README.md converted to ISO-8859-1), the sources and
 # icons (classic icons next to the files, complete GlowIcons and NewIcons
@@ -67,7 +68,7 @@ def main():
               os.path.join('parsers', 'e_parser'), os.path.join('parsers', 'ace_parser'), os.path.join('parsers', 'pascal_parser'),
               os.path.join('parsers', 'guide_parser')):
         copy(b('bin', f), os.path.join(PKG, f))
-    for d in ('Classes', 'Catalogs', 'Help'):
+    for d in ('Classes', 'Catalogs', 'Help', 'Fonts'):
         copytree(b('bin', d), os.path.join(PKG, d))
     pack_templates(os.path.join(PKG, 'Templates'))
 
@@ -81,7 +82,7 @@ def main():
 
     # sources in the same layout as the repository, so "make" works there
     src = os.path.join(PKG, 'Source')
-    for d in ('src', 'include', 'sfd', 'catalogs', 'tests', 'scripts', 'tools', 'package', 'templates', 'helpsrc'):
+    for d in ('src', 'include', 'sfd', 'catalogs', 'tests', 'scripts', 'tools', 'package', 'templates', 'helpsrc', 'fonts'):
         copytree(b(d), os.path.join(src, d), ignore=('__pycache__',))
     for f in ('Makefile', 'README.md', 'LICENSE', 'AGENTS.md', 'CLAUDE.md', 'TECHNICAL.md',
               'screenshot.png', 'logo.png'):
@@ -126,7 +127,8 @@ def main():
              (NAME + '.readme', 'readme', WBPROJECT, dict(default_tool=MULTIVIEW)),
              ('LICENSE', 'license', WBPROJECT, dict(default_tool=MULTIVIEW)),
              ('Docs/README.md', 'readme', WBPROJECT, dict(default_tool=MULTIVIEW))]
-    shown = ['Docs', 'Icons', 'Source', 'parsers', 'Classes', 'Catalogs', 'Help', 'Templates']
+    # Fonts/ gets an icon, its size drawers (Fonts/Holstein) none, as in FONTS:
+    shown = ['Docs', 'Icons', 'Source', 'parsers', 'Classes', 'Catalogs', 'Help', 'Templates', 'Fonts']
     for top in ('Classes', 'Catalogs', 'Help'):
         shown += drawers(os.path.join(PKG, top))
     for d in shown:
