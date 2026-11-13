@@ -366,7 +366,7 @@ below the tree's root.
   `openurl.library` (`developer/C/include`), with which the HelpViewer opens
   `http:` and `https:` links. The library is optional and opened at the
   first such link. Do not edit it.
-- `external/mdtools/`: git submodule (tag `v1.2-beta1`; the Kickdown project,
+- `external/mdtools/`: git submodule (tag `v1.2`; the Kickdown project,
   repository Amiga-Kickdown) for `bin/mdtohtml`, which turns a tree of Markdown files
   into HTML pages. The Makefile compiles only its converter, unchanged and
   without our warning flags, with the nested submodule `md4c`; `make dist`
