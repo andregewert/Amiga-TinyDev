@@ -37,8 +37,8 @@ Features
  - Simple project management
  - File and project templates
  - Syntax highlighting for various languages
- - Holstein, a monospaced bitmap font for the screen (sizes 16 and 17,
-   derived from DejaVu Sans Mono)
+ - Two monospaced bitmap fonts for the screen: Holstein (sizes 16 and 17,
+   derived from DejaVu Sans Mono) and Tamzen (15 and 16)
  - Bookmark management
  - Static source code analysis
  - Symbol list
@@ -86,8 +86,8 @@ Contents
  Help/                help pages (english, deutsch)
  Classes/Gadgets/     dirtree.gadget and minimap.gadget
  Catalogs/            translations (German)
- Fonts/               Holstein, a monospaced bitmap font (sizes 16, 17),
-                      with its licence
+ Fonts/               monospaced bitmap fonts: Holstein (sizes 16, 17)
+                      and Tamzen (15, 16), with their licences
  Docs/                documentation (README.md)
  Icons/               the archive's icons as Classic, GlowIcons and
                       NewIcons (and scripts that put them in place)
@@ -108,6 +108,8 @@ mdtohtml: from Kickdown, with md4c (both MIT License), see
 Source/external/mdtools/.
 Holstein: derived from DejaVu Sans Mono (Bitstream Vera licence), see
 Fonts/Holstein.license.
+Tamzen: by Suraj N. Kurapati, a fork of Tamsyn by Scott Fial (free), see
+Fonts/Tamzen.license.
 
 Deutsch
 =======
@@ -143,8 +145,9 @@ Funktionen
  - Einfache Projektverwaltung
  - Datei- und Projekt-Vorlagen
  - Syntax-Highlighting für verschiedene Sprachen
- - Holstein, eine Bitmap-Schrift mit fester Zeichenbreite für den
-   Bildschirm (Größen 16 und 17, abgeleitet von DejaVu Sans Mono)
+ - Zwei Bitmap-Schriften mit fester Zeichenbreite für den Bildschirm:
+   Holstein (Größen 16 und 17, abgeleitet von DejaVu Sans Mono) und
+   Tamzen (15 und 16)
  - Lesezeichenverwaltung
  - Statische Quellcode-Analyse
  - Symbolliste
@@ -195,8 +198,8 @@ Inhalt
  Help/                Hilfeseiten (english, deutsch)
  Classes/Gadgets/     dirtree.gadget und minimap.gadget
  Catalogs/            Übersetzungen (Deutsch)
- Fonts/               Holstein, eine Bitmap-Schrift mit fester
-                      Zeichenbreite (Größen 16, 17), mit ihrer Lizenz
+ Fonts/               Bitmap-Schriften mit fester Zeichenbreite: Holstein
+                      (Größen 16, 17) und Tamzen (15, 16), mit Lizenzen
  Docs/                Dokumentation (README.md)
  Icons/               die Icons des Archivs als Classic, GlowIcons und
                       NewIcons (und Skripte, die sie an ihren Platz bringen)
@@ -217,3 +220,5 @@ mdtohtml: aus Kickdown, mit md4c (beide MIT-Lizenz), siehe
 Source/external/mdtools/.
 Holstein: abgeleitet von DejaVu Sans Mono (Bitstream-Vera-Lizenz), siehe
 Fonts/Holstein.license.
+Tamzen: von Suraj N. Kurapati, ein Fork von Tamsyn von Scott Fial (frei),
+siehe Fonts/Tamzen.license.

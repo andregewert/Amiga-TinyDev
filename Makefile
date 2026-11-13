@@ -78,11 +78,12 @@ OPENURL := external/openurl
 HELP_SOURCES := $(shell find package/help -type f 2>/dev/null)
 HELP_FILES := $(patsubst package/help/%,$(BIN_DIR)/Help/%,$(HELP_SOURCES))
 
-# Holstein, TinyDev's monospaced bitmap font (fonts/Holstein/glyphs.txt,
-# derived from DejaVu Sans Mono): built with tools/mkfont.py into bin/Fonts/
-# in the sizes 16 and 17, with its licence beside it.
-FONT_TARGET := $(BIN_DIR)/Fonts/Holstein.font
-FONT_LICENSE := $(BIN_DIR)/Fonts/Holstein.license
+# The monospaced bitmap fonts (fonts/<Name>/, glyphs as text): built with
+# tools/mkfont.py into bin/Fonts/, each with its licence beside it.
+# Holstein (derived from DejaVu Sans Mono) in the sizes 16 and 17, Tamzen
+# (Tamsyn's fork) in 15 and 16.
+FONT_TARGETS := $(BIN_DIR)/Fonts/Holstein.font $(BIN_DIR)/Fonts/Tamzen.font
+FONT_LICENSES := $(BIN_DIR)/Fonts/Holstein.license $(BIN_DIR)/Fonts/Tamzen.license
 
 # Gadget classes (src/classes/<name>/), each a disk-based class library for
 # SYS:Classes/Gadgets/. They are written to bin/Classes/Gadgets/ so that
@@ -154,7 +155,7 @@ SCOUT_CATALOGS := $(foreach l,$(SCOUT_LANGUAGES),$(BIN_DIR)/Catalogs/$(l)/TinyDe
 
 .PHONY: all clean test icons dist templates charcheck-templates check-templates
 all: charcheck charcheck-templates $(TARGET) $(CLASS_GADGETS) $(SCOUT_TARGET) $(SCOUT_CATALOGS) $(PARSER_C_TARGET) $(PARSER_DOS_TARGET) $(PARSER_MAKE_TARGET) $(PARSER_MARKDOWN_TARGET) $(PARSER_JSON_TARGET) $(PARSER_MARKUP_TARGET) $(PARSER_AREXX_TARGET) $(PARSER_ASM_TARGET) $(PARSER_E_TARGET) $(PARSER_ACE_TARGET) $(PARSER_PASCAL_TARGET) $(PARSER_GUIDE_TARGET) $(CATALOGS) \
-     $(HV_TARGET) $(HV_CATALOGS) $(HELP_FILES) $(SPROUT_TARGET) $(MDTOHTML_TARGET) $(FONT_TARGET) $(FONT_LICENSE) templates
+     $(HV_TARGET) $(HV_CATALOGS) $(HELP_FILES) $(SPROUT_TARGET) $(MDTOHTML_TARGET) $(FONT_TARGETS) $(FONT_LICENSES) templates
 
 # Included after "all" so that charcheck does not become the default goal.
 include $(DEVKIT)/make/charcheck.mk
@@ -255,11 +256,15 @@ $(MDTOHTML_TARGET): $(MDTOHTML_OBJECTS)
 	$(TARGET_CC) $(LDFLAGS) -Wl,-u,___stkinit -o $(MDTOHTML_OBJ_DIR)/mdtohtml.debug $(MDTOHTML_OBJECTS)
 	$(TARGET_STRIP) -o $@ $(MDTOHTML_OBJ_DIR)/mdtohtml.debug
 
-$(FONT_TARGET): fonts/Holstein/glyphs.txt tools/mkfont.py
+$(BIN_DIR)/Fonts/Holstein.font: fonts/Holstein/glyphs.txt tools/mkfont.py
 	@mkdir -p $(BIN_DIR)/Fonts
-	python3 tools/mkfont.py $< Holstein $(BIN_DIR)/Fonts 16 17
+	python3 tools/mkfont.py Holstein $(BIN_DIR)/Fonts $< $<:17
 
-$(FONT_LICENSE): fonts/Holstein/LICENSE
+$(BIN_DIR)/Fonts/Tamzen.font: fonts/Tamzen/glyphs15.txt fonts/Tamzen/glyphs16.txt tools/mkfont.py
+	@mkdir -p $(BIN_DIR)/Fonts
+	python3 tools/mkfont.py Tamzen $(BIN_DIR)/Fonts fonts/Tamzen/glyphs15.txt fonts/Tamzen/glyphs16.txt
+
+$(BIN_DIR)/Fonts/%.license: fonts/%/LICENSE
 	@mkdir -p $(BIN_DIR)/Fonts
 	cp $< $@
 

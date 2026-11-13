@@ -5,8 +5,8 @@
 ;
 ; Everything goes into one drawer: TinyDev finds its classes, catalogs, help
 ; pages, parsers, HelpViewer and mdtohtml there (PROGDIR:), so removing the
-; drawer removes TinyDev. Only the font Holstein may also go to FONTS:, if
-; chosen. The icons of TinyDev, TinyDev-Scout and HelpViewer
+; drawer removes TinyDev. Only the fonts Holstein and Tamzen may also go to
+; FONTS:, if chosen. The icons of TinyDev, TinyDev-Scout and HelpViewer
 ; hold the user's settings as tool types: if there are such icons already,
 ; the user chooses to keep them or to take those of the chosen set.
 ;
@@ -72,7 +72,7 @@
             (select #l "Documentation" "Dokumentation")
             (select #l "Source code" "Quelltexte")
             (select #l "An additional copy of mdtohtml in C:" "Eine zusätzliche Kopie von mdtohtml in C:")
-            (select #l "The bitmap font Holstein in FONTS:" "Die Bitmap-Schrift Holstein in FONTS:"))
+            (select #l "The bitmap fonts Holstein and Tamzen in FONTS:" "Die Bitmap-Schriften Holstein und Tamzen in FONTS:"))
         (default 1)))
 
 (set #style
@@ -176,23 +176,28 @@
         (dest "C:")
         (confirm)))
 
-; Holstein, a monospaced bitmap font (sizes 16 and 17) for the screen font;
-; it also stays in the drawer Fonts of TinyDev, with its licence
-(if (IN #parts 3)
+; the monospaced bitmap fonts Holstein (sizes 16, 17) and Tamzen (15, 16)
+; for the screen font; they also stay in the drawer Fonts of TinyDev, with
+; their licences
+(procedure P_FONT #font
     (
         (copyfiles
-            (prompt (select #l "Copying the font Holstein to FONTS:" "Die Schrift Holstein wird nach FONTS: kopiert"))
+            (prompt (cat (select #l "Copying the font " "Kopiere die Schrift ") #font (select #l " to FONTS:" " nach FONTS:")))
             (help @copyfiles-help)
-            (source "Fonts/Holstein.font")
+            (source (tackon "Fonts" (cat #font ".font")))
             (dest "FONTS:"))
-        (if (= (exists "FONTS:Holstein") 0)
-            (makedir "FONTS:Holstein"))
+        (if (= (exists (tackon "FONTS:" #font)) 0)
+            (makedir (tackon "FONTS:" #font)))
         (copyfiles
-            (prompt (select #l "Copying the font Holstein to FONTS:" "Die Schrift Holstein wird nach FONTS: kopiert"))
+            (prompt (cat (select #l "Copying the font " "Kopiere die Schrift ") #font (select #l " to FONTS:" " nach FONTS:")))
             (help @copyfiles-help)
-            (source "Fonts/Holstein")
-            (dest "FONTS:Holstein")
+            (source (tackon "Fonts" #font))
+            (dest (tackon "FONTS:" #font))
             (all))))
+(if (IN #parts 3)
+    (
+        (P_FONT "Holstein")
+        (P_FONT "Tamzen")))
 
 ; html.gadget is needed for the help (Aminet dev/gui/html_gadget.lha)
 (if (AND (= (exists "SYS:Classes/Gadgets/html.gadget" (noreq)) 0)

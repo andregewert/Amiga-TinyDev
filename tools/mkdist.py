@@ -4,7 +4,7 @@
 # Copyright (c) 2026 André Gewert <agewert@ubergeek.de>, MIT License
 #
 # Creates dist/TinyDev/ with the installer script, the programs, classes,
-# catalogs, help pages and the font Holstein from bin/ (laid out as on the Amiga, so it runs
+# catalogs, help pages and the fonts (Holstein, Tamzen) from bin/ (laid out as on the Amiga, so it runs
 # from the archive),
 # the templates packed as LhA archives (Templates/<Id>.lha, for Sprout),
 # the documentation (README.md converted to ISO-8859-1), the sources and

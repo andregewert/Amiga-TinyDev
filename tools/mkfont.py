@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Build a monospaced Amiga bitmap font from a glyph text file.
 
-Usage: mkfont.py <glyphs.txt> <name> <fonts drawer> <size> [<size> ...]
+Usage: mkfont.py <name> <fonts drawer> <glyphs.txt>[:<size>] ...
 
 Writes <fonts drawer>/<name>.font (struct FontContentsHeader listing every
-size) and <fonts drawer>/<name>/<size> for each size. The glyph file holds
-cells of 8 x 16 pixels; a larger size gets empty rows below the descenders,
-so only the line height grows. The format of the glyph file is described in
-its own header (fonts/Holstein/glyphs.txt).
+size) and <fonts drawer>/<name>/<size> for each glyph file. A size is the
+height of the file's cells unless given after a colon: a larger one gets
+empty rows below the descenders, so only the line height grows. The format
+of the glyph file is described in fonts/Holstein/glyphs.txt.
 
 A font file is a hunk executable (as diskfont.library loads it with
 LoadSeg()): one code hunk starting with "moveq #-1,d0; rts", then
@@ -21,8 +21,8 @@ import struct
 import sys
 
 XSIZE = 8            # width of every glyph
-HEIGHT = 16          # rows of a glyph in the text file
-BASELINE = 11        # row of the baseline (tf_Baseline)
+HEIGHT = 16          # rows of a glyph in the text file, unless "!height" says otherwise
+BASELINE = 11        # row of the baseline (tf_Baseline), unless "!baseline" says otherwise
 LO, HI = 32, 255     # tf_LoChar, tf_HiChar
 
 FPF_DISKFONT = 0x02
@@ -34,14 +34,23 @@ HUNK_HEADER, HUNK_CODE, HUNK_RELOC32, HUNK_END = 0x3F3, 0x3E9, 0x3EC, 0x3F2
 
 
 def read_glyphs(path):
-    """Read the glyph text file: a dict code -> list of HEIGHT row strings."""
+    """Read a glyph text file: (dict code -> list of row strings, height, baseline)."""
     glyphs, cur = {}, None
+    height, baseline = HEIGHT, BASELINE
     with open(path, encoding='ascii') as f:
         for n, line in enumerate(f, 1):
             line = line.rstrip('\n')
             if not line or line.startswith(';'):
                 continue
-            if line.startswith('='):
+            if line.startswith('!'):
+                key, _, value = line[1:].partition(' ')
+                if key == 'height':
+                    height = int(value)
+                elif key == 'baseline':
+                    baseline = int(value)
+                else:
+                    sys.exit(f'{path}:{n}: unknown setting {key}')
+            elif line.startswith('='):
                 cur = int(line[1:].split()[0])
                 if not LO <= cur <= HI or cur in glyphs:
                     sys.exit(f'{path}:{n}: bad or repeated code {cur}')
@@ -51,22 +60,24 @@ def read_glyphs(path):
             else:
                 sys.exit(f'{path}:{n}: not a row of {XSIZE} pixels')
     for code, rows in glyphs.items():
-        if len(rows) != HEIGHT:
-            sys.exit(f'{path}: glyph {code} has {len(rows)} rows, not {HEIGHT}')
-    return glyphs
+        if len(rows) != height:
+            sys.exit(f'{path}: glyph {code} has {len(rows)} rows, not {height}')
+    if not 0 < baseline < height:
+        sys.exit(f'{path}: baseline {baseline} outside the cell')
+    return glyphs, height, baseline
 
 
-def default_glyph():
+def default_glyph(height, baseline):
     """The box shown for codes without a glyph."""
-    rows = ['.' * XSIZE] * HEIGHT
-    for r in range(3, BASELINE + 1):
-        rows[r] = '.#######' if r in (3, BASELINE) else '.#.....#'
+    rows = ['.' * XSIZE] * height
+    for r in range(max(baseline - 8, 0), baseline + 1):
+        rows[r] = '.#######' if r in (max(baseline - 8, 0), baseline) else '.#.....#'
     return rows
 
 
-def font_file(glyphs, name, ysize):
+def font_file(glyphs, height, baseline, name, ysize):
     """The hunk file of one size, as bytes."""
-    pad = ['.' * XSIZE] * (ysize - HEIGHT)
+    pad = ['.' * XSIZE] * (ysize - height)
     order = list(range(LO, HI + 1)) + [None]          # None: the default glyph (last entry)
     slots, slot_of = [], {}
     for code in order[:-1]:
@@ -74,7 +85,7 @@ def font_file(glyphs, name, ysize):
             slot_of[code] = len(slots)
             slots.append(glyphs[code] + pad)
     slot_of[None] = len(slots)
-    slots.append(default_glyph() + pad)
+    slots.append(default_glyph(height, baseline) + pad)
 
     modulo = (len(slots) * XSIZE + 15) // 16 * 2       # bytes per row, even
     bitmap = bytearray(modulo * ysize)
@@ -100,7 +111,7 @@ def font_file(glyphs, name, ysize):
     h += struct.pack('>HHi', DFH_ID, 1, 0)                             # dfh_FileID, _Revision, _Segment
     h += name.encode('latin-1')[:31].ljust(32, b'\0')                  # dfh_Name
     h += struct.pack('>IIBbIIH', 0, 0, NT_FONT, 0, dfh_name, 0, end - tf)  # tf_Message
-    h += struct.pack('>HBBHHHHBB', ysize, 0, flags, XSIZE, BASELINE, 1, 0, LO, HI)
+    h += struct.pack('>HBBHHHHBB', ysize, 0, flags, XSIZE, baseline, 1, 0, LO, HI)
     h += struct.pack('>IHIII', chardata, modulo, charloc_off, 0, 0)    # no CharSpace/CharKern: monospaced
     assert len(h) == chardata
     h += bitmap + charloc
@@ -124,19 +135,23 @@ def contents_file(name, sizes):
 
 
 def main():
-    if len(sys.argv) < 5:
+    if len(sys.argv) < 4:
         sys.exit(__doc__.split('\n\n')[1])
-    path, name, drawer = sys.argv[1:4]
-    sizes = [int(s) for s in sys.argv[4:]]
-    if any(s < HEIGHT for s in sizes):
-        sys.exit(f'sizes must be at least {HEIGHT}')
-    glyphs = read_glyphs(path)
+    name, drawer = sys.argv[1:3]
+    files = {}
+    for arg in sys.argv[3:]:
+        path, _, size = arg.partition(':')
+        glyphs, height, baseline = read_glyphs(path)
+        size = int(size) if size else height
+        if size < height or size in files:
+            sys.exit(f'{arg}: size {size} smaller than the cells or given twice')
+        files[size] = font_file(glyphs, height, baseline, name, size)
     os.makedirs(os.path.join(drawer, name), exist_ok=True)
-    for s in sizes:
-        with open(os.path.join(drawer, name, str(s)), 'wb') as f:
-            f.write(font_file(glyphs, name, s))
+    for size, data in files.items():
+        with open(os.path.join(drawer, name, str(size)), 'wb') as f:
+            f.write(data)
     with open(os.path.join(drawer, name + '.font'), 'wb') as f:
-        f.write(contents_file(name, sizes))
+        f.write(contents_file(name, sorted(files)))
 
 
 if __name__ == '__main__':

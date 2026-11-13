@@ -11,7 +11,8 @@
 ; 8 pixels ('#' ink, '.' paper). Row 11 is the baseline (the last row of
 ; "x"); rows 12-15 hold the descenders. Size 17 adds an empty row below.
 ; Codes without a glyph (0-31, 127-159) show the box of the default glyph.
-; Lines starting with ';' are comments.
+; Lines starting with ';' are comments. "!height <rows>" and "!baseline
+; <row>" set another cell height and baseline (default 16 and 11).
 
 = 32 SPACE
 ........

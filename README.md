@@ -178,3 +178,6 @@ with [md4c](https://github.com/mity/md4c) (MIT License), used unchanged as a sub
 Font: Holstein is derived from [DejaVu Sans Mono](https://dejavu-fonts.github.io/)
 (Bitstream Vera Sans Mono with the DejaVu changes), rendered as a bitmap and
 redrawn in parts by hand; licence in `fonts/Holstein/LICENSE`.
+Tamzen is [Tamzen](https://github.com/sunaku/tamzen-font) by Suraj N. Kurapati,
+a fork of Tamsyn by Scott Fial, with the missing ISO-8859-1 glyphs added;
+licence in `fonts/Tamzen/LICENSE`.
