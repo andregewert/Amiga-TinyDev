@@ -962,5 +962,6 @@ void git_menu(EditorApp *app, ULONG id)
         case MID_GIT_CLONE: gitwin_clone(app); break;
         case MID_GIT_CONFLICTS: gitwin_conflicts(app); break;
         case MID_GIT_BRANCHES: gitwin_branches(app); break;
+        case MID_GIT_HISTORY: gitwin_history(app); break;
     }
 }

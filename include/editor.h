@@ -152,6 +152,7 @@ enum MenuId {
     MID_GIT_DIFF,       /**< Git/Show Changes of the File...: the active document's diff */
     MID_GIT_CONFLICTS,  /**< Git/Resolve Conflicts...: the conflict window */
     MID_GIT_BRANCHES,   /**< Git/Branches...: the branch window */
+    MID_GIT_HISTORY,    /**< Git/History...: the history window */
     MID_GIT_FETCH,      /**< Git/Fetch: am-git fetch in the background */
     MID_GIT_PULL,       /**< Git/Pull: am-git pull in the background, documents compared */
     MID_GIT_PUSH,       /**< Git/Push: am-git push in the background */
@@ -2152,6 +2153,12 @@ void gitwin_conflicts(EditorApp *app);
  * @param app The application state.
  */
 void gitwin_branches(EditorApp *app);
+/**
+ * @brief Git/History...: the modal window of the commits of the current
+ *        branch, the files each changed and their diffs.
+ * @param app The application state.
+ */
+void gitwin_history(EditorApp *app);
 /**
  * @brief The pen of a git state in the folder tree (setting "git"/"colours").
  * @param state The state (GitState of gitstatus.h).

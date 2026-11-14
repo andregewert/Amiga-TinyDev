@@ -660,7 +660,20 @@
 #define MSG_GITB_UNTRACKED           655
 #define MSG_GITB_UNTRACKEDSWITCH     656
 #define MSG_GITB_UNTRACKEDMERGE      657
-#define MSG_COUNT                    658
+#define MSG_MENU_GIT_HISTORY         658
+#define MSG_GITH_TITLE               659
+#define MSG_GITH_LISTNOTE            660
+#define MSG_GITH_COL_COMMIT          661
+#define MSG_GITH_COL_DATE            662
+#define MSG_GITH_COL_AUTHOR          663
+#define MSG_GITH_COL_MESSAGE         664
+#define MSG_GITH_FILESNOTE           665
+#define MSG_GITH_DIFF                666
+#define MSG_GITH_NONE                667
+#define MSG_GITH_NOFILE              668
+#define MSG_GITH_HEADING             669
+#define MSG_GITH_NODIFF              670
+#define MSG_COUNT                    671
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -1323,6 +1336,19 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "The repository has %ld untracked files or drawers\n(.info files of tracked files count as well).\nam-git 0.12.1 may delete them when it switches branches\n(newer versions keep them). Go on all the same?",
     "Switch|Cancel",
     "Merge|Cancel",
+    "History...",
+    "History",
+    "Commits of %s, newest first (at most %ld):",
+    "Commit",
+    "Date",
+    "Author",
+    "Message",
+    "Files the selected commit changed (a merge: against its first parent):",
+    "_Show Changes...",
+    "The repository has no commits yet.",
+    "Please click a file of the commit first.",
+    "Changes of the commit %s:",
+    "The commit did not change the text of the file.",
 };
 #endif
 

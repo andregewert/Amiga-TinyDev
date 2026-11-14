@@ -381,3 +381,222 @@ int gitref_packed(const char *text, const char *ref, char *sha, size_t size)
     }
     return 0;
 }
+
+void gitlog_init(GitLog *log)
+{
+    log->entries = NULL;
+    log->count = 0;
+}
+
+void gitlog_clear(GitLog *log)
+{
+    long i;
+    for (i = 0; i < log->count; ++i) {
+        free(log->entries[i].author);
+        free(log->entries[i].subject);
+    }
+    free(log->entries);
+    gitlog_init(log);
+}
+
+/**
+ * @brief Copy a part of a text.
+ * @param s The text.
+ * @param n How much of it.
+ * @return The copy (free() it), or NULL if out of memory.
+ */
+static char *copy_n(const char *s, size_t n)
+{
+    char *c = malloc(n + 1);
+    if (c != NULL) {
+        memcpy(c, s, n);
+        c[n] = '\0';
+    }
+    return c;
+}
+
+void gitlog_author(const char *raw, char *name, size_t size, long *time, int *tz)
+{
+    const char *lt = strchr(raw, '<'), *gt, *p;
+    size_t n = lt != NULL ? (size_t)(lt - raw) : strlen(raw);
+    *time = -1;
+    *tz = 0;
+    while (n > 0 && (raw[n - 1] == ' ' || raw[n - 1] == '\r' || raw[n - 1] == '\n')) --n;
+    if (size > 0) {
+        if (n >= size) n = size - 1;
+        memcpy(name, raw, n);
+        name[n] = '\0';
+    }
+    if (lt == NULL || (gt = strchr(lt, '>')) == NULL) return;
+    p = gt + 1;
+    while (*p == ' ') ++p;
+    if (*p >= '0' && *p <= '9') {
+        long t = 0;
+        while (*p >= '0' && *p <= '9') t = t * 10 + (*p++ - '0');
+        *time = t;
+        while (*p == ' ') ++p;
+        if ((p[0] == '+' || p[0] == '-') && p[1] >= '0' && p[1] <= '9' && p[2] >= '0' && p[2] <= '9' &&
+            p[3] >= '0' && p[3] <= '9' && p[4] >= '0' && p[4] <= '9') {
+            int m = ((p[1] - '0') * 10 + (p[2] - '0')) * 60 + (p[3] - '0') * 10 + (p[4] - '0');
+            *tz = p[0] == '-' ? -m : m;
+        }
+    }
+}
+
+void gitlog_date(long time, int tz, char *out, size_t size)
+{
+    long t, days, secs, z, era, doe, yoe, y, doy, mp, d, m;
+    char buf[24];
+    if (size == 0) return;
+    out[0] = '\0';
+    if (time < 0) return;
+    t = time + (long)tz * 60;
+    if (t < 0) t = 0;
+    days = t / 86400;
+    secs = t % 86400;
+    /* days since 1970 to the civil date (H. Hinnant's algorithm) */
+    z = days + 719468;
+    era = z / 146097;
+    doe = z - era * 146097;
+    yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    y = yoe + era * 400;
+    doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    mp = (5 * doy + 2) / 153;
+    d = doy - (153 * mp + 2) / 5 + 1;
+    m = mp < 10 ? mp + 3 : mp - 9;
+    if (m <= 2) ++y;
+    buf[0] = (char)('0' + d / 10);
+    buf[1] = (char)('0' + d % 10);
+    buf[2] = '.';
+    buf[3] = (char)('0' + m / 10);
+    buf[4] = (char)('0' + m % 10);
+    buf[5] = '.';
+    buf[6] = (char)('0' + y / 1000 % 10);
+    buf[7] = (char)('0' + y / 100 % 10);
+    buf[8] = (char)('0' + y / 10 % 10);
+    buf[9] = (char)('0' + y % 10);
+    buf[10] = ' ';
+    buf[11] = (char)('0' + secs / 36000);
+    buf[12] = (char)('0' + secs / 3600 % 10);
+    buf[13] = ':';
+    buf[14] = (char)('0' + secs % 3600 / 600);
+    buf[15] = (char)('0' + secs % 3600 / 60 % 10);
+    buf[16] = '\0';
+    strncpy(out, buf, size - 1);
+    out[size - 1] = '\0';
+}
+
+/**
+ * @brief Whether a text starts with 40 hex digits.
+ * @param s The text.
+ * @return Non-zero if it does.
+ */
+static int is_sha(const char *s)
+{
+    int k;
+    for (k = 0; k < 40; ++k)
+        if (s[k] == '\0' || strchr("0123456789abcdefABCDEF", s[k]) == NULL) return 0;
+    return 1;
+}
+
+int gitlog_parse(GitLog *log, const char *text)
+{
+    const char *line = text;
+    long cap = 0;
+    GitLogEntry *cur = NULL;
+    gitlog_clear(log);
+    while (line != NULL && *line != '\0') {
+        const char *end = strchr(line, '\n');
+        size_t len = end != NULL ? (size_t)(end - line) : strlen(line);
+        if (len > 0 && line[len - 1] == '\r') --len;
+        if (len >= 47 && memcmp(line, "commit ", 7) == 0 && is_sha(line + 7)) {
+            if (log->count == cap) {
+                long ncap = cap > 0 ? cap * 2 : 32;
+                GitLogEntry *e = realloc(log->entries, (size_t)ncap * sizeof(*e));
+                if (e == NULL) {
+                    gitlog_clear(log);
+                    return 0;
+                }
+                log->entries = e;
+                cap = ncap;
+            }
+            cur = &log->entries[log->count++];
+            memcpy(cur->sha, line + 7, 40);
+            cur->sha[40] = '\0';
+            cur->author = NULL;
+            cur->subject = NULL;
+            cur->time = -1;
+            cur->tz = 0;
+        } else if (cur != NULL && cur->author == NULL && len >= 8 && memcmp(line, "Author: ", 8) == 0) {
+            char *raw = copy_n(line + 8, len - 8);
+            if (raw == NULL || (cur->author = malloc(len - 8 + 1)) == NULL) {
+                free(raw);
+                gitlog_clear(log);
+                return 0;
+            }
+            gitlog_author(raw, cur->author, len - 8 + 1, &cur->time, &cur->tz);
+            free(raw);
+        } else if (cur != NULL && cur->subject == NULL && len >= 4 && memcmp(line, "    ", 4) == 0) {
+            if ((cur->subject = copy_n(line + 4, len - 4)) == NULL) {
+                gitlog_clear(log);
+                return 0;
+            }
+        }
+        line = end != NULL ? end + 1 : NULL;
+    }
+    return 1;
+}
+
+void gitshow_init(GitShow *show)
+{
+    show->parent[0] = '\0';
+    show->files = NULL;
+    show->count = 0;
+}
+
+void gitshow_clear(GitShow *show)
+{
+    long i;
+    for (i = 0; i < show->count; ++i) free(show->files[i].path);
+    free(show->files);
+    gitshow_init(show);
+}
+
+int gitshow_parse(GitShow *show, const char *text)
+{
+    const char *line = text;
+    long cap = 0;
+    gitshow_clear(show);
+    while (line != NULL && *line != '\0') {
+        const char *end = strchr(line, '\n');
+        size_t len = end != NULL ? (size_t)(end - line) : strlen(line);
+        if (len > 0 && line[len - 1] == '\r') --len;
+        if (len >= 47 && memcmp(line, "parent ", 7) == 0 && is_sha(line + 7)) {
+            if (show->parent[0] == '\0') {
+                memcpy(show->parent, line + 7, 40);
+                show->parent[40] = '\0';
+            }
+        } else if (len >= 3 && strchr("AMDT", line[0]) != NULL && line[1] == '\t') {
+            char *p;
+            if (show->count == cap) {
+                long ncap = cap > 0 ? cap * 2 : 16;
+                GitShowFile *f = realloc(show->files, (size_t)ncap * sizeof(*f));
+                if (f == NULL) {
+                    gitshow_clear(show);
+                    return 0;
+                }
+                show->files = f;
+                cap = ncap;
+            }
+            if ((p = copy_n(line + 2, len - 2)) == NULL) {
+                gitshow_clear(show);
+                return 0;
+            }
+            show->files[show->count].status = line[0];
+            show->files[show->count].path = p;
+            ++show->count;
+        }
+        line = end != NULL ? end + 1 : NULL;
+    }
+    return 1;
+}

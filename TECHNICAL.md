@@ -265,6 +265,16 @@ version therefore hides a fresh build; check with
      (made safe in 0.12.2); TinyDev
      therefore asks before switching or merging while there are
      untracked files (the `.info` files of tracked files among them).
+  6. Done (`gitwin.c`, `gitstatus.c`): Git/History... lists `am-git log
+     -n 200` (git's medium format: `commit <sha>`, `Author: name <email>
+     seconds zone`, the message indented; am-git follows only the first
+     parent and writes no `Date:` line, so the date comes from the
+     author line, in the author's zone). Selecting a commit runs `show
+     <sha>` (its `parent` lines and `X<tab>path` lines of the files,
+     against the first parent); a file's diff is TinyDev's own, from
+     `show <sha>:<path>` and `show <parent>:<path>`. Read in the 0.12.3
+     sources; `show <commit>` is older than 0.12.1, its exact output
+     there is not checked.
 
   am-git 0.12.1 is the latest release (Aminet and GitHub, 14.11.2026);
   the sources on GitHub are at 0.12.3, unreleased. TinyDev works with

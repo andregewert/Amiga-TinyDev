@@ -175,4 +175,97 @@ int gitbranch_valid(const char *name);
  */
 int gitref_packed(const char *text, const char *ref, char *sha, size_t size);
 
+/** A commit of "am-git log". */
+typedef struct GitLogEntry {
+    char sha[41];               /**< the commit */
+    char *author;               /**< its author's name (allocated) */
+    long time;                  /**< when it was written (seconds since 1970, UTC), -1 if not known */
+    int tz;                     /**< the author's time zone (minutes east of UTC) */
+    char *subject;              /**< the first line of its message (allocated) */
+} GitLogEntry;
+
+/** The commits of "am-git log", newest first. */
+typedef struct GitLog {
+    GitLogEntry *entries;       /**< the commits (allocated) */
+    long count;                 /**< their number */
+} GitLog;
+
+/**
+ * @brief Make a log empty (before its first use).
+ * @param log The log.
+ */
+void gitlog_init(GitLog *log);
+
+/**
+ * @brief Free a log's commits; it is empty afterwards.
+ * @param log The log.
+ */
+void gitlog_clear(GitLog *log);
+
+/**
+ * @brief Read the output of "am-git log" (git's medium format: "commit
+ *        <sha>", "Author: ...", the message indented by four spaces).
+ *
+ * Other header lines (such as "Date:") and messages ("log: ...") are
+ * left out.
+ *
+ * @param log The log (its commits are replaced).
+ * @param text The output.
+ * @return Non-zero on success, 0 if out of memory (the log is empty then).
+ */
+int gitlog_parse(GitLog *log, const char *text);
+
+/**
+ * @brief Split an author as git stores it: "Name <email> seconds +hhmm".
+ * @param raw The author.
+ * @param[out] name The name (the text before '<', without spaces at its end).
+ * @param size Size of @p name.
+ * @param[out] time The seconds since 1970 (UTC), -1 if there are none.
+ * @param[out] tz The time zone in minutes east of UTC, 0 if there is none.
+ */
+void gitlog_author(const char *raw, char *name, size_t size, long *time, int *tz);
+
+/**
+ * @brief A time as "DD.MM.YYYY HH:MM" in a time zone.
+ * @param time Seconds since 1970 (UTC); "" if negative.
+ * @param tz The time zone in minutes east of UTC.
+ * @param[out] out The text.
+ * @param size Size of @p out (17 at least).
+ */
+void gitlog_date(long time, int tz, char *out, size_t size);
+
+/** A file a commit changed ("am-git show"). */
+typedef struct GitShowFile {
+    char status;                /**< 'A' added, 'M' changed, 'D' deleted */
+    char *path;                 /**< the file, relative to the repository (allocated) */
+} GitShowFile;
+
+/** What "am-git show <commit>" says of a commit. */
+typedef struct GitShow {
+    char parent[41];            /**< its first parent, "" for the first commit */
+    GitShowFile *files;         /**< the files it changed (allocated) */
+    long count;                 /**< their number */
+} GitShow;
+
+/**
+ * @brief Make a show empty (before its first use).
+ * @param show The show.
+ */
+void gitshow_init(GitShow *show);
+
+/**
+ * @brief Free a show's files; it is empty afterwards.
+ * @param show The show.
+ */
+void gitshow_clear(GitShow *show);
+
+/**
+ * @brief Read the output of "am-git show <commit>": the "parent <sha>"
+ *        lines of its header and the "X<tab>path" lines of the files.
+ * @param show The show (replaced).
+ * @param text The output.
+ * @return Non-zero on success, 0 if out of memory (the show is empty then).
+ */
+int gitshow_parse(GitShow *show, const char *text);
+
 #endif

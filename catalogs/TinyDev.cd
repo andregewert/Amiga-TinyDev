@@ -2009,3 +2009,42 @@ Switch|Cancel
 MSG_GITB_UNTRACKEDMERGE (//)
 Merge|Cancel
 ;
+MSG_MENU_GIT_HISTORY (//)
+History...
+;
+MSG_GITH_TITLE (//)
+History
+;
+MSG_GITH_LISTNOTE (//)
+Commits of %s, newest first (at most %ld):
+;
+MSG_GITH_COL_COMMIT (//)
+Commit
+;
+MSG_GITH_COL_DATE (//)
+Date
+;
+MSG_GITH_COL_AUTHOR (//)
+Author
+;
+MSG_GITH_COL_MESSAGE (//)
+Message
+;
+MSG_GITH_FILESNOTE (//)
+Files the selected commit changed (a merge: against its first parent):
+;
+MSG_GITH_DIFF (//)
+_Show Changes...
+;
+MSG_GITH_NONE (//)
+The repository has no commits yet.
+;
+MSG_GITH_NOFILE (//)
+Please click a file of the commit first.
+;
+MSG_GITH_HEADING (//)
+Changes of the commit %s:
+;
+MSG_GITH_NODIFF (//)
+The commit did not change the text of the file.
+;

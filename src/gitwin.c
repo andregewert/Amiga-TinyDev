@@ -2,7 +2,7 @@
  * @file gitwin.c
  * @brief The windows of git through am-git: Git/Commit... (the changed
  *        files, staging, the message), the changes of a file (diff), the
- *        clone, conflict and branch windows.
+ *        clone, conflict, branch and history windows.
  *
  * All are modal, built like the project settings: the windows below show
  * the busy pointer and their input is dropped. am-git runs synchronously
@@ -50,6 +50,14 @@
  * switch, the branch list after New and Delete, the branch's commit and
  * .git/MERGE_HEAD after a merge; a merge with conflicts goes on to the
  * conflict window.
+ *
+ * The history window (Git/History...) lists the commits of "am-git log"
+ * (at most HISTORY_MAX, newest first; am-git follows only a merge's first
+ * parent) with date, author and the first line of the message. Selecting
+ * one runs "am-git show <sha>" for the files it changed against its first
+ * parent; "Show Changes" (or a double click) shows a file's diff: the
+ * file of the parent against the file of the commit, both from am-git
+ * show, compared by linediff.c.
  *
  * The diff window shows a file's changes since the last commit: the
  * file of HEAD from am-git show against the file on disk, compared by
@@ -106,7 +114,8 @@ enum {
     GK_URL, GK_DRAWER, GK_CHOOSE, GK_NAME, GK_CLONE, GK_CANCEL,
     GR_LIST, GR_RESOLVE, GR_OPEN, GR_COMMIT, GR_CLOSE,
     GD_LIST, GD_CLOSE,
-    GB_LIST, GB_SWITCH, GB_NEW, GB_DELETE, GB_MERGE, GB_CLOSE
+    GB_LIST, GB_SWITCH, GB_NEW, GB_DELETE, GB_MERGE, GB_CLOSE,
+    GH_LIST, GH_FILES, GH_DIFF, GH_CLOSE
 };
 
 /** @name Spacing, in "virtual pixels", as in the settings window */
@@ -325,30 +334,37 @@ static void add_diff(struct List *list, const char *text, long *count)
 }
 
 /**
- * @brief A file as it was in the last commit, from am-git.
+ * @brief A file as it was in a commit, from am-git.
  *
- * "show --text-blob HEAD:path" (am-git 0.12.3: a first line "text",
+ * "show --text-blob commit:path" (am-git 0.12.3: a first line "text",
  * "binary" or "missing") is tried first; an older am-git answers it with
- * its usage, then "show HEAD:path" (0.12.1) is taken, which prints the
+ * its usage, then "show commit:path" (0.12.1) is taken, which prints the
  * contents or nothing for a file not in the commit, and "show: ..." when
  * there is no commit yet.
  *
  * @param app The application state.
  * @param root The repository.
+ * @param commit The commit ("HEAD", a SHA); "" for none (the empty text).
  * @param rel The file relative to the repository.
  * @param ref The window messages are shown over.
  * @param[out] text Its contents (free() it); "" for a file not in the
- *        last commit; NULL unless 1 is returned.
+ *        commit; NULL unless 1 is returned.
  * @return 1 on success, 0 if a message was shown (failed, binary).
  */
-static int head_version(EditorApp *app, const char *root, const char *rel, struct Window *ref, char **text)
+static int file_version(EditorApp *app, const char *root, const char *commit, const char *rel,
+                        struct Window *ref, char **text)
 {
-    char spec[EDITOR_PATH_MAX + 8], command[EDITOR_PATH_MAX + 40], *out = NULL;
+    char spec[EDITOR_PATH_MAX + 48], command[EDITOR_PATH_MAX + 80], *out = NULL;
     const char *body = NULL;
     LONG rc;
     int pass;
     *text = NULL;
-    snprintf(spec, sizeof(spec), "HEAD:%s", rel);
+    if (commit[0] == '\0') {
+        if ((*text = malloc(1)) == NULL) message(ref, S(MSG_PJ_NOMEM));
+        else **text = '\0';
+        return *text != NULL;
+    }
+    snprintf(spec, sizeof(spec), "%s:%s", commit, rel);
     for (pass = 0; pass < 2 && body == NULL; ++pass) {
         size_t n;
         strcpy(command, pass == 0 ? "show --text-blob " : "show ");
@@ -398,22 +414,20 @@ static int head_version(EditorApp *app, const char *root, const char *rel, struc
 }
 
 /**
- * @brief Show a file's changes in a modal window.
- *
- * The changes since the last commit: the file of HEAD (head_version())
- * against the file on disk, compared with linediff_unified() (am-git's
- * diff reads the work tree as empty, see linediff.h).
- *
+ * @brief Show a diff in a modal window, one line per row in the system
+ *        default text font, coloured by the lines' kinds.
  * @param app The application state.
- * @param root The repository.
- * @param rel The file relative to the repository.
- * @param ref The window below (the main window or the commit window).
+ * @param rel The file (for the title).
+ * @param heading The first line, saying what is compared.
+ * @param hunks The diff (linediff_unified()).
+ * @param ref The window below.
  * @param refobj Its object, if it is not the main window (its input is
  *        dropped too), or NULL.
  */
-static void show_diff(EditorApp *app, const char *root, const char *rel, struct Window *ref, Object *refobj)
+static void diff_window(EditorApp *app, const char *rel, const char *heading, const char *hunks,
+                        struct Window *ref, Object *refobj)
 {
-    char *head = NULL, *work = NULL, *hunks, path[EDITOR_PATH_MAX], title[EDITOR_PATH_MAX + 64];
+    char title[EDITOR_PATH_MAX + 64];
     struct List lines;
     struct TextAttr font;
     struct TextFont *df = GfxBase->DefaultFont, *opened = NULL;
@@ -421,41 +435,14 @@ static void show_diff(EditorApp *app, const char *root, const char *rel, struct 
     ULONG sig = 0, refsig = 0, mainsig = 0, result;
     WORD code;
     long count = 0;
-    int done = 0, rc;
+    int done = 0;
     LONG w = TextLength(&app->screen->RastPort, (STRPTR)"n", 1);
     ULONG h = app->screen->RastPort.TxHeight + 1U;
 
-    if (!head_version(app, root, rel, ref, &head)) return;
-    strncpy(path, root, sizeof(path) - 1);
-    path[sizeof(path) - 1] = '\0';
-    if (!AddPart((STRPTR)path, (STRPTR)rel, sizeof(path)) || (rc = datafile_read(path, &work)) < 0) {
-        free(head);
-        message(ref, S(MSG_GITDIFF_NOREAD));
-        return;
-    }
-    hunks = linediff_unified(head, strlen(head), rc > 0 ? work : "", rc > 0 ? strlen(work) : 0, 3);
-    if (hunks == NULL) {
-        message(ref, S(MSG_PJ_NOMEM));
-    } else if (hunks[0] == '\0') {
-        message(ref, S(MSG_GITDIFF_NONE));
-    }
-    if (hunks == NULL || hunks[0] == '\0') {
-        free(head);
-        free(work);
-        free(hunks);
-        return;
-    }
     NewList(&lines);
-    {
-        /* a heading line saying what is compared */
-        const char *what = head[0] == '\0' ? S(MSG_GITDIFF_NEW) : rc == 0 ? S(MSG_GITDIFF_DELETED) : S(MSG_GITDIFF_SINCE);
-        add_line(&lines, what, strlen(what), -1);
-    }
+    add_line(&lines, heading, strlen(heading), -1);
     add_diff(&lines, hunks, &count);
     if (count >= DIFF_MAX_LINES) add_line(&lines, "...", 3, -1);
-    free(head);
-    free(work);
-    free(hunks);
 
     /* the system default text font, as in the output window: a diff's
        columns line up; opened while the window is */
@@ -523,6 +510,74 @@ static void show_diff(EditorApp *app, const char *root, const char *rel, struct 
     DisposeObject(winobj);                      /* the gadgets with it */
     FreeListBrowserList(&lines);
     if (opened != NULL) CloseFont(opened);
+}
+
+/**
+ * @brief Show a file's changes since the last commit in a modal window.
+ *
+ * The file of HEAD (file_version()) against the file on disk, compared
+ * with linediff_unified() (am-git's diff reads the work tree as empty,
+ * see linediff.h).
+ *
+ * @param app The application state.
+ * @param root The repository.
+ * @param rel The file relative to the repository.
+ * @param ref The window below (the main window or the commit window).
+ * @param refobj Its object, if it is not the main window (its input is
+ *        dropped too), or NULL.
+ */
+static void show_diff(EditorApp *app, const char *root, const char *rel, struct Window *ref, Object *refobj)
+{
+    char *head = NULL, *work = NULL, *hunks, path[EDITOR_PATH_MAX];
+    int rc;
+    if (!file_version(app, root, "HEAD", rel, ref, &head)) return;
+    strncpy(path, root, sizeof(path) - 1);
+    path[sizeof(path) - 1] = '\0';
+    if (!AddPart((STRPTR)path, (STRPTR)rel, sizeof(path)) || (rc = datafile_read(path, &work)) < 0) {
+        free(head);
+        message(ref, S(MSG_GITDIFF_NOREAD));
+        return;
+    }
+    hunks = linediff_unified(head, strlen(head), rc > 0 ? work : "", rc > 0 ? strlen(work) : 0, 3);
+    if (hunks == NULL) message(ref, S(MSG_PJ_NOMEM));
+    else if (hunks[0] == '\0') message(ref, S(MSG_GITDIFF_NONE));
+    else diff_window(app, rel, head[0] == '\0' ? S(MSG_GITDIFF_NEW) : rc == 0 ? S(MSG_GITDIFF_DELETED) : S(MSG_GITDIFF_SINCE),
+                     hunks, ref, refobj);
+    free(head);
+    free(work);
+    free(hunks);
+}
+
+/**
+ * @brief Show what a commit changed in a file, in a modal window: the
+ *        file of its first parent against the file of the commit.
+ * @param app The application state.
+ * @param root The repository.
+ * @param sha The commit.
+ * @param parent Its first parent, "" for the first commit.
+ * @param f The file, as "am-git show" listed it.
+ * @param ref The window below.
+ * @param refobj Its object (its input is dropped too).
+ */
+static void show_commit_diff(EditorApp *app, const char *root, const char *sha, const char *parent,
+                             const GitShowFile *f, struct Window *ref, Object *refobj)
+{
+    char *old = NULL, *new_text = NULL, *hunks, heading[120], short_sha[8];
+    if (!file_version(app, root, f->status == 'A' ? "" : parent, f->path, ref, &old)) return;
+    if (!file_version(app, root, f->status == 'D' ? "" : sha, f->path, ref, &new_text)) {
+        free(old);
+        return;
+    }
+    hunks = linediff_unified(old, strlen(old), new_text, strlen(new_text), 3);
+    strncpy(short_sha, sha, 7);
+    short_sha[7] = '\0';
+    snprintf(heading, sizeof(heading), S(MSG_GITH_HEADING), short_sha);
+    if (hunks == NULL) message(ref, S(MSG_PJ_NOMEM));
+    else if (hunks[0] == '\0') message(ref, S(MSG_GITH_NODIFF));
+    else diff_window(app, f->path, heading, hunks, ref, refobj);
+    free(old);
+    free(new_text);
+    free(hunks);
 }
 
 void gitwin_diff_active(EditorApp *app)
@@ -1916,4 +1971,241 @@ out:
     memset(&gc, 0, sizeof(gc));
     free_branches();
     if (conflicts) gitwin_conflicts(app);
+}
+
+/* ---- the history window ------------------------------------------------ */
+
+/** Most commits the history window shows. */
+#define HISTORY_MAX 200
+
+/** The history window's data. */
+static struct {
+    GitLog log;                 /* the commits */
+    GitShow show;               /* the files of the selected one */
+    long shown;                 /* the commit gh.show is of, -1 if none */
+    struct List files;          /* the file list's nodes */
+    struct ColumnInfo cols[5];  /* the commit list's columns */
+    struct ColumnInfo fcols[3]; /* the file list's columns */
+    Object *files_list;
+    char note[160];             /* the line above the commits */
+} gh;
+
+/**
+ * @brief Build the commit list's nodes.
+ */
+static void make_log_nodes(void)
+{
+    long i;
+    NewList(&gc.nodes);
+    for (i = 0; i < gh.log.count; ++i) {
+        const GitLogEntry *e = &gh.log.entries[i];
+        char short_sha[8], date[20];
+        struct Node *n;
+        strncpy(short_sha, e->sha, 7);
+        short_sha[7] = '\0';
+        gitlog_date(e->time, e->tz, date, sizeof(date));
+        n = AllocListBrowserNode(4,
+            LBNA_Column, 0, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)short_sha,
+            LBNA_Column, 1, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)date,
+            LBNA_Column, 2, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)(e->author != NULL ? e->author : ""),
+            LBNA_Column, 3, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)(e->subject != NULL ? e->subject : ""),
+            TAG_END);
+        if (n != NULL) AddTail(&gc.nodes, n);
+    }
+}
+
+/**
+ * @brief Build the file list's nodes from gh.show.
+ */
+static void make_file_nodes(void)
+{
+    long i;
+    NewList(&gh.files);
+    for (i = 0; i < gh.show.count; ++i) {
+        const GitShowFile *f = &gh.show.files[i];
+        LONG state = f->status == 'A' ? MSG_GITC_ST_ADDED : f->status == 'D' ? MSG_GITC_ST_DELETED : MSG_GITC_ST_CHANGED;
+        struct Node *n = AllocListBrowserNode(2,
+            LBNA_Column, 0, LBNCA_Text, (ULONG)S(state),
+            LBNA_Column, 1, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)f->path,
+            TAG_END);
+        if (n != NULL) AddTail(&gh.files, n);
+    }
+}
+
+/**
+ * @brief Read the files a commit changed ("am-git show <sha>") and show
+ *        them in the file list.
+ * @param i The commit, or -1 for none.
+ */
+static void load_commit(long i)
+{
+    char command[64], *out = NULL;
+    LONG rc;
+    if (i == gh.shown) return;
+    if (gc.win != NULL)
+        SetGadgetAttrs((struct Gadget *)gh.files_list, gc.win, NULL, LISTBROWSER_Labels, ~0UL, TAG_END);
+    if (gh.files.lh_Head != NULL) FreeListBrowserList(&gh.files);
+    gitshow_clear(&gh.show);
+    gh.shown = -1;
+    if (i >= 0 && i < gh.log.count) {
+        snprintf(command, sizeof(command), "show %s", gh.log.entries[i].sha);
+        rc = run(gc.app, gc.root, command, &out);
+        if (rc == -1) message(gc.win != NULL ? gc.win : gc.app->window, S(MSG_GIT_NORUN));
+        else if (rc != 0) git_report(gc.app, gc.win, MSG_GIT_FAILED, out);
+        else if (!gitshow_parse(&gh.show, out != NULL ? out : "")) message(gc.win != NULL ? gc.win : gc.app->window, S(MSG_PJ_NOMEM));
+        else gh.shown = i;
+        free(out);
+    }
+    make_file_nodes();
+    if (gc.win != NULL)
+        SetGadgetAttrs((struct Gadget *)gh.files_list, gc.win, NULL,
+            LISTBROWSER_Labels, (ULONG)&gh.files, LISTBROWSER_Selected, (ULONG)(gh.show.count > 0 ? 0 : -1),
+            LISTBROWSER_Top, 0, TAG_END);
+}
+
+void gitwin_history(EditorApp *app)
+{
+    char branch[128], *out = NULL, command[32];
+    ULONG sig = 0, mainsig = 0, result;
+    WORD code;
+    int done = 0;
+    LONG rc, w = TextLength(&app->screen->RastPort, (STRPTR)"n", 1);
+    ULONG h = app->screen->RastPort.TxHeight + 1U;
+
+    memset(&gc, 0, sizeof(gc));
+    memset(&gh, 0, sizeof(gh));
+    gh.shown = -1;
+    gitlog_init(&gh.log);
+    gitshow_init(&gh.show);
+    gc.app = app;
+    gitstatus_init(&gc.status);
+    if (!git_repository(app, gc.root, sizeof(gc.root)) || !open_classes(app)) goto out;
+    snprintf(command, sizeof(command), "log -n %d", HISTORY_MAX);
+    rc = run(app, gc.root, command, &out);
+    if (rc == -1) { message(app->window, S(MSG_GIT_NORUN)); goto out; }
+    if (rc != 0) { git_report(app, NULL, MSG_GIT_FAILED, out); free(out); goto out; }
+    if (!gitlog_parse(&gh.log, out != NULL ? out : "")) { free(out); message(app->window, S(MSG_PJ_NOMEM)); goto out; }
+    free(out);
+    if (gh.log.count == 0) {
+        message(app->window, S(MSG_GITH_NONE));
+        goto out;
+    }
+    if (!git_head_branch(gc.root, branch, sizeof(branch))) strcpy(branch, "HEAD");
+    snprintf(gh.note, sizeof(gh.note), S(MSG_GITH_LISTNOTE), branch, (long)HISTORY_MAX);
+    make_log_nodes();
+    load_commit(0);
+    gh.cols[0].ci_Width = 10;
+    gh.cols[0].ci_Title = (STRPTR)S(MSG_GITH_COL_COMMIT);
+    gh.cols[1].ci_Width = 18;
+    gh.cols[1].ci_Title = (STRPTR)S(MSG_GITH_COL_DATE);
+    gh.cols[2].ci_Width = 20;
+    gh.cols[2].ci_Title = (STRPTR)S(MSG_GITH_COL_AUTHOR);
+    gh.cols[3].ci_Width = 52;
+    gh.cols[3].ci_Title = (STRPTR)S(MSG_GITH_COL_MESSAGE);
+    gh.cols[4].ci_Width = -1;
+    gh.fcols[0].ci_Width = 20;
+    gh.fcols[0].ci_Title = (STRPTR)S(MSG_GITC_COL_STATE);
+    gh.fcols[1].ci_Width = 80;
+    gh.fcols[1].ci_Title = (STRPTR)S(MSG_GITC_COL_FILE);
+    gh.fcols[2].ci_Width = -1;
+    gc.list = NewObject(LISTBROWSER_GetClass(), NULL,
+        GA_ID, GH_LIST, GA_RelVerify, TRUE,
+        LISTBROWSER_Labels, (ULONG)&gc.nodes,
+        LISTBROWSER_ColumnInfo, (ULONG)gh.cols,
+        LISTBROWSER_ColumnTitles, TRUE,
+        LISTBROWSER_ShowSelected, TRUE,
+        LISTBROWSER_Selected, 0,
+        LISTBROWSER_AutoFit, TRUE,
+        LISTBROWSER_HorizontalProp, TRUE,
+        TAG_END);
+    gh.files_list = NewObject(LISTBROWSER_GetClass(), NULL,
+        GA_ID, GH_FILES, GA_RelVerify, TRUE,
+        LISTBROWSER_Labels, (ULONG)&gh.files,
+        LISTBROWSER_ColumnInfo, (ULONG)gh.fcols,
+        LISTBROWSER_ColumnTitles, TRUE,
+        LISTBROWSER_ShowSelected, TRUE,
+        LISTBROWSER_Selected, (ULONG)(gh.show.count > 0 ? 0 : -1),
+        LISTBROWSER_AutoFit, TRUE,
+        TAG_END);
+    gc.layout = NewObject(LAYOUT_GetClass(), NULL,
+        LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
+        LAYOUT_SpaceOuter, TRUE,
+        LAYOUT_LeftSpacing, AREA_SPACING,
+        LAYOUT_RightSpacing, AREA_SPACING,
+        LAYOUT_TopSpacing, AREA_SPACING,
+        LAYOUT_BottomSpacing, AREA_SPACING,
+        LAYOUT_InnerSpacing, AREA_SPACING,
+        LAYOUT_DeferLayout, TRUE,
+        LAYOUT_AddImage, (ULONG)label(gh.note), FIXED,
+        LAYOUT_AddChild, (ULONG)gc.list,
+        CHILD_MinWidth, (ULONG)(70 * w),
+        CHILD_MinHeight, 10 * h,
+        CHILD_WeightedHeight, 65,
+        LAYOUT_AddImage, (ULONG)label(S(MSG_GITH_FILESNOTE)), FIXED,
+        LAYOUT_AddChild, (ULONG)gh.files_list,
+        CHILD_MinHeight, 5 * h,
+        CHILD_WeightedHeight, 35,
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+            LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+            LAYOUT_AddChild, (ULONG)button(GH_DIFF, S(MSG_GITH_DIFF)),
+            CHILD_WeightedWidth, 0,
+            LAYOUT_AddChild, (ULONG)filler(),
+            LAYOUT_AddChild, (ULONG)button(GH_CLOSE, S(MSG_GITWIN_CLOSE)),
+            CHILD_WeightedWidth, 0,
+            TAG_END),
+        FIXED,
+        TAG_END);
+    if (gc.layout == NULL || (gc.winobj = open_window(app, S(MSG_GITH_TITLE), app->window, gc.layout)) == NULL) {
+        gc.winobj = NULL;
+        FreeListBrowserList(&gc.nodes);
+        FreeListBrowserList(&gh.files);
+        goto out;
+    }
+    GetAttr(WINDOW_Window, gc.winobj, (ULONG *)&gc.win);
+    ++modal_open;
+
+    SetAttrs(app->window_object, WA_BusyPointer, TRUE, TAG_END);
+    GetAttr(WINDOW_SigMask, app->window_object, &mainsig);
+    GetAttr(WINDOW_SigMask, gc.winobj, &sig);
+    while (!done) {
+        ULONG got = Wait(sig | mainsig);
+        if ((got & mainsig) != 0) drop_input(app->window_object);
+        while ((result = DoMethod(gc.winobj, WM_HANDLEINPUT, &code)) != WMHI_LASTMSG) {
+            LONG sel;
+            if ((result & WMHI_CLASSMASK) == WMHI_CLOSEWINDOW) { done = 1; continue; }
+            if ((result & WMHI_CLASSMASK) == WMHI_RAWKEY && code == 0x45) { done = 1; continue; }   /* Esc */
+            if ((result & WMHI_CLASSMASK) != WMHI_GADGETUP) continue;
+            switch (result & WMHI_GADGETMASK) {
+                case GH_LIST:
+                    load_commit((LONG)get(gc.list, LISTBROWSER_Selected));
+                    break;
+                case GH_FILES:
+                    if ((get(gh.files_list, LISTBROWSER_RelEvent) & LBRE_DOUBLECLICK) == 0) break;
+                    /* fall through: a double click shows the changes */
+                case GH_DIFF:
+                    sel = (LONG)get(gh.files_list, LISTBROWSER_Selected);
+                    if (gh.shown < 0 || sel < 0 || sel >= gh.show.count) {
+                        message(gc.win, S(MSG_GITH_NOFILE));
+                        break;
+                    }
+                    show_commit_diff(app, gc.root, gh.log.entries[gh.shown].sha, gh.show.parent,
+                                     &gh.show.files[sel], gc.win, gc.winobj);
+                    break;
+                case GH_CLOSE:
+                    done = 1;
+                    break;
+            }
+        }
+    }
+    --modal_open;
+    SetAttrs(app->window_object, WA_BusyPointer, FALSE, TAG_END);
+
+out:
+    if (gc.winobj != NULL) DisposeObject(gc.winobj);       /* the gadgets with it */
+    if (gc.nodes.lh_Head != NULL) FreeListBrowserList(&gc.nodes);
+    if (gh.files.lh_Head != NULL) FreeListBrowserList(&gh.files);
+    gitstatus_clear(&gc.status);
+    gitlog_clear(&gh.log);
+    gitshow_clear(&gh.show);
+    memset(&gc, 0, sizeof(gc));
 }

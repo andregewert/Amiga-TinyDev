@@ -176,6 +176,81 @@ static void test_branches(void)
 }
 
 /**
+ * @brief The output of "am-git log" and "am-git show", dates.
+ */
+static void test_log(void)
+{
+    GitLog log;
+    GitShow show;
+    char name[32], date[20];
+    long t;
+    int tz;
+
+    gitlog_author("Andr\xE9 Gewert <a@b.c> 1731600000 +0100", name, sizeof(name), &t, &tz);
+    assert(strcmp(name, "Andr\xE9 Gewert") == 0 && t == 1731600000L && tz == 60);
+    gitlog_author("X <x@y> 0 -0230", name, sizeof(name), &t, &tz);
+    assert(strcmp(name, "X") == 0 && t == 0 && tz == -150);
+    gitlog_author("Just a name", name, sizeof(name), &t, &tz);
+    assert(strcmp(name, "Just a name") == 0 && t == -1 && tz == 0);
+
+    gitlog_date(0, 0, date, sizeof(date));
+    assert(strcmp(date, "01.01.1970 00:00") == 0);
+    gitlog_date(1731600000L, 60, date, sizeof(date));       /* 14.11.2024 16:00 UTC */
+    assert(strcmp(date, "14.11.2024 17:00") == 0);
+    gitlog_date(951782400L, 0, date, sizeof(date));          /* a leap day */
+    assert(strcmp(date, "29.02.2000 00:00") == 0);
+    gitlog_date(1735689599L, -60, date, sizeof(date));
+    assert(strcmp(date, "31.12.2024 22:59") == 0);
+    gitlog_date(-1, 0, date, sizeof(date));
+    assert(date[0] == '\0');
+
+    gitlog_init(&log);
+    assert(gitlog_parse(&log,
+        "commit 0123456789abcdef0123456789abcdef01234567\n"
+        "Author: Andr\xE9 <a@b.c> 1731600000 +0100\n"
+        "\n"
+        "    Merge branch 'dummy-1'\n"
+        "    \n"
+        "    # Conflicts:\n"
+        "\n"
+        "commit 89abcdef0123456789abcdef0123456789abcdef\r\n"
+        "Author: X <x@y>\r\n"
+        "Date: whenever\r\n"
+        "\r\n"
+        "    First\r\n"
+        "\r\n"
+        "log: missing object 1234\n"));
+    assert(log.count == 2);
+    assert(strcmp(log.entries[0].sha, "0123456789abcdef0123456789abcdef01234567") == 0);
+    assert(strcmp(log.entries[0].author, "Andr\xE9") == 0 && log.entries[0].time == 1731600000L);
+    assert(strcmp(log.entries[0].subject, "Merge branch 'dummy-1'") == 0);
+    assert(strcmp(log.entries[1].author, "X") == 0 && log.entries[1].time == -1);
+    assert(strcmp(log.entries[1].subject, "First") == 0);
+    assert(gitlog_parse(&log, "log: no commits yet\n") && log.count == 0);
+    gitlog_clear(&log);
+
+    gitshow_init(&show);
+    assert(gitshow_parse(&show,
+        "commit 0123456789abcdef0123456789abcdef01234567\n"
+        "parent 89abcdef0123456789abcdef0123456789abcdef\n"
+        "parent 1111111111111111111111111111111111111111\n"
+        "Author: A <a@b> 1 +0000\n"
+        "Commit: A <a@b> 1 +0000\n"
+        "\n"
+        "    M\tnot a file\n"
+        "\n"
+        "M\tREADME.md\n"
+        "A\tsrc/new file.c\r\n"
+        "D\told.c\n"));
+    assert(strcmp(show.parent, "89abcdef0123456789abcdef0123456789abcdef") == 0);
+    assert(show.count == 3 && show.files[0].status == 'M' && strcmp(show.files[0].path, "README.md") == 0);
+    assert(strcmp(show.files[1].path, "src/new file.c") == 0 && show.files[2].status == 'D');
+    assert(gitshow_parse(&show, "commit 0123456789abcdef0123456789abcdef01234567\n\n    First\n\n(no files changed)\n"));
+    assert(show.parent[0] == '\0' && show.count == 0);
+    gitshow_clear(&show);
+}
+
+/**
  * @brief Run the tests.
  * @return 0.
  */
@@ -187,6 +262,7 @@ int main(void)
     test_diff();
     test_config();
     test_branches();
+    test_log();
     puts("git status tests passed");
     return 0;
 }

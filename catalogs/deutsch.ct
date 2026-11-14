@@ -2638,3 +2638,55 @@ MSG_GITB_UNTRACKEDMERGE
 Mergen|Abbrechen
 ; Merge|Cancel
 ;
+MSG_MENU_GIT_HISTORY
+Verlauf...
+; History...
+;
+MSG_GITH_TITLE
+Verlauf
+; History
+;
+MSG_GITH_LISTNOTE
+Commits von %s, neueste zuerst (höchstens %ld):
+; Commits of %s, newest first (at most %ld):
+;
+MSG_GITH_COL_COMMIT
+Commit
+; Commit
+;
+MSG_GITH_COL_DATE
+Datum
+; Date
+;
+MSG_GITH_COL_AUTHOR
+Autor
+; Author
+;
+MSG_GITH_COL_MESSAGE
+Nachricht
+; Message
+;
+MSG_GITH_FILESNOTE
+Vom ausgewählten Commit geänderte Dateien (bei einem Merge gegenüber dem ersten Vorgänger):
+; Files the selected commit changed (a merge: against its first parent):
+;
+MSG_GITH_DIFF
+Änderungen _zeigen...
+; _Show Changes...
+;
+MSG_GITH_NONE
+Das Repository hat noch keine Commits.
+; The repository has no commits yet.
+;
+MSG_GITH_NOFILE
+Bitte zuerst eine Datei des Commits anklicken.
+; Please click a file of the commit first.
+;
+MSG_GITH_HEADING
+Änderungen durch den Commit %s:
+; Changes of the commit %s:
+;
+MSG_GITH_NODIFF
+Der Commit hat den Text der Datei nicht geändert.
+; The commit did not change the text of the file.
+;

@@ -83,14 +83,18 @@ below the tree's root.
   `checkout`, Merge into Current `merge`, both only with nothing unsaved
   or uncommitted, documents loaded again afterwards; New... `branch
   <name>` (name window of `treeops.c`), Delete... `branch -d`; results
-  checked in `.git`, as am-git returns 0 also on failure).
+  checked in `.git`, as am-git returns 0 also on failure) and the
+  history window (Git/History...: `log -n 200`, the files of the
+  selected commit from `show <sha>`, a file's diff from `show
+  <sha>:<path>` of the commit and its first parent, in the diff window).
 - `src/linediff.c`, `include/linediff.h`: the portable line diff (Myers
   in linear space) written as unified hunks; no Amiga headers.
 - `src/gitstatus.c`, `include/gitstatus.h`: the portable reader of
   am-git's status lines, a file's or drawer's state (ignoring case), the
   branch of `.git/HEAD`, the kinds of a diff's lines, a value of
   `.git/config`, the lines of `branch`, the check of a new branch's
-  name and a ref of `packed-refs`; no Amiga headers.
+  name, a ref of `packed-refs`, the commits of `log` (author, date) and
+  the parent and files of `show <commit>`; no Amiga headers.
 - `src/filetypes.c`, `include/filetypes.h`: the portable settings per
   file type (tab size, indentation, automatic indentation, Tab key, line
   numbers, cutting lines): reading and writing the "filetypes" of
