@@ -72,6 +72,7 @@ void settings_default(Settings *s)
     s->scout = 1;
     strcpy(s->tempdir, "T:");
     strcpy(s->shellwindow, "CON:");
+    strcpy(s->gitcommand, "am-git");
     memcpy(s->colours, settings_default_colours, sizeof(s->colours));
 }
 
@@ -222,6 +223,10 @@ int appprefs_parse(Settings *s, const char *json)
         get_string(st, "projectdir", 1, s->projectdir, sizeof(s->projectdir));
         get_string(st, "author", 1, s->author, sizeof(s->author));
         get_string(st, "authormail", 1, s->authormail, sizeof(s->authormail));
+        if ((o = json_obj_get_obj(st, "git")) != NULL) {
+            get_bool(o, "enabled", &s->git);
+            get_string(o, "command", 0, s->gitcommand, sizeof(s->gitcommand));
+        }
         if ((o = json_obj_get_obj(st, "colours")) != NULL)
             for (i = 0; i < SCOL_COUNT; ++i)
                 if ((v = json_obj_get(o, colour_names[i])) != NULL && v->type == JSON_STRING)
@@ -319,6 +324,10 @@ static int write_settings(JsonValue *st, const Settings *s)
     if ((o = child_object(st, "outputfont")) == NULL ||
         !json_obj_set(o, "name", json_new_string(s->outfont)) ||
         !json_obj_set(o, "size", json_new_int(s->outfontsize)))
+        return 0;
+    if ((o = child_object(st, "git")) == NULL ||
+        !json_obj_set(o, "enabled", json_new_bool(s->git)) ||
+        !json_obj_set(o, "command", json_new_string(s->gitcommand)))
         return 0;
     if ((o = child_object(st, "colours")) == NULL) return 0;
     for (i = 0; i < SCOL_COUNT; ++i) {

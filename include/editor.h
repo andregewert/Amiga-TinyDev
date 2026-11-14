@@ -369,16 +369,80 @@ int settings_save(const Settings *s, const FileTypes *ft);
  * @return Non-zero on success.
  */
 int settings_save_toolwindows(const Settings *cur);
+/** am-git's environment variables, edited on the settings window's page Git (gitenv.c). */
+enum GitEnvVar {
+    GITENV_USER_NAME = 0,   /**< AM_GIT_USER_NAME: the name in commits */
+    GITENV_USER_EMAIL,      /**< AM_GIT_USER_EMAIL: the e-mail address in commits */
+    GITENV_USERNAME,        /**< AM_GIT_USERNAME: the login for every server */
+    GITENV_PASSWORD,        /**< AM_GIT_PASSWORD: its password or access token */
+    GITENV_SSH,             /**< AM_GIT_SSH: the ssh client (e.g. bebbossh) */
+    GITENV_NETRC,           /**< AM_GIT_NETRC: logins per server, netrc lines */
+    GITENV_COUNT            /**< number of variables */
+};
+
+/** Longest single-line value, with the terminator. */
+#define GITENV_LINE_MAX 256
+/** Longest value of AM_GIT_NETRC, with the terminator. */
+#define GITENV_NETRC_MAX 4096
+
+/** The values of am-git's environment variables. */
+typedef struct GitEnv {
+    char *value[GITENV_COUNT];  /**< malloc()ed, GitEnvVar order; "" = not set */
+} GitEnv;
+
+/**
+ * @brief The name of one of am-git's variables.
+ * @param var The variable (GitEnvVar).
+ * @return Its name, e.g. "AM_GIT_NETRC".
+ */
+const char *gitenv_name(int var);
+/**
+ * @brief The size of a variable's longest value.
+ * @param var The variable (GitEnvVar).
+ * @return The size with the terminator.
+ */
+size_t gitenv_max(int var);
+/**
+ * @brief Read am-git's variables: from ENV:, else from ENVARC:.
+ * @param[out] e The values (free them with gitenv_free()).
+ * @return Non-zero on success, 0 if out of memory (nothing to free).
+ */
+int gitenv_load(GitEnv *e);
+/**
+ * @brief Change a value (cut to the variable's size; a single line ends
+ *        at its first line end, trailing line ends are dropped).
+ * @param e The values.
+ * @param var The variable (GitEnvVar).
+ * @param value The new value; "" deletes the variable when stored.
+ * @return Non-zero on success, 0 if out of memory (the old value stays).
+ */
+int gitenv_set(GitEnv *e, int var, const char *value);
+/**
+ * @brief Write the variables whose value differs: to ENV:, and with save
+ *        also to ENVARC:. An empty value deletes the variable.
+ * @param e The values.
+ * @param save Non-zero to write them to ENVARC: too.
+ * @return Non-zero on success.
+ */
+int gitenv_store(const GitEnv *e, int save);
+/**
+ * @brief Free the values.
+ * @param e The values.
+ */
+void gitenv_free(GitEnv *e);
+
 /**
  * @brief Show the modal settings window (categories General, Colours,
- *        Toolbar, Advanced and the file types).
+ *        Toolbar, Project Defaults, Advanced, Git and the file types).
  * @param app The application state (main window and screen).
  * @param s In: the current settings; out: the edited ones (not on cancel).
  * @param ft In: the current settings per file type; out: the edited ones
  *        (not on cancel).
+ * @param genv In: am-git's variables; out: the edited ones (not on
+ *        cancel). The caller writes them (gitenv_store()).
  * @return PREFS_CANCEL, PREFS_USE or PREFS_SAVE.
  */
-int prefs_dialog(EditorApp *app, Settings *s, FileTypes *ft);
+int prefs_dialog(EditorApp *app, Settings *s, FileTypes *ft, GitEnv *genv);
 /** @brief Close the classes opened for the settings window. */
 void prefs_cleanup(void);
 /**

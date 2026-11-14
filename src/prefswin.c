@@ -1,6 +1,6 @@
 /**
  * @file prefswin.c
- * @brief The settings window (categories General, Colours, Toolbar, Project Defaults, Advanced and the file types), built like Kickdown's.
+ * @brief The settings window (categories General, Colours, Toolbar, Project Defaults, Advanced, Git and the file types), built like Kickdown's.
  *
  * Built after the ReAction style guide of amiga-devkit (section 4.2): a
  * list of categories on the left, the options of the selected one on the
@@ -29,6 +29,15 @@
  * The page Advanced chooses the output window's font with getfont.gadget;
  * its GETFONT_TextAttr is copied by the class (name included), so the
  * settings only take the name and size when the window is left.
+ *
+ * The page Git has three groups: am-git (the integration on or off, the
+ * command), the identity in commits and the login. The last two edit
+ * am-git's environment variables (gitenv.c), which the caller writes; the
+ * multi-line AM_GIT_NETRC is edited in a modal window of its own with a
+ * texteditor.gadget, like a command of the project settings, and the page
+ * shows how many lines it has. The password uses string.gadget's
+ * password hook (SHK_PASSWORD); that STRINGA_TextVal gives the real text
+ * with it is an assumption not yet tried on OS 3.2.
  */
 #include "editor.h"
 
@@ -42,11 +51,13 @@
 #include <gadgets/layout.h>
 #include <gadgets/listbrowser.h>
 #include <gadgets/string.h>
+#include <gadgets/texteditor.h>
 #include <libraries/asl.h>
 #include <images/bevel.h>
 #include <images/label.h>
 #include <intuition/gadgetclass.h>
 #include <proto/asl.h>
+#include <proto/dos.h>
 #include <proto/button.h>
 #include <proto/checkbox.h>
 #include <proto/chooser.h>
@@ -61,10 +72,12 @@
 #include <proto/layout.h>
 #include <proto/listbrowser.h>
 #include <proto/string.h>
+#include <proto/texteditor.h>
 #include <proto/window.h>
 #include <clib/alib_protos.h>
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 /**
@@ -97,21 +110,25 @@ enum {
     PG_TBMODE, PG_TBFRAMES,
     PG_PROJECTDIR, PG_CHOOSEPROJECT, PG_AUTHOR, PG_AUTHORMAIL,
     PG_SCOUT, PG_TEMPDIR, PG_CHOOSETEMP, PG_SHELLWINDOW, PG_OUTFONTOWN, PG_OUTFONT,
+    PG_GIT, PG_GITCOMMAND, PG_CHOOSEGIT, PG_GITNAME, PG_GITEMAIL, PG_GITFROMPROJECT,
+    PG_GITLOGIN, PG_GITPASSWORD, PG_GITSSH, PG_GITNETRCINFO, PG_GITNETRC,
     PG_FT_NAME, PG_FT_STANDARD, PG_FT_TABSIZE, PG_FT_INDENTWITH, PG_FT_INDENT, PG_FT_AUTO,
     PG_FT_TABKEY, PG_FT_NUMBERS, PG_FT_CUTCOPY,
-    PG_SAVE, PG_USE, PG_CANCEL
+    PG_SAVE, PG_USE, PG_CANCEL,
+    PN_TEXT, PN_OK, PN_CANCEL       /* the window of AM_GIT_NETRC */
 };
 
 /**
  * Names of the categories (MSG_), in the order of the pages.
  */
 static const LONG categories[] = {
-    MSG_CAT_GENERAL, MSG_CAT_COLOURS, MSG_CAT_TOOLBAR, MSG_CAT_PROJECT, MSG_CAT_ADVANCED
+    MSG_CAT_GENERAL, MSG_CAT_COLOURS, MSG_CAT_TOOLBAR, MSG_CAT_PROJECT, MSG_CAT_ADVANCED,
+    MSG_CAT_GIT
 };
 /**
  * Number of categories (pages) before the file types.
  */
-#define NUMCATEGORIES 5
+#define NUMCATEGORIES 6
 /** The page of the file types (after the categories). */
 #define PAGE_FILETYPES NUMCATEGORIES
 /** LBNA_UserData of the list's nodes: the categories are their page numbers. */
@@ -178,10 +195,15 @@ static struct {
     Object *tbmode, *tbframes;
     Object *projectdir, *author, *authormail;
     Object *scout, *tempdir, *shellwindow, *outfontown, *outfont;
+    Object *git, *gitcommand, *gitname, *gitemail, *gitlogin, *gitpassword, *gitssh, *gitnetrcinfo;
     Object *ft_name, *ft_standard, *ft_tabsize, *ft_indentwith, *ft_indent, *ft_auto,
            *ft_tabkey, *ft_numbers, *ft_cutcopy;
     FileTypes *ft;          /**< the settings per file type being edited */
     int ft_current;         /**< the file type on the page: -1 Standard, else a language's index */
+    EditorApp *app;         /**< the application state */
+    GitEnv *genv;           /**< am-git's variables being edited */
+    char *netrc;            /**< AM_GIT_NETRC as edited (malloc()ed) */
+    char netrcinfo[40];     /**< the text beside it: how many lines it has */
     struct Window *win;
     struct List catlist;
 } pw;
@@ -373,6 +395,45 @@ static void default_font(struct TextAttr *ta)
 }
 
 /**
+ * @brief A string gadget for one of am-git's variables.
+ * @param id Gadget ID.
+ * @param var The variable (GitEnvVar).
+ * @return The gadget.
+ */
+static Object *env_string(ULONG id, int var)
+{
+    return NewObject(STRING_GetClass(), NULL,
+        GA_ID, id, GA_RelVerify, TRUE, GA_TabCycle, TRUE,
+        STRINGA_MaxChars, GITENV_LINE_MAX,
+        var == GITENV_PASSWORD ? STRINGA_HookType : TAG_IGNORE, SHK_PASSWORD,
+        STRINGA_TextVal, (ULONG)pw.genv->value[var], TAG_END);
+}
+
+/**
+ * @brief Describe AM_GIT_NETRC as edited in pw.netrcinfo: none, or how
+ *        many lines (empty ones not counted) it has.
+ */
+static void netrc_info(void)
+{
+    const char *p = pw.netrc;
+    long n = 0;
+    while (p != NULL && *p != '\0') {
+        size_t len = strcspn(p, "\n");
+        size_t i;
+        for (i = 0; i < len; ++i)
+            if (p[i] != ' ' && p[i] != '\t' && p[i] != '\r') {
+                ++n;
+                break;
+            }
+        p += len;
+        if (*p == '\n') ++p;
+    }
+    if (n == 0) strcpy(pw.netrcinfo, S(MSG_PREFS_GIT_NETRC_NONE));
+    else if (n == 1) strcpy(pw.netrcinfo, S(MSG_PREFS_GIT_NETRC_ONE));
+    else snprintf(pw.netrcinfo, sizeof(pw.netrcinfo), S(MSG_PREFS_GIT_NETRC_LINES), n);
+}
+
+/**
  * @brief Build the window's contents from the settings.
  * @param app The application state.
  * @param s The settings shown.
@@ -380,7 +441,7 @@ static void default_font(struct TextAttr *ta)
  */
 static Object *build(EditorApp *app, const Settings *s)
 {
-    Object *general, *colours, *toolbar, *project, *advanced, *filetypes;
+    Object *general, *colours, *toolbar, *project, *advanced, *git, *filetypes;
     struct TextAttr font;
     ULONG i;
     int k, own_font;
@@ -559,6 +620,71 @@ static Object *build(EditorApp *app, const Settings *s)
         LAYOUT_AddChild, (ULONG)filler(),
         TAG_END);
 
+    /* Git: am-git, the identity in commits, the login; all but the first
+     * group are am-git's environment variables */
+    pw.git = checkbox(PG_GIT, S(MSG_PREFS_GIT_ENABLE), s->git);
+    pw.gitcommand = string(PG_GITCOMMAND, s->gitcommand, sizeof(s->gitcommand));
+    pw.gitname = env_string(PG_GITNAME, GITENV_USER_NAME);
+    pw.gitemail = env_string(PG_GITEMAIL, GITENV_USER_EMAIL);
+    pw.gitlogin = env_string(PG_GITLOGIN, GITENV_USERNAME);
+    pw.gitpassword = env_string(PG_GITPASSWORD, GITENV_PASSWORD);
+    pw.gitssh = env_string(PG_GITSSH, GITENV_SSH);
+    netrc_info();
+    pw.gitnetrcinfo = NewObject(BUTTON_GetClass(), NULL,
+        GA_ID, PG_GITNETRCINFO, GA_ReadOnly, TRUE, GA_Underscore, 0, GA_Text, (ULONG)pw.netrcinfo,
+        BUTTON_BevelStyle, BVS_NONE, BUTTON_Transparent, TRUE, BUTTON_Justification, BCJ_LEFT,
+        TAG_END);
+    git = NewObject(LAYOUT_GetClass(), NULL,
+        LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
+        LAYOUT_InnerSpacing, AREA_SPACING,
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(MSG_PREFS_GRP_GITTOOL)),
+            LAYOUT_AddChild, (ULONG)pw.git, FIXED,
+            LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+                LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+                LAYOUT_AddChild, (ULONG)pw.gitcommand,
+                LAYOUT_AddChild, (ULONG)button(PG_CHOOSEGIT, S(MSG_PREFS_CHOOSE)),
+                CHILD_WeightedWidth, 0,
+                TAG_END),
+            FIXED,
+            CHILD_Label, (ULONG)label(S(MSG_PREFS_GIT_COMMAND)),
+            LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_GIT_TOOLNOTE)), FIXED,
+            TAG_END),
+        FIXED,
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(MSG_PREFS_GRP_GITIDENTITY)),
+            LAYOUT_AddChild, (ULONG)pw.gitname, FIXED,
+            CHILD_Label, (ULONG)label(S(MSG_PREFS_GIT_NAME)),
+            LAYOUT_AddChild, (ULONG)pw.gitemail, FIXED,
+            CHILD_Label, (ULONG)label(S(MSG_PREFS_GIT_EMAIL)),
+            LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+                LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+                LAYOUT_AddChild, (ULONG)filler(),
+                LAYOUT_AddChild, (ULONG)button(PG_GITFROMPROJECT, S(MSG_PREFS_GIT_FROMPROJECT)),
+                CHILD_WeightedWidth, 0,
+                TAG_END),
+            FIXED,
+            TAG_END),
+        FIXED,
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(MSG_PREFS_GRP_GITLOGIN)),
+            LAYOUT_AddChild, (ULONG)pw.gitlogin, FIXED,
+            CHILD_Label, (ULONG)label(S(MSG_PREFS_GIT_LOGIN)),
+            LAYOUT_AddChild, (ULONG)pw.gitpassword, FIXED,
+            CHILD_Label, (ULONG)label(S(MSG_PREFS_GIT_PASSWORD)),
+            LAYOUT_AddChild, (ULONG)pw.gitssh, FIXED,
+            CHILD_Label, (ULONG)label(S(MSG_PREFS_GIT_SSH)),
+            LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+                LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+                LAYOUT_AddChild, (ULONG)pw.gitnetrcinfo,
+                LAYOUT_AddChild, (ULONG)button(PG_GITNETRC, S(MSG_PREFS_GIT_NETRC_EDIT)),
+                CHILD_WeightedWidth, 0,
+                TAG_END),
+            FIXED,
+            CHILD_Label, (ULONG)label(S(MSG_PREFS_GIT_NETRC)),
+            TAG_END),
+        FIXED,
+        LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_GIT_NOTE)), FIXED,
+        LAYOUT_AddChild, (ULONG)filler(),
+        TAG_END);
+
     /* File types: one page for all, filled by ft_show() */
     for (i = 0; i < 2; ++i) {
         indentwith[i] = (STRPTR)S(indentwith_texts[i]);
@@ -603,6 +729,7 @@ static Object *build(EditorApp *app, const Settings *s)
         PAGE_Add, (ULONG)toolbar,
         PAGE_Add, (ULONG)project,
         PAGE_Add, (ULONG)advanced,
+        PAGE_Add, (ULONG)git,
         PAGE_Add, (ULONG)filetypes,
         PAGE_Current, 0,
         TAG_END);
@@ -669,6 +796,17 @@ static void copy_text(Object *o, char *out, size_t size)
 }
 
 /**
+ * @brief Set an attribute of a gadget that may be on a hidden page.
+ * @param o The gadget.
+ * @param tag The attribute.
+ * @param value Its value.
+ */
+static void set_page_gadget(Object *o, ULONG tag, ULONG value)
+{
+    SetPageGadgetAttrs((struct Gadget *)o, pw.page, pw.win, NULL, tag, value, TAG_END);
+}
+
+/**
  * @brief Take the gadgets' values into the settings.
  * @param s The settings.
  */
@@ -711,6 +849,196 @@ static void read_gadgets(Settings *s)
             s->outfontsize = ta->ta_YSize;
         }
     }
+    s->git = get(pw.git, CHECKBOX_Checked) != 0;
+    {
+        const char *cmd = (const char *)get(pw.gitcommand, STRINGA_TextVal);
+        strncpy(s->gitcommand, cmd != NULL && cmd[0] != '\0' ? cmd : "am-git", sizeof(s->gitcommand) - 1);
+        s->gitcommand[sizeof(s->gitcommand) - 1] = '\0';
+    }
+}
+
+/**
+ * @brief Take the page Git's values into am-git's variables being edited.
+ * @return Non-zero on success, 0 if out of memory.
+ */
+static int read_gitenv(void)
+{
+    static const struct { int var; Object **o; } f[] = {
+        { GITENV_USER_NAME, &pw.gitname }, { GITENV_USER_EMAIL, &pw.gitemail },
+        { GITENV_USERNAME, &pw.gitlogin }, { GITENV_PASSWORD, &pw.gitpassword },
+        { GITENV_SSH, &pw.gitssh }
+    };
+    ULONG i;
+    for (i = 0; i < sizeof(f) / sizeof(f[0]); ++i) {
+        const char *text = (const char *)get(*f[i].o, STRINGA_TextVal);
+        if (!gitenv_set(pw.genv, f[i].var, text != NULL ? text : "")) return 0;
+    }
+    return gitenv_set(pw.genv, GITENV_NETRC, pw.netrc != NULL ? pw.netrc : "");
+}
+
+/**
+ * @brief Show a message over a window.
+ * @param win The window.
+ * @param text The message.
+ */
+static void message(struct Window *win, const char *text)
+{
+    struct EasyStruct es = {sizeof(es), 0, (STRPTR)S(MSG_PREFS_TITLE), (STRPTR)text, (STRPTR)S(MSG_OK)};
+    EasyRequestArgs(win, &es, NULL, NULL);
+}
+
+/**
+ * @brief Drop the input of a window that waits under a modal one.
+ * @param winobj The window (window.class).
+ */
+static void drop_input(Object *winobj)
+{
+    WORD code;
+    while (DoMethod(winobj, WM_HANDLEINPUT, &code) != WMHI_LASTMSG) ;
+}
+
+/**
+ * @brief The window of AM_GIT_NETRC: edit its lines in a texteditor.gadget
+ *        (modal over the settings window); OK takes them into pw.netrc.
+ */
+static void edit_netrc(void)
+{
+    EditorApp *app = pw.app;
+    Object *winobj, *layout, *text;
+    struct Window *win;
+    ULONG sig = 0, pwsig = 0, mainsig = 0, result;
+    WORD code;
+    int done = 0;
+    LONG w = TextLength(&app->screen->RastPort, (STRPTR)"n", 1);
+    ULONG h = app->screen->RastPort.TxHeight + 1U;
+
+    text = NewObject(TEXTEDITOR_GetClass(), NULL,
+        GA_ID, PN_TEXT,
+        GA_TEXTEDITOR_Contents, (ULONG)(pw.netrc != NULL ? pw.netrc : ""),
+        GA_TEXTEDITOR_FixedFont, TRUE,
+        GA_TEXTEDITOR_WrapBorder, 0,
+        GA_TEXTEDITOR_HorizontalScroll, TRUE,
+        TAG_END);
+    layout = NewObject(LAYOUT_GetClass(), NULL,
+        LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
+        LAYOUT_SpaceOuter, TRUE,
+        LAYOUT_LeftSpacing, AREA_SPACING,
+        LAYOUT_RightSpacing, AREA_SPACING,
+        LAYOUT_TopSpacing, AREA_SPACING,
+        LAYOUT_BottomSpacing, AREA_SPACING,
+        LAYOUT_InnerSpacing, AREA_SPACING,
+        LAYOUT_DeferLayout, TRUE,
+        LAYOUT_AddChild, (ULONG)text,
+        CHILD_MinWidth, (ULONG)(60 * w),
+        CHILD_MinHeight, 6 * h + 8,
+        LAYOUT_AddImage, (ULONG)label(S(MSG_GITNETRC_NOTE)), FIXED,
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+            LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+            LAYOUT_AddChild, (ULONG)button(PN_OK, S(MSG_PJE_OK)),
+            CHILD_WeightedWidth, 0,
+            LAYOUT_AddChild, (ULONG)filler(),
+            LAYOUT_AddChild, (ULONG)button(PN_CANCEL, S(MSG_PJE_CANCEL)),
+            CHILD_WeightedWidth, 0,
+            TAG_END),
+        CHILD_WeightedHeight, 0,
+        TAG_END);
+    if (layout == NULL) return;
+    winobj = NewObject(WINDOW_GetClass(), NULL,
+        WA_Title, (ULONG)S(MSG_GITNETRC_TITLE),
+        WA_PubScreen, (ULONG)app->screen,
+        WA_Activate, TRUE,
+        WA_DepthGadget, TRUE,
+        WA_DragBar, TRUE,
+        WA_CloseGadget, TRUE,
+        WA_SizeGadget, TRUE,
+        WINDOW_RefWindow, (ULONG)pw.win,
+        WINDOW_Position, WPOS_CENTERWINDOW,
+        WINDOW_ParentGroup, (ULONG)layout,
+        TAG_END);
+    if (winobj == NULL) {
+        DisposeObject(layout);
+        return;
+    }
+    if ((win = (struct Window *)DoMethod(winobj, WM_OPEN, NULL)) == NULL) {
+        DisposeObject(winobj);
+        return;
+    }
+    ActivateLayoutGadget((struct Gadget *)layout, win, NULL, (ULONG)text);
+
+    SetAttrs(pw.winobj, WA_BusyPointer, TRUE, TAG_END);
+    GetAttr(WINDOW_SigMask, app->window_object, &mainsig);
+    GetAttr(WINDOW_SigMask, pw.winobj, &pwsig);
+    GetAttr(WINDOW_SigMask, winobj, &sig);
+    while (!done) {
+        ULONG got = Wait(sig | pwsig | mainsig);
+        if ((got & mainsig) != 0) drop_input(app->window_object);
+        if ((got & pwsig) != 0) drop_input(pw.winobj);
+        while ((result = DoMethod(winobj, WM_HANDLEINPUT, &code)) != WMHI_LASTMSG) {
+            if ((result & WMHI_CLASSMASK) == WMHI_CLOSEWINDOW) { done = 1; continue; }
+            if ((result & WMHI_CLASSMASK) != WMHI_GADGETUP) continue;
+            switch (result & WMHI_GADGETMASK) {
+                case PN_OK: {
+                    char *t = (char *)DoMethod(text, GM_TEXTEDITOR_ExportText, NULL);
+                    const char *v = t != NULL ? t : "";
+                    size_t n = strlen(v);
+                    char *copy = NULL;
+                    if (n >= GITENV_NETRC_MAX) {
+                        char msg[100];
+                        snprintf(msg, sizeof(msg), S(MSG_GITNETRC_TOOLONG), (long)(GITENV_NETRC_MAX - 1));
+                        message(win, msg);
+                    } else if ((copy = malloc(n + 1)) == NULL) {
+                        message(win, S(MSG_PJ_NOMEM));
+                    } else {
+                        memcpy(copy, v, n + 1);
+                        free(pw.netrc);
+                        pw.netrc = copy;
+                        netrc_info();
+                        set_page_gadget(pw.gitnetrcinfo, GA_Text, (ULONG)pw.netrcinfo);
+                        done = 1;
+                    }
+                    if (t != NULL) FreeVec(t);
+                    break;
+                }
+                case PN_CANCEL:
+                    done = 1;
+                    break;
+            }
+        }
+    }
+    SetAttrs(pw.winobj, WA_BusyPointer, FALSE, TAG_END);
+    DisposeObject(winobj);                      /* the gadgets with it */
+}
+
+/**
+ * @brief Let the user choose the am-git program with the ASL requester and
+ *        put its path into the command's gadget.
+ */
+static void choose_git(void)
+{
+    const char *cmd = (const char *)get(pw.gitcommand, STRINGA_TextVal);
+    char drawer[256], path[256];
+    struct FileRequester *fr;
+
+    drawer[0] = '\0';
+    if (cmd != NULL && strchr(cmd, ':') != NULL) {
+        size_t n = (size_t)((const char *)PathPart((STRPTR)cmd) - cmd);
+        if (n >= sizeof(drawer)) n = sizeof(drawer) - 1;
+        memcpy(drawer, cmd, n);
+        drawer[n] = '\0';
+    }
+    fr = AllocAslRequestTags(ASL_FileRequest, ASLFR_TitleText, (ULONG)S(MSG_PREFS_ASL_GITCOMMAND), TAG_END);
+    if (fr == NULL) return;
+    if (AslRequestTags(fr, ASLFR_Window, (ULONG)pw.win, ASLFR_SleepWindow, TRUE,
+                       ASLFR_InitialDrawer, (ULONG)(drawer[0] != '\0' ? drawer : "C:"),
+                       ASLFR_InitialFile, (ULONG)(cmd != NULL ? (const char *)FilePart((STRPTR)cmd) : ""),
+                       TAG_END) &&
+        fr->fr_File != NULL && fr->fr_File[0] != '\0') {
+        strncpy(path, fr->fr_Drawer != NULL ? (const char *)fr->fr_Drawer : "", sizeof(path) - 1);
+        path[sizeof(path) - 1] = '\0';
+        if (AddPart((STRPTR)path, fr->fr_File, sizeof(path)))
+            set_page_gadget(pw.gitcommand, STRINGA_TextVal, (ULONG)path);
+    }
+    FreeAslRequest(fr);
 }
 
 /**
@@ -733,17 +1061,6 @@ static void choose_drawer(Object *o, const char *title, const char *initial)
         SetPageGadgetAttrs((struct Gadget *)o, pw.page, pw.win, NULL,
                            STRINGA_TextVal, (ULONG)fr->fr_Drawer, TAG_END);
     FreeAslRequest(fr);
-}
-
-/**
- * @brief Set an attribute of a gadget that may be on a hidden page.
- * @param o The gadget.
- * @param tag The attribute.
- * @param value Its value.
- */
-static void set_page_gadget(Object *o, ULONG tag, ULONG value)
-{
-    SetPageGadgetAttrs((struct Gadget *)o, pw.page, pw.win, NULL, tag, value, TAG_END);
 }
 
 /**
@@ -844,7 +1161,7 @@ static void select_category(void)
     RethinkLayout((struct Gadget *)pw.root, pw.win, NULL, TRUE);
 }
 
-int prefs_dialog(EditorApp *app, Settings *s, FileTypes *ft)
+int prefs_dialog(EditorApp *app, Settings *s, FileTypes *ft, GitEnv *genv)
 {
     ULONG sig = 0, mainsig = 0, result, i;
     WORD code = 0;
@@ -854,6 +1171,10 @@ int prefs_dialog(EditorApp *app, Settings *s, FileTypes *ft)
     memset(&pw, 0, sizeof(pw));
     pw.ft = ft;
     pw.ft_current = -1;
+    pw.app = app;
+    pw.genv = genv;
+    if ((pw.netrc = malloc(strlen(genv->value[GITENV_NETRC]) + 1)) == NULL) goto out;
+    strcpy(pw.netrc, genv->value[GITENV_NETRC]);
     if ((pw.root = build(app, s)) == NULL) goto out;
     ft_show();
 
@@ -934,8 +1255,23 @@ int prefs_dialog(EditorApp *app, Settings *s, FileTypes *ft)
                 case PG_CHOOSEPROJECT:
                     choose_drawer(pw.projectdir, S(MSG_PREFS_ASL_PROJECTDIR), "SYS:");
                     break;
+                case PG_CHOOSEGIT:
+                    choose_git();
+                    break;
+                case PG_GITFROMPROJECT:
+                    /* the values on the page Project Defaults, also if not used yet */
+                    set_page_gadget(pw.gitname, STRINGA_TextVal, get(pw.author, STRINGA_TextVal));
+                    set_page_gadget(pw.gitemail, STRINGA_TextVal, get(pw.authormail, STRINGA_TextVal));
+                    break;
+                case PG_GITNETRC:
+                    edit_netrc();
+                    break;
                 case PG_SAVE:
                 case PG_USE:
+                    if (!read_gitenv()) {
+                        message(pw.win, S(MSG_PJ_NOMEM));
+                        break;
+                    }
                     read_gadgets(s);
                     ft_store();
                     rc = id == PG_SAVE ? PREFS_SAVE : PREFS_USE;
@@ -960,6 +1296,7 @@ int prefs_dialog(EditorApp *app, Settings *s, FileTypes *ft)
 out:
     if (pw.winobj != NULL) DisposeObject(pw.winobj);         /* the gadgets with it */
     if (pw.catlist.lh_Head != NULL) FreeListBrowserList(&pw.catlist);
+    free(pw.netrc);
     memset(&pw, 0, sizeof(pw));
     return rc;
 }

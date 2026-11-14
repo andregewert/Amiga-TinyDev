@@ -30,6 +30,7 @@
  *     "projectdir": "",
  *     "author": "",
  *     "authormail": "",
+ *     "git": { "enabled": false, "command": "am-git" },
  *     "colours": { "text": "#000000", "keyword": "#0030D0", ... }
  *   }
  *
@@ -53,6 +54,10 @@
  * - "projectdir": the drawer suggested for new projects ("" = the parent
  *   of the current project);
  * - "author", "authormail": the author filled into templates;
+ * - "git": the git integration through am-git: on or off, and the
+ *   command that runs am-git (a name in the command path or a path; ""
+ *   keeps "am-git"); am-git's own settings are environment variables,
+ *   not kept here;
  * - "colours": the colours of the highlighting, "#RRGGBB", with the keys
  *   text, keyword, string, comment, preprocessor, type, function, macro,
  *   constant and variable.
@@ -113,6 +118,8 @@ typedef struct Settings {
     char projectdir[256];  /**< drawer suggested for new projects; "" = the current project's parent */
     char author[128];      /**< the author for templates, Sprout's AUTHOR */
     char authormail[128];  /**< the author's e-mail address, Sprout's AUTHORMAIL */
+    int git;               /**< the git integration through am-git is on */
+    char gitcommand[256];  /**< the command that runs am-git (default "am-git") */
     char icon_name[300];   /**< program icon without .info, for splash, About and AppIcon (not saved) */
 } Settings;
 

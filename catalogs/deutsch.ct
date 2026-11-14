@@ -1986,3 +1986,99 @@ MSG_PREFS_ASL_OUTFONT
 Schrift des Ausgabefensters
 ; Font of the output window
 ;
+MSG_CAT_GIT
+Git
+; Git
+;
+MSG_PREFS_GRP_GITTOOL
+am-git
+; am-git
+;
+MSG_PREFS_GIT_ENABLE
+Git-Integration mit am-git
+; Git integration through am-git
+;
+MSG_PREFS_GIT_COMMAND
+Befehl 
+; Command 
+;
+MSG_PREFS_ASL_GITCOMMAND
+am-git auswählen
+; Choose am-git
+;
+MSG_PREFS_GIT_TOOLNOTE
+am-git gibt es im Aminet; https braucht AmiSSL.\nOhne Pfad wird der Befehl im Suchpfad gesucht.
+; am-git comes from Aminet; https needs AmiSSL.\nWithout a path the command is looked for in the command path.
+;
+MSG_PREFS_GRP_GITIDENTITY
+Identität in Commits
+; Identity in commits
+;
+MSG_PREFS_GIT_NAME
+Name 
+; Name 
+;
+MSG_PREFS_GIT_EMAIL
+E-Mail-Adresse 
+; E-mail address 
+;
+MSG_PREFS_GIT_FROMPROJECT
+Aus den Projektvorgaben
+; From the project defaults
+;
+MSG_PREFS_GRP_GITLOGIN
+Zugang
+; Login
+;
+MSG_PREFS_GIT_LOGIN
+Benutzername 
+; User name 
+;
+MSG_PREFS_GIT_PASSWORD
+Passwort oder Token 
+; Password or token 
+;
+MSG_PREFS_GIT_SSH
+ssh-Client 
+; ssh client 
+;
+MSG_PREFS_GIT_NETRC
+Zugänge pro Server 
+; Logins per server 
+;
+MSG_PREFS_GIT_NETRC_EDIT
+Bearbeiten...
+; Edit...
+;
+MSG_PREFS_GIT_NETRC_NONE
+keine
+; none
+;
+MSG_PREFS_GIT_NETRC_ONE
+1 Zeile
+; 1 line
+;
+MSG_PREFS_GIT_NETRC_LINES
+%ld Zeilen
+; %ld lines
+;
+MSG_PREFS_GIT_NOTE
+Das sind Umgebungsvariablen von am-git: Benutzen schreibt sie\nnach ENV:, Speichern auch nach ENVARC:. Sie gelten auch außerhalb von TinyDev.
+; These are am-git's environment variables: Use writes them\nto ENV:, Save also to ENVARC:. They count outside TinyDev too.
+;
+MSG_GITNETRC_TITLE
+Zugänge pro Server (AM_GIT_NETRC)
+; Logins per server (AM_GIT_NETRC)
+;
+MSG_GITNETRC_NOTE
+Eine Zeile pro Server: machine <Host> login <Name> password <Token>\nEine Zeile default login <Name> password <Token> gilt für alle übrigen.
+; One line per server: machine <host> login <name> password <token>\nA line default login <name> password <token> counts for all others.
+;
+MSG_GITNETRC_TOOLONG
+Die Zugänge sind zu lang (höchstens %ld Zeichen).
+; The logins are too long (at most %ld characters).
+;
+MSG_ERR_GITENV
+Die Einstellungen von am-git konnten nicht\nnach ENV: bzw. ENVARC: geschrieben werden.
+; am-git's settings could not be written\nto ENV: or ENVARC:.
+;

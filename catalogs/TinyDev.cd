@@ -1520,3 +1520,75 @@ Otherwise the font of System Default Text (Font preferences).
 MSG_PREFS_ASL_OUTFONT (//)
 Font of the output window
 ;
+MSG_CAT_GIT (//)
+Git
+;
+MSG_PREFS_GRP_GITTOOL (//)
+am-git
+;
+MSG_PREFS_GIT_ENABLE (//)
+Git integration through am-git
+;
+MSG_PREFS_GIT_COMMAND (//)
+Command 
+;
+MSG_PREFS_ASL_GITCOMMAND (//)
+Choose am-git
+;
+MSG_PREFS_GIT_TOOLNOTE (//)
+am-git comes from Aminet; https needs AmiSSL.\nWithout a path the command is looked for in the command path.
+;
+MSG_PREFS_GRP_GITIDENTITY (//)
+Identity in commits
+;
+MSG_PREFS_GIT_NAME (//)
+Name 
+;
+MSG_PREFS_GIT_EMAIL (//)
+E-mail address 
+;
+MSG_PREFS_GIT_FROMPROJECT (//)
+From the project defaults
+;
+MSG_PREFS_GRP_GITLOGIN (//)
+Login
+;
+MSG_PREFS_GIT_LOGIN (//)
+User name 
+;
+MSG_PREFS_GIT_PASSWORD (//)
+Password or token 
+;
+MSG_PREFS_GIT_SSH (//)
+ssh client 
+;
+MSG_PREFS_GIT_NETRC (//)
+Logins per server 
+;
+MSG_PREFS_GIT_NETRC_EDIT (//)
+Edit...
+;
+MSG_PREFS_GIT_NETRC_NONE (//)
+none
+;
+MSG_PREFS_GIT_NETRC_ONE (//)
+1 line
+;
+MSG_PREFS_GIT_NETRC_LINES (//)
+%ld lines
+;
+MSG_PREFS_GIT_NOTE (//)
+These are am-git's environment variables: Use writes them\nto ENV:, Save also to ENVARC:. They count outside TinyDev too.
+;
+MSG_GITNETRC_TITLE (//)
+Logins per server (AM_GIT_NETRC)
+;
+MSG_GITNETRC_NOTE (//)
+One line per server: machine <host> login <name> password <token>\nA line default login <name> password <token> counts for all others.
+;
+MSG_GITNETRC_TOOLONG (//)
+The logins are too long (at most %ld characters).
+;
+MSG_ERR_GITENV (//)
+am-git's settings could not be written\nto ENV: or ENVARC:.
+;

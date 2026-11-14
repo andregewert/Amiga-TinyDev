@@ -1207,21 +1207,30 @@ static void menu_action(EditorApp *app, ULONG id);
 /**
  * @brief Show the settings window and take over its result; "Save" also
  *        writes the settings and those of the file types into
- *        PROGDIR:TinyDev.json.
+ *        PROGDIR:TinyDev.json. am-git's variables go to ENV: ("Use") or
+ *        to ENV: and ENVARC: ("Save").
  * @param app The application state.
  */
 static void edit_settings(EditorApp *app)
 {
     Settings n = app->settings;
     FileTypes ft;
+    GitEnv genv;
     Document *doc;
     int r;
     if (!filetypes_copy(&ft, &app->filetypes)) return;
-    r = prefs_dialog(app, &n, &ft);
-    if (r == PREFS_CANCEL) {
+    if (!gitenv_load(&genv)) {
         filetypes_clear(&ft);
         return;
     }
+    r = prefs_dialog(app, &n, &ft, &genv);
+    if (r == PREFS_CANCEL) {
+        gitenv_free(&genv);
+        filetypes_clear(&ft);
+        return;
+    }
+    if (!gitenv_store(&genv, r == PREFS_SAVE)) ui_error(app, APP_NAME, S(MSG_ERR_GITENV));
+    gitenv_free(&genv);
     ui_apply_settings(app, &n);
     filetypes_clear(&app->filetypes);
     app->filetypes = ft;                    /* taken over */

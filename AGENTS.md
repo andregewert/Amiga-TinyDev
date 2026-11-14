@@ -39,9 +39,16 @@ below the tree's root.
 - `src/prefswin.c`: the settings window (categories General with the groups
   Window and View, Colours, Toolbar, Project Defaults (drawer of new
   projects, author and e-mail address for the templates), Advanced with Scout, the drawer of
-  the temporary files, the Shell window and the output window's font, and File Types: Standard and
+  the temporary files, the Shell window and the output window's font, Git
+  (am-git on or off, its command, and am-git's environment variables with
+  a window of its own for the lines of `AM_GIT_NETRC`), and File Types: Standard and
   Scout's languages in a hierarchical list sharing one page),
   built like Kickdown's.
+- `src/gitenv.c`: am-git's environment variables (`AM_GIT_USER_NAME`,
+  `AM_GIT_USER_EMAIL`, `AM_GIT_USERNAME`, `AM_GIT_PASSWORD`, `AM_GIT_SSH`,
+  `AM_GIT_NETRC`), read from `ENV:` (else `ENVARC:`) and written by the
+  settings window: "Use" to `ENV:`, "Save" also to `ENVARC:`, only what
+  changed. TinyDev keeps none of them in `TinyDev.json`.
 - `src/filetypes.c`, `include/filetypes.h`: the portable settings per
   file type (tab size, indentation, automatic indentation, Tab key, line
   numbers, cutting lines): reading and writing the "filetypes" of

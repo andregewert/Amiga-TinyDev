@@ -497,7 +497,31 @@
 #define MSG_PREFS_OUTFONT            492
 #define MSG_PREFS_OUTFONTNOTE        493
 #define MSG_PREFS_ASL_OUTFONT        494
-#define MSG_COUNT                    495
+#define MSG_CAT_GIT                  495
+#define MSG_PREFS_GRP_GITTOOL        496
+#define MSG_PREFS_GIT_ENABLE         497
+#define MSG_PREFS_GIT_COMMAND        498
+#define MSG_PREFS_ASL_GITCOMMAND     499
+#define MSG_PREFS_GIT_TOOLNOTE       500
+#define MSG_PREFS_GRP_GITIDENTITY    501
+#define MSG_PREFS_GIT_NAME           502
+#define MSG_PREFS_GIT_EMAIL          503
+#define MSG_PREFS_GIT_FROMPROJECT    504
+#define MSG_PREFS_GRP_GITLOGIN       505
+#define MSG_PREFS_GIT_LOGIN          506
+#define MSG_PREFS_GIT_PASSWORD       507
+#define MSG_PREFS_GIT_SSH            508
+#define MSG_PREFS_GIT_NETRC          509
+#define MSG_PREFS_GIT_NETRC_EDIT     510
+#define MSG_PREFS_GIT_NETRC_NONE     511
+#define MSG_PREFS_GIT_NETRC_ONE      512
+#define MSG_PREFS_GIT_NETRC_LINES    513
+#define MSG_PREFS_GIT_NOTE           514
+#define MSG_GITNETRC_TITLE           515
+#define MSG_GITNETRC_NOTE            516
+#define MSG_GITNETRC_TOOLONG         517
+#define MSG_ERR_GITENV               518
+#define MSG_COUNT                    519
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -997,6 +1021,30 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Font ",
     "Otherwise the font of System Default Text (Font preferences).",
     "Font of the output window",
+    "Git",
+    "am-git",
+    "Git integration through am-git",
+    "Command ",
+    "Choose am-git",
+    "am-git comes from Aminet; https needs AmiSSL.\nWithout a path the command is looked for in the command path.",
+    "Identity in commits",
+    "Name ",
+    "E-mail address ",
+    "From the project defaults",
+    "Login",
+    "User name ",
+    "Password or token ",
+    "ssh client ",
+    "Logins per server ",
+    "Edit...",
+    "none",
+    "1 line",
+    "%ld lines",
+    "These are am-git's environment variables: Use writes them\nto ENV:, Save also to ENVARC:. They count outside TinyDev too.",
+    "Logins per server (AM_GIT_NETRC)",
+    "One line per server: machine <host> login <name> password <token>\nA line default login <name> password <token> counts for all others.",
+    "The logins are too long (at most %ld characters).",
+    "am-git's settings could not be written\nto ENV: or ENVARC:.",
 };
 #endif
 

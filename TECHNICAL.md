@@ -224,11 +224,21 @@ version therefore hides a fresh build; check with
   4. Fetch, pull and push with their output in the output window; remotes
      through `am-git config` (it has no `remote` command).
 
-  To try on the Amiga before starting: how long `status` takes on a real
-  project on a 68030 (0.12.3 made it much faster, but it walks the tree);
-  how umlauts in file names and commit messages come through, as git
-  expects UTF-8 and TinyDev works in ISO-8859-1 (`codesets.library`?);
-  multi-line messages through the AmigaShell. am-git wants a stack of
+  Tried on the Amiga with am-git 0.12.1 (14.11.2026):
+  - `status --porcelain` prints only `XY path` lines (index, work tree:
+    `A ` added, ` M` changed, `??` untracked), with no `## branch` line;
+    the branch is the first line of plain `status` ("On branch main").
+  - File names come through as the bytes on disk (ISO-8859-1 `ö` as
+    0xF6), not as UTF-8: TinyDev needs no conversion, but such names
+    look wrong in other git clients.
+  - `diff` shows the work tree against the index only (a staged new file
+    is missing) and has no path argument; an untracked file may show a
+    header without a hunk.
+  - `commit -m` takes one line: neither `*N` nor `\n` makes a line
+    break, so the commit window asks for a single line.
+
+  Still to try: how long `status` takes on a real project on a 68030
+  (0.12.3 made it much faster, but it walks the tree). am-git wants a stack of
   100000 bytes, more than the 65536 of the Build scripts. Credentials stay
   with am-git (`ENV:AM_GIT_NETRC`); TinyDev stores none. Pull and checkout
   change files that may be open, so documents must be compared with the

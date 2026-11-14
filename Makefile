@@ -6,7 +6,7 @@ HOST_CC ?= cc
 BUILD_DIR := build
 BIN_DIR := bin
 TARGET := $(BIN_DIR)/TinyDev
-SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/treeops.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/appprefs.c src/splash.c src/prefswin.c src/closeimage.c src/tmplsym.c src/newproj.c src/sprout/sprout_tmpl.c src/search.c src/find.c src/filescan.c src/locale.c src/bookmarks.c src/bmstore.c src/projconf.c src/projdata.c src/projwin.c src/build.c src/outwin.c src/json.c src/toolwin.c src/bmlist.c src/help.c src/shell.c src/filetypes.c src/ftprefs.c src/tempfile.c src/cmdpath.c src/scoutlink.c src/symlist.c src/diag.c src/diaglist.c src/navigate.c src/rules.c src/tokenmap.c src/complete.c src/statuslamp.c
+SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/treeops.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/appprefs.c src/gitenv.c src/splash.c src/prefswin.c src/closeimage.c src/tmplsym.c src/newproj.c src/sprout/sprout_tmpl.c src/search.c src/find.c src/filescan.c src/locale.c src/bookmarks.c src/bmstore.c src/projconf.c src/projdata.c src/projwin.c src/build.c src/outwin.c src/json.c src/toolwin.c src/bmlist.c src/help.c src/shell.c src/filetypes.c src/ftprefs.c src/tempfile.c src/cmdpath.c src/scoutlink.c src/symlist.c src/diag.c src/diaglist.c src/navigate.c src/rules.c src/tokenmap.c src/complete.c src/statuslamp.c
 OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
 # dirtree.gadget's natural order, also used for the list of file types
 OBJECTS += $(BUILD_DIR)/natural_sort.o
