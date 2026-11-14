@@ -4,9 +4,13 @@
   "build": [
     { "name": "Build", "command": "make", "default": true },
     { "name": "Rebuild", "command": ["make clean", "make"] },
-    { "name": "Compile file", "command": "gcc -O2 -noixemul -c \"{file}\" -o \"{base}.o\"" }
+    { "name": "Compile file", "command": "gcc -O2 -noixemul -c \"{file}\" -o \"{base}.o\"" },
+    { "name": "Debug build", "command": "make debug" }
   ],
   "run": [
     { "name": "{$NAME}", "command": "{$NAME}", "default": true }
+  ],
+  "debug": [
+    { "name": "BDebug", "command": "BDebug {$NAME}.debug", "default": true }
   ]
 }

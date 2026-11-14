@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "name": "{$PROJECT}",
+  "build": [
+    { "name": "Build", "command": "vasmm68k_mot -Fhunkexe -nosym -o {$NAME} {$NAME}.s -I{$INCDIR}", "default": true },
+    { "name": "Debug build", "command": "vasmm68k_mot -Fhunkexe -linedebug -o {$NAME}.debug {$NAME}.s -I{$INCDIR}" }
+  ],
+  "run": [
+    { "name": "{$NAME}", "command": "{$NAME}", "default": true }
+  ],
+  "debug": [
+    { "name": "BDebug", "command": "BDebug {$NAME}.debug", "default": true }
+  ]
+}

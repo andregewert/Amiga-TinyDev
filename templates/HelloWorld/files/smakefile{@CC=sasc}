@@ -5,5 +5,12 @@
 {$NAME}: {$NAME}.c
 	sc LINK OPTIMIZE NOICONS {$NAME}.c PROGRAMNAME={$NAME}
 
+# The program with debug information, for a source-level debugger
+# (Build/Debug).
+{$NAME}.debug: {$NAME}.c
+	sc LINK DEBUG=SYMBOLFLUSH NOICONS {$NAME}.c PROGRAMNAME={$NAME}.debug
+
+debug: {$NAME}.debug
+
 clean:
-	-Delete {$NAME} {$NAME}.o {$NAME}.lnk QUIET
+	-Delete {$NAME} {$NAME}.debug {$NAME}.o {$NAME}.lnk QUIET

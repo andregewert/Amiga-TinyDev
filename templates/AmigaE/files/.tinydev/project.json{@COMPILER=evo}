@@ -2,10 +2,15 @@
   "version": 1,
   "name": "{$PROJECT}",
   "build": [
-    { "name": "Build", "command": "evo {$NAME}.e", "default": true }
+    { "name": "Build", "command": "evo {$NAME}.e", "default": true },
+    { "name": "Debug build", "command": "evo {$NAME}.e DEBUG SYM EXENAME {$NAME}.debug" }
   ],
   "run": [
     { "name": "{$NAME}", "command": "{$NAME}", "default": true },
     { "name": "With arguments", "command": "{$NAME} Amiga 3" }
+  ],
+  "debug": [
+    { "name": "EDBG", "command": "EDBG {$NAME}.debug", "default": true },
+    { "name": "BDebug", "command": "BDebug {$NAME}.debug" }
   ]
 }

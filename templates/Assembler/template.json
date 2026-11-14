@@ -3,8 +3,8 @@
   "kind": "project",
   "name": "Assembler program",
   "name[deutsch]": "Assembler-Programm",
-  "description": "A 68k program in Motorola syntax that starts from the Shell and the Workbench, opens dos.library and prints a text. Built with vasm.",
-  "description[deutsch]": "Ein 68k-Programm in Motorola-Syntax, das aus der Shell und von der Workbench startet, die dos.library öffnet und einen Text ausgibt. Übersetzt mit vasm.",
+  "description": "A 68k program in Motorola syntax that starts from the Shell and the Workbench, opens dos.library and prints a text. Built with vasm or BAsm (Barfly).",
+  "description[deutsch]": "Ein 68k-Programm in Motorola-Syntax, das aus der Shell und von der Workbench startet, die dos.library öffnet und einen Text ausgibt. Übersetzt mit vasm oder BAsm (Barfly).",
   "category": "Assembler",
   "icon": { "type": "program" },
   "placeholders": [
@@ -21,8 +21,11 @@
       "default[deutsch]": "Ein Programm, das die Welt grüßt" },
     { "key": "INCDIR", "label": "Include drawer", "label[deutsch]": "Include-Verzeichnis",
       "default": "INCLUDE:",
-      "description": "The drawer with the assembler includes of the NDK (Include_I), for vasm's -I option",
-      "description[deutsch]": "Das Verzeichnis mit den Assembler-Includes des NDK (Include_I), für die Option -I von vasm" }
+      "description": "The drawer with the assembler includes of the NDK (Include_I), for the assembler's include option",
+      "description[deutsch]": "Das Verzeichnis mit den Assembler-Includes des NDK (Include_I), für die Include-Option des Assemblers" },
+    { "key": "ASM", "label": "Assembler", "choices": ["vasm", "basm"],
+      "description": "The assembler the Build menu uses (basm: BAsm of Barfly, whose BDebug the Debug menu starts)",
+      "description[deutsch]": "Der Assembler, den das Menü Erstellen benutzt (basm: BAsm aus Barfly, dessen BDebug das Menü Debuggen startet)" }
   ],
   "open": ["{$NAME}.s"]
 }

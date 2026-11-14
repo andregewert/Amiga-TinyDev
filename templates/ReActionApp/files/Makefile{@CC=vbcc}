@@ -7,9 +7,17 @@
 
 CC = vc
 CFLAGS = -O1
+DEBUGFLAGS = -g
 
 {$NAME}: {$NAME}.c {$NAME}_strings.h Catalogs/deutsch/{$NAME}.catalog
 	$(CC) $(CFLAGS) -o {$NAME} {$NAME}.c -lamiga
+
+# The program with debug information, for a source-level debugger
+# (Build/Debug).
+{$NAME}.debug: {$NAME}.c {$NAME}_strings.h Catalogs/deutsch/{$NAME}.catalog
+	$(CC) $(DEBUGFLAGS) -o {$NAME}.debug {$NAME}.c -lamiga
+
+debug: {$NAME}.debug
 
 {$NAME}_strings.h: Catalogs/{$NAME}.cd
 	CatComp Catalogs/{$NAME}.cd CFILE {$NAME}_strings.h
@@ -18,6 +26,6 @@ Catalogs/deutsch/{$NAME}.catalog: Catalogs/{$NAME}.cd Catalogs/deutsch/{$NAME}.c
 	CatComp Catalogs/{$NAME}.cd Catalogs/deutsch/{$NAME}.ct CATALOG Catalogs/deutsch/{$NAME}.catalog
 
 clean:
-	-Delete {$NAME}_strings.h Catalogs/deutsch/{$NAME}.catalog {$NAME} QUIET
+	-Delete {$NAME}_strings.h Catalogs/deutsch/{$NAME}.catalog {$NAME} {$NAME}.debug QUIET
 
-.PHONY: clean
+.PHONY: clean debug

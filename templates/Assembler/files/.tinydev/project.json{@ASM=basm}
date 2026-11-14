@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "name": "{$PROJECT}",
+  "build": [
+    { "name": "Build", "command": "BAsm -i{$INCDIR} -o{$NAME} {$NAME}.s", "default": true },
+    { "name": "Debug build", "command": "BAsm -s1 -sa -i{$INCDIR} -o{$NAME}.debug {$NAME}.s" }
+  ],
+  "run": [
+    { "name": "{$NAME}", "command": "{$NAME}", "default": true }
+  ],
+  "debug": [
+    { "name": "BDebug", "command": "BDebug {$NAME}.debug", "default": true }
+  ]
+}

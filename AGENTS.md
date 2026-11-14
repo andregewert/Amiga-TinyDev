@@ -309,7 +309,12 @@ below the tree's root.
   TemplateProject, a template for making templates; the file templates
   CModule, AsmModule, EModule, PascalUnit, ARexxFile, DosScript,
   MakefileFile, HtmlPage, MarkdownPage, AmigaGuide and AminetReadme) (`templates/<Id>/`
-  with `template.json` and `files/`, ISO-8859-1); `make` copies them to
+  with `template.json` and `files/`, ISO-8859-1); the program projects in C, E and assembler
+  build a `{$NAME}.debug` (ec: the program itself) with debug information
+  (the Build command "Debug build"); the Debug action only starts the
+  debugger on it: BDebug of Barfly (a `.bdebug` file beside it opens the
+  source window and stops at `_main`; BAsm is the Assembler template's
+  second choice), EDBG for E, CodeProbe (cpr) also for SAS/C; `make` copies them to
   `bin/Templates/` with `cp` and checks them with `charcheck-templates`,
   as their names may contain `{$...}`, which make and the Shell would
   expand; `make dist` packs each into `Templates/<Id>.lha`.

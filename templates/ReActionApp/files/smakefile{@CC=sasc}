@@ -7,6 +7,13 @@
 {$NAME}: {$NAME}.c {$NAME}_strings.h Catalogs/deutsch/{$NAME}.catalog
 	sc LINK OPTIMIZE NOICONS {$NAME}.c PROGRAMNAME={$NAME}
 
+# The program with debug information, for a source-level debugger
+# (Build/Debug).
+{$NAME}.debug: {$NAME}.c {$NAME}_strings.h Catalogs/deutsch/{$NAME}.catalog
+	sc LINK DEBUG=SYMBOLFLUSH NOICONS {$NAME}.c PROGRAMNAME={$NAME}.debug
+
+debug: {$NAME}.debug
+
 {$NAME}_strings.h: Catalogs/{$NAME}.cd
 	CatComp Catalogs/{$NAME}.cd CFILE {$NAME}_strings.h
 
@@ -14,4 +21,4 @@ Catalogs/deutsch/{$NAME}.catalog: Catalogs/{$NAME}.cd Catalogs/deutsch/{$NAME}.c
 	CatComp Catalogs/{$NAME}.cd Catalogs/deutsch/{$NAME}.ct CATALOG Catalogs/deutsch/{$NAME}.catalog
 
 clean:
-	-Delete {$NAME}_strings.h Catalogs/deutsch/{$NAME}.catalog {$NAME} {$NAME}.o {$NAME}.lnk QUIET
+	-Delete {$NAME}_strings.h Catalogs/deutsch/{$NAME}.catalog {$NAME} {$NAME}.debug {$NAME}.o {$NAME}.lnk QUIET

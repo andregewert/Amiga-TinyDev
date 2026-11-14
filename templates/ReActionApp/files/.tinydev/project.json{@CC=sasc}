@@ -4,9 +4,14 @@
   "build": [
     { "name": "Build", "command": "smake", "default": true },
     { "name": "Rebuild", "command": ["smake clean", "smake"] },
-    { "name": "Compile file", "command": "sc OPTIMIZE \"{file}\" OBJNAME=\"{base}.o\"" }
+    { "name": "Compile file", "command": "sc OPTIMIZE \"{file}\" OBJNAME=\"{base}.o\"" },
+    { "name": "Debug build", "command": "smake debug" }
   ],
   "run": [
     { "name": "{$NAME}", "command": "{$NAME}", "default": true }
+  ],
+  "debug": [
+    { "name": "BDebug", "command": "BDebug {$NAME}.debug", "default": true },
+    { "name": "CodeProbe", "command": "cpr {$NAME}.debug" }
   ]
 }

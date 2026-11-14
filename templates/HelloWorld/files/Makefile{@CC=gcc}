@@ -5,11 +5,19 @@
 
 CC = gcc
 CFLAGS = -O2 -noixemul
+DEBUGFLAGS = -g -O0 -noixemul
 
 {$NAME}: {$NAME}.c
 	$(CC) $(CFLAGS) -o {$NAME} {$NAME}.c
 
-clean:
-	-Delete {$NAME} QUIET
+# The program with debug information, for a source-level debugger
+# (Build/Debug).
+{$NAME}.debug: {$NAME}.c
+	$(CC) $(DEBUGFLAGS) -o {$NAME}.debug {$NAME}.c
 
-.PHONY: clean
+debug: {$NAME}.debug
+
+clean:
+	-Delete {$NAME} {$NAME}.debug QUIET
+
+.PHONY: clean debug
