@@ -138,6 +138,44 @@ static void test_config(void)
 }
 
 /**
+ * @brief Lines of "am-git branch", names of new branches, packed refs.
+ */
+static void test_branches(void)
+{
+    char n[16], sha[41];
+    int cur = -1;
+    assert(gitbranch_line("* main", 6, n, sizeof(n), &cur) && strcmp(n, "main") == 0 && cur == 1);
+    assert(gitbranch_line("  feature/x\r", 12, n, sizeof(n), &cur) && strcmp(n, "feature/x") == 0 && cur == 0);
+    assert(gitbranch_line("  \xFC" "ber", 6, n, sizeof(n), &cur) && strcmp(n, "\xFC" "ber") == 0);
+    assert(!gitbranch_line("branch: HEAD has no commit yet", 30, n, sizeof(n), &cur));
+    assert(!gitbranch_line("  ", 2, n, sizeof(n), &cur));
+    assert(!gitbranch_line("   x", 4, n, sizeof(n), &cur));
+    assert(!gitbranch_line("  a-very-long-branch-name", 25, n, sizeof(n), &cur));
+
+    assert(gitbranch_valid("main") && gitbranch_valid("feature/x-1") && gitbranch_valid("v1.0") &&
+           gitbranch_valid("\xFC" "bersetzung"));
+    assert(!gitbranch_valid("") && !gitbranch_valid("-x") && !gitbranch_valid("a b") &&
+           !gitbranch_valid("a..b") && !gitbranch_valid("a/") && !gitbranch_valid("/a") &&
+           !gitbranch_valid("a.") && !gitbranch_valid(".a") && !gitbranch_valid("a/.b") &&
+           !gitbranch_valid("a.lock") && !gitbranch_valid("a.lock/b") && !gitbranch_valid("a//b") &&
+           !gitbranch_valid("@") && !gitbranch_valid("a@{b") && !gitbranch_valid("a:b") &&
+           !gitbranch_valid("a*") && !gitbranch_valid("a#?") && !gitbranch_valid("a\"b") &&
+           !gitbranch_valid("a\tb"));
+    assert(gitbranch_valid("a.locks") && gitbranch_valid("lock"));
+
+    assert(gitref_packed("# pack-refs with: peeled fully-peeled sorted\n"
+                         "0123456789abcdef0123456789abcdef01234567 refs/heads/main\r\n"
+                         "89abcdef0123456789abcdef0123456789abcdef refs/heads/mainline\n",
+                         "refs/heads/mainline", sha, sizeof(sha)) &&
+           strcmp(sha, "89abcdef0123456789abcdef0123456789abcdef") == 0);
+    assert(gitref_packed("0123456789abcdef0123456789abcdef01234567 refs/heads/main\r\n",
+                         "refs/heads/main", sha, sizeof(sha)) && sha[0] == '0');
+    assert(!gitref_packed("0123456789abcdef0123456789abcdef01234567 refs/heads/main\n",
+                          "refs/heads/mai", sha, sizeof(sha)));
+    assert(!gitref_packed("", "refs/heads/main", sha, sizeof(sha)));
+}
+
+/**
  * @brief Run the tests.
  * @return 0.
  */
@@ -148,6 +186,7 @@ int main(void)
     test_head();
     test_diff();
     test_config();
+    test_branches();
     puts("git status tests passed");
     return 0;
 }

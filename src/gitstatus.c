@@ -331,3 +331,53 @@ int gitconfig_get(const char *text, const char *section, const char *sub, const 
     }
     return found;
 }
+
+int gitbranch_line(const char *line, size_t length, char *name, size_t size, int *current)
+{
+    size_t n;
+    if (length > 0 && line[length - 1] == '\r') --length;
+    if (length < 3 || line[1] != ' ' || (line[0] != '*' && line[0] != ' ') || line[2] == ' ') return 0;
+    n = length - 2;
+    if (n >= size || memchr(line + 2, ' ', n) != NULL) return 0;
+    memcpy(name, line + 2, n);
+    name[n] = '\0';
+    *current = line[0] == '*';
+    return 1;
+}
+
+int gitbranch_valid(const char *name)
+{
+    size_t n = strlen(name), i;
+    if (n == 0 || name[0] == '-' || name[0] == '/' || name[n - 1] == '/' || name[n - 1] == '.' ||
+        strcmp(name, "@") == 0 || strstr(name, "..") != NULL || strstr(name, "//") != NULL ||
+        strstr(name, "@{") != NULL)
+        return 0;
+    for (i = 0; i < n; ++i) {
+        unsigned char c = (unsigned char)name[i];
+        if (c <= ' ' || c == 127 || strchr("~^:?*[\\#()|%'\"`", c) != NULL) return 0;
+        /* a part ("/"-separated) starting with '.' or ending in ".lock" */
+        if ((i == 0 || name[i - 1] == '/') && c == '.') return 0;
+        if ((i + 1 == n || name[i + 1] == '/') && i + 1 >= 5 && memcmp(name + i - 4, ".lock", 5) == 0) return 0;
+    }
+    return 1;
+}
+
+int gitref_packed(const char *text, const char *ref, char *sha, size_t size)
+{
+    const char *line = text;
+    size_t rl = strlen(ref);
+    while (*line != '\0') {
+        const char *end = strchr(line, '\n');
+        size_t len = end != NULL ? (size_t)(end - line) : strlen(line), k;
+        if (len > 0 && line[len - 1] == '\r') --len;
+        for (k = 0; k < len && k < 40 && strchr("0123456789abcdefABCDEF", line[k]) != NULL; ++k) ;
+        if (k == 40 && len == 41 + rl && line[40] == ' ' && memcmp(line + 41, ref, rl) == 0 && size > 40) {
+            memcpy(sha, line, 40);
+            sha[40] = '\0';
+            return 1;
+        }
+        if (end == NULL) break;
+        line = end + 1;
+    }
+    return 0;
+}

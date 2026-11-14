@@ -590,8 +590,8 @@
 #define MSG_GIT_NOREMOTE             585
 #define MSG_GIT_PULLASK              586
 #define MSG_GIT_PULLASKGADGETS       587
-#define MSG_GIT_PULLRELOADED         588
-#define MSG_GIT_PULLGONE             589
+#define MSG_GIT_RELOADED             588
+#define MSG_GIT_RELOADGONE           589
 #define MSG_PJ_CAT_GIT               590
 #define MSG_PJ_REMOTE                591
 #define MSG_PJ_REMOTENOTE            592
@@ -628,7 +628,39 @@
 #define MSG_GIT_DOTASK               623
 #define MSG_GIT_DOTGADGETS           624
 #define MSG_GIT_DOTFAILED            625
-#define MSG_COUNT                    626
+#define MSG_MENU_GIT_BRANCHES        626
+#define MSG_GITB_TITLE               627
+#define MSG_GITB_LISTNOTE            628
+#define MSG_GITB_COL_BRANCH          629
+#define MSG_GITB_CURRENT             630
+#define MSG_GITB_SWITCH              631
+#define MSG_GITB_NEW                 632
+#define MSG_GITB_DELETE              633
+#define MSG_GITB_MERGE               634
+#define MSG_GITB_NOTE                635
+#define MSG_GITB_NONE                636
+#define MSG_GITB_NEWTITLE            637
+#define MSG_GITB_NEWWHERE            638
+#define MSG_GITB_BADNAME             639
+#define MSG_GITB_EXISTS              640
+#define MSG_GITB_SWITCHASK           641
+#define MSG_GITB_SWITCHASKGADGETS    642
+#define MSG_GITB_DELASK              643
+#define MSG_GITB_DELGADGETS          644
+#define MSG_GITB_UNSAVED             645
+#define MSG_GITB_CHANGES             646
+#define MSG_GITB_MERGING             647
+#define MSG_GITB_DETACHED            648
+#define MSG_GITB_SWITCHED            649
+#define MSG_GITB_CREATED             650
+#define MSG_GITB_DELETED             651
+#define MSG_GITB_MERGED              652
+#define MSG_GITB_UPTODATE            653
+#define MSG_GITB_CONFLICTS           654
+#define MSG_GITB_UNTRACKED           655
+#define MSG_GITB_UNTRACKEDSWITCH     656
+#define MSG_GITB_UNTRACKEDMERGE      657
+#define MSG_COUNT                    658
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -1221,8 +1253,8 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "The project has no remote \"origin\".\nEnter its address in Project/Project Settings...\non the page Git.",
     "The pull changed the file %s,\nbut its document has unsaved changes.\nLoad the file again and drop them?",
     "Load Again|Keep Document",
-    "Pull: %ld document(s) loaded again.",
-    "Pull: %ld document(s) loaded again, %ld file(s) deleted (documents marked changed).",
+    "%ld document(s) loaded again.",
+    "%ld document(s) loaded again, %ld file(s) deleted (documents marked changed).",
     "Git",
     "Remote (_origin) ",
     "Fetch, Pull and Push use this address. am-git keeps it in .git/config.",
@@ -1259,6 +1291,38 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "am-git has written the merged files into a drawer \".\"\n(a mistake of am-git 0.12.1). Move them to their places?",
     "Move|Leave",
     "Not all files of the drawer \".\" could be moved.",
+    "Branches...",
+    "Branches",
+    "Branches of the repository:",
+    "Branch",
+    "current",
+    "_Switch",
+    "_New...",
+    "_Delete...",
+    "_Merge into Current",
+    "Switching and merging need all changes saved and committed.",
+    "The repository has no branch yet.\nPlease make a first commit.",
+    "New Branch",
+    "At the current commit of %s:",
+    "%s\nis not a valid branch name: no spaces, no characters\nsuch as ~ ^ : ? * [ #, no .. and no . or / at the start or end.",
+    "There is a branch %s already.",
+    "Branch %s created.\nSwitch to it now?",
+    "Switch|Stay",
+    "Delete the branch %s?\nCommits that are on this branch only are lost\n(am-git does not check whether it was merged).",
+    "Delete|Cancel",
+    "Documents of the repository have unsaved changes.\nPlease save and commit them first.",
+    "The repository has changes that are not committed.\nPlease commit them first (Git/Commit...).",
+    "A merge is not finished yet.\nPlease resolve its conflicts and commit it first.",
+    "HEAD is not on a branch (detached).\nPlease switch to a branch first.",
+    "Switched to branch %s.",
+    "Branch %s created.",
+    "Branch %s deleted.",
+    "%s merged into %s.",
+    "Nothing to merge: %s holds nothing new for %s.",
+    "The merge of %s has conflicts.",
+    "The repository has %ld untracked files or drawers\n(.info files of tracked files count as well).\nam-git 0.12.1 may delete them when it switches branches\n(newer versions keep them). Go on all the same?",
+    "Switch|Cancel",
+    "Merge|Cancel",
 };
 #endif
 

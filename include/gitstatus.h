@@ -136,4 +136,43 @@ int gitdiff_line_kind(const char *line, size_t length, int in_header);
 int gitconfig_get(const char *text, const char *section, const char *sub, const char *key,
                   char *out, size_t size);
 
+/**
+ * @brief Read a line of "am-git branch": "* name" for the current branch,
+ *        "  name" for the others.
+ * @param line The line (need not be terminated after its end; a CR at
+ *        its end is left out).
+ * @param length Its length.
+ * @param[out] name The branch.
+ * @param size Size of @p name.
+ * @param[out] current Non-zero for the current branch.
+ * @return Non-zero if the line names a branch (that fitted); messages
+ *         such as "branch: ..." do not.
+ */
+int gitbranch_line(const char *line, size_t length, char *name, size_t size, int *current);
+
+/**
+ * @brief Whether a name is good for a new branch.
+ *
+ * Git's rules (git check-ref-format), plus what the Shell and AmigaDOS
+ * would take amiss: no spaces or control characters, none of
+ * ~ ^ : ? * [ \ # ( ) | % ' " ` ; no leading '-', no "..", "//",
+ * "@{", no part starting with '.' or ending in ".lock", not "@", no
+ * '/' or '.' at the end. Characters above 127 are allowed.
+ *
+ * @param name The name.
+ * @return Non-zero if it is good.
+ */
+int gitbranch_valid(const char *name);
+
+/**
+ * @brief The commit a ref points at in a packed-refs file
+ *        (lines "<sha> <ref>").
+ * @param text The file (.git/packed-refs).
+ * @param ref The ref, e.g. "refs/heads/main".
+ * @param[out] sha Its commit (40 hex digits).
+ * @param size Size of @p sha (at least 41).
+ * @return Non-zero if the ref is there.
+ */
+int gitref_packed(const char *text, const char *ref, char *sha, size_t size);
+
 #endif

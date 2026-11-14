@@ -298,28 +298,18 @@ static Object *text_button(ULONG id, const char *text)
         BUTTON_TextPadding, TRUE, TAG_END);
 }
 
-/**
- * @brief Ask for a name in a small modal window over the main window.
- *
- * Return in the field or OK takes the name; Cancel, Esc and the close
- * gadget do not.
- *
- * @param app The application state.
- * @param title The window's title.
- * @param where A line above the field (where the entry is made).
- * @param[in,out] name The name shown at first; the name typed.
- * @param size Size of @p name.
- * @return Non-zero if a name was taken.
- */
-static int ask_name(EditorApp *app, const char *title, const char *where, char *name, size_t size)
+int treeops_ask_name(EditorApp *app, Object *parent, const char *title, const char *where,
+                     char *name, size_t size)
 {
     Object *winobj, *layout, *field;
-    struct Window *win;
+    struct Window *win, *ref = app->window;
     ULONG sig = 0, mainsig = 0, result;
     WORD code;
     LONG chars;
     int done = 0, ok = 0, opened = 0;
 
+    if (parent == NULL) parent = app->window_object;
+    else GetAttr(WINDOW_Window, parent, (ULONG *)&ref);
     if (StringBase == NULL) {
         StringBase = OpenLibrary((STRPTR)"gadgets/string.gadget", 44);
         opened = StringBase != NULL;
@@ -372,7 +362,7 @@ static int ask_name(EditorApp *app, const char *title, const char *where, char *
         WA_CloseGadget, TRUE,
         WA_SizeGadget, TRUE,
         WA_IDCMP, IDCMP_RAWKEY,
-        WINDOW_RefWindow, (ULONG)app->window,
+        WINDOW_RefWindow, (ULONG)ref,
         WINDOW_Position, WPOS_CENTERWINDOW,
         WINDOW_ParentGroup, (ULONG)layout,
         TAG_END);
@@ -389,12 +379,12 @@ static int ask_name(EditorApp *app, const char *title, const char *where, char *
     }
     ActivateLayoutGadget((struct Gadget *)layout, win, NULL, (ULONG)field);
 
-    SetAttrs(app->window_object, WA_BusyPointer, TRUE, TAG_END);
-    GetAttr(WINDOW_SigMask, app->window_object, &mainsig);
+    SetAttrs(parent, WA_BusyPointer, TRUE, TAG_END);
+    GetAttr(WINDOW_SigMask, parent, &mainsig);
     GetAttr(WINDOW_SigMask, winobj, &sig);
     while (!done) {
         ULONG got = Wait(sig | mainsig);
-        if ((got & mainsig) != 0) drop_input(app->window_object);
+        if ((got & mainsig) != 0) drop_input(parent);
         while ((result = DoMethod(winobj, WM_HANDLEINPUT, &code)) != WMHI_LASTMSG) {
             ULONG kind = result & WMHI_CLASSMASK, id = result & WMHI_GADGETMASK;
             if (kind == WMHI_CLOSEWINDOW) done = 1;
@@ -410,7 +400,7 @@ static int ask_name(EditorApp *app, const char *title, const char *where, char *
             }
         }
     }
-    SetAttrs(app->window_object, WA_BusyPointer, FALSE, TAG_END);
+    SetAttrs(parent, WA_BusyPointer, FALSE, TAG_END);
     DisposeObject(winobj);                      /* the gadgets with it */
 out:
     if (opened) {
@@ -620,7 +610,7 @@ static int ask_new(EditorApp *app, LONG title, char *path, size_t size)
         return 0;
     }
     snprintf(where, sizeof(where), S(MSG_TREEOPS_IN), drawer);
-    if (!ask_name(app, S(title), where, name, sizeof(name))) return 0;
+    if (!treeops_ask_name(app, NULL, S(title), where, name, sizeof(name))) return 0;
     if (!join_name(app, drawer, name, path, size)) return 0;
     if (exists(path)) {
         path_message(app, MSG_TREEOPS_EXISTS, path);
@@ -684,7 +674,7 @@ void treeops_rename(EditorApp *app)
     strcpy(drawer, old);
     *PathPart((STRPTR)drawer) = '\0';
     snprintf(where, sizeof(where), S(MSG_TREEOPS_RENAME_WHAT), old);
-    if (!ask_name(app, S(MSG_TREEOPS_RENAME_TITLE), where, name, sizeof(name))) return;
+    if (!treeops_ask_name(app, NULL, S(MSG_TREEOPS_RENAME_TITLE), where, name, sizeof(name))) return;
     if (strcmp(name, old_name) == 0) return;
     if (!join_name(app, drawer, name, path, sizeof(path))) return;
     /* only the case changes: the "existing" entry is the one renamed */

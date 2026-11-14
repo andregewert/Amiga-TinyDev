@@ -241,6 +241,30 @@ version therefore hides a fresh build; check with
      status is empty): am-git refuses only an empty index or a conflict
      left, so the commit window opens and commits while `MERGE_HEAD` is
      there, whatever the status says.
+  5. Done (`gitwin.c`): Git/Branches... lists `am-git branch` ("* " marks
+     the current one) and switches (`checkout <name>`), creates
+     (`branch <name>`, at HEAD), deletes (`branch -d <name>`) and merges
+     into the current branch (`merge <name>`). Read in am-git's sources
+     (0.12.3, not checked against 0.12.1): `checkout` refuses tracked
+     changes and untracked files it would overwrite, removes the files
+     the new branch lacks and keeps untracked ones; `merge`
+     fast-forwards through `checkout`, but its three-way merge writes
+     over the work tree without such a check, and on conflicts leaves
+     `MERGE_HEAD` and `MERGE_MSG` as after a Pull; `branch -d` neither
+     refuses an unmerged branch nor sees one kept only in
+     `packed-refs`; there is no `merge --abort`. So TinyDev switches and
+     merges only with no unsaved document of the repository, no change
+     but untracked files and no merge open, compares the documents'
+     files before and after (as for Pull), offers to move a drawer "."
+     into place and checks the result in `.git` (HEAD, the branch's
+     commit in `refs/heads` or `packed-refs`, `MERGE_HEAD`), since
+     am-git returns 0 also when it failed. A merge with conflicts goes
+     on to the conflict window. am-git 0.12.1's `checkout` (and so a
+     fast-forward merge) deletes untracked files (seen on the Amiga with
+     an `.info` file) and, by its history, writes over changed ones
+     (made safe in 0.12.2); TinyDev
+     therefore asks before switching or merging while there are
+     untracked files (the `.info` files of tracked files among them).
 
   am-git 0.12.1 is the latest release (Aminet and GitHub, 14.11.2026);
   the sources on GitHub are at 0.12.3, unreleased. TinyDev works with
@@ -289,10 +313,11 @@ version therefore hides a fresh build; check with
 
   Still to try: how long `status` takes on a real project on a 68030
   (the unreleased 0.12.3 makes it much faster, but it walks the tree). am-git wants a stack of
-  100000 bytes, more than the 65536 of the Build scripts. Credentials stay
-  with am-git (`ENV:AM_GIT_NETRC`); TinyDev stores none. Checkout and
-  merge change files that may be open, like Pull; they would need the
-  same comparison of the documents with the disk.
+  at least 100000 bytes; TinyDev gives it 262144, as its checkout
+  crashed twice with 100000 (0.12.1, error 80000004) and has not since;
+  in a Shell it ran with several sizes, so the stack is only the likely
+  cause. Credentials stay
+  with am-git (`ENV:AM_GIT_NETRC`); TinyDev stores none.
 - Claude in TinyDev, after the first release and strictly optional:
   TinyDev talks to the Claude API itself (HTTPS over `bsdsocket.library` and
   AmiSSL, `src/json.c`), as a separate part like Scout (a process of its

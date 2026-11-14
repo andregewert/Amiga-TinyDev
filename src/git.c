@@ -9,8 +9,8 @@
  * then (ui_update_git_menu()).
  *
  * A command runs synchronously (busy pointer) through a script in the
- * drawer of the temporary files: "Stack 100000" first, as am-git wants
- * that much and TinyDev started from the Workbench has no Shell whose
+ * drawer of the temporary files: "Stack 262144" first, as am-git wants
+ * at least 100000 (its checkout crashed with that on 0.12.1) and TinyDev started from the Workbench has no Shell whose
  * stack it would get; then am-git with its arguments. The Shell gets
  * TinyDev's command path (cmdpath_copy()) and runs in the drawer given.
  * Output and messages go to one file, read afterwards, as with Sprout
@@ -75,8 +75,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-/** Stack am-git gets (bytes); it asks for 100000. */
-#define GIT_STACK 100000
+/** Stack am-git gets (bytes); it asks for at least 100000, and its
+ *  checkout crashed with that (am-git 0.12.1). */
+#define GIT_STACK 262144
 /** The longest output shown in a message (characters). */
 #define GIT_SHOWN 1200
 /** Seconds after a status run in which the tree's changes start none. */
@@ -155,7 +156,7 @@ int git_quote(char *out, size_t size, const char *s)
 }
 
 /**
- * @brief The text of a script that runs am-git: "Stack 100000", then the
+ * @brief The text of a script that runs am-git: "Stack 262144", then the
  *        command with its arguments.
  * @param app The application state (the command).
  * @param args am-git's arguments, quoted as needed.
@@ -622,13 +623,7 @@ int git_remote_url(const char *root, char *url, size_t size)
     return found;
 }
 
-/**
- * @brief Remember the date and size of the files of the open documents in
- *        the repository (before a Pull).
- * @param app The application state.
- * @param root The repository.
- */
-static void snapshot_documents(EditorApp *app, const char *root)
+void git_documents_snapshot(EditorApp *app, const char *root)
 {
     Document *doc;
     long n = 0;
@@ -656,12 +651,7 @@ static void snapshot_documents(EditorApp *app, const char *root)
     }
 }
 
-/**
- * @brief After a Pull: load the documents whose files changed again and
- *        mark those whose files are gone as changed.
- * @param app The application state.
- */
-static void compare_documents(EditorApp *app)
+void git_documents_reload(EditorApp *app)
 {
     long i, reloaded = 0, gone = 0;
     char text[200];
@@ -707,8 +697,8 @@ static void compare_documents(EditorApp *app)
     free(gs.pull_docs);
     gs.pull_docs = NULL;
     gs.pull_count = 0;
-    if (gone > 0) snprintf(text, sizeof(text), S(MSG_GIT_PULLGONE), reloaded, gone);
-    else if (reloaded > 0) snprintf(text, sizeof(text), S(MSG_GIT_PULLRELOADED), reloaded);
+    if (gone > 0) snprintf(text, sizeof(text), S(MSG_GIT_RELOADGONE), reloaded, gone);
+    else if (reloaded > 0) snprintf(text, sizeof(text), S(MSG_GIT_RELOADED), reloaded);
     else return;
     ui_status_message(app, text);
 }
@@ -808,7 +798,7 @@ static void job_done(EditorApp *app, LONG rc)
     if (gs.pulling && rc != -1) git_fix_dot_drawer(app, gs.job_root);
     gs.pulling = 0;
     if (gs.pull_docs != NULL) {
-        if (rc != -1) compare_documents(app);
+        if (rc != -1) git_documents_reload(app);
         free(gs.pull_docs);
         gs.pull_docs = NULL;
         gs.pull_count = 0;
@@ -817,14 +807,7 @@ static void job_done(EditorApp *app, LONG rc)
     git_status_request(app);
 }
 
-/**
- * @brief The branch HEAD is on (not a detached HEAD).
- * @param root The repository.
- * @param[out] branch The branch.
- * @param size Size of @p branch.
- * @return Non-zero if HEAD is on a branch.
- */
-static int head_branch(const char *root, char *branch, size_t size)
+int git_head_branch(const char *root, char *branch, size_t size)
 {
     char path[EDITOR_PATH_MAX], *text = NULL;
     int ok = 0;
@@ -864,7 +847,7 @@ static void remote_action(EditorApp *app, ULONG id)
     strcpy(args, id == MID_GIT_FETCH ? "fetch" : id == MID_GIT_PULL ? "pull" : "push");
     if (id == MID_GIT_PULL) {
         size_t n;
-        if (!head_branch(root, branch, sizeof(branch))) {
+        if (!git_head_branch(root, branch, sizeof(branch))) {
             ui_error(app, S(name), S(MSG_GIT_DETACHED));
             return;
         }
@@ -887,7 +870,7 @@ static void remote_action(EditorApp *app, ULONG id)
     /* Pull changes files: the documents go to disk first, then are compared */
     if (id == MID_GIT_PULL) {
         if (!build_save_documents(app)) return;
-        snapshot_documents(app, root);
+        git_documents_snapshot(app, root);
     }
     gs.job = 1;
     gs.pulling = id == MID_GIT_PULL;
@@ -954,6 +937,19 @@ int git_clone(EditorApp *app, const char *url, const char *drawer, const char *n
     return 1;
 }
 
+int git_job_running(void)
+{
+    return gs.job;
+}
+
+void git_changed(EditorApp *app)
+{
+    ULONG micros;
+    CurrentTime(&gs.finished, &micros);    /* its own writes into .git start no status */
+    if (gs.root[0] != '\0') read_branch(gs.root);
+    git_status_request(app);
+}
+
 void git_menu(EditorApp *app, ULONG id)
 {
     if (!git_enabled(app)) return;
@@ -965,5 +961,6 @@ void git_menu(EditorApp *app, ULONG id)
         case MID_GIT_FETCH: case MID_GIT_PULL: case MID_GIT_PUSH: remote_action(app, id); break;
         case MID_GIT_CLONE: gitwin_clone(app); break;
         case MID_GIT_CONFLICTS: gitwin_conflicts(app); break;
+        case MID_GIT_BRANCHES: gitwin_branches(app); break;
     }
 }

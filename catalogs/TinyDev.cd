@@ -1799,11 +1799,11 @@ The pull changed the file %s,\nbut its document has unsaved changes.\nLoad the f
 MSG_GIT_PULLASKGADGETS (//)
 Load Again|Keep Document
 ;
-MSG_GIT_PULLRELOADED (//)
-Pull: %ld document(s) loaded again.
+MSG_GIT_RELOADED (//)
+%ld document(s) loaded again.
 ;
-MSG_GIT_PULLGONE (//)
-Pull: %ld document(s) loaded again, %ld file(s) deleted (documents marked changed).
+MSG_GIT_RELOADGONE (//)
+%ld document(s) loaded again, %ld file(s) deleted (documents marked changed).
 ;
 MSG_PJ_CAT_GIT (//)
 Git
@@ -1912,4 +1912,100 @@ Move|Leave
 ;
 MSG_GIT_DOTFAILED (//)
 Not all files of the drawer "." could be moved.
+;
+MSG_MENU_GIT_BRANCHES (//)
+Branches...
+;
+MSG_GITB_TITLE (//)
+Branches
+;
+MSG_GITB_LISTNOTE (//)
+Branches of the repository:
+;
+MSG_GITB_COL_BRANCH (//)
+Branch
+;
+MSG_GITB_CURRENT (//)
+current
+;
+MSG_GITB_SWITCH (//)
+_Switch
+;
+MSG_GITB_NEW (//)
+_New...
+;
+MSG_GITB_DELETE (//)
+_Delete...
+;
+MSG_GITB_MERGE (//)
+_Merge into Current
+;
+MSG_GITB_NOTE (//)
+Switching and merging need all changes saved and committed.
+;
+MSG_GITB_NONE (//)
+The repository has no branch yet.\nPlease make a first commit.
+;
+MSG_GITB_NEWTITLE (//)
+New Branch
+;
+MSG_GITB_NEWWHERE (//)
+At the current commit of %s:
+;
+MSG_GITB_BADNAME (//)
+%s\nis not a valid branch name: no spaces, no characters\nsuch as ~ ^ : ? * [ #, no .. and no . or / at the start or end.
+;
+MSG_GITB_EXISTS (//)
+There is a branch %s already.
+;
+MSG_GITB_SWITCHASK (//)
+Branch %s created.\nSwitch to it now?
+;
+MSG_GITB_SWITCHASKGADGETS (//)
+Switch|Stay
+;
+MSG_GITB_DELASK (//)
+Delete the branch %s?\nCommits that are on this branch only are lost\n(am-git does not check whether it was merged).
+;
+MSG_GITB_DELGADGETS (//)
+Delete|Cancel
+;
+MSG_GITB_UNSAVED (//)
+Documents of the repository have unsaved changes.\nPlease save and commit them first.
+;
+MSG_GITB_CHANGES (//)
+The repository has changes that are not committed.\nPlease commit them first (Git/Commit...).
+;
+MSG_GITB_MERGING (//)
+A merge is not finished yet.\nPlease resolve its conflicts and commit it first.
+;
+MSG_GITB_DETACHED (//)
+HEAD is not on a branch (detached).\nPlease switch to a branch first.
+;
+MSG_GITB_SWITCHED (//)
+Switched to branch %s.
+;
+MSG_GITB_CREATED (//)
+Branch %s created.
+;
+MSG_GITB_DELETED (//)
+Branch %s deleted.
+;
+MSG_GITB_MERGED (//)
+%s merged into %s.
+;
+MSG_GITB_UPTODATE (//)
+Nothing to merge: %s holds nothing new for %s.
+;
+MSG_GITB_CONFLICTS (//)
+The merge of %s has conflicts.
+;
+MSG_GITB_UNTRACKED (//)
+The repository has %ld untracked files or drawers\n(.info files of tracked files count as well).\nam-git 0.12.1 may delete them when it switches branches\n(newer versions keep them). Go on all the same?
+;
+MSG_GITB_UNTRACKEDSWITCH (//)
+Switch|Cancel
+;
+MSG_GITB_UNTRACKEDMERGE (//)
+Merge|Cancel
 ;

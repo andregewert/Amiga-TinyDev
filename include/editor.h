@@ -151,6 +151,7 @@ enum MenuId {
     MID_GIT_COMMIT,     /**< Git/Commit...: the commit window */
     MID_GIT_DIFF,       /**< Git/Show Changes of the File...: the active document's diff */
     MID_GIT_CONFLICTS,  /**< Git/Resolve Conflicts...: the conflict window */
+    MID_GIT_BRANCHES,   /**< Git/Branches...: the branch window */
     MID_GIT_FETCH,      /**< Git/Fetch: am-git fetch in the background */
     MID_GIT_PULL,       /**< Git/Pull: am-git pull in the background, documents compared */
     MID_GIT_PUSH,       /**< Git/Push: am-git push in the background */
@@ -1970,6 +1971,24 @@ void treeops_new_drawer(EditorApp *app);
  */
 void treeops_rename(EditorApp *app);
 /**
+ * @brief Ask for a name in a small modal window.
+ *
+ * Return in the field or OK takes the name; Cancel, Esc and the close
+ * gadget do not. The window below shows the busy pointer meanwhile and
+ * its input is dropped.
+ *
+ * @param app The application state.
+ * @param parent The window it is centred over (window.class), NULL for
+ *        the main window.
+ * @param title The window's title.
+ * @param where A line above the field (where the entry is made).
+ * @param[in,out] name The name shown at first; the name typed.
+ * @param size Size of @p name.
+ * @return Non-zero if a name was taken.
+ */
+int treeops_ask_name(EditorApp *app, Object *parent, const char *title, const char *where,
+                     char *name, size_t size);
+/**
  * @brief Project/Folder Tree/Delete...: delete the selected entry (a drawer
  *        with all it holds) and its icon after asking; nothing is deleted if
  *        something in it is protected from deletion. Open documents of
@@ -1998,7 +2017,7 @@ int temp_name(EditorApp *app, const char *suffix, char *out, size_t size);
 int git_enabled(EditorApp *app);
 /**
  * @brief Run am-git synchronously (busy pointer) in a drawer, through a
- *        script with "Stack 100000" in the drawer of the temporary files.
+ *        script with "Stack 262144" in the drawer of the temporary files.
  * @param app The application state (the command, the temporary drawer).
  * @param dir The drawer it runs in.
  * @param args am-git's arguments, quoted for the Shell as needed.
@@ -2070,6 +2089,42 @@ int git_remote_url(const char *root, char *url, size_t size);
  */
 void git_fix_dot_drawer(EditorApp *app, const char *root);
 /**
+ * @brief Remember the date and size of the files of the open documents in
+ *        a repository, before am-git changes files (Pull, switching or
+ *        merging branches); git_documents_reload() compares them.
+ * @param app The application state.
+ * @param root The repository.
+ */
+void git_documents_snapshot(EditorApp *app, const char *root);
+/**
+ * @brief After am-git changed files: load the documents whose files
+ *        changed since git_documents_snapshot() again (asking first if a
+ *        document has unsaved changes) and mark those whose files are
+ *        gone as changed; a status message says how many.
+ * @param app The application state.
+ */
+void git_documents_reload(EditorApp *app);
+/**
+ * @brief The branch HEAD is on (not a detached HEAD), from .git/HEAD.
+ * @param root The repository.
+ * @param[out] branch The branch.
+ * @param size Size of @p branch.
+ * @return Non-zero if HEAD is on a branch.
+ */
+int git_head_branch(const char *root, char *branch, size_t size);
+/**
+ * @brief Whether Fetch, Pull, Push or Clone runs in the background.
+ * @return Non-zero if one does.
+ */
+int git_job_running(void);
+/**
+ * @brief After a synchronous command changed the repository (a branch
+ *        switched, a merge): the branch in the status line is read again
+ *        and the status runs again.
+ * @param app The application state.
+ */
+void git_changed(EditorApp *app);
+/**
  * @brief Clone a repository in the background (am-git clone, output in
  *        the output window); the new drawer becomes the project when done.
  * @param app The application state.
@@ -2091,6 +2146,12 @@ void gitwin_clone(EditorApp *app);
  * @param app The application state.
  */
 void gitwin_conflicts(EditorApp *app);
+/**
+ * @brief Git/Branches...: the modal window of the branches (switch,
+ *        create, delete, merge into the current one).
+ * @param app The application state.
+ */
+void gitwin_branches(EditorApp *app);
 /**
  * @brief The pen of a git state in the folder tree (setting "git"/"colours").
  * @param state The state (GitState of gitstatus.h).

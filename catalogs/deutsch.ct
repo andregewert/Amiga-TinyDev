@@ -2358,13 +2358,13 @@ MSG_GIT_PULLASKGADGETS
 Neu laden|Dokument behalten
 ; Load Again|Keep Document
 ;
-MSG_GIT_PULLRELOADED
-Pull: %ld Dokument(e) neu geladen.
-; Pull: %ld document(s) loaded again.
+MSG_GIT_RELOADED
+%ld Dokument(e) neu geladen.
+; %ld document(s) loaded again.
 ;
-MSG_GIT_PULLGONE
-Pull: %ld Dokument(e) neu geladen, %ld Datei(en) gelöscht (Dokumente als geändert markiert).
-; Pull: %ld document(s) loaded again, %ld file(s) deleted (documents marked changed).
+MSG_GIT_RELOADGONE
+%ld Dokument(e) neu geladen, %ld Datei(en) gelöscht (Dokumente als geändert markiert).
+; %ld document(s) loaded again, %ld file(s) deleted (documents marked changed).
 ;
 MSG_PJ_CAT_GIT
 Git
@@ -2509,4 +2509,132 @@ Verschieben|Lassen
 MSG_GIT_DOTFAILED
 Nicht alle Dateien der Schublade "." ließen sich verschieben.
 ; Not all files of the drawer "." could be moved.
+;
+MSG_MENU_GIT_BRANCHES
+Zweige...
+; Branches...
+;
+MSG_GITB_TITLE
+Zweige
+; Branches
+;
+MSG_GITB_LISTNOTE
+Zweige des Repositorys:
+; Branches of the repository:
+;
+MSG_GITB_COL_BRANCH
+Zweig
+; Branch
+;
+MSG_GITB_CURRENT
+aktuell
+; current
+;
+MSG_GITB_SWITCH
+_Wechseln
+; _Switch
+;
+MSG_GITB_NEW
+_Neu...
+; _New...
+;
+MSG_GITB_DELETE
+_Löschen...
+; _Delete...
+;
+MSG_GITB_MERGE
+In aktuellen _mergen
+; _Merge into Current
+;
+MSG_GITB_NOTE
+Wechseln und Mergen brauchen gespeicherte und committete Änderungen.
+; Switching and merging need all changes saved and committed.
+;
+MSG_GITB_NONE
+Das Repository hat noch keinen Zweig.\nBitte zuerst einen Commit machen.
+; The repository has no branch yet.\nPlease make a first commit.
+;
+MSG_GITB_NEWTITLE
+Neuer Zweig
+; New Branch
+;
+MSG_GITB_NEWWHERE
+Beim aktuellen Commit von %s:
+; At the current commit of %s:
+;
+MSG_GITB_BADNAME
+%s\nist kein gültiger Name für einen Zweig: keine Leerzeichen, keine Zeichen\nwie ~ ^ : ? * [ #, kein .. und kein . oder / am Anfang oder Ende.
+; %s\nis not a valid branch name: no spaces, no characters\nsuch as ~ ^ : ? * [ #, no .. and no . or / at the start or end.
+;
+MSG_GITB_EXISTS
+Einen Zweig %s gibt es schon.
+; There is a branch %s already.
+;
+MSG_GITB_SWITCHASK
+Zweig %s angelegt.\nJetzt zu ihm wechseln?
+; Branch %s created.\nSwitch to it now?
+;
+MSG_GITB_SWITCHASKGADGETS
+Wechseln|Bleiben
+; Switch|Stay
+;
+MSG_GITB_DELASK
+Den Zweig %s löschen?\nCommits, die nur auf diesem Zweig liegen, gehen verloren\n(am-git prüft nicht, ob er gemergt wurde).
+; Delete the branch %s?\nCommits that are on this branch only are lost\n(am-git does not check whether it was merged).
+;
+MSG_GITB_DELGADGETS
+Löschen|Abbrechen
+; Delete|Cancel
+;
+MSG_GITB_UNSAVED
+Dokumente des Repositorys haben ungespeicherte Änderungen.\nBitte zuerst speichern und committen.
+; Documents of the repository have unsaved changes.\nPlease save and commit them first.
+;
+MSG_GITB_CHANGES
+Das Repository hat Änderungen, die nicht committet sind.\nBitte zuerst committen (Git/Commit...).
+; The repository has changes that are not committed.\nPlease commit them first (Git/Commit...).
+;
+MSG_GITB_MERGING
+Ein Merge ist noch nicht abgeschlossen.\nBitte zuerst seine Konflikte lösen und ihn committen.
+; A merge is not finished yet.\nPlease resolve its conflicts and commit it first.
+;
+MSG_GITB_DETACHED
+HEAD steht auf keinem Zweig (detached).\nBitte zuerst zu einem Zweig wechseln.
+; HEAD is not on a branch (detached).\nPlease switch to a branch first.
+;
+MSG_GITB_SWITCHED
+Zu Zweig %s gewechselt.
+; Switched to branch %s.
+;
+MSG_GITB_CREATED
+Zweig %s angelegt.
+; Branch %s created.
+;
+MSG_GITB_DELETED
+Zweig %s gelöscht.
+; Branch %s deleted.
+;
+MSG_GITB_MERGED
+%s in %s gemergt.
+; %s merged into %s.
+;
+MSG_GITB_UPTODATE
+Nichts zu mergen: %s enthält nichts Neues für %s.
+; Nothing to merge: %s holds nothing new for %s.
+;
+MSG_GITB_CONFLICTS
+Der Merge von %s hat Konflikte.
+; The merge of %s has conflicts.
+;
+MSG_GITB_UNTRACKED
+Das Repository hat %ld unversionierte Dateien oder Schubladen\n(auch .info-Dateien versionierter Dateien zählen dazu).\nam-git 0.12.1 löscht sie möglicherweise beim Wechsel des Zweigs\n(neuere Versionen behalten sie). Trotzdem fortfahren?
+; The repository has %ld untracked files or drawers\n(.info files of tracked files count as well).\nam-git 0.12.1 may delete them when it switches branches\n(newer versions keep them). Go on all the same?
+;
+MSG_GITB_UNTRACKEDSWITCH
+Wechseln|Abbrechen
+; Switch|Cancel
+;
+MSG_GITB_UNTRACKEDMERGE
+Mergen|Abbrechen
+; Merge|Cancel
 ;

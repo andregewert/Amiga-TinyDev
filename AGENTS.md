@@ -51,7 +51,7 @@ below the tree's root.
   changed. TinyDev keeps none of them in `TinyDev.json`.
 - `src/git.c`: git through am-git, only with the setting "git"/"enabled"
   (the Git menu is hidden otherwise, `ui_update_git_menu()`): `git_run()`
-  runs am-git synchronously through a script with `Stack 100000` in the
+  runs am-git synchronously through a script with `Stack 262144` in the
   temporary drawer (output and messages into one file, read afterwards);
   Git/Create Repository... and the New Project wizard's check box run
   `am-git init` with the drawer's full name (am-git needs it). The status
@@ -76,15 +76,21 @@ below the tree's root.
   commit window: HEAD's file from `show --text-blob` or `show` against
   the file on disk, compared with `linediff.c`, coloured lines in the
   system default text font), the clone window (address, drawer,
-  name suggested from the address) and the conflict window (the files
+  name suggested from the address), the conflict window (the files
   with conflicts, Open goes to the first marker, Mark as Resolved runs
-  `add`, Commit... goes on with the message of `.git/MERGE_MSG`).
+  `add`, Commit... goes on with the message of `.git/MERGE_MSG`) and the
+  branch window (Git/Branches...: the branches of `branch`; Switch runs
+  `checkout`, Merge into Current `merge`, both only with nothing unsaved
+  or uncommitted, documents loaded again afterwards; New... `branch
+  <name>` (name window of `treeops.c`), Delete... `branch -d`; results
+  checked in `.git`, as am-git returns 0 also on failure).
 - `src/linediff.c`, `include/linediff.h`: the portable line diff (Myers
   in linear space) written as unified hunks; no Amiga headers.
 - `src/gitstatus.c`, `include/gitstatus.h`: the portable reader of
   am-git's status lines, a file's or drawer's state (ignoring case), the
-  branch of `.git/HEAD`, the kinds of a diff's lines and a value of
-  `.git/config`; no Amiga headers.
+  branch of `.git/HEAD`, the kinds of a diff's lines, a value of
+  `.git/config`, the lines of `branch`, the check of a new branch's
+  name and a ref of `packed-refs`; no Amiga headers.
 - `src/filetypes.c`, `include/filetypes.h`: the portable settings per
   file type (tab size, indentation, automatic indentation, Tab key, line
   numbers, cutting lines): reading and writing the "filetypes" of

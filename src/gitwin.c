@@ -1,9 +1,10 @@
 /**
  * @file gitwin.c
  * @brief The windows of git through am-git: Git/Commit... (the changed
- *        files, staging, the message) and the changes of a file (diff).
+ *        files, staging, the message), the changes of a file (diff), the
+ *        clone, conflict and branch windows.
  *
- * Both are modal, built like the project settings: the windows below show
+ * All are modal, built like the project settings: the windows below show
  * the busy pointer and their input is dropped. am-git runs synchronously
  * (git_run(), busy pointer).
  *
@@ -32,6 +33,23 @@
  * "Open" (or a double click) goes to the first marker in the editor and
  * closes the window; "Commit..." goes on to the commit window, whose
  * message is then the first line of .git/MERGE_MSG.
+ *
+ * The branch window (Git/Branches...) lists the branches of
+ * "am-git branch" with the current one marked. "Switch" (or a double
+ * click) runs am-git checkout, "Merge into Current" am-git merge; both
+ * change the work tree, so they need no unsaved documents of the
+ * repository, no uncommitted changes and no merge left open: from 0.12.2
+ * on am-git's checkout refuses changes itself, but its merge would write
+ * over them, and 0.12.1's checkout did as well. Untracked files are
+ * allowed after a question, as 0.12.1's checkout deleted them. The documents are compared before and
+ * after (git_documents_snapshot()) and loaded again where files changed.
+ * "New..." creates a branch at HEAD (am-git branch) and offers to switch
+ * to it; "Delete..." runs am-git branch -d after asking (am-git does not
+ * check whether the branch was merged). am-git returns 0 also when it
+ * fails, so the result is checked in the repository: .git/HEAD after a
+ * switch, the branch list after New and Delete, the branch's commit and
+ * .git/MERGE_HEAD after a merge; a merge with conflicts goes on to the
+ * conflict window.
  *
  * The diff window shows a file's changes since the last commit: the
  * file of HEAD from am-git show against the file on disk, compared by
@@ -87,7 +105,8 @@ enum {
     GC_LIST = 100, GC_ADDALL, GC_DIFF, GC_MESSAGE, GC_COMMIT, GC_CLOSE,
     GK_URL, GK_DRAWER, GK_CHOOSE, GK_NAME, GK_CLONE, GK_CANCEL,
     GR_LIST, GR_RESOLVE, GR_OPEN, GR_COMMIT, GR_CLOSE,
-    GD_LIST, GD_CLOSE
+    GD_LIST, GD_CLOSE,
+    GB_LIST, GB_SWITCH, GB_NEW, GB_DELETE, GB_MERGE, GB_CLOSE
 };
 
 /** @name Spacing, in "virtual pixels", as in the settings window */
@@ -1317,4 +1336,584 @@ out:
     git_status_request(app);
     if (open_index >= 0) document_go_to(app, open_path, open_line > 0 ? open_line : 1, 1);
     else if (then_commit) gitwin_commit(app);
+}
+
+/* ---- the branch window ------------------------------------------------- */
+
+/** The branches the branch window shows. */
+static struct {
+    char **name;                /* the branches, in am-git's order */
+    long count;
+    long current;               /* the current one, -1 if none */
+    Object *switch_b, *delete_b, *merge_b;  /* ghosted for the current branch */
+} gb;
+
+/**
+ * @brief Free the list of the branches.
+ */
+static void free_branches(void)
+{
+    long i;
+    for (i = 0; i < gb.count; ++i) free(gb.name[i]);
+    free(gb.name);
+    gb.name = NULL;
+    gb.count = 0;
+    gb.current = -1;
+}
+
+/**
+ * @brief Read the branches ("am-git branch") into gb.
+ * @return Non-zero on success (otherwise a message was shown).
+ */
+static int read_branches(void)
+{
+    char *out = NULL, name[256];
+    const char *line;
+    long cap = 0;
+    LONG rc = run(gc.app, gc.root, "branch", &out);
+    struct Window *win = gc.win != NULL ? gc.win : gc.app->window;
+    free_branches();
+    if (rc == -1) {
+        message(win, S(MSG_GIT_NORUN));
+        return 0;
+    }
+    if (rc != 0) {
+        git_report(gc.app, gc.win, MSG_GIT_FAILED, out);
+        free(out);
+        return 0;
+    }
+    for (line = out; line != NULL && *line != '\0';) {
+        const char *end = strchr(line, '\n');
+        size_t len = end != NULL ? (size_t)(end - line) : strlen(line);
+        int current;
+        if (gitbranch_line(line, len, name, sizeof(name), &current)) {
+            char *copy;
+            if (gb.count == cap) {
+                long ncap = cap > 0 ? cap * 2 : 8;
+                char **p = realloc(gb.name, (size_t)ncap * sizeof(*p));
+                if (p == NULL) break;
+                gb.name = p;
+                cap = ncap;
+            }
+            if ((copy = malloc(strlen(name) + 1)) == NULL) break;
+            strcpy(copy, name);
+            if (current) gb.current = gb.count;
+            gb.name[gb.count++] = copy;
+        }
+        line = end != NULL ? end + 1 : NULL;
+    }
+    free(out);
+    return 1;
+}
+
+/**
+ * @brief The index of a branch in gb.
+ * @param name The branch.
+ * @return Its index, or -1.
+ */
+static long find_branch(const char *name)
+{
+    long i;
+    for (i = 0; i < gb.count; ++i)
+        if (strcmp(gb.name[i], name) == 0) return i;
+    return -1;
+}
+
+/**
+ * @brief Build the branch list's nodes.
+ */
+static void make_branch_nodes(void)
+{
+    long i;
+    NewList(&gc.nodes);
+    for (i = 0; i < gb.count; ++i) {
+        struct Node *n = AllocListBrowserNode(2,
+            LBNA_Column, 0, LBNCA_Text, (ULONG)(i == gb.current ? S(MSG_GITB_CURRENT) : ""),
+            LBNA_Column, 1, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)gb.name[i],
+            TAG_END);
+        if (n != NULL) AddTail(&gc.nodes, n);
+    }
+}
+
+/**
+ * @brief Ghost Switch, Delete and Merge when no branch or the current one
+ *        is selected.
+ */
+static void update_branch_buttons(void)
+{
+    LONG sel = (LONG)get(gc.list, LISTBROWSER_Selected);
+    ULONG off = sel < 0 || sel >= gb.count || sel == gb.current;
+    SetGadgetAttrs((struct Gadget *)gb.switch_b, gc.win, NULL, GA_Disabled, off, TAG_END);
+    SetGadgetAttrs((struct Gadget *)gb.delete_b, gc.win, NULL, GA_Disabled, off, TAG_END);
+    SetGadgetAttrs((struct Gadget *)gb.merge_b, gc.win, NULL, GA_Disabled, off || gb.current < 0, TAG_END);
+}
+
+/**
+ * @brief Read the branches again and show them, selecting one.
+ * @param select The branch to select, or NULL for the current one.
+ */
+static void refill_branches(const char *select)
+{
+    long sel;
+    SetGadgetAttrs((struct Gadget *)gc.list, gc.win, NULL, LISTBROWSER_Labels, ~0UL, TAG_END);
+    FreeListBrowserList(&gc.nodes);
+    read_branches();
+    make_branch_nodes();
+    sel = select != NULL ? find_branch(select) : -1;
+    if (sel < 0) sel = gb.current;
+    SetGadgetAttrs((struct Gadget *)gc.list, gc.win, NULL,
+        LISTBROWSER_Labels, (ULONG)&gc.nodes,
+        LISTBROWSER_Selected, (ULONG)sel,
+        sel >= 0 ? LISTBROWSER_MakeVisible : TAG_IGNORE, (ULONG)sel,
+        TAG_END);
+    update_branch_buttons();
+}
+
+/**
+ * @brief A message with a text put into a catalog text's "%s" (one or two).
+ * @param win The window it is shown over.
+ * @param id The catalog text.
+ * @param a The first text.
+ * @param b The second text, or NULL.
+ */
+static void message_with(struct Window *win, LONG id, const char *a, const char *b)
+{
+    struct EasyStruct es = {sizeof(es), 0, NULL, NULL, NULL};
+    ULONG args[2];
+    es.es_Title = (STRPTR)S(MSG_GIT_TITLE);
+    es.es_TextFormat = (STRPTR)S(id);
+    es.es_GadgetFormat = (STRPTR)S(MSG_OK);
+    args[0] = (ULONG)a;
+    args[1] = (ULONG)b;
+    EasyRequestArgs(win, &es, NULL, args);
+}
+
+/**
+ * @brief Ask a question with a text put into a catalog text's "%s".
+ * @param id The question.
+ * @param gadgets Its buttons.
+ * @param a The text.
+ * @return Non-zero if the first button was chosen.
+ */
+static int ask_with(LONG id, LONG gadgets, const char *a)
+{
+    struct EasyStruct es = {sizeof(es), 0, NULL, NULL, NULL};
+    ULONG args[1];
+    es.es_Title = (STRPTR)S(MSG_GIT_TITLE);
+    es.es_TextFormat = (STRPTR)S(id);
+    es.es_GadgetFormat = (STRPTR)S(gadgets);
+    args[0] = (ULONG)a;
+    return EasyRequestArgs(gc.win, &es, NULL, args) == 1;
+}
+
+/**
+ * @brief A status message with texts put into a catalog text's "%s".
+ * @param id The catalog text.
+ * @param a The first text.
+ * @param b The second text, or NULL.
+ */
+static void status_with(LONG id, const char *a, const char *b)
+{
+    char text[300];
+    snprintf(text, sizeof(text), S(id), a, b);
+    ui_status_message(gc.app, text);
+}
+
+/**
+ * @brief Whether am-git may change the work tree (switch, merge): nothing
+ *        else runs, no merge is open, nothing is unsaved or uncommitted.
+ *
+ * am-git's checkout refuses changed files itself, its merge does not;
+ * untracked files are allowed (checkout refuses one it would overwrite).
+ *
+ * @return Non-zero if it may (otherwise a message was shown).
+ */
+static int work_tree_free(void)
+{
+    char msg[8];
+    Document *doc;
+    long i;
+    if (git_job_running() || build_running()) {
+        message(gc.win, S(MSG_BUILD_BUSY));
+        return 0;
+    }
+    if (merge_message(gc.root, msg, sizeof(msg))) {
+        message(gc.win, S(MSG_GITB_MERGING));
+        return 0;
+    }
+    for (doc = (Document *)gc.app->documents.lh_Head; doc->node.ln_Succ != NULL;
+         doc = (Document *)doc->node.ln_Succ)
+        if (doc->dirty && doc->path != NULL && gitstatus_relative(gc.root, doc->path) != NULL) {
+            message(gc.win, S(MSG_GITB_UNSAVED));
+            return 0;
+        }
+    if (!read_status()) return 0;
+    for (i = 0; i < gc.status.count; ++i)
+        if (gc.status.entries[i].state != GIT_ST_UNTRACKED) {
+            message(gc.win, S(MSG_GITB_CHANGES));
+            return 0;
+        }
+    return 1;
+}
+
+/**
+ * @brief Ask before am-git may delete untracked files: its checkout
+ *        (switching, and a merge's fast-forward) did that up to 0.12.1.
+ * @param gadgets The buttons (switch or merge, cancel).
+ * @return Non-zero if there are none (gc.status read) or the user agrees.
+ */
+static int untracked_ok(LONG gadgets)
+{
+    struct EasyStruct es = {sizeof(es), 0, NULL, NULL, NULL};
+    ULONG args[1];
+    long i, n = 0;
+    for (i = 0; i < gc.status.count; ++i)
+        if (gc.status.entries[i].state == GIT_ST_UNTRACKED) ++n;
+    if (n == 0) return 1;
+    es.es_Title = (STRPTR)S(MSG_GIT_TITLE);
+    es.es_TextFormat = (STRPTR)S(MSG_GITB_UNTRACKED);
+    es.es_GadgetFormat = (STRPTR)S(gadgets);
+    args[0] = (ULONG)n;
+    return EasyRequestArgs(gc.win, &es, NULL, args) == 1;
+}
+
+/**
+ * @brief Run am-git with a branch as its last argument.
+ * @param args The arguments before it, e.g. "checkout".
+ * @param name The branch.
+ * @param[out] out Its output (free() it), or NULL.
+ * @return Non-zero if it ran (otherwise a message was shown); am-git
+ *         returns 0 also when it failed, so the caller checks the result.
+ */
+static int run_on_branch(const char *args, const char *name, char **out)
+{
+    char command[300];
+    size_t n;
+    LONG rc;
+    *out = NULL;
+    strcpy(command, args);
+    n = strlen(command);
+    command[n++] = ' ';
+    if (!git_quote(command + n, sizeof(command) - n, name)) {
+        message(gc.win, S(MSG_BUILD_SCRIPT));
+        return 0;
+    }
+    rc = run(gc.app, gc.root, command, out);
+    if (rc == -1) message(gc.win, S(MSG_GIT_NORUN));
+    else if (rc != 0) git_report(gc.app, gc.win, MSG_GIT_FAILED, *out);
+    if (rc != 0) {
+        free(*out);
+        *out = NULL;
+    }
+    return rc == 0;
+}
+
+/**
+ * @brief After am-git changed the work tree: files of a drawer "." to
+ *        their places, the documents loaded again, branch and status read.
+ */
+static void work_tree_changed(void)
+{
+    git_fix_dot_drawer(gc.app, gc.root);
+    git_documents_reload(gc.app);
+    git_changed(gc.app);
+}
+
+/**
+ * @brief Switch to a branch (am-git checkout), after the checks.
+ * @param name The branch.
+ * @return Non-zero if HEAD is on it now.
+ */
+static int switch_branch(const char *name)
+{
+    char *out = NULL, now[256];
+    int ok;
+    if (!work_tree_free() || !untracked_ok(MSG_GITB_UNTRACKEDSWITCH)) return 0;
+    git_documents_snapshot(gc.app, gc.root);
+    if (!run_on_branch("checkout", name, &out)) {
+        git_documents_reload(gc.app);       /* frees the snapshot */
+        return 0;
+    }
+    ok = git_head_branch(gc.root, now, sizeof(now)) && strcmp(now, name) == 0;
+    if (ok) status_with(MSG_GITB_SWITCHED, name, NULL);
+    else git_report(gc.app, gc.win, MSG_GIT_FAILED, out);
+    free(out);
+    work_tree_changed();
+    return ok;
+}
+
+/**
+ * @brief The commit a branch points at (its file in .git/refs/heads, else
+ *        .git/packed-refs).
+ * @param name The branch.
+ * @param[out] sha The commit, "" if not found.
+ * @param size Size of @p sha (at least 41).
+ */
+static void branch_commit(const char *name, char *sha, size_t size)
+{
+    char path[EDITOR_PATH_MAX], ref[300], *text = NULL;
+    size_t n;
+    sha[0] = '\0';
+    snprintf(ref, sizeof(ref), "refs/heads/%s", name);
+    strncpy(path, gc.root, sizeof(path) - 1);
+    path[sizeof(path) - 1] = '\0';
+    if (!AddPart((STRPTR)path, (STRPTR)".git", sizeof(path))) return;
+    n = strlen(path);
+    if (AddPart((STRPTR)path, (STRPTR)ref, sizeof(path)) && datafile_read(path, &text) > 0) {
+        size_t k = strcspn(text, "\r\n");
+        if (k < size) {
+            memcpy(sha, text, k);
+            sha[k] = '\0';
+        }
+        free(text);
+        return;
+    }
+    free(text);
+    text = NULL;
+    path[n] = '\0';
+    if (AddPart((STRPTR)path, (STRPTR)"packed-refs", sizeof(path)) && datafile_read(path, &text) > 0)
+        gitref_packed(text, ref, sha, size);
+    free(text);
+}
+
+/**
+ * @brief Merge a branch into the current one (am-git merge), after the
+ *        checks.
+ *
+ * am-git returns 0 also when it failed, so the result is seen in the
+ * repository: .git/MERGE_HEAD means conflicts, a new commit of the
+ * current branch a merge (or a fast-forward); otherwise "up to date" in
+ * the output means there was nothing to merge.
+ *
+ * @param name The branch merged.
+ * @return 1 if done, 2 if there are conflicts, 0 otherwise.
+ */
+static int merge_branch(const char *name)
+{
+    char *out = NULL, before[48], after[48], msg[8];
+    const char *cur = gb.name[gb.current];
+    int result = 0;
+    if (!work_tree_free() || !untracked_ok(MSG_GITB_UNTRACKEDMERGE)) return 0;
+    branch_commit(cur, before, sizeof(before));
+    git_documents_snapshot(gc.app, gc.root);
+    if (!run_on_branch("merge", name, &out)) {
+        git_documents_reload(gc.app);
+        return 0;
+    }
+    branch_commit(cur, after, sizeof(after));
+    if (merge_message(gc.root, msg, sizeof(msg))) {
+        status_with(MSG_GITB_CONFLICTS, name, NULL);
+        result = 2;
+    } else if (strcmp(before, after) != 0) {
+        status_with(MSG_GITB_MERGED, name, cur);
+        result = 1;
+    } else if (out != NULL && (strstr(out, "up to date") != NULL || strstr(out, "up-to-date") != NULL)) {
+        message_with(gc.win, MSG_GITB_UPTODATE, name, cur);
+        result = 1;
+    } else {
+        git_report(gc.app, gc.win, MSG_GIT_FAILED, out);
+    }
+    free(out);
+    work_tree_changed();
+    return result;
+}
+
+/**
+ * @brief Ask for a name and create a branch at HEAD (am-git branch),
+ *        offering to switch to it.
+ * @return The new branch (free() it), or NULL if none was made.
+ */
+static char *new_branch(void)
+{
+    char name[100] = "", where[200], *out = NULL, *copy;
+    const char *cur = gb.current >= 0 ? gb.name[gb.current] : "HEAD";
+    snprintf(where, sizeof(where), S(MSG_GITB_NEWWHERE), cur);
+    for (;;) {
+        if (!treeops_ask_name(gc.app, gc.winobj, S(MSG_GITB_NEWTITLE), where, name, sizeof(name))) return NULL;
+        if (!gitbranch_valid(name)) message_with(gc.win, MSG_GITB_BADNAME, name, NULL);
+        else if (find_branch(name) >= 0) message_with(gc.win, MSG_GITB_EXISTS, name, NULL);
+        else break;
+    }
+    if (!run_on_branch("branch", name, &out)) return NULL;
+    read_branches();
+    if (find_branch(name) < 0) {
+        git_report(gc.app, gc.win, MSG_GIT_FAILED, out);
+        free(out);
+        return NULL;
+    }
+    free(out);
+    if ((copy = malloc(strlen(name) + 1)) != NULL) strcpy(copy, name);
+    return copy;
+}
+
+/**
+ * @brief Delete a branch (am-git branch -d) after asking.
+ * @param name The branch (not the current one).
+ * @return Non-zero if it is gone.
+ */
+static int delete_branch(const char *name)
+{
+    char *out = NULL, copy[256];
+    int ok;
+    if (!ask_with(MSG_GITB_DELASK, MSG_GITB_DELGADGETS, name)) return 0;
+    strncpy(copy, name, sizeof(copy) - 1);          /* gb is read again */
+    copy[sizeof(copy) - 1] = '\0';
+    if (!run_on_branch("branch -d", copy, &out)) return 0;
+    read_branches();
+    ok = find_branch(copy) < 0;
+    if (ok) status_with(MSG_GITB_DELETED, copy, NULL);
+    else git_report(gc.app, gc.win, MSG_GIT_FAILED, out);
+    free(out);
+    return ok;
+}
+
+void gitwin_branches(EditorApp *app)
+{
+    ULONG sig = 0, mainsig = 0, result;
+    WORD code;
+    int done = 0, conflicts = 0;
+    LONG w = TextLength(&app->screen->RastPort, (STRPTR)"n", 1);
+    ULONG h = app->screen->RastPort.TxHeight + 1U;
+
+    memset(&gc, 0, sizeof(gc));
+    memset(&gb, 0, sizeof(gb));
+    gb.current = -1;
+    gc.app = app;
+    gitstatus_init(&gc.status);
+    if (!git_repository(app, gc.root, sizeof(gc.root)) || !open_classes(app) || !read_branches()) goto out;
+    if (gb.count == 0) {
+        message(app->window, S(MSG_GITB_NONE));
+        goto out;
+    }
+    make_branch_nodes();
+    gc.cols[0].ci_Width = 20;
+    gc.cols[0].ci_Title = (STRPTR)S(MSG_GITC_COL_STATE);
+    gc.cols[1].ci_Width = 80;
+    gc.cols[1].ci_Title = (STRPTR)S(MSG_GITB_COL_BRANCH);
+    gc.cols[2].ci_Width = -1;
+    gc.list = NewObject(LISTBROWSER_GetClass(), NULL,
+        GA_ID, GB_LIST, GA_RelVerify, TRUE,
+        LISTBROWSER_Labels, (ULONG)&gc.nodes,
+        LISTBROWSER_ColumnInfo, (ULONG)gc.cols,
+        LISTBROWSER_ColumnTitles, TRUE,
+        LISTBROWSER_ShowSelected, TRUE,
+        LISTBROWSER_Selected, (ULONG)gb.current,
+        LISTBROWSER_AutoFit, TRUE,
+        TAG_END);
+    gb.switch_b = button(GB_SWITCH, S(MSG_GITB_SWITCH));
+    gb.delete_b = button(GB_DELETE, S(MSG_GITB_DELETE));
+    gb.merge_b = button(GB_MERGE, S(MSG_GITB_MERGE));
+    gc.layout = NewObject(LAYOUT_GetClass(), NULL,
+        LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
+        LAYOUT_SpaceOuter, TRUE,
+        LAYOUT_LeftSpacing, AREA_SPACING,
+        LAYOUT_RightSpacing, AREA_SPACING,
+        LAYOUT_TopSpacing, AREA_SPACING,
+        LAYOUT_BottomSpacing, AREA_SPACING,
+        LAYOUT_InnerSpacing, AREA_SPACING,
+        LAYOUT_DeferLayout, TRUE,
+        LAYOUT_AddImage, (ULONG)label(S(MSG_GITB_LISTNOTE)), FIXED,
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+            LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+            LAYOUT_InnerSpacing, AREA_SPACING,
+            LAYOUT_AddChild, (ULONG)gc.list,
+            CHILD_MinWidth, (ULONG)(36 * w),
+            CHILD_MinHeight, 8 * h,
+            LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+                LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
+                LAYOUT_InnerSpacing, ROW_SPACING,
+                LAYOUT_AddChild, (ULONG)gb.switch_b, FIXED,
+                LAYOUT_AddChild, (ULONG)button(GB_NEW, S(MSG_GITB_NEW)), FIXED,
+                LAYOUT_AddChild, (ULONG)gb.delete_b, FIXED,
+                LAYOUT_AddChild, (ULONG)gb.merge_b, FIXED,
+                LAYOUT_AddChild, (ULONG)filler(),
+                TAG_END),
+            CHILD_WeightedWidth, 0,
+            TAG_END),
+        LAYOUT_AddImage, (ULONG)label(S(MSG_GITB_NOTE)), FIXED,
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+            LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+            LAYOUT_AddChild, (ULONG)filler(),
+            LAYOUT_AddChild, (ULONG)button(GB_CLOSE, S(MSG_GITWIN_CLOSE)),
+            CHILD_WeightedWidth, 0,
+            TAG_END),
+        FIXED,
+        TAG_END);
+    if (gc.layout == NULL || (gc.winobj = open_window(app, S(MSG_GITB_TITLE), app->window, gc.layout)) == NULL) {
+        gc.winobj = NULL;
+        FreeListBrowserList(&gc.nodes);
+        goto out;
+    }
+    GetAttr(WINDOW_Window, gc.winobj, (ULONG *)&gc.win);
+    ++modal_open;
+    update_branch_buttons();
+
+    SetAttrs(app->window_object, WA_BusyPointer, TRUE, TAG_END);
+    GetAttr(WINDOW_SigMask, app->window_object, &mainsig);
+    GetAttr(WINDOW_SigMask, gc.winobj, &sig);
+    while (!done) {
+        ULONG got = Wait(sig | mainsig);
+        if ((got & mainsig) != 0) drop_input(app->window_object);
+        while (!done && (result = DoMethod(gc.winobj, WM_HANDLEINPUT, &code)) != WMHI_LASTMSG) {
+            LONG sel;
+            char *made;
+            if ((result & WMHI_CLASSMASK) == WMHI_CLOSEWINDOW) { done = 1; continue; }
+            if ((result & WMHI_CLASSMASK) != WMHI_GADGETUP) continue;
+            sel = (LONG)get(gc.list, LISTBROWSER_Selected);
+            if (sel >= gb.count) sel = -1;
+            switch (result & WMHI_GADGETMASK) {
+                case GB_LIST:
+                    update_branch_buttons();
+                    if ((get(gc.list, LISTBROWSER_RelEvent) & LBRE_DOUBLECLICK) == 0 || sel < 0 || sel == gb.current)
+                        break;
+                    /* fall through: a double click switches */
+                case GB_SWITCH:
+                    if (sel >= 0 && sel != gb.current) {
+                        char name[256];
+                        strncpy(name, gb.name[sel], sizeof(name) - 1);
+                        name[sizeof(name) - 1] = '\0';
+                        switch_branch(name);
+                        refill_branches(NULL);
+                    }
+                    break;
+                case GB_NEW:
+                    if ((made = new_branch()) != NULL) {
+                        if (ask_with(MSG_GITB_SWITCHASK, MSG_GITB_SWITCHASKGADGETS, made)) switch_branch(made);
+                        else status_with(MSG_GITB_CREATED, made, NULL);
+                        refill_branches(made);
+                        free(made);
+                    }
+                    break;
+                case GB_DELETE:
+                    if (sel >= 0 && sel != gb.current && delete_branch(gb.name[sel])) refill_branches(NULL);
+                    break;
+                case GB_MERGE:
+                    if (sel >= 0 && sel != gb.current && gb.current >= 0) {
+                        char name[256];
+                        int r;
+                        strncpy(name, gb.name[sel], sizeof(name) - 1);
+                        name[sizeof(name) - 1] = '\0';
+                        r = merge_branch(name);
+                        if (r == 2) done = conflicts = 1;
+                        else refill_branches(name);
+                    } else if (gb.current < 0) {
+                        message(gc.win, S(MSG_GITB_DETACHED));
+                    }
+                    break;
+                case GB_CLOSE:
+                    done = 1;
+                    break;
+            }
+        }
+    }
+    --modal_open;
+    SetAttrs(app->window_object, WA_BusyPointer, FALSE, TAG_END);
+
+out:
+    if (gc.winobj != NULL) DisposeObject(gc.winobj);       /* the gadgets with it */
+    if (gc.nodes.lh_Head != NULL) FreeListBrowserList(&gc.nodes);
+    gitstatus_clear(&gc.status);
+    memset(&gc, 0, sizeof(gc));
+    free_branches();
+    if (conflicts) gitwin_conflicts(app);
 }
