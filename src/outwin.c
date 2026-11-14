@@ -10,6 +10,12 @@
  * an unfinished line waits for its end; CRs and the escape sequences of
  * console output (colours) are dropped.
  *
+ * A double click on a compiler message goes to the file and line it names
+ * (buildmsg.c knows the formats). A relative name refers to the drawer
+ * the last Build ran in (build_drawer()), else to the project; if no such
+ * file exists, an open document of that name is taken. A message without
+ * a file (E) refers to the active document.
+ *
  * The mouse wheel scrolls the list: its rawkey codes are handled here, as
  * listbrowser.gadget only gets them while it is the active gadget.
  *
@@ -34,6 +40,7 @@
  * OM_NEW (seen on OS 3.2).
  */
 #include "editor.h"
+#include "buildmsg.h"
 
 #include <intuition/gadgetclass.h>
 #include <classes/window.h>
@@ -53,6 +60,8 @@
 #include <proto/listbrowser.h>
 #include <proto/graphics.h>
 #include <proto/diskfont.h>
+#include <proto/dos.h>
+#include <proto/utility.h>
 #include <graphics/gfxbase.h>
 #include <clib/alib_protos.h>
 
@@ -237,6 +246,81 @@ static const char *line_text(struct Node *n)
     STRPTR text = NULL;
     GetListBrowserNodeAttrs(n, LBNA_Column, 0, LBNCA_Text, (ULONG)&text, TAG_END);
     return text != NULL ? (const char *)text : "";
+}
+
+/**
+ * @brief Find an open document by the end of its path.
+ * @param app The application state.
+ * @param name The name as a message wrote it (no volume).
+ * @return The document whose path ends with it (after a '/' or ':'),
+ *         NULL if there is none.
+ */
+static Document *document_named(EditorApp *app, const char *name)
+{
+    Document *doc;
+    size_t n = strlen(name);
+    for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ;
+         doc = (Document *)doc->node.ln_Succ) {
+        size_t l = doc->path != NULL ? strlen(doc->path) : 0;
+        if (l > n && Stricmp((STRPTR)(doc->path + l - n), (STRPTR)name) == 0 &&
+            (doc->path[l - n - 1] == '/' || doc->path[l - n - 1] == ':'))
+            return doc;
+    }
+    return NULL;
+}
+
+/**
+ * @brief Go to the file and line the selected message names, if it names
+ *        one.
+ * @param app The application state.
+ */
+static void go_to_message(EditorApp *app)
+{
+    char path[EDITOR_PATH_MAX], text[EDITOR_PATH_MAX + 100];
+    struct Node *n = ow.lines.lh_Head;
+    const char *line;
+    BuildMessage m;
+    Document *doc;
+    BPTR lock;
+    long i;
+
+    if (ow.selected < 0 || ow.selected >= ow.count) return;
+    for (i = 0; i < ow.selected; ++i) n = n->ln_Succ;
+    line = line_text(n);
+    if (!buildmsg_parse(line, strlen(line), &m)) return;
+    if (m.file[0] == '\0') {
+        if (app->active == NULL) return;
+        navigate_remember(app);
+        document_go_to(app, NULL, m.line, m.col);
+    } else {
+        path[0] = '\0';
+        if (strchr(m.file, ':') == NULL) {
+            const char *dir = build_drawer();
+            if (dir[0] != '\0') {
+                strncpy(path, dir, sizeof(path) - 1);
+                path[sizeof(path) - 1] = '\0';
+            } else if (!tree_project_root(app, path, sizeof(path))) {
+                path[0] = '\0';
+            }
+        }
+        if (!AddPart((STRPTR)path, (STRPTR)m.file, sizeof(path))) return;
+        if ((lock = Lock((STRPTR)path, ACCESS_READ)) != 0) {
+            UnLock(lock);
+        } else if ((doc = document_named(app, m.file)) != NULL) {
+            strncpy(path, doc->path, sizeof(path) - 1);
+            path[sizeof(path) - 1] = '\0';
+        } else {
+            snprintf(text, sizeof(text), S(MSG_OUT_NOFILE), m.file);
+            ui_error(app, APP_NAME, text);
+            return;
+        }
+        navigate_remember(app);
+        document_go_to(app, path, m.line, m.col);
+    }
+    if (app->window != NULL) {
+        ActivateWindow(app->window);
+        app->focus_editor = 1;              /* when the window is active */
+    }
 }
 
 /**
@@ -533,6 +617,8 @@ void outwin_handle(EditorApp *app)
                 GetAttr(LISTBROWSER_Selected, ow.list, &row);
                 ow.selected = (long)row;
                 update_copy_buttons();
+                GetAttr(LISTBROWSER_RelEvent, ow.list, &row);
+                if (row & LBRE_DOUBLECLICK) go_to_message(app);
                 break;
             }
             case OG_COPYLINE: copy_selected_line(app); break;

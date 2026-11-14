@@ -2093,3 +2093,15 @@ Delete the tag %s?
 MSG_GITH_UNTAGGED (//)
 Tag %s deleted.
 ;
+MSG_MENU_GOTOLINE (//)
+Go to Line...
+;
+MSG_GOTO_TITLE (//)
+Go to Line
+;
+MSG_GOTO_WHERE (//)
+Line (or line:column):
+;
+MSG_OUT_NOFILE (//)
+The file "%s" of this message was not found.
+;

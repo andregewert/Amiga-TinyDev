@@ -2750,3 +2750,19 @@ MSG_GITH_UNTAGGED
 Tag %s gelöscht.
 ; Tag %s deleted.
 ;
+MSG_MENU_GOTOLINE
+Gehe zu Zeile...
+; Go to Line...
+;
+MSG_GOTO_TITLE
+Gehe zu Zeile
+; Go to Line
+;
+MSG_GOTO_WHERE
+Zeile (oder Zeile:Spalte):
+; Line (or line:column):
+;
+MSG_OUT_NOFILE
+Die Datei "%s" dieser Meldung wurde nicht gefunden.
+; The file "%s" of this message was not found.
+;

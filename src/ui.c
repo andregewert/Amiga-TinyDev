@@ -292,6 +292,7 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, "F", 0, 0, UD(MID_FIND)},
     {NM_ITEM, NULL, "G", 0, 0, UD(MID_FIND_NEXT)},
+    {NM_ITEM, NULL, "M", 0, 0, UD(MID_GOTO_LINE)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, "T", 0, 0, UD(MID_DEFINITION)},
     {NM_ITEM, NULL, "H", 0, 0, UD(MID_REFERENCE)},
@@ -403,6 +404,7 @@ static const LONG menu_texts[] = {
     -1,
     MSG_MENU_FIND,
     MSG_MENU_FINDNEXT,
+    MSG_MENU_GOTOLINE,
     -1,
     MSG_MENU_DEFINITION,
     MSG_MENU_REFERENCE,
@@ -1551,6 +1553,7 @@ static void menu_action(EditorApp *app, ULONG id)
             break;
         case MID_FIND: find_open(app); break;
         case MID_FIND_NEXT: find_next(app); break;
+        case MID_GOTO_LINE: navigate_line(app); break;
         case MID_BM_TOGGLE: case MID_BM_NEXT: case MID_BM_PREV:
         case MID_BM_CLEAR:
             bookmarks_command(app, id);

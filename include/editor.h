@@ -134,6 +134,7 @@ enum MenuId {
     MID_GOBACK,         /**< Edit/Go Back */
     MID_COMPLETE,       /**< Edit/Complete */
     MID_RECT,           /**< Edit/Rectangular Selection (check item) */
+    MID_GOTO_LINE,      /**< Edit/Go to Line...: asks for a line of the active document */
     MID_SHELL,          /**< Project/New Shell: a Shell in the project drawer */
     MID_CLOSE_ALL,      /**< Project/Close All Files */
     MID_NEW_PROJECT,    /**< Project/New Project...: the wizard of Sprout's templates */
@@ -1397,6 +1398,12 @@ void build_choose_command(EditorApp *app, int action, int index);
  * @param app The application state.
  */
 void build_stop(EditorApp *app);
+/**
+ * @brief The drawer the last Build ran in: relative file names in its
+ *        messages refer to it.
+ * @return Its full name, "" before the first Build.
+ */
+const char *build_drawer(void);
 /**
  * @brief Save the modified documents that have a name (before Build or
  *        a git Pull).
@@ -2676,6 +2683,18 @@ void navigate_reference_answer(EditorApp *app, const char *json);
  * @param app The application state.
  */
 void navigate_back(EditorApp *app);
+/**
+ * @brief Edit/Go to Line...: ask for a line (and, after a colon or a
+ *        comma, a column) and put the active document's cursor there.
+ * @param app The application state.
+ */
+void navigate_line(EditorApp *app);
+/**
+ * @brief Note where the active document's cursor is, so Go Back returns
+ *        there after a jump made elsewhere (the output window).
+ * @param app The application state.
+ */
+void navigate_remember(EditorApp *app);
 /** @brief Free the places noted for Go Back. */
 void navigate_cleanup(void);
 

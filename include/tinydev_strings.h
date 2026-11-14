@@ -688,7 +688,11 @@
 #define MSG_GITH_NOSUCHTAG           683
 #define MSG_GITH_UNTAGASK            684
 #define MSG_GITH_UNTAGGED            685
-#define MSG_COUNT                    686
+#define MSG_MENU_GOTOLINE            686
+#define MSG_GOTO_TITLE               687
+#define MSG_GOTO_WHERE               688
+#define MSG_OUT_NOFILE               689
+#define MSG_COUNT                    690
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -1379,6 +1383,10 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "The commit has no tag %s.",
     "Delete the tag %s?",
     "Tag %s deleted.",
+    "Go to Line...",
+    "Go to Line",
+    "Line (or line:column):",
+    "The file \"%s\" of this message was not found.",
 };
 #endif
 

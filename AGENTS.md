@@ -93,6 +93,9 @@ below the tree's root.
   a column of tags from `tag` and `.git/refs/tags`/`packed-refs`, Set
   Tag... `tag <name> <sha>`, Delete Tag... `tag -d`; am-git cannot push
   tags).
+- `src/buildmsg.c`, `include/buildmsg.h`: the portable reader of the
+  file and line in a message of gcc, vbcc, vasm, BAsm, SAS/C, Free
+  Pascal or E (for the output window's jump); no Amiga headers.
 - `src/linediff.c`, `include/linediff.h`: the portable line diff (Myers
   in linear space) written as unified hunks; no Amiga headers.
 - `src/gitstatus.c`, `include/gitstatus.h`: the portable reader of
@@ -194,8 +197,8 @@ below the tree's root.
   the diagnostics of the active document or of the project, Go to.
 - `src/navigate.c`: Edit/Go to Definition (DEFINITION with the name at
   the cursor, cycling through several), Edit/Open Included File
-  (REFERENCE at the cursor: Scout resolves the include or link) and
-  Edit/Go Back (a history of places).
+  (REFERENCE at the cursor: Scout resolves the include or link),
+  Edit/Go to Line... and Edit/Go Back (a history of places).
 - `src/complete.c`: Edit/Complete: COMPLETE with the prefix at the
   cursor, a borderless list window at the cursor that takes the keys
   (choose, insert with MarkText/Replace, narrow while typing).
@@ -210,7 +213,9 @@ below the tree's root.
   first placed below the main window, as wide as it): the build's lines
   (in the system default text font or the setting "outputfont"; kept
   also while it is closed, at most 2000), status line, Stop, Clear,
-  copying the selected or all lines to the clipboard.
+  copying the selected or all lines to the clipboard; a double click on
+  a compiler message goes to its file and line (`buildmsg.c`, names
+  relative to the drawer of the last Build, `build_drawer()`).
 - `src/toolwin.c`: placement of tool windows (remembered box pushed into
   the screen, otherwise docked right of the main window or over its right
   edge). Their boxes are kept for the session (`EditorApp`); only
@@ -403,6 +408,7 @@ below the tree's root.
 - `tests/test_appprefs.c`: host-native tests of the global settings.
 - `tests/test_gitstatus.c`: host-native tests of the reading of am-git's status.
 - `tests/test_linediff.c`: host-native tests of the line diff.
+- `tests/test_buildmsg.c`: host-native tests of the reader of compiler messages.
 - `tests/test_sprout_tmpl.c`: host-native tests of Sprout's core (also
   reads the `template.json` of the templates that come with TinyDev).
 - `tests/test_sprout_lha.c`: host-native tests of the LhA reader with the

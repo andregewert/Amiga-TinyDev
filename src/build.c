@@ -475,6 +475,14 @@ static void start_job(EditorApp *app, BPTR lock)
     start_timer();
 }
 
+/** The drawer the last Build ran in (build_drawer()). */
+static char build_dir[EDITOR_PATH_MAX];
+
+const char *build_drawer(void)
+{
+    return build_dir;
+}
+
 /**
  * @brief Start the Build action.
  * @param app The application state.
@@ -500,6 +508,7 @@ static void start_build(EditorApp *app)
         return;
     }
     if ((lock = prepare(app, PROJ_BUILD, bj.script, bj.name)) == 0) return;
+    if (!NameFromLock(lock, (STRPTR)build_dir, sizeof(build_dir))) build_dir[0] = '\0';
     bj.errors = 0;
     bj.done_hook = NULL;
     start_job(app, lock);

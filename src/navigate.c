@@ -1,7 +1,7 @@
 /**
  * @file navigate.c
- * @brief Edit/Go to Definition, Edit/Open Included File and Edit/Go Back:
- *        jumping to where the name at the cursor is defined or to the file
+ * @brief Edit/Go to Definition, Edit/Open Included File, Edit/Go to Line
+ *        and Edit/Go Back: jumping to where the name at the cursor is defined or to the file
  *        it includes (both asked from TinyDev-Scout) and back.
  *
  * Go to Definition takes the name at the cursor from the editor's text
@@ -18,8 +18,12 @@
  * and resolves the name as its index does: next to the file, then along
  * the include paths. A file already open keeps its cursor.
  *
+ * Edit/Go to Line... asks for a line number ("12", or "12:5" with a
+ * column) in the small name window of treeops.c.
+ *
  * Every jump first notes where the cursor was (at most HISTORY_MAX
- * places); Go Back returns there, also into another file.
+ * places), also one from the output window (navigate_remember()); Go
+ * Back returns there, also into another file.
  */
 #include "editor.h"
 #include "json.h"
@@ -385,6 +389,37 @@ void navigate_back(EditorApp *app)
     p = nv.history[--nv.depth];
     document_go_to(app, p.path, p.line, p.col);
     free(p.path);
+}
+
+void navigate_line(EditorApp *app)
+{
+    Document *doc = app->active;
+    char text[24];
+    long line, col, l = 0, c = 0;
+    const char *p;
+    if (doc == NULL || doc->editor == NULL) return;
+    cursor_of(doc, &line, &col);
+    snprintf(text, sizeof(text), "%ld", line);
+    if (!treeops_ask_name(app, NULL, S(MSG_GOTO_TITLE), S(MSG_GOTO_WHERE), text, sizeof(text))) return;
+    for (p = text; *p == ' '; ++p) {}
+    while (*p >= '0' && *p <= '9' && l < 10000000L) l = l * 10 + (*p++ - '0');
+    if (*p == ':' || *p == ',') {
+        for (++p; *p == ' '; ++p) {}
+        while (*p >= '0' && *p <= '9' && c < 10000000L) c = c * 10 + (*p++ - '0');
+    }
+    while (*p == ' ') ++p;
+    if (l <= 0 || *p != '\0') {
+        DisplayBeep(app->screen);
+        return;
+    }
+    push_history(doc);
+    /* the editor keeps the cursor within the text */
+    document_go_to(app, NULL, l, c > 0 ? c : 1);
+}
+
+void navigate_remember(EditorApp *app)
+{
+    push_history(app->active);
 }
 
 void navigate_cleanup(void)
