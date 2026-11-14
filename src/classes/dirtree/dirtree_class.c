@@ -815,7 +815,9 @@ static ULONG render_entry(struct Hook *hook __asm("a0"), struct Node *node __asm
     x = (WORD)(b->MinX + LEFT_PADDING);
     if (entry->directory && d->icons[DTI_DRAWER] != NULL) x = (WORD)(x + LEAF_OFFSET);
     bg = dri->dri_Pens[selected ? FILLPEN : BACKGROUNDPEN];
-    fg = selected || entry->placeholder || entry->pen < 0
+    /* an entry's own pen counts when it is selected too (its colour is
+     * information, e.g. a git state) */
+    fg = entry->placeholder || entry->pen < 0
          ? dri->dri_Pens[selected ? FILLTEXTPEN : entry->placeholder ? SHADOWPEN : TEXTPEN]
          : (UWORD)entry->pen;
     SetAPen(rp, (UBYTE)bg);

@@ -307,8 +307,8 @@
  * #DIRTREE_UpdatePens is set (on the application's process, from OM_NEW
  * or OM_SET). It returns a pen of the screen (the application obtains and
  * releases it), or -1 for the normal text pen. The pen is kept with the
- * entry: rendering does not call the hook. A selected entry is drawn in
- * FILLTEXTPEN as before.
+ * entry: rendering does not call the hook. A selected entry keeps its
+ * pen (on FILLPEN); -1 gives it FILLTEXTPEN.
  *
  * Type: struct Hook *. Applicability: I. Default: NULL (TEXTPEN).
  */
