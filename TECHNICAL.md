@@ -206,11 +206,13 @@ version therefore hides a fresh build; check with
 - Scout parsers for ACE BASIC, Free Pascal and Amiga E.
 - Git through am-git (<https://github.com/anderskjeldsen/am-git>, a native
   client written in AmLang, on Aminet; https needs AmiSSL, ssh an external
-  client). After the first release, strictly optional: TinyDev only runs
+  client). For 1.0, strictly optional: TinyDev only runs
   the command if it is there and does not link or ship it (the repository
   has no licence file). The steps, each useful alone:
-  1. `am-git init` as an option of the New Project wizard, with a
-     `.gitignore` for `.info` files and `.tinydev/`'s temporary files.
+  1. Done (`git.c`): `am-git init` from the New Project wizard and from
+     Git/Create Repository...; no `.gitignore` is written (whether `.info`
+     files belong in the repository is the user's choice, and templates
+     may bring one).
   2. Status: `am-git status --porcelain` (branch, then `XY path`) in a
      process of its own, as in `build.c`, at most one run at a time, after
      saving and when the tree's notifications report a change. The parser

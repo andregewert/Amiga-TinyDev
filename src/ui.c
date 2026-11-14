@@ -331,6 +331,8 @@ static struct NewMenu menus[] = {
     PC_SLOTS(PROJ_RUN),
     {NM_ITEM, NULL, NULL, NM_ITEMDISABLED, 0, UD(MID_PC_PARENT + PROJ_DEBUG)},
     PC_SLOTS(PROJ_DEBUG),
+    {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_MENU)},    /* NM_TITLE with git: ui_update_git_menu() */
+    {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_INIT)},
     {NM_TITLE, NULL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_FOLDER_TREE)},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_LINE_NUMBERS)},
@@ -428,6 +430,8 @@ static const LONG menu_texts[] = {
     PC_NO_TEXTS,
     MSG_MENU_CMD_DEBUG,
     PC_NO_TEXTS,
+    MSG_MENU_GIT,
+    MSG_MENU_GIT_INIT,
     MSG_MENU_VIEW,
     MSG_MENU_TREE,
     MSG_MENU_LINENUMBERS,
@@ -556,6 +560,19 @@ static void sync_file_type(EditorApp *app)
             ui_set_menu_check(app, ud, ud == id);
     }
     ft_shown = shown;
+}
+
+void ui_update_git_menu(EditorApp *app)
+{
+    int i, on = git_enabled(app);
+    for (i = 0; menus[i].nm_Type != NM_END; ++i) {
+        ULONG ud = (ULONG)menus[i].nm_UserData;
+        /* the title and its items go together: an item without its title
+         * would join the menu before */
+        if (ud == MID_GIT_MENU) menus[i].nm_Type = on ? NM_TITLE : NM_IGNORE;
+        else if (ud > MID_GIT_MENU && ud <= MID_GIT_INIT) menus[i].nm_Type = on ? NM_ITEM : NM_IGNORE;
+    }
+    if (app->window_object != NULL) SetAttrs(app->window_object, WINDOW_NewMenu, (ULONG)menus, TAG_END);
 }
 
 void ui_update_file_types(EditorApp *app)
@@ -993,6 +1010,7 @@ int ui_create(EditorApp *app)
     }
     for (i = 0; i < (int)(sizeof(menu_texts) / sizeof(menu_texts[0])); ++i)
         if (menu_texts[i] >= 0) menus[i].nm_Label = (STRPTR)S(menu_texts[i]);
+    ui_update_git_menu(app);                            /* the Git menu only with git */
     app->outwin_was_open = app->settings.outlist;      /* for the check marks */
     app->symlist_was_open = app->settings.symlist;
     app->diaglist_was_open = app->settings.diaglist;
@@ -1249,6 +1267,7 @@ void ui_apply_settings(EditorApp *app, const Settings *n)
     Document *doc;
 
     int scout = app->settings.scout;
+    int git = app->settings.git;
     int showinfo = app->settings.showinfo;
     int font = strcmp(app->settings.outfont, n->outfont) != 0 ||
                app->settings.outfontsize != n->outfontsize;
@@ -1257,6 +1276,7 @@ void ui_apply_settings(EditorApp *app, const Settings *n)
     app->settings = *n;
     if (font) outwin_font_changed(app);
     if (scout != n->scout) scoutlink_settings_changed(app);
+    if (git != n->git) ui_update_git_menu(app);
     if (showinfo != n->showinfo) {
         tree_apply_info(app);
         set_menu_checks(app, bmlist_is_open());
@@ -1462,6 +1482,9 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_NEW_FROM_TEMPLATE: new_from_template(app); ui_focus_editor(app, 1); break;
         case MID_BUILD: case MID_RUN: case MID_DEBUG: case MID_STOP:
             build_action(app, id);
+            break;
+        case MID_GIT_INIT:
+            git_menu(app, id);
             break;
         case MID_OUTPUT:
             if (outwin_is_open()) outwin_close(app);

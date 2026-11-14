@@ -2082,3 +2082,47 @@ MSG_ERR_GITENV
 Die Einstellungen von am-git konnten nicht\nnach ENV: bzw. ENVARC: geschrieben werden.
 ; am-git's settings could not be written\nto ENV: or ENVARC:.
 ;
+MSG_MENU_GIT
+Git
+; Git
+;
+MSG_MENU_GIT_INIT
+Repository anlegen...
+; Create Repository...
+;
+MSG_GIT_TITLE
+Git
+; Git
+;
+MSG_GIT_NOPROJECT
+Es ist kein Projekt geöffnet. Bitte zuerst eine Schublade als Projekt öffnen.
+; There is no project. Open a drawer as the project first.
+;
+MSG_GIT_ALREADY
+Das Projekt\n%s\nist bereits ein Git-Repository.
+; The project\n%s\nis a git repository already.
+;
+MSG_GIT_INITASK
+Im Projekt\n%s\nein Git-Repository anlegen?
+; Create a git repository in the project\n%s?
+;
+MSG_GIT_INITGADGETS
+Anlegen|Abbrechen
+; Create|Cancel
+;
+MSG_GIT_NORUN
+am-git konnte nicht gestartet werden.\nIst in der Schublade der temporären Dateien Platz?
+; am-git could not be run.\nIs there room in the drawer of the temporary files?
+;
+MSG_GIT_INITFAILED
+Das Repository konnte nicht angelegt werden.\nam-git meldet:\n\n%s
+; The repository could not be created.\nam-git says:\n\n%s
+;
+MSG_GIT_CREATED
+Git-Repository angelegt.
+; Git repository created.
+;
+MSG_NP_GITINIT
+Git-Repository anlegen
+; Create a git repository
+;

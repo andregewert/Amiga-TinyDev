@@ -56,6 +56,11 @@
  * none). On an error the messages are shown and the window stays open;
  * on success the drawer becomes the project (tree_open_project()) and
  * the template's files of "open" are opened.
+ *
+ * With the git integration on, page 0 of the project wizard has the
+ * check box "Create a git repository" (its state is kept for the
+ * session); the new drawer is then made a repository (git_init()) before
+ * it becomes the project.
  */
 #include "editor.h"
 #include "json.h"
@@ -66,6 +71,7 @@
 #include <dos/dosextens.h>
 #include <dos/dostags.h>
 #include <gadgets/button.h>
+#include <gadgets/checkbox.h>
 #include <gadgets/chooser.h>
 #include <gadgets/layout.h>
 #include <gadgets/listbrowser.h>
@@ -80,6 +86,7 @@
 #include <libraries/asl.h>
 #include <proto/asl.h>
 #include <proto/button.h>
+#include <proto/checkbox.h>
 #include <proto/chooser.h>
 #include <proto/dos.h>
 #include <proto/exec.h>
@@ -100,6 +107,10 @@
 
 extern struct Library *ListBrowserBase;    /* shared with the settings window */
 extern struct Library *StringBase;         /* shared with the find window */
+extern struct Library *CheckBoxBase;       /* shared with the settings window */
+
+/** The check box "Create a git repository" was on when last used (this session). */
+static int git_init_wanted = 1;
 
 /** Sprout, next to TinyDev (the Shell that runs it has no PROGDIR: of
  *  TinyDev, so the drawer is put in front by its full name). */
@@ -108,7 +119,7 @@ extern struct Library *StringBase;         /* shared with the find window */
 /** Gadget IDs of the wizard. */
 enum {
     NP_CATS = 100, NP_TMPLS, NP_DESC, NP_NAME, NP_DRAWER, NP_CHOOSE,
-    NP_BACK, NP_NEXT, NP_CREATE, NP_CANCEL, NP_SUBDIR,
+    NP_BACK, NP_NEXT, NP_CREATE, NP_CANCEL, NP_SUBDIR, NP_GITINIT,
     NP_FIELD = 1000             /* + template * FIELDS_PER + placeholder */
 };
 
@@ -173,6 +184,7 @@ static struct {
     Object *winobj, *layout, *page_gad, *catlist_gad, *tmpllist_gad, *desc_gad;
     Object *icon, *title, *name, *drawer, *back, *next, *create;
     Object *subdir, *result;        /* projects: the drawer's name, the line with the result */
+    Object *gitinit;                /* projects with git: the check box "Create a git repository" */
     char last_name[81];             /* the project's name looked at last */
     char last_auto[SUBDIR_MAX + 1]; /* the drawer's name filled in last */
     char last_target[EDITOR_PATH_MAX];  /* the drawer the result line shows */
@@ -1235,6 +1247,10 @@ static Object *build(const char *drawer)
         np.result = NewObject(BUTTON_GetClass(), NULL, GA_ReadOnly, TRUE, GA_Underscore, 0,
             GA_Text, (ULONG)"", BUTTON_BevelStyle, BVS_NONE, BUTTON_Transparent, TRUE,
             BUTTON_Justification, BCJ_LEFT, TAG_END);
+        if (git_enabled(np.app) && CheckBoxBase != NULL)
+            np.gitinit = NewObject(CHECKBOX_GetClass(), NULL,
+                GA_ID, NP_GITINIT, GA_RelVerify, TRUE, GA_Text, (ULONG)S(MSG_NP_GITINIT),
+                CHECKBOX_Checked, (ULONG)git_init_wanted, TAG_END);
     }
     np.drawer = string(NP_DRAWER, drawer, EDITOR_PATH_MAX);
 
@@ -1299,6 +1315,8 @@ static Object *build(const char *drawer)
             np.files ? LAYOUT_AddImage : LAYOUT_AddChild,
             np.files ? (ULONG)label(S(MSG_NF_DRAWERNOTE), 1) : (ULONG)np.result,
             FIXED,
+            np.gitinit != NULL ? LAYOUT_AddChild : TAG_IGNORE, (ULONG)np.gitinit,
+            np.gitinit != NULL ? CHILD_WeightedHeight : TAG_IGNORE, 0,
             TAG_END),
         FIXED,
         TAG_END);
@@ -1526,7 +1544,7 @@ static void wizard(EditorApp *app, int files, const char *into)
     SproutValues values;
     ULONG sig = 0, mainsig = 0, result;
     WORD code = 0;
-    int done = 0, created = 0, c;
+    int done = 0, created = 0, c, git = 0;
 
     if (app->window == NULL) return;
     memset(&np, 0, sizeof(np));
@@ -1539,6 +1557,9 @@ static void wizard(EditorApp *app, int files, const char *into)
     np.days = ds.ds_Days;
     if (ListBrowserBase == NULL) ListBrowserBase = OpenLibrary((STRPTR)"gadgets/listbrowser.gadget", 44);
     if (StringBase == NULL) StringBase = OpenLibrary((STRPTR)"gadgets/string.gadget", 44);
+    /* only for the check box of git: without the class there is none */
+    if (!files && git_enabled(app) && CheckBoxBase == NULL)
+        CheckBoxBase = OpenLibrary((STRPTR)"gadgets/checkbox.gadget", 44);
     if (ListBrowserBase == NULL || StringBase == NULL || ChooserBase == NULL) {
         char text[160];
         snprintf(text, sizeof(text), S(MSG_NP_NEEDCLASS),
@@ -1646,6 +1667,9 @@ static void wizard(EditorApp *app, int files, const char *into)
                     if (np.cur >= 0 && create(&values)) done = created = 1;
                     else sprout_values_free(&values);
                     break;
+                case NP_GITINIT:
+                    git_init_wanted = get(np.gitinit, CHECKBOX_Checked) != 0;
+                    break;
                 case NP_CANCEL:
                     done = 1;
                     break;
@@ -1656,6 +1680,7 @@ static void wizard(EditorApp *app, int files, const char *into)
     if (created) {
         /* the drawer's text goes with the window */
         if (!target_drawer(drawer, sizeof(drawer))) drawer[0] = '\0';
+        git = np.gitinit != NULL && get(np.gitinit, CHECKBOX_Checked) != 0;
     }
 
 out:
@@ -1666,6 +1691,7 @@ out:
     if (np.descnodes.lh_Head != NULL) FreeListBrowserList(&np.descnodes);
     if (np.dri != NULL) FreeScreenDrawInfo(app->screen, np.dri);
     free(np.hints);
+    if (created && git && drawer[0] != '\0') git_init(app, drawer);
     if (created) open_project(&np.tmpl[np.cur], drawer, &values);
     sprout_values_free(&values);
     free_templates();

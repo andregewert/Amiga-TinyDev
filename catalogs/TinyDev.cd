@@ -1592,3 +1592,36 @@ The logins are too long (at most %ld characters).
 MSG_ERR_GITENV (//)
 am-git's settings could not be written\nto ENV: or ENVARC:.
 ;
+MSG_MENU_GIT (//)
+Git
+;
+MSG_MENU_GIT_INIT (//)
+Create Repository...
+;
+MSG_GIT_TITLE (//)
+Git
+;
+MSG_GIT_NOPROJECT (//)
+There is no project. Open a drawer as the project first.
+;
+MSG_GIT_ALREADY (//)
+The project\n%s\nis a git repository already.
+;
+MSG_GIT_INITASK (//)
+Create a git repository in the project\n%s?
+;
+MSG_GIT_INITGADGETS (//)
+Create|Cancel
+;
+MSG_GIT_NORUN (//)
+am-git could not be run.\nIs there room in the drawer of the temporary files?
+;
+MSG_GIT_INITFAILED (//)
+The repository could not be created.\nam-git says:\n\n%s
+;
+MSG_GIT_CREATED (//)
+Git repository created.
+;
+MSG_NP_GITINIT (//)
+Create a git repository
+;

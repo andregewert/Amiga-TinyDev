@@ -49,6 +49,12 @@ below the tree's root.
   `AM_GIT_NETRC`), read from `ENV:` (else `ENVARC:`) and written by the
   settings window: "Use" to `ENV:`, "Save" also to `ENVARC:`, only what
   changed. TinyDev keeps none of them in `TinyDev.json`.
+- `src/git.c`: git through am-git, only with the setting "git"/"enabled"
+  (the Git menu is hidden otherwise, `ui_update_git_menu()`): `git_run()`
+  runs am-git synchronously through a script with `Stack 100000` in the
+  temporary drawer (output and messages into one file, read afterwards);
+  Git/Create Repository... and the New Project wizard's check box run
+  `am-git init` with the drawer's full name (am-git needs it).
 - `src/filetypes.c`, `include/filetypes.h`: the portable settings per
   file type (tab size, indentation, automatic indentation, Tab key, line
   numbers, cutting lines): reading and writing the "filetypes" of

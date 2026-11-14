@@ -521,7 +521,18 @@
 #define MSG_GITNETRC_NOTE            516
 #define MSG_GITNETRC_TOOLONG         517
 #define MSG_ERR_GITENV               518
-#define MSG_COUNT                    519
+#define MSG_MENU_GIT                 519
+#define MSG_MENU_GIT_INIT            520
+#define MSG_GIT_TITLE                521
+#define MSG_GIT_NOPROJECT            522
+#define MSG_GIT_ALREADY              523
+#define MSG_GIT_INITASK              524
+#define MSG_GIT_INITGADGETS          525
+#define MSG_GIT_NORUN                526
+#define MSG_GIT_INITFAILED           527
+#define MSG_GIT_CREATED              528
+#define MSG_NP_GITINIT               529
+#define MSG_COUNT                    530
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -1045,6 +1056,17 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "One line per server: machine <host> login <name> password <token>\nA line default login <name> password <token> counts for all others.",
     "The logins are too long (at most %ld characters).",
     "am-git's settings could not be written\nto ENV: or ENVARC:.",
+    "Git",
+    "Create Repository...",
+    "Git",
+    "There is no project. Open a drawer as the project first.",
+    "The project\n%s\nis a git repository already.",
+    "Create a git repository in the project\n%s?",
+    "Create|Cancel",
+    "am-git could not be run.\nIs there room in the drawer of the temporary files?",
+    "The repository could not be created.\nam-git says:\n\n%s",
+    "Git repository created.",
+    "Create a git repository",
 };
 #endif
 

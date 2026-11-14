@@ -1,0 +1,239 @@
+/**
+ * @file git.c
+ * @brief git through am-git: running its commands and the Git menu
+ *        (Git/Create Repository).
+ *
+ * TinyDev links no git code: it runs am-git, the command of the setting
+ * "git"/"command" (am-git, found in the command path, by default), and
+ * only when the setting "git"/"enabled" is on. The Git menu is shown only
+ * then (ui_update_git_menu()).
+ *
+ * A command runs synchronously (busy pointer) through a script in the
+ * drawer of the temporary files: "Stack 100000" first, as am-git wants
+ * that much and TinyDev started from the Workbench has no Shell whose
+ * stack it would get; then am-git with its arguments. The Shell gets
+ * TinyDev's command path (cmdpath_copy()) and runs in the drawer given.
+ * Output and messages go to one file, read afterwards, as with Sprout
+ * (newproj.c): pr_CES and NP_Error point at it for the time of the call.
+ *
+ * am-git's init needs the drawer as an argument (it makes it if needed),
+ * so TinyDev always passes the project drawer's full name; a drawer that
+ * is already a project can be made a repository as well.
+ *
+ * Seen on the Amiga with am-git 0.12.1: file names come through as the
+ * bytes on disk (ISO-8859-1), so no conversion is needed; commit messages
+ * have a single line (see TECHNICAL.md).
+ */
+#include "editor.h"
+
+#include <dos/dos.h>
+#include <dos/dosextens.h>
+#include <dos/dostags.h>
+#include <proto/dos.h>
+#include <proto/exec.h>
+#include <proto/intuition.h>
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+/** Stack am-git gets (bytes); it asks for 100000. */
+#define GIT_STACK 100000
+/** The longest output shown in a message (characters). */
+#define GIT_SHOWN 1200
+
+/**
+ * @brief Put a string in double quotes for the Shell (BCPL escapes: *",
+ *        ** and *N).
+ * @param[out] out The result.
+ * @param size Its size.
+ * @param s The string.
+ * @return Non-zero if it fitted.
+ */
+static int quote(char *out, size_t size, const char *s)
+{
+    size_t n = 0;
+    if (size < 3) return 0;
+    out[n++] = '"';
+    for (; *s != '\0'; ++s) {
+        const char *put = *s == '"' ? "*\"" : *s == '*' ? "**" : *s == '\n' ? "*N" : NULL;
+        size_t len = put != NULL ? 2 : 1;
+        if (n + len + 2 > size) return 0;
+        if (put != NULL) memcpy(out + n, put, 2);
+        else out[n] = *s;
+        n += len;
+    }
+    out[n++] = '"';
+    out[n] = '\0';
+    return 1;
+}
+
+int git_enabled(EditorApp *app)
+{
+    return app->settings.git;
+}
+
+/**
+ * @brief Write the script that runs am-git.
+ * @param app The application state (the command).
+ * @param script The script's name.
+ * @param args am-git's arguments, quoted as needed.
+ * @return Non-zero on success.
+ */
+static int write_script(EditorApp *app, const char *script, const char *args)
+{
+    char cmd[sizeof(app->settings.gitcommand) * 2 + 4], line[40];
+    const char *command = app->settings.gitcommand[0] != '\0' ? app->settings.gitcommand : "am-git";
+    BPTR fh;
+    int ok;
+
+    /* a name without spaces stays as it is, so the Shell searches the path
+     * for it as for any command */
+    if (strpbrk(command, " \"*;") == NULL) strcpy(cmd, command);
+    else if (!quote(cmd, sizeof(cmd), command)) return 0;
+    if ((fh = Open((STRPTR)script, MODE_NEWFILE)) == 0) return 0;
+    snprintf(line, sizeof(line), "Stack %ld\n", (long)GIT_STACK);
+    ok = FPuts(fh, (STRPTR)line) == 0 && FPuts(fh, (STRPTR)cmd) == 0 && FPutC(fh, ' ') >= 0 &&
+         FPuts(fh, (STRPTR)args) == 0 && FPutC(fh, '\n') >= 0;
+    ok = Close(fh) && ok;
+    if (!ok) DeleteFile((STRPTR)script);
+    return ok;
+}
+
+LONG git_run(EditorApp *app, const char *dir, const char *args, char **output)
+{
+    char script[EDITOR_PATH_MAX], out[EDITOR_PATH_MAX], command[EDITOR_PATH_MAX + 16];
+    struct Process *me = (struct Process *)FindTask(NULL);
+    BPTR in = 0, ofh = 0, lock = 0, old_dir, old_ces, path;
+    LONG rc = -1;
+
+    if (output != NULL) *output = NULL;
+    if (!temp_name(app, ".script", script, sizeof(script)) || !temp_name(app, ".txt", out, sizeof(out)))
+        return -1;
+    if (!write_script(app, script, args)) return -1;
+    snprintf(command, sizeof(command), "Execute \"%s\"", script);
+    if ((lock = Lock((STRPTR)dir, ACCESS_READ)) == 0 ||
+        (in = Open((STRPTR)"NIL:", MODE_OLDFILE)) == 0 ||
+        (ofh = Open((STRPTR)out, MODE_NEWFILE)) == 0)
+        goto done;
+    if (app->window_object != NULL) SetAttrs(app->window_object, WA_BusyPointer, TRUE, TAG_END);
+    path = cmdpath_copy();
+    old_dir = CurrentDir(lock);
+    old_ces = me->pr_CES;
+    me->pr_CES = ofh;
+    rc = SystemTags((STRPTR)command, SYS_Input, (ULONG)in, SYS_Output, (ULONG)ofh,
+                    SYS_UserShell, TRUE, NP_Error, (ULONG)ofh, NP_CloseError, FALSE,
+                    path != 0 ? NP_Path : TAG_IGNORE, (ULONG)path, TAG_DONE);
+    me->pr_CES = old_ces;
+    CurrentDir(old_dir);
+    if (rc == -1) cmdpath_free(path);
+    if (app->window_object != NULL) SetAttrs(app->window_object, WA_BusyPointer, FALSE, TAG_END);
+done:
+    if (ofh != 0) Close(ofh);
+    if (in != 0) Close(in);
+    if (lock != 0) UnLock(lock);
+    if (rc != -1 && output != NULL && datafile_read(out, output) <= 0) *output = NULL;
+    DeleteFile((STRPTR)out);
+    DeleteFile((STRPTR)script);
+    return rc;
+}
+
+/**
+ * @brief Show a failed command's output.
+ * @param app The application state.
+ * @param id The message (MSG_, with %s for the output).
+ * @param output The output, or NULL.
+ */
+static void report(EditorApp *app, LONG id, const char *output)
+{
+    char shown[GIT_SHOWN + 4], *text;
+    size_t n = output != NULL ? strlen(output) : 0;
+    if (n > GIT_SHOWN) n = GIT_SHOWN;
+    if (n > 0) memcpy(shown, output, n);
+    while (n > 0 && (shown[n - 1] == '\n' || shown[n - 1] == '\r' || shown[n - 1] == ' ')) --n;
+    shown[n] = '\0';
+    if (output != NULL && strlen(output) > GIT_SHOWN) strcpy(shown + n, "...");
+    if ((text = malloc(strlen(S(id)) + strlen(shown) + 1)) == NULL) return;
+    sprintf(text, S(id), shown);
+    ui_error(app, S(MSG_GIT_TITLE), text);
+    free(text);
+}
+
+/**
+ * @brief Whether a drawer holds a repository (a ".git" in it).
+ * @param drawer The drawer.
+ * @return Non-zero if it does.
+ */
+static int is_repository(const char *drawer)
+{
+    char path[EDITOR_PATH_MAX];
+    BPTR lock;
+    strcpy(path, drawer);
+    if (!AddPart((STRPTR)path, (STRPTR)".git", sizeof(path)) || (lock = Lock((STRPTR)path, ACCESS_READ)) == 0)
+        return 0;
+    UnLock(lock);
+    return 1;
+}
+
+int git_init(EditorApp *app, const char *drawer)
+{
+    char full[EDITOR_PATH_MAX], args[EDITOR_PATH_MAX + 16], *output = NULL;
+    BPTR lock;
+    LONG rc;
+    int ok;
+
+    if ((lock = Lock((STRPTR)drawer, ACCESS_READ)) == 0) return 0;
+    ok = NameFromLock(lock, (STRPTR)full, sizeof(full)) != 0;
+    UnLock(lock);
+    if (!ok) return 0;
+    strcpy(args, "init ");
+    if (!quote(args + 5, sizeof(args) - 5, full)) {
+        ui_error(app, S(MSG_GIT_TITLE), S(MSG_ERR_PATHTOOLONG));
+        return 0;
+    }
+    rc = git_run(app, full, args, &output);
+    /* am-git may answer 0 although it failed: the drawer must hold .git */
+    ok = rc == 0 && is_repository(full);
+    if (rc == -1) ui_error(app, S(MSG_GIT_TITLE), S(MSG_GIT_NORUN));
+    else if (!ok) report(app, MSG_GIT_INITFAILED, output);
+    else ui_status_message(app, S(MSG_GIT_CREATED));
+    free(output);
+    return ok;
+}
+
+/**
+ * @brief Git/Create Repository: make the project a repository, after
+ *        asking.
+ * @param app The application state.
+ */
+static void init_project(EditorApp *app)
+{
+    char root[EDITOR_PATH_MAX];
+    struct EasyStruct es = {sizeof(es), 0, NULL, NULL, NULL};
+    ULONG args[1];
+
+    if (!tree_project_root(app, root, sizeof(root))) {
+        ui_error(app, S(MSG_GIT_TITLE), S(MSG_GIT_NOPROJECT));
+        return;
+    }
+    if (is_repository(root)) {
+        char text[EDITOR_PATH_MAX + 100];
+        snprintf(text, sizeof(text), S(MSG_GIT_ALREADY), root);
+        ui_error(app, S(MSG_GIT_TITLE), text);
+        return;
+    }
+    es.es_Title = (STRPTR)S(MSG_GIT_TITLE);
+    es.es_TextFormat = (STRPTR)S(MSG_GIT_INITASK);
+    es.es_GadgetFormat = (STRPTR)S(MSG_GIT_INITGADGETS);
+    args[0] = (ULONG)root;
+    if (EasyRequestArgs(app->window, &es, NULL, args) != 1) return;
+    git_init(app, root);
+}
+
+void git_menu(EditorApp *app, ULONG id)
+{
+    if (!git_enabled(app)) return;
+    switch (id) {
+        case MID_GIT_INIT: init_project(app); break;
+    }
+}

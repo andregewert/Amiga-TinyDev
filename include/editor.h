@@ -145,6 +145,8 @@ enum MenuId {
     MID_TREE_RENAME,    /**< Project/Folder Tree/Rename...: the selected entry */
     MID_TREE_DELETE,    /**< Project/Folder Tree/Delete...: the selected entry */
     MID_TREE_HIDE_INFO, /**< Project/Folder Tree/Hide Info Files (check item) */
+    MID_GIT_MENU,       /**< the Git menu's title (marks it in the table) */
+    MID_GIT_INIT,       /**< Git/Create Repository...: am-git init in the project */
     /* the File Type entries stay last: menu_action() takes the IDs from
      * MID_FT_AUTO on as file types */
     MID_FT_AUTO,        /**< File Type/Automatic: the language Scout detects */
@@ -1955,6 +1957,44 @@ void treeops_delete(EditorApp *app);
  * @return Non-zero on success (0 if the name does not fit).
  */
 int temp_name(EditorApp *app, const char *suffix, char *out, size_t size);
+
+/**
+ * @brief Whether the git integration is on (setting "git"/"enabled").
+ * @param app The application state.
+ * @return Non-zero if it is.
+ */
+int git_enabled(EditorApp *app);
+/**
+ * @brief Run am-git synchronously (busy pointer) in a drawer, through a
+ *        script with "Stack 100000" in the drawer of the temporary files.
+ * @param app The application state (the command, the temporary drawer).
+ * @param dir The drawer it runs in.
+ * @param args am-git's arguments, quoted for the Shell as needed.
+ * @param[out] output Its output and messages (free() it), NULL if there
+ *        are none; may be NULL.
+ * @return The return code, or -1 if it could not be run.
+ */
+LONG git_run(EditorApp *app, const char *dir, const char *args, char **output);
+/**
+ * @brief Make a drawer a repository (am-git init with its full name);
+ *        shows what went wrong, or a status message on success.
+ * @param app The application state.
+ * @param drawer The drawer (it must exist).
+ * @return Non-zero if the drawer is a repository now.
+ */
+int git_init(EditorApp *app, const char *drawer);
+/**
+ * @brief Carry out a command of the Git menu (MID_GIT_...).
+ * @param app The application state.
+ * @param id The command.
+ */
+void git_menu(EditorApp *app, ULONG id);
+/**
+ * @brief Show the Git menu if the git integration is on, else hide it
+ *        (window.class builds the menus anew from the table).
+ * @param app The application state.
+ */
+void ui_update_git_menu(EditorApp *app);
 
 /**
  * @brief Copy the command path for a Shell that TinyDev starts: the path
