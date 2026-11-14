@@ -803,6 +803,7 @@ int prefs_dialog(EditorApp *app, Settings *s, FileTypes *ft)
     pw.winobj = NewObject(WINDOW_GetClass(), NULL,
         WA_Title, (ULONG)S(MSG_PREFS_TITLE),
         WA_PubScreen, (ULONG)app->screen,
+        WA_SmartRefresh, TRUE,     /* scrolled lists: see "Scrolling..." in TECHNICAL.md */
         WA_Activate, TRUE,
         WA_DepthGadget, TRUE,
         WA_DragBar, TRUE,

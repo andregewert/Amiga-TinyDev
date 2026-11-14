@@ -1590,6 +1590,7 @@ static void wizard(EditorApp *app, int files, const char *into)
     np.winobj = NewObject(WINDOW_GetClass(), NULL,
         WA_Title, (ULONG)text_for(MSG_NP_TITLE, MSG_NF_TITLE),
         WA_PubScreen, (ULONG)app->screen,
+        WA_SmartRefresh, TRUE,     /* scrolled lists: see "Scrolling..." in TECHNICAL.md */
         WA_Activate, TRUE,
         WA_DepthGadget, TRUE,
         WA_DragBar, TRUE,

@@ -573,6 +573,7 @@ static int open_list(EditorApp *app, Document *doc)
     }
     cp.winobj = NewObject(WINDOW_GetClass(), NULL,
         WA_PubScreen, (ULONG)app->screen,
+        WA_SmartRefresh, TRUE,     /* scrolled lists: see "Scrolling..." in TECHNICAL.md */
         WA_Left, (ULONG)x, WA_Top, (ULONG)y, WA_Width, WIN_WIDTH, WA_Height, (ULONG)height,
         WA_Borderless, TRUE, WA_Activate, TRUE, WA_RMBTrap, TRUE,
         WA_IDCMP, IDCMP_VANILLAKEY | IDCMP_RAWKEY | IDCMP_INACTIVEWINDOW,

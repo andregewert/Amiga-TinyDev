@@ -298,6 +298,7 @@ static int build(EditorApp *app)
     fw.winobj = NewObject(WINDOW_GetClass(), NULL,
         WA_Title,          (ULONG)S(MSG_FIND_TITLE),
         WA_PubScreen,      (ULONG)app->screen,
+        WA_SmartRefresh, TRUE,     /* scrolled lists: see "Scrolling..." in TECHNICAL.md */
         WA_Activate,       TRUE,
         WA_DepthGadget,    TRUE,
         WA_DragBar,        TRUE,

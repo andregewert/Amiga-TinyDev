@@ -804,6 +804,7 @@ void project_settings(EditorApp *app)
     pj.winobj = NewObject(WINDOW_GetClass(), NULL,
         WA_Title, (ULONG)pj.title,
         WA_PubScreen, (ULONG)app->screen,
+        WA_SmartRefresh, TRUE,     /* scrolled lists: see "Scrolling..." in TECHNICAL.md */
         WA_Activate, TRUE,
         WA_DepthGadget, TRUE,
         WA_DragBar, TRUE,

@@ -1190,6 +1190,10 @@ static int open_window(void)
     hv.winobj = NewObject(WINDOW_GetClass(), NULL,
         WA_Title, (ULONG)"HelpViewer",
         WA_PubScreen, (ULONG)hv.screen,
+        /* smart refresh: the lists and the page scroll with ScrollRaster() and
+         * draw only what is new; in a simple refresh window the part coming up
+         * from under another window would be repaired only later, over moved text */
+        WA_SmartRefresh, TRUE,
         WA_Activate, TRUE,
         WA_DepthGadget, TRUE,
         WA_DragBar, TRUE,

@@ -419,6 +419,7 @@ void diaglist_open(EditorApp *app)
     dl.winobj = NewObject(WINDOW_GetClass(), NULL,
         WA_Title, (ULONG)S(MSG_DIAG_TITLE),
         WA_PubScreen, (ULONG)app->screen,
+        WA_SmartRefresh, TRUE,     /* scrolled lists: see "Scrolling..." in TECHNICAL.md */
         WA_Left, (ULONG)box[0], WA_Top, (ULONG)box[1],
         WA_Width, (ULONG)box[2], WA_Height, (ULONG)box[3],
         WA_DepthGadget, TRUE, WA_DragBar, TRUE, WA_CloseGadget, TRUE, WA_SizeGadget, TRUE,

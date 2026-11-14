@@ -71,7 +71,11 @@ The main window is always a smart refresh window, whatever the user's
 ReAction preference says: `texteditor.gadget` scrolls with `ScrollRasterBF()`
 and draws only the rows that are new, so in a simple refresh window the part
 coming up from under another window is left to a later refresh, which does
-not fit the text any more when scrolling goes on.
+not fit the text any more when scrolling goes on. `listbrowser.gadget`
+scrolls the same way, so every window with a list (the tool windows, find,
+completion, the settings, project settings and template windows, and the
+HelpViewer) asks for smart refresh too (`WA_SmartRefresh`); a new window
+with a list or another scrolled area needs it as well.
 
 ## Editor colours and texteditor.gadget
 
