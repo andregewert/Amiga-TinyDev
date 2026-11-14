@@ -36,8 +36,10 @@ Wo `AGENTS.md` und die Devkit-Dokumente sich widersprechen, gilt Folgendes:
   installiert ist. Kein Ersatz für den Test mit gcc 2.95.3 und auf dem Amiga.
 - **Kataloge:** Sichtbare Texte von TinyDev (nicht von Scout und den Gadget-Klassen) kommen
   aus `catalogs/TinyDev.cd` über `S(MSG_…)` (`src/locale.c`); jeder neue Text bekommt dort
-  einen Eintrag und eine Übersetzung in `catalogs/deutsch.ct`. Bis zum ersten Release dürfen
-  Texte umsortiert werden, eine Katalogversion (`OC_Version`) gibt es erst dann.
+  einen Eintrag und eine Übersetzung in `catalogs/deutsch.ct`. Neue Texte kommen ans Ende:
+  `OpenCatalog()` verlangt Katalogversion 1 (`CATALOG_VERSION` in `src/locale.c`, ebenso
+  bei HelpViewer und Scout). Werden Texte entfernt oder umsortiert, steigt sie dort und in
+  der Zeile `## version` der `.ct`-Dateien.
   `include/tinydev_strings.h` wird erzeugt und eingecheckt. Kürzel (`_`) pro Fenster und
   Sprache eindeutig halten. Ausgaben auf `stderr` bleiben englisch.
 - **Noch nicht vorhanden** (nur nach Absprache einführen): `README.de.md`. `package/` enthält
