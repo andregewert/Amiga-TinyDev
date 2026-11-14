@@ -10,7 +10,7 @@
  * window and a quarter of the screen high, over its lower edge if the
  * screen has no room below. Once
  * moved or sized, its box is remembered (in the settings, saved with them
- * in the program icon) and used again, pushed into the screen if it no
+ * in TinyDev.json) and used again, pushed into the screen if it no
  * longer fits.
  */
 #include "editor.h"

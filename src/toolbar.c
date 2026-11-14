@@ -5,7 +5,7 @@
  * The toolbar, built like Kickdown's (see the ReAction style guide in
  * amiga-devkit, section 6):
  * - a flat speedbar.gadget: no frame around the bar, buttons without frames
- *   (TOOLBARFRAMES adds them) that look recessed while pressed;
+ *   (the setting "frames" adds them) that look recessed while pressed;
  * - AISS images from TBIMAGES:, texts as label.image objects passed as
  *   SBNA_Image (speedbar.gadget 47.x stores SBNA_Text but never draws it);
  *   modes IMAGES, BOTH (image with the text below in the smallest real size

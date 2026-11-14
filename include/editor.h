@@ -13,6 +13,7 @@
 #include <workbench/startup.h>
 
 #include "filetypes.h"
+#include "appprefs.h"
 #include "syntax.h"
 #include "tinydev_strings.h"
 
@@ -21,6 +22,7 @@ struct HintInfo;
 /** @name Program */
 /** @{ */
 #define APP_NAME "TinyDev"                  /**< name of the program (windows, requesters) */
+#define PREFS_FILE "PROGDIR:" APP_NAME ".json" /**< TinyDev's settings: global (appprefs.h) and per file type (filetypes.h) */
 #define APP_VERSION "1.0 (18.10.2026)"      /**< version and date; changes only with a release */
 /** @} */
 
@@ -80,71 +82,11 @@ enum GadgetId {
     GID_LAST            /**< first free ID */
 };
 
-/** What the toolbar buttons show (tool type TOOLBAR=IMAGES|BOTH|TEXT). */
-enum ToolbarMode {
-    TBMODE_IMAGES = 0,  /**< images (the default) */
-    TBMODE_BOTH,        /**< images with a text below */
-    TBMODE_TEXT,        /**< text only, no images are loaded */
-    TBMODE_COUNT        /**< number of modes */
-};
-
-/** Configurable colours of the editor (syntax highlighting), in this order:
- *  the order of SyntaxStyle (syntax.h). */
-enum SettingsColour {
-    SCOL_TEXT = 0,      /**< normal text */
-    SCOL_KEYWORD,       /**< keywords */
-    SCOL_STRING,        /**< strings */
-    SCOL_COMMENT,       /**< comments */
-    SCOL_PREPROCESSOR,  /**< preprocessor lines */
-    SCOL_TYPE,          /**< types */
-    SCOL_FUNCTION,      /**< functions */
-    SCOL_MACRO,         /**< macros */
-    SCOL_CONSTANT,      /**< constants and numbers */
-    SCOL_VARIABLE,      /**< parameters and script variables */
-    SCOL_COUNT          /**< number of colours */
-};
-
-/**
- * Settings from the tool types of the program icon (and project icons),
- * edited in the settings window.
- */
-typedef struct Settings {
-    int tbmode;         /**< ToolbarMode, takes effect at the next start */
-    int tbframes;       /**< frames around the toolbar buttons (TOOLBARFRAMES) */
-    int splash;         /**< splash window while starting (NOSPLASH turns it off) */
-    int foldertree;     /**< folder tree shown at the start (NOFOLDERTREE turns it off) */
-    int minimap;        /**< minimap shown at the start (MINIMAP) */
-    int showinfo;       /**< the folder tree shows .info files (SHOWINFO) */
-    long winwidth;      /**< width of the main window at the start: 0 = automatic */
-    long winheight;     /**< its height: 0 = automatic */
-    long winleft;       /**< its left edge: -1 = centred */
-    long wintop;        /**< its top edge: -1 = centred */
-    unsigned long colours[SCOL_COUNT];  /**< 0xRRGGBB, SettingsColour order */
-    long bmwin[4];      /**< bookmark list as snapshot: left, top, width, height; width 0 = automatic */
-    int bmlist;         /**< bookmark list open at the start (BOOKMARKLIST) */
-    long outwin[4];     /**< output window as snapshot (OUTPUTWINDOW); width 0 = automatic */
-    int outlist;        /**< output window open at the start (OUTPUT) */
-    long symwin[4];     /**< symbol list as snapshot (SYMBOLWINDOW); width 0 = automatic */
-    int symlist;        /**< symbol list open at the start (SYMBOLLIST) */
-    long diagwin[4];    /**< problem list as snapshot (PROBLEMWINDOW); width 0 = automatic */
-    int diaglist;       /**< problem list open at the start (PROBLEMLIST) */
-    int scout;          /**< analyse the sources with TinyDev-Scout (NOSCOUT turns it off) */
-    char tempdir[256];  /**< drawer of the temporary files (TEMPDIR, default T:) */
-    char shellwindow[256]; /**< console of Project/New Shell: a handler (CON:) or a whole window (SHELLWINDOW) */
-    char projectdir[256];  /**< drawer suggested for new projects (PROJECTDIR); "" = the current project's parent */
-    char author[128];      /**< the author for templates, Sprout's AUTHOR (AUTHOR) */
-    char authormail[128];  /**< the author's e-mail address, Sprout's AUTHORMAIL (AUTHORMAIL) */
-    char icon_name[300];/**< program icon without .info, for splash and About */
-} Settings;
-
-/** Default colours, SettingsColour order. */
-extern const unsigned long settings_default_colours[SCOL_COUNT];
-
 /** Results of prefs_dialog(). */
 enum {
     PREFS_CANCEL = 0,   /**< cancelled, nothing changes */
     PREFS_USE,          /**< use the settings in this session */
-    PREFS_SAVE          /**< use them and write them into the program icon */
+    PREFS_SAVE          /**< use them and write them into PROGDIR:TinyDev.json */
 };
 
 /** Commands of the menus and the toolbar (the menu items' user data). */
@@ -407,27 +349,22 @@ void locale_close(void);
 const char *S(LONG id);
 
 /**
- * @brief Set the default settings.
- * @param s The settings to fill in.
- */
-void settings_default(Settings *s);
-/**
- * @brief Write the settings into the tool types of the program icon.
+ * @brief Write the settings, and those per file type, into
+ *        PROGDIR:TinyDev.json in one go (appprefs_format(),
+ *        filetypes_format()), keeping the rest of the file.
  *
- * Other tool types and the NewIcons block (from "*** DON'T EDIT") stay
- * where they are; new entries go in front of the NewIcons block. A setting
- * that is now at its default stays as a disabled entry "(KEY=value)", so
- * the icon keeps showing what can be set.
+ * A file that could not be read at the start, or cannot be read now, is
+ * not written.
  *
  * @param s The settings.
+ * @param ft The settings per file type, or NULL to keep those in the file.
  * @return Non-zero on success.
  */
-int settings_save(const Settings *s);
+int settings_save(const Settings *s, const FileTypes *ft);
 /**
  * @brief Write the tool windows' boxes and open state (Snapshot Tool
- *        Windows, Unsnapshot Tool Windows) into the program icon; its other
- *        settings stay as they are in the icon. Default values become
- *        disabled entries "(KEY=...)".
+ *        Windows, Unsnapshot Tool Windows) into PROGDIR:TinyDev.json; the
+ *        other settings stay as they are in the file.
  * @param cur The settings with the tool windows' values.
  * @return Non-zero on success.
  */
@@ -496,8 +433,12 @@ void new_from_template_in(EditorApp *app, const char *drawer);
 void ui_apply_settings(EditorApp *app, const Settings *n);
 
 /**
- * @brief Read the settings from the tool types of the program icon and, on
- *        a Workbench start, of the project icons (which take precedence).
+ * @brief Read the settings from PROGDIR:TinyDev.json and remember the
+ *        program icon (PROGDIR:\<program\>, for splash, About and AppIcon).
+ *
+ * A file that is missing leaves the defaults; one that cannot be read
+ * leaves them too and is never written (ftprefs_load() reports it).
+ *
  * @param s The settings, preset with settings_default().
  * @param argc The argument count, 0 for a Workbench start.
  * @param argv The arguments, or the WBStartup message for a Workbench start.
@@ -1536,14 +1477,6 @@ int datafile_write(const char *path, const char *text);
  *         (the built-in settings are used, and the file is never written).
  */
 int ftprefs_load(EditorApp *app);
-/**
- * @brief Write settings per file type into PROGDIR:TinyDev.json, keeping
- *        what else the file holds.
- * @param ft The settings.
- * @return Non-zero on success; zero if the file could not be read when
- *         TinyDev started or cannot be written.
- */
-int ftprefs_save(const FileTypes *ft);
 /**
  * @brief Give a document's editor the settings of its file type (tab size,
  *        indentation, Tab key, line numbers, cutting lines), if its

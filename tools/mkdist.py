@@ -108,7 +108,7 @@ def main():
     icons = [('Install', 'install', WBPROJECT,
               dict(default_tool='Installer', tooltypes=('APPNAME=' + NAME, 'MINUSER=AVERAGE'))),
              ('TinyDev', 'tinydev', WBTOOL,
-              dict(stack=32768, tooltypes=('(TOOLBAR=BOTH)', '(TOOLBARFRAMES)', '(NOSPLASH)'))),
+              dict(stack=32768)),
              ('TinyDev-Scout', 'scout', WBTOOL, dict(stack=16384)),
              ('parsers/c_parser', PARSER_C, WBTOOL, dict(stack=16384)),
              ('parsers/dos_parser', PARSER_DOS, WBTOOL, dict(stack=16384)),

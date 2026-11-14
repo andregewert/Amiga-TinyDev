@@ -14,7 +14,7 @@
  * for documents without a file), or later when it is needed and its
  * port does not exist; TinyDev then looks for the
  * port for up to ten seconds. Without Scout, or with the setting off
- * (NOSCOUT), TinyDev works on as before. A timer of its own (four times a
+ * ("scout"), TinyDev works on as before. A timer of its own (four times a
  * second while something is to be done) drives the waiting and the pause
  * in typing, as IntuiTicks only come while the main window is active.
  *

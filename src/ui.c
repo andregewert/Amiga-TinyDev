@@ -1206,8 +1206,8 @@ static void menu_action(EditorApp *app, ULONG id);
 
 /**
  * @brief Show the settings window and take over its result; "Save" also
- *        writes the settings into the program icon and those of the file
- *        types into PROGDIR:TinyDev.json.
+ *        writes the settings and those of the file types into
+ *        PROGDIR:TinyDev.json.
  * @param app The application state.
  */
 static void edit_settings(EditorApp *app)
@@ -1228,10 +1228,8 @@ static void edit_settings(EditorApp *app)
     for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ;
          doc = (Document *)doc->node.ln_Succ)
         ftprefs_apply(app, doc, 1);
-    if (r == PREFS_SAVE && !settings_save(&app->settings))
+    if (r == PREFS_SAVE && !settings_save(&app->settings, &app->filetypes))
         ui_error(app, APP_NAME, S(MSG_ERR_SAVESETTINGS));
-    if (r == PREFS_SAVE && !ftprefs_save(&app->filetypes))
-        ui_error(app, APP_NAME, S(MSG_ERR_FTPREFS_WRITE));
 }
 
 void ui_apply_settings(EditorApp *app, const Settings *n)

@@ -15,7 +15,7 @@
  *   render hook, tmplsym.c), the chosen template's icon (or its symbol
  *   enlarged) with its name and description; below them, for a project,
  *   its name, the name of its drawer and where that drawer is created
- *   (string gadgets, ASL button; the setting PROJECTDIR is suggested,
+ *   (string gadgets, ASL button; the setting "projectdir" is suggested,
  *   else the drawer holding the current project), with a line that shows
  *   the drawer that will be created (or that it exists already); for
  *   file templates the drawer of the files. The drawer's name follows

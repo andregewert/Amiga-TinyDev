@@ -360,7 +360,7 @@ MSG_ERR_BM_WRITE (//)
 The bookmarks could not be saved in %s.
 ;
 MSG_ERR_SAVESETTINGS (//)
-The settings could not be saved in the program icon.
+The settings could not be saved\nin TinyDev.json in the drawer of TinyDev.
 ;
 MSG_ERR_REOPEN (//)
 The window cannot be opened again; TinyDev stays an icon.
@@ -1231,9 +1231,6 @@ Changes take effect at once.
 ;
 MSG_ERR_FTPREFS_READ (//)
 TinyDev.json in the drawer of TinyDev could not be read.\nThe built-in file type settings are used,\nand the file is not changed.
-;
-MSG_ERR_FTPREFS_WRITE (//)
-The file type settings could not be saved\nin TinyDev.json in the drawer of TinyDev.
 ;
 MSG_STATUS_SPACES (//)
  · Indent: %ld spaces

@@ -4,7 +4,7 @@
  *        commands from .tinydev/project.json, run through the Shell.
  *
  * Each action runs a script written to the drawer of the temporary files
- * (TEMPDIR, named with temp_name(); so several lines, Stack and
+ * (setting "tempdir", named with temp_name(); so several lines, Stack and
  * the like work alike); it starts with "Stack 65536", as TinyDev started
  * from the Workbench has no Shell whose stack the commands would get (a
  * Stack line of the command itself goes after it). The placeholders are

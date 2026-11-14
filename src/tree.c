@@ -137,7 +137,7 @@ int tree_request_directory(EditorApp *app)
     char path[EDITOR_PATH_MAX]; int result = 0;
     /* start in the drawer holding the current project, so a neighbour is
      * one click away; without a project in the drawer of the projects
-     * (PROJECTDIR) */
+     * (the setting "projectdir") */
     const char *start = app->settings.projectdir;
     if (fr == NULL) { ui_error(app, APP_NAME, S(MSG_ERR_DIRREQ)); return 0; }
     if (tree_project_root(app, path, sizeof(path))) {

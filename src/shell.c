@@ -9,7 +9,7 @@
  * changed to the project drawer around the call (as for Run and Debug in
  * build.c).
  *
- * The setting SHELLWINDOW names the console: a handler such as CON:,
+ * The setting "shellwindow" names the console: a handler such as CON:,
  * VNC: or KCON:, which gets the box below the main window (that of the
  * output window), a title, a close gadget and the screen TinyDev is on;
  * or, if it contains a '/', a whole window specification used as it is.

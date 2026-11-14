@@ -47,7 +47,7 @@ Wo `AGENTS.md` und die Devkit-Dokumente sich widersprechen, gilt Folgendes:
   als der Styleguide vorsieht) und die Klassen: `help.c` und das Hilfe-Template erwarten
   HelpViewer und `mdtohtml` im Programmverzeichnis, und eine global installierte Klasse verdeckt
   die neuere daneben. Nur `mdtohtml` gibt es wahlweise zusätzlich in `C:`. Icons mit
-  Einstellungen (TinyDev, TinyDev-Scout, HelpViewer) überschreibt ein Update nicht.
+  Einstellungen (TinyDev-Scout, HelpViewer) überschreibt ein Update nicht.
 - **Hilfeseiten:** Die Texte unter `package/help/` schreibt der Benutzer selbst. Claude
   ändert sie nicht von sich aus, auch nicht für neue Funktionen: die deutschen gar nicht,
   die englischen nur, wenn der Benutzer um eine Übersetzung bittet. Im Bericht darf Claude

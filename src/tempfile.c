@@ -1,7 +1,7 @@
 /**
  * @file tempfile.c
  * @brief Names of TinyDev's temporary files (in the drawer of the setting
- *        TEMPDIR), unique among the programs running.
+ *        "tempdir"), unique among the programs running.
  */
 #include "editor.h"
 

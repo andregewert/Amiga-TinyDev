@@ -474,7 +474,7 @@ Die Lesezeichen konnten nicht in %s gespeichert werden.
 ; The bookmarks could not be saved in %s.
 ;
 MSG_ERR_SAVESETTINGS
-Die Einstellungen konnten nicht im Programm-Icon gespeichert werden.
+Die Einstellungen konnten nicht in TinyDev.json\nin der Schublade von TinyDev gespeichert werden.
 ; The settings could not be saved in the program icon.
 ;
 MSG_ERR_REOPEN
@@ -1602,10 +1602,6 @@ MSG_PREFS_FT_NOTE
 MSG_ERR_FTPREFS_READ
 TinyDev.json in der Schublade von TinyDev konnte nicht\ngelesen werden. Es gelten die eingebauten\nDateityp-Einstellungen, die Datei bleibt unverändert.
 ; TinyDev.json in the drawer of TinyDev could not be read.\nThe built-in file type settings are used,\nand the file is not changed.
-;
-MSG_ERR_FTPREFS_WRITE
-Die Dateityp-Einstellungen konnten nicht in TinyDev.json\nin der Schublade von TinyDev gespeichert werden.
-; The file type settings could not be saved\nin TinyDev.json in the drawer of TinyDev.
 ;
 MSG_STATUS_SPACES
  · Einrückung: %ld Leerzeichen

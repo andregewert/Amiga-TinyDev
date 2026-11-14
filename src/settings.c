@@ -1,274 +1,32 @@
 /**
  * @file settings.c
- * @brief Settings from the tool types of the program icon (and of project icons), and writing them back.
+ * @brief TinyDev's global settings in PROGDIR:TinyDev.json: reading them at
+ *        the start and writing them back.
  *
- * Settings are tool types of the program icon (PROGDIR:\<program\>), also
- * when TinyDev is started from the Shell; on a Workbench start the tool
- * types of project icons follow and take precedence. The settings window
- * writes them back into the program icon (settings_save()). The view at
- * the start (folder tree, line numbers, minimap) is only set there: the
- * View menu changes the view of the session, not the settings. The tool
- * windows are written by View/Snapshot Tool Windows and View/Unsnapshot
- * Tool Windows only (settings_save_toolwindows()).
+ * The settings are the "settings" of PROGDIR:TinyDev.json (format and
+ * keys in appprefs.h), next to the settings per file type (ftprefs.c);
+ * the tool types of TinyDev's icon are not read, so an update may replace
+ * the icon. The settings window writes them together with the settings
+ * per file type (settings_save()), in one go. The view at
+ * the start (folder tree, minimap) is only set there: the View menu
+ * changes the view of the session, not the settings. The tool windows are
+ * written by View/Snapshot Tool Windows and View/Unsnapshot Tool Windows
+ * only (settings_save_toolwindows()).
  *
- *   TOOLBAR=IMAGES|BOTH|TEXT   what the toolbar buttons show
- *   TOOLBARFRAMES              frames around the toolbar buttons
- *   NOSPLASH                   no splash window while starting
- *   NOFOLDERTREE               no folder tree at the start
- *   MINIMAP                    the minimap at the start
- *   SHOWINFO                   the folder tree shows .info files
- *   WIDTH=n, HEIGHT=n          size of the main window at the start
- *   LEFT=n, TOP=n              its position (otherwise centred)
- *   BOOKMARKLIST               open the bookmark list at the start
- *   BOOKMARKWINDOW=l,t,w,h     where the bookmark list opens (otherwise
- *                              next to the main window)
- *   OUTPUT                     open the output window at the start
- *   OUTPUTWINDOW=l,t,w,h       where the output window opens (otherwise
- *                              below the main window)
- *   SYMBOLLIST                 open the symbol list at the start
- *   SYMBOLWINDOW=l,t,w,h       where the symbol list opens (otherwise next
- *                              to the main window)
- *   PROBLEMLIST                open the problem list at the start
- *   PROBLEMWINDOW=l,t,w,h      where the problem list opens (otherwise
- *                              below the main window)
- *   NOSCOUT                    no source analysis with TinyDev-Scout
- *   TEMPDIR=drawer             drawer of the temporary files (default T:)
- *   SHELLWINDOW=console        console of Project/New Shell: a handler
- *                              (default CON:) or a whole window
- *   PROJECTDIR=drawer          drawer suggested for new projects
- *                              (otherwise the current project's parent)
- *   AUTHOR=name                the author filled into templates (AUTHOR)
- *   AUTHORMAIL=address         the author's e-mail address (AUTHORMAIL)
- *   COLOR_TEXT=RRGGBB ...      colours of the syntax highlighting:
- *                              COLOR_KEYWORD, COLOR_STRING, COLOR_COMMENT,
- *                              COLOR_PREPROCESSOR, COLOR_TYPE,
- *                              COLOR_FUNCTION, COLOR_MACRO, COLOR_CONSTANT,
- *                              COLOR_VARIABLE
+ * A file that cannot be read at the start (ftprefs_load() reports it) is
+ * never written, so nothing in it is lost; TinyDev then uses the
+ * defaults.
  */
 #include "editor.h"
 
-#include <dos/dos.h>
-#include <exec/memory.h>
-#include <workbench/icon.h>
 #include <workbench/startup.h>
-#include <workbench/workbench.h>
 #include <proto/dos.h>
-#include <proto/exec.h>
-#include <proto/icon.h>
-#include <proto/utility.h>
 
-#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-/** Values of TOOLBAR=, in the order of enum ToolbarMode. */
-static const char *const tbmode_names[TBMODE_COUNT] = { "IMAGES", "BOTH", "TEXT" };
-
-/** Default colours of the highlighting, SettingsColour order: clearly
- *  different hues, each with a contrast of at least 4.5:1 to the editor's
- *  white background. */
-const unsigned long settings_default_colours[SCOL_COUNT] = {
-    0x000000,                       /* text: black */
-    0x0030d0,                       /* keywords: blue (and bold) */
-    0x008a00,                       /* strings: green */
-    0x707070,                       /* comments: grey */
-    0xb0006e,                       /* preprocessor: magenta (and bold) */
-    0x00838f,                       /* types: teal */
-    0x7030c0,                       /* functions: violet */
-    0xc05000,                       /* macros: orange */
-    0xd01010,                       /* constants and numbers: red */
-    0x8a5a00,                       /* parameters and variables: brown */
-};
-
-/** Tool type names of the colours, SettingsColour order. */
-static const char *const colour_names[SCOL_COUNT] = {
-    "COLOR_TEXT", "COLOR_KEYWORD", "COLOR_STRING", "COLOR_COMMENT", "COLOR_PREPROCESSOR",
-    "COLOR_TYPE", "COLOR_FUNCTION", "COLOR_MACRO", "COLOR_CONSTANT",
-    "COLOR_VARIABLE"
-};
-
-void settings_default(Settings *s)
-{
-    memset(s, 0, sizeof(*s));
-    s->tbmode = TBMODE_IMAGES;
-    s->tbframes = 0;
-    s->splash = 1;
-    s->foldertree = 1;
-    s->showinfo = 0;
-    s->minimap = 0;
-    s->winwidth = s->winheight = 0;
-    s->winleft = s->wintop = -1;
-    s->bmwin[0] = s->bmwin[1] = -1;
-    s->bmwin[2] = s->bmwin[3] = 0;
-    s->bmlist = 0;
-    s->outwin[0] = s->outwin[1] = -1;
-    s->outwin[2] = s->outwin[3] = 0;
-    s->outlist = 0;
-    s->symwin[0] = s->symwin[1] = -1;
-    s->symwin[2] = s->symwin[3] = 0;
-    s->symlist = 0;
-    s->diagwin[0] = s->diagwin[1] = -1;
-    s->diagwin[2] = s->diagwin[3] = 0;
-    s->diaglist = 0;
-    s->scout = 1;
-    strcpy(s->tempdir, "T:");
-    strcpy(s->shellwindow, "CON:");
-    memcpy(s->colours, settings_default_colours, sizeof(s->colours));
-}
-
-/**
- * @brief Value of a hex digit.
- * @param c The character.
- * @return 0..15, or -1.
- */
-static int hex_digit(char c)
-{
-    if (c >= '0' && c <= '9') return c - '0';
-    c = (char)(c | 0x20);
-    if (c >= 'a' && c <= 'f') return c - 'a' + 10;
-    return -1;
-}
-
-/**
- * @brief Parse "RRGGBB" or "#RRGGBB".
- * @param v The text.
- * @param rgb Out: the colour.
- * @return Non-zero if it is a colour.
- */
-static int parse_colour(CONST_STRPTR v, unsigned long *rgb)
-{
-    unsigned long c = 0;
-    int i;
-    if (*v == '#') ++v;
-    for (i = 0; i < 6; ++i) {
-        int d = hex_digit((char)v[i]);
-        if (d < 0) return 0;
-        c = c << 4 | (unsigned long)d;
-    }
-    if (v[6] != '\0' && v[6] != ' ') return 0;
-    *rgb = c;
-    return 1;
-}
-
-/**
- * @brief Parse a decimal number of a tool type.
- * @param v The text.
- * @param min Smallest allowed value.
- * @param out Out: the number.
- * @return Non-zero if it is a number >= min.
- */
-static int parse_number(CONST_STRPTR v, long min, long *out)
-{
-    LONG n;
-    if (StrToLong((STRPTR)v, &n) <= 0 || n < min) return 0;
-    *out = n;
-    return 1;
-}
-
-/**
- * @brief Parse "left,top,width,height" of a window.
- * @param v The text.
- * @param box Out: the four numbers (unchanged if the text is not valid).
- */
-static void parse_box(CONST_STRPTR v, long box[4])
-{
-    long n[4];
-    LONG value, used;
-    int i;
-    for (i = 0; i < 4; ++i) {
-        if ((used = StrToLong((STRPTR)v, &value)) <= 0) return;
-        n[i] = value;
-        v += used;
-        if (i < 3) {
-            if (*v != ',') return;
-            ++v;
-        }
-    }
-    if (n[2] <= 0 || n[3] <= 0) return;
-    for (i = 0; i < 4; ++i) box[i] = n[i];
-}
-
-/**
- * @brief Copy the value of a tool type, if it is there (an empty value
- *        clears the setting).
- * @param t The tool type array.
- * @param key The tool type's name.
- * @param[out] out The setting.
- * @param size Its size.
- */
-static void copy_value(CONST_STRPTR *t, const char *key, char *out, size_t size)
-{
-    STRPTR value = FindToolType(t, (CONST_STRPTR)key);
-    if (value == NULL) return;
-    strncpy(out, (const char *)value, size - 1);
-    out[size - 1] = '\0';
-}
-
-/**
- * @brief Apply the tool types of one icon.
- * @param s The settings.
- * @param tt The icon's tool type array (may be NULL).
- */
-static void from_tooltypes(Settings *s, STRPTR *tt)
-{
-    CONST_STRPTR *t = (CONST_STRPTR *)tt;
-    STRPTR value;
-    int i;
-    if (tt == NULL) return;
-    if ((value = FindToolType(t, (CONST_STRPTR)"TOOLBAR")) != NULL)
-        for (i = 0; i < TBMODE_COUNT; ++i)
-            if (Stricmp(value, (STRPTR)tbmode_names[i]) == 0) s->tbmode = i;
-    if (FindToolType(t, (CONST_STRPTR)"TOOLBARFRAMES") != NULL) s->tbframes = 1;
-    if (FindToolType(t, (CONST_STRPTR)"NOSPLASH") != NULL) s->splash = 0;
-    if (FindToolType(t, (CONST_STRPTR)"NOFOLDERTREE") != NULL) s->foldertree = 0;
-    if (FindToolType(t, (CONST_STRPTR)"SHOWINFO") != NULL) s->showinfo = 1;
-    if (FindToolType(t, (CONST_STRPTR)"MINIMAP") != NULL) s->minimap = 1;
-    if ((value = FindToolType(t, (CONST_STRPTR)"WIDTH")) != NULL) parse_number(value, 0, &s->winwidth);
-    if ((value = FindToolType(t, (CONST_STRPTR)"HEIGHT")) != NULL) parse_number(value, 0, &s->winheight);
-    if ((value = FindToolType(t, (CONST_STRPTR)"LEFT")) != NULL) parse_number(value, -1, &s->winleft);
-    if ((value = FindToolType(t, (CONST_STRPTR)"TOP")) != NULL) parse_number(value, -1, &s->wintop);
-    if (FindToolType(t, (CONST_STRPTR)"BOOKMARKLIST") != NULL) s->bmlist = 1;
-    if ((value = FindToolType(t, (CONST_STRPTR)"BOOKMARKWINDOW")) != NULL) parse_box(value, s->bmwin);
-    if (FindToolType(t, (CONST_STRPTR)"OUTPUT") != NULL) s->outlist = 1;
-    if ((value = FindToolType(t, (CONST_STRPTR)"OUTPUTWINDOW")) != NULL) parse_box(value, s->outwin);
-    if (FindToolType(t, (CONST_STRPTR)"SYMBOLLIST") != NULL) s->symlist = 1;
-    if ((value = FindToolType(t, (CONST_STRPTR)"SYMBOLWINDOW")) != NULL) parse_box(value, s->symwin);
-    if (FindToolType(t, (CONST_STRPTR)"PROBLEMLIST") != NULL) s->diaglist = 1;
-    if ((value = FindToolType(t, (CONST_STRPTR)"PROBLEMWINDOW")) != NULL) parse_box(value, s->diagwin);
-    if (FindToolType(t, (CONST_STRPTR)"NOSCOUT") != NULL) s->scout = 0;
-    if ((value = FindToolType(t, (CONST_STRPTR)"TEMPDIR")) != NULL && value[0] != '\0') {
-        strncpy(s->tempdir, (const char *)value, sizeof(s->tempdir) - 1);
-        s->tempdir[sizeof(s->tempdir) - 1] = '\0';
-    }
-    if ((value = FindToolType(t, (CONST_STRPTR)"SHELLWINDOW")) != NULL && value[0] != '\0') {
-        strncpy(s->shellwindow, (const char *)value, sizeof(s->shellwindow) - 1);
-        s->shellwindow[sizeof(s->shellwindow) - 1] = '\0';
-    }
-    copy_value(t, "PROJECTDIR", s->projectdir, sizeof(s->projectdir));
-    copy_value(t, "AUTHOR", s->author, sizeof(s->author));
-    copy_value(t, "AUTHORMAIL", s->authormail, sizeof(s->authormail));
-    for (i = 0; i < SCOL_COUNT; ++i)
-        if ((value = FindToolType(t, (CONST_STRPTR)colour_names[i])) != NULL)
-            parse_colour(value, &s->colours[i]);
-}
-
-/**
- * @brief Apply the tool types of an icon given by directory and name.
- * @param s The settings.
- * @param dir Lock of the icon's directory (0 = current directory).
- * @param name The file name without ".info".
- */
-static void from_icon(Settings *s, BPTR dir, CONST_STRPTR name)
-{
-    struct DiskObject *dob;
-    BPTR old = 0;
-    if (name == NULL || *name == '\0') return;
-    if (dir != 0) old = CurrentDir(dir);
-    dob = GetDiskObject((STRPTR)name);
-    if (dir != 0) CurrentDir(old);
-    if (dob == NULL) return;
-    from_tooltypes(s, (STRPTR *)dob->do_ToolTypes);
-    FreeDiskObject(dob);
-}
+/** The file could not be read at the start: it is never written. */
+static int unreadable;
 
 /**
  * @brief Remember the program icon as PROGDIR:\<program name\>.
@@ -284,31 +42,60 @@ static void set_icon_name(Settings *s, CONST_STRPTR program)
 
 void settings_load(Settings *s, int argc, char **argv)
 {
-    if (IconBase == NULL) return;
+    char *text = NULL;
+    int r;
+
     if (argc == 0) {
         struct WBStartup *wbs = (struct WBStartup *)argv;
-        LONG i;
-        if (wbs == NULL || wbs->sm_NumArgs < 1) return;
-        set_icon_name(s, (CONST_STRPTR)wbs->sm_ArgList[0].wa_Name);
-        from_icon(s, wbs->sm_ArgList[0].wa_Lock, (CONST_STRPTR)wbs->sm_ArgList[0].wa_Name);
-        for (i = 1; i < wbs->sm_NumArgs; ++i)
-            from_icon(s, wbs->sm_ArgList[i].wa_Lock, (CONST_STRPTR)wbs->sm_ArgList[i].wa_Name);
+        if (wbs != NULL && wbs->sm_NumArgs >= 1)
+            set_icon_name(s, (CONST_STRPTR)wbs->sm_ArgList[0].wa_Name);
     } else {
         char program[256];
         if (!GetProgramName((STRPTR)program, sizeof(program))) strcpy(program, APP_NAME);
         set_icon_name(s, (CONST_STRPTR)program);
-        if (s->icon_name[0] != '\0') from_icon(s, 0, (CONST_STRPTR)s->icon_name);
     }
+    r = datafile_read(PREFS_FILE, &text);
+    if (r > 0 && !appprefs_parse(s, text)) r = -1;
+    free(text);
+    unreadable = r < 0;
 }
 
-/* -- writing -------------------------------------------------------------- */
+int settings_save(const Settings *s, const FileTypes *ft)
+{
+    char *text = NULL, *json = NULL, *all = NULL;
+    Settings check;
+    int r, ok = 0;
+    if (unreadable) return 0;
+    r = datafile_read(PREFS_FILE, &text);
+    settings_default(&check);
+    /* changed by hand meanwhile into something unreadable: kept too */
+    if (r == 0 || (r > 0 && appprefs_parse(&check, text))) {
+        json = appprefs_format(s, text);
+        if (json != NULL && ft != NULL) {
+            all = filetypes_format(ft, json);
+            free(json);
+            json = all;
+        }
+        ok = json != NULL && datafile_write(PREFS_FILE, json);
+    }
+    free(json);
+    free(text);
+    return ok;
+}
 
 int settings_save_toolwindows(const Settings *cur)
 {
     Settings s;
+    char *text = NULL;
+    int r;
+    if (unreadable) return 0;
     settings_default(&s);
-    strcpy(s.icon_name, cur->icon_name);
-    from_icon(&s, 0, (CONST_STRPTR)s.icon_name);
+    r = datafile_read(PREFS_FILE, &text);
+    if (r < 0 || (r > 0 && !appprefs_parse(&s, text))) {
+        free(text);
+        return 0;
+    }
+    free(text);
     memcpy(s.bmwin, cur->bmwin, sizeof(s.bmwin));
     s.bmlist = cur->bmlist;
     memcpy(s.outwin, cur->outwin, sizeof(s.outwin));
@@ -317,150 +104,5 @@ int settings_save_toolwindows(const Settings *cur)
     s.symlist = cur->symlist;
     memcpy(s.diagwin, cur->diagwin, sizeof(s.diagwin));
     s.diaglist = cur->diaglist;
-    return settings_save(&s);
-}
-
-#define NUMKEYS (24 + SCOL_COUNT)    /**< number of TinyDev's tool types */
-#define ENTRYLEN 280                /**< longest tool type TinyDev writes (TEMPDIR=...) */
-
-/** One of our tool types while writing. */
-typedef struct Entry {
-    const char *key;                /**< the tool type's name */
-    int active;                     /**< not the default value */
-    int done;                       /**< written */
-    char text[ENTRYLEN];            /**< "KEY" or "KEY=value" */
-} Entry;
-
-/**
- * @brief Fill in an entry.
- * @param e The entry.
- * @param key The tool type name.
- * @param active Non-zero if the value is not the default.
- * @param value The value, or NULL for a switch.
- */
-static void entry(Entry *e, const char *key, int active, const char *value)
-{
-    e->key = key;
-    e->active = active;
-    e->done = 0;
-    if (value != NULL) snprintf(e->text, sizeof(e->text), "%s=%s", key, value);
-    else snprintf(e->text, sizeof(e->text), "%s", key);
-}
-
-/**
- * @brief Report whether a tool type (also a disabled "(KEY=...)") has a key.
- * @param tt The tool type.
- * @param key The key.
- * @return Non-zero on a match (case-insensitive).
- */
-static int has_key(CONST_STRPTR tt, const char *key)
-{
-    const char *p = (const char *)tt;
-    if (*p == '(') ++p;
-    while (*key != '\0' && (*p | 0x20) == (*key | 0x20)) ++p, ++key;
-    return *key == '\0' && (*p == '\0' || *p == '=' || *p == ')' || *p == ' ');
-}
-
-int settings_save(const Settings *s)
-{
-    struct DiskObject *dob;
-    Entry *e;
-    STRPTR *old, *tt = NULL;
-    ULONG nold = 0, n = 0, i, k, nicons;
-    char wnum[12], hnum[12], lnum[12], tnum[12], buf[SCOL_COUNT][8], *disabled = NULL;
-    char bmbox[48], outbox[48], symbox[48], diagbox[48];
-    int ok = 0;
-
-    if (IconBase == NULL || s->icon_name[0] == '\0') return 0;
-    if ((dob = GetDiskObject((STRPTR)s->icon_name)) == NULL &&
-        (dob = GetDiskObjectNew((STRPTR)s->icon_name)) == NULL)
-        return 0;
-    if ((e = AllocVec(NUMKEYS * sizeof(*e), MEMF_ANY)) == NULL) {
-        FreeDiskObject(dob);
-        return 0;
-    }
-
-    k = 0;
-    entry(&e[k++], "TOOLBAR", s->tbmode != TBMODE_IMAGES,
-          tbmode_names[s->tbmode >= 0 && s->tbmode < TBMODE_COUNT ? s->tbmode : 0]);
-    entry(&e[k++], "TOOLBARFRAMES", s->tbframes, NULL);
-    entry(&e[k++], "NOSPLASH", !s->splash, NULL);
-    entry(&e[k++], "NOFOLDERTREE", !s->foldertree, NULL);
-    entry(&e[k++], "MINIMAP", s->minimap, NULL);
-    entry(&e[k++], "SHOWINFO", s->showinfo, NULL);
-    snprintf(wnum, sizeof(wnum), "%ld", s->winwidth);
-    snprintf(hnum, sizeof(hnum), "%ld", s->winheight);
-    snprintf(lnum, sizeof(lnum), "%ld", s->winleft);
-    snprintf(tnum, sizeof(tnum), "%ld", s->wintop);
-    entry(&e[k++], "WIDTH", s->winwidth > 0, wnum);
-    entry(&e[k++], "HEIGHT", s->winheight > 0, hnum);
-    entry(&e[k++], "LEFT", s->winleft >= 0, lnum);
-    entry(&e[k++], "TOP", s->wintop >= 0, tnum);
-    entry(&e[k++], "BOOKMARKLIST", s->bmlist, NULL);
-    snprintf(bmbox, sizeof(bmbox), "%ld,%ld,%ld,%ld", s->bmwin[0], s->bmwin[1], s->bmwin[2], s->bmwin[3]);
-    entry(&e[k++], "BOOKMARKWINDOW", s->bmwin[2] > 0, bmbox);
-    entry(&e[k++], "OUTPUT", s->outlist, NULL);
-    snprintf(outbox, sizeof(outbox), "%ld,%ld,%ld,%ld", s->outwin[0], s->outwin[1], s->outwin[2], s->outwin[3]);
-    entry(&e[k++], "OUTPUTWINDOW", s->outwin[2] > 0, outbox);
-    entry(&e[k++], "SYMBOLLIST", s->symlist, NULL);
-    snprintf(symbox, sizeof(symbox), "%ld,%ld,%ld,%ld", s->symwin[0], s->symwin[1], s->symwin[2], s->symwin[3]);
-    entry(&e[k++], "SYMBOLWINDOW", s->symwin[2] > 0, symbox);
-    entry(&e[k++], "PROBLEMLIST", s->diaglist, NULL);
-    snprintf(diagbox, sizeof(diagbox), "%ld,%ld,%ld,%ld", s->diagwin[0], s->diagwin[1], s->diagwin[2], s->diagwin[3]);
-    entry(&e[k++], "PROBLEMWINDOW", s->diagwin[2] > 0, diagbox);
-    entry(&e[k++], "NOSCOUT", !s->scout, NULL);
-    entry(&e[k++], "TEMPDIR", Stricmp((STRPTR)s->tempdir, (STRPTR)"T:") != 0, s->tempdir);
-    entry(&e[k++], "SHELLWINDOW", Stricmp((STRPTR)s->shellwindow, (STRPTR)"CON:") != 0, s->shellwindow);
-    entry(&e[k++], "PROJECTDIR", s->projectdir[0] != '\0', s->projectdir);
-    entry(&e[k++], "AUTHOR", s->author[0] != '\0', s->author);
-    entry(&e[k++], "AUTHORMAIL", s->authormail[0] != '\0', s->authormail);
-    for (i = 0; i < SCOL_COUNT; ++i) {
-        snprintf(buf[i], sizeof(buf[i]), "%06lX", s->colours[i] & 0xFFFFFFUL);
-        entry(&e[k++], colour_names[i], s->colours[i] != settings_default_colours[i], buf[i]);
-    }
-
-    old = (STRPTR *)dob->do_ToolTypes;
-    while (old != NULL && old[nold] != NULL) ++nold;
-    /* new entries go in front of the NewIcons block */
-    for (nicons = 0; nicons < nold; ++nicons)
-        if (strncmp((const char *)old[nicons], "*** DON'T EDIT", 14) == 0) {
-            if (nicons != 0 && strcmp((const char *)old[nicons - 1], " ") == 0) --nicons;
-            break;
-        }
-
-    /* old entries + ours + disabled copies ("(" old ")") + NULL */
-    if ((tt = AllocVec((nold + NUMKEYS + 1) * sizeof(STRPTR), MEMF_ANY | MEMF_CLEAR)) != NULL &&
-        (disabled = AllocVec(NUMKEYS * (ENTRYLEN + 2), MEMF_ANY)) != NULL) {
-        char *dp = disabled;
-        for (i = 0; i <= nold; ++i) {
-            if (i == nicons)                    /* not yet in the icon */
-                for (k = 0; k < NUMKEYS; ++k)
-                    if (!e[k].done && e[k].active) {
-                        tt[n++] = (STRPTR)e[k].text;
-                        e[k].done = 1;
-                    }
-            if (i == nold) break;
-            for (k = 0; k < NUMKEYS && !has_key(old[i], e[k].key); ++k) ;
-            if (k == NUMKEYS) {                 /* not ours */
-                tt[n++] = old[i];
-            } else if (!e[k].done) {
-                e[k].done = 1;
-                if (e[k].active) tt[n++] = (STRPTR)e[k].text;
-                else if (old[i][0] == '(') tt[n++] = old[i];
-                else {                          /* default now: disable it */
-                    snprintf(dp, ENTRYLEN + 2, "(%s)", (const char *)old[i]);
-                    tt[n++] = (STRPTR)dp;
-                    dp += strlen(dp) + 1;
-                }
-            }                                   /* duplicates are dropped */
-        }
-        dob->do_ToolTypes = (STRPTR *)tt;
-        ok = PutDiskObject((STRPTR)s->icon_name, dob) != 0;
-        dob->do_ToolTypes = old;
-    }
-    if (disabled != NULL) FreeVec(disabled);
-    if (tt != NULL) FreeVec(tt);
-    FreeVec(e);
-    FreeDiskObject(dob);
-    return ok;
+    return settings_save(&s, NULL);
 }

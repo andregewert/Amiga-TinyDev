@@ -21,7 +21,7 @@
  * for every piece of output and the oldest nodes get freed; copying is
  * silent, only a failure is reported. The window opens below the main
  * window, as wide as it (toolwin.c); its box is kept for the session and
- * written into the program icon by View/Snapshot Tool Windows.
+ * written into TinyDev.json by View/Snapshot Tool Windows.
  */
 #include "editor.h"
 

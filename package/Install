@@ -6,9 +6,11 @@
 ; Everything goes into one drawer: TinyDev finds its classes, catalogs, help
 ; pages, parsers, HelpViewer and mdtohtml there (PROGDIR:), so removing the
 ; drawer removes TinyDev. Only the fonts Holstein and Tamzen may also go to
-; FONTS:, if chosen. The icons of TinyDev, TinyDev-Scout and HelpViewer
-; hold the user's settings as tool types: if there are such icons already,
-; the user chooses to keep them or to take those of the chosen set.
+; FONTS:, if chosen. TinyDev keeps its settings in TinyDev.json, which is
+; not in the archive, so an update leaves it alone. The icons of
+; TinyDev-Scout and HelpViewer hold the user's settings as tool types: if
+; there are such icons already, the user chooses to keep them or to take
+; those of the chosen set.
 ;
 (set #l (if (= @language "deutsch") 1 0))
 (set @app-name "TinyDev")
@@ -116,14 +118,13 @@
 
 ; icons already there may hold settings, or be others from the archive
 (set #keep 0)
-(if (OR (exists (tackon #dest "TinyDev.info"))
-        (OR (exists (tackon #dest "TinyDev-Scout.info"))
-            (exists (tackon #dest "HelpViewer.info"))))
+(if (OR (exists (tackon #dest "TinyDev-Scout.info"))
+        (exists (tackon #dest "HelpViewer.info")))
     (set #keep
         (askbool
             (prompt (select #l
-                "There are icons of TinyDev in this drawer already. They hold your settings as tool types. Keep them, or replace them with the chosen icons?"
-                "In dieser Schublade liegen bereits Icons von TinyDev. Sie enthalten Ihre Einstellungen als Tooltypes. Behalten oder durch die gewählten Icons ersetzen?"))
+                "There are icons of TinyDev-Scout or the HelpViewer in this drawer already. They hold your settings as tool types. Keep them, or replace them with the chosen icons?"
+                "In dieser Schublade liegen bereits Icons von TinyDev-Scout oder dem HelpViewer. Sie enthalten Ihre Einstellungen als Tooltypes. Behalten oder durch die gewählten Icons ersetzen?"))
             (help @askbool-help)
             (choices (select #l "Keep" "Behalten") (select #l "Replace" "Ersetzen"))
             (default 1))))
@@ -131,7 +132,6 @@
 ; the chosen icons, unless the ones there are to stay
 (if #keep
     (
-        (P_KEEP "TinyDev")
         (P_KEEP "TinyDev-Scout")
         (P_KEEP "HelpViewer")))
 (copyfiles
@@ -142,7 +142,6 @@
     (all))
 (if #keep
     (
-        (P_RESTORE "TinyDev")
         (P_RESTORE "TinyDev-Scout")
         (P_RESTORE "HelpViewer")))
 

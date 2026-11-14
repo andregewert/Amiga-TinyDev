@@ -798,7 +798,7 @@ Object *treeops_create(EditorApp *app)
             GA_RelVerify, TRUE,
             GA_Disabled, TRUE,              /* no project yet (to.state 0) */
             BUTTON_RenderImage, (ULONG)to.images[i],
-            /* frames or none like the toolbar's (TOOLBARFRAMES) */
+            /* frames or none like the toolbar's (setting "frames") */
             BUTTON_BevelStyle, (ULONG)(app->settings.tbframes ? BVS_BUTTON : BVS_NONE),
             TAG_END);
         if (to.buttons[i] == NULL) goto failed;

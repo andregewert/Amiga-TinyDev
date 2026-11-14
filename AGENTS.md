@@ -29,8 +29,13 @@ below the tree's root.
   `deutsch.ct`); `amiga-devkit/tools/catcomp.py` makes
   `include/tinydev_strings.h` (generated, in git) and
   `bin/Catalogs/<language>/TinyDev.catalog`.
-- `src/settings.c`: settings from the tool types of the program icon (and of
-  project icons on a Workbench start); writes them back into the program icon.
+- `src/settings.c`: the global settings in `PROGDIR:TinyDev.json` (the key
+  "settings"), read at the start and written by the settings window and
+  the tool window snapshot; the icon's tool types are not read, so an
+  update may replace the icon. A file that cannot be read is never written.
+- `src/appprefs.c`, `include/appprefs.h`: the portable reader and writer
+  of those settings (the `Settings` structure, defaults, the JSON layout),
+  keeping keys it does not know; no Amiga headers.
 - `src/prefswin.c`: the settings window (categories General with the groups
   Window and View, Colours, Toolbar, Project Defaults (drawer of new
   projects, author and e-mail address for the templates), Advanced with Scout, the drawer of
@@ -145,8 +150,8 @@ below the tree's root.
 - `src/toolwin.c`: placement of tool windows (remembered box pushed into
   the screen, otherwise docked right of the main window or over its right
   edge). Their boxes are kept for the session (`EditorApp`); only
-  View/Snapshot Tool Windows writes them, with the open state, into the
-  program icon (`settings_save_toolwindows()`), not the settings window;
+  View/Snapshot Tool Windows writes them, with the open state, into
+  `TinyDev.json` (`settings_save_toolwindows()`), not the settings window;
   View/Unsnapshot Tool Windows writes the defaults back.
 - `src/bmlist.c`: the bookmark list, a tool window (scope chooser,
   listbrowser with a render hook drawing a document or ribbon symbol per
@@ -325,6 +330,7 @@ below the tree's root.
 - `tests/test_bmstore.c`: host-native tests of the bookmark store.
 - `tests/test_projconf.c`: host-native tests of the project settings.
 - `tests/test_filetypes.c`: host-native tests of the settings per file type.
+- `tests/test_appprefs.c`: host-native tests of the global settings.
 - `tests/test_sprout_tmpl.c`: host-native tests of Sprout's core (also
   reads the `template.json` of the templates that come with TinyDev).
 - `tests/test_sprout_lha.c`: host-native tests of the LhA reader with the
@@ -463,8 +469,8 @@ make test
 - `bin/` is used on the Amiga (case-insensitive file system): never create
   paths in it that differ only in case.
 - `make clean` removes `build/` and `bin/`. Do not run it when unrelated
-  generated files need to be preserved (e.g. the user's icon `bin/TinyDev.info`
-  with its tool types).
+  generated files need to be preserved (e.g. the user's `bin/TinyDev.json`
+  with the settings).
 
 ## Coding conventions
 

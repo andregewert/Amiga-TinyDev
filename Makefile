@@ -6,7 +6,7 @@ HOST_CC ?= cc
 BUILD_DIR := build
 BIN_DIR := bin
 TARGET := $(BIN_DIR)/TinyDev
-SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/treeops.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/splash.c src/prefswin.c src/closeimage.c src/tmplsym.c src/newproj.c src/sprout/sprout_tmpl.c src/search.c src/find.c src/filescan.c src/locale.c src/bookmarks.c src/bmstore.c src/projconf.c src/projdata.c src/projwin.c src/build.c src/outwin.c src/json.c src/toolwin.c src/bmlist.c src/help.c src/shell.c src/filetypes.c src/ftprefs.c src/tempfile.c src/cmdpath.c src/scoutlink.c src/symlist.c src/diag.c src/diaglist.c src/navigate.c src/rules.c src/tokenmap.c src/complete.c src/statuslamp.c
+SOURCES := src/main.c src/ui.c src/document.c src/fileio.c src/tree.c src/treeops.c src/syntax.c src/minimap.c src/toolbar.c src/settings.c src/appprefs.c src/splash.c src/prefswin.c src/closeimage.c src/tmplsym.c src/newproj.c src/sprout/sprout_tmpl.c src/search.c src/find.c src/filescan.c src/locale.c src/bookmarks.c src/bmstore.c src/projconf.c src/projdata.c src/projwin.c src/build.c src/outwin.c src/json.c src/toolwin.c src/bmlist.c src/help.c src/shell.c src/filetypes.c src/ftprefs.c src/tempfile.c src/cmdpath.c src/scoutlink.c src/symlist.c src/diag.c src/diaglist.c src/navigate.c src/rules.c src/tokenmap.c src/complete.c src/statuslamp.c
 OBJECTS := $(patsubst src/%.c,$(BUILD_DIR)/%.o,$(SOURCES))
 # dirtree.gadget's natural order, also used for the list of file types
 OBJECTS += $(BUILD_DIR)/natural_sort.o
@@ -342,7 +342,7 @@ $(BUILD_DIR)/%.o: src/%.c
 	@mkdir -p $(dir $@)
 	$(TARGET_CC) $(CPPFLAGS) $(CFLAGS) -c -o $@ $<
 
-test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_projconf $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_json $(BUILD_DIR)/test_scout_rpc $(BUILD_DIR)/test_c_parser $(BUILD_DIR)/test_dos_parser $(BUILD_DIR)/test_make_parser $(BUILD_DIR)/test_markdown_parser $(BUILD_DIR)/test_json_parser $(BUILD_DIR)/test_markup_parser $(BUILD_DIR)/test_arexx_parser $(BUILD_DIR)/test_asm_parser $(BUILD_DIR)/test_e_parser $(BUILD_DIR)/test_ace_parser $(BUILD_DIR)/test_pascal_parser $(BUILD_DIR)/test_guide_parser $(BUILD_DIR)/test_scout_store $(BUILD_DIR)/test_rules $(BUILD_DIR)/test_filetypes $(BUILD_DIR)/test_sprout_tmpl $(BUILD_DIR)/test_sprout_lha
+test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstore $(BUILD_DIR)/test_projconf $(BUILD_DIR)/test_dirtree_sort $(BUILD_DIR)/test_htmltitle $(BUILD_DIR)/test_json $(BUILD_DIR)/test_scout_rpc $(BUILD_DIR)/test_c_parser $(BUILD_DIR)/test_dos_parser $(BUILD_DIR)/test_make_parser $(BUILD_DIR)/test_markdown_parser $(BUILD_DIR)/test_json_parser $(BUILD_DIR)/test_markup_parser $(BUILD_DIR)/test_arexx_parser $(BUILD_DIR)/test_asm_parser $(BUILD_DIR)/test_e_parser $(BUILD_DIR)/test_ace_parser $(BUILD_DIR)/test_pascal_parser $(BUILD_DIR)/test_guide_parser $(BUILD_DIR)/test_scout_store $(BUILD_DIR)/test_rules $(BUILD_DIR)/test_filetypes $(BUILD_DIR)/test_appprefs $(BUILD_DIR)/test_sprout_tmpl $(BUILD_DIR)/test_sprout_lha
 	./$(BUILD_DIR)/test_syntax
 	./$(BUILD_DIR)/test_search
 	./$(BUILD_DIR)/test_bmstore
@@ -366,6 +366,7 @@ test: $(BUILD_DIR)/test_syntax $(BUILD_DIR)/test_search $(BUILD_DIR)/test_bmstor
 	./$(BUILD_DIR)/test_scout_store
 	./$(BUILD_DIR)/test_rules
 	./$(BUILD_DIR)/test_filetypes
+	./$(BUILD_DIR)/test_appprefs
 	./$(BUILD_DIR)/test_sprout_tmpl
 	./$(BUILD_DIR)/test_sprout_lha
 
@@ -412,6 +413,10 @@ $(BUILD_DIR)/test_projconf: src/projconf.c src/json.c tests/test_projconf.c incl
 $(BUILD_DIR)/test_filetypes: src/filetypes.c src/json.c tests/test_filetypes.c include/filetypes.h include/json.h
 	@mkdir -p $(BUILD_DIR)
 	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/filetypes.c src/json.c tests/test_filetypes.c
+
+$(BUILD_DIR)/test_appprefs: src/appprefs.c src/json.c tests/test_appprefs.c include/appprefs.h include/json.h
+	@mkdir -p $(BUILD_DIR)
+	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/appprefs.c src/json.c tests/test_appprefs.c
 
 $(BUILD_DIR)/test_dirtree_sort: src/classes/dirtree/dirtree_sort.c tests/test_dirtree_sort.c src/classes/dirtree/dirtree_sort.h
 	@mkdir -p $(BUILD_DIR)

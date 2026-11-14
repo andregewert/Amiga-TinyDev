@@ -3,8 +3,9 @@
  * @brief The settings per file type: PROGDIR:TinyDev.json and the
  *        editors that follow them.
  *
- * The settings (filetypes.c) are kept in TinyDev's drawer, not in the tool
- * types: they are a table per language that people may edit by hand. A
+ * The settings (filetypes.c) are kept in TinyDev's drawer, in the file of
+ * the global settings (settings.c): a table per language that people may
+ * edit by hand, written with the global settings (settings_save()). A
  * file that cannot be read is reported at the start and then never
  * written, so nothing in it is lost; TinyDev uses the built-in settings.
  *
@@ -28,38 +29,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-/** The file of the settings. */
-#define FTPREFS_FILE "PROGDIR:" APP_NAME ".json"
-
-/** The file could not be read at the start: it is never written. */
-static int unreadable;
-
 int ftprefs_load(EditorApp *app)
 {
     char *text = NULL;
-    int r = datafile_read(FTPREFS_FILE, &text);
+    int r = datafile_read(PREFS_FILE, &text);
     filetypes_init(&app->filetypes);
     if (r > 0 && filetypes_parse(&app->filetypes, text) <= 0) r = -1;
     free(text);
-    unreadable = r < 0;
-    return !unreadable;
-}
-
-int ftprefs_save(const FileTypes *ft)
-{
-    char *text = NULL, *json = NULL;
-    FileTypes check;
-    int r, ok = 0;
-    if (unreadable) return 0;
-    r = datafile_read(FTPREFS_FILE, &text);
-    filetypes_init(&check);
-    /* changed by hand meanwhile into something unreadable: kept too */
-    if (r == 0 || (r > 0 && filetypes_parse(&check, text) > 0))
-        ok = (json = filetypes_format(ft, text)) != NULL && datafile_write(FTPREFS_FILE, json);
-    filetypes_clear(&check);
-    free(json);
-    free(text);
-    return ok;
+    return r >= 0;
 }
 
 void ftprefs_apply(EditorApp *app, Document *doc, int force)
