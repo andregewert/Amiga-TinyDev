@@ -11,7 +11,8 @@
  * the start (folder tree, minimap) is only set there: the View menu
  * changes the view of the session, not the settings. The tool windows are
  * written by View/Snapshot Tool Windows and View/Unsnapshot Tool Windows
- * only (settings_save_toolwindows()).
+ * only (settings_save_toolwindows()), and the project open at the end of
+ * a session is written alone (settings_save_lastproject()).
  *
  * A file that cannot be read at the start (ftprefs_load() reports it) is
  * never written, so nothing in it is lost; TinyDev then uses the
@@ -104,5 +105,24 @@ int settings_save_toolwindows(const Settings *cur)
     s.symlist = cur->symlist;
     memcpy(s.diagwin, cur->diagwin, sizeof(s.diagwin));
     s.diaglist = cur->diaglist;
+    return settings_save(&s, NULL);
+}
+
+int settings_save_lastproject(const char *path)
+{
+    Settings s;
+    char *text = NULL;
+    int r;
+    if (unreadable) return 0;
+    settings_default(&s);
+    r = datafile_read(PREFS_FILE, &text);
+    if (r < 0 || (r > 0 && !appprefs_parse(&s, text))) {
+        free(text);
+        return 0;
+    }
+    free(text);
+    if (strcmp(s.lastproject, path) == 0) return 1;
+    strncpy(s.lastproject, path, sizeof(s.lastproject) - 1);
+    s.lastproject[sizeof(s.lastproject) - 1] = '\0';
     return settings_save(&s, NULL);
 }

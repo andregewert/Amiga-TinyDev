@@ -289,6 +289,7 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NULL, "V", 0, 0, UD(MID_PASTE)},
     {NM_ITEM, NULL, "A", 0, 0, UD(MID_SELECT_ALL)},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_RECT)},
+    {NM_ITEM, NULL, "P", 0, 0, UD(MID_COMMENT)},
     {NM_ITEM, NM_BARLABEL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, "F", 0, 0, UD(MID_FIND)},
     {NM_ITEM, NULL, "G", 0, 0, UD(MID_FIND_NEXT)},
@@ -401,6 +402,7 @@ static const LONG menu_texts[] = {
     MSG_MENU_PASTE,
     MSG_MENU_SELECTALL,
     MSG_MENU_RECT,
+    MSG_MENU_COMMENT,
     -1,
     MSG_MENU_FIND,
     MSG_MENU_FINDNEXT,
@@ -1554,6 +1556,7 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_FIND: find_open(app); break;
         case MID_FIND_NEXT: find_next(app); break;
         case MID_GOTO_LINE: navigate_line(app); break;
+        case MID_COMMENT: comment_lines(app); break;
         case MID_BM_TOGGLE: case MID_BM_NEXT: case MID_BM_PREV:
         case MID_BM_CLEAR:
             bookmarks_command(app, id);
@@ -1804,11 +1807,15 @@ int ui_run(EditorApp *app)
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_VSCROLL) document_scroll_finish(app, 0);
             else if (kind == WMHI_GADGETUP && (result & WMHI_GADGETMASK) == GID_HSCROLL) document_scroll_finish(app, 1);
             else if (kind == WMHI_INTUITICK) { document_scroll_tick(app); document_change_tick(app); }
-            else if (kind == WMHI_ACTIVE && app->focus_editor && app->active != NULL) {
-                /* activated from a tool window: the editor gets the focus */
-                app->focus_editor = 0;
-                ActivateLayoutGadget((struct Gadget *)app->layout, app->window, NULL,
-                                     (ULONG)app->active->editor);
+            else if (kind == WMHI_ACTIVE) {
+                /* back from another program or window: files may have changed */
+                file_check_disk(app);
+                if (app->focus_editor && app->active != NULL) {
+                    /* activated from a tool window: the editor gets the focus */
+                    app->focus_editor = 0;
+                    ActivateLayoutGadget((struct Gadget *)app->layout, app->window, NULL,
+                                         (ULONG)app->active->editor);
+                }
             }
             /* Clicks and drags in the minimap arrive as IDCMPUPDATE
              * notifications (window IDCMP hook); its GADGETUP needs nothing. */

@@ -135,6 +135,7 @@ enum MenuId {
     MID_COMPLETE,       /**< Edit/Complete */
     MID_RECT,           /**< Edit/Rectangular Selection (check item) */
     MID_GOTO_LINE,      /**< Edit/Go to Line...: asks for a line of the active document */
+    MID_COMMENT,        /**< Edit/Comment Lines: comments or uncomments the marked lines */
     MID_SHELL,          /**< Project/New Shell: a Shell in the project drawer */
     MID_CLOSE_ALL,      /**< Project/Close All Files */
     MID_NEW_PROJECT,    /**< Project/New Project...: the wizard of Sprout's templates */
@@ -266,6 +267,9 @@ typedef struct Document {
     char ft_language[32];       /**< language whose file type settings the editor has, "" for plain text */
     int ft_applied;             /**< the editor has the settings of ft_language */
     int line_numbers;           /**< the editor shows line numbers (file type, View/Line Numbers) */
+    struct DateStamp disk_date; /**< date of the file when it was loaded or saved ... */
+    LONG disk_size;             /**< ... and its size */
+    int disk_known;             /**< disk_date and disk_size hold the file's (file_check_disk()) */
 } Document;
 
 /** The state of TinyDev: settings, documents, the main window and its gadgets. */
@@ -384,6 +388,14 @@ int settings_save(const Settings *s, const FileTypes *ft);
  * @return Non-zero on success.
  */
 int settings_save_toolwindows(const Settings *cur);
+/**
+ * @brief Write the project open at the end of the session ("lastproject")
+ *        into PROGDIR:TinyDev.json; the other settings stay as they are
+ *        in the file, which is not written if the value is unchanged.
+ * @param path The project's drawer, "" for none.
+ * @return Non-zero on success (or nothing to write).
+ */
+int settings_save_lastproject(const char *path);
 /** am-git's environment variables, edited on the settings window's page Git (gitenv.c). */
 enum GitEnvVar {
     GITENV_USER_NAME = 0,   /**< AM_GIT_USER_NAME: the name in commits */
@@ -1261,6 +1273,19 @@ int file_load(EditorApp *app, Document *doc, const char *path);
  * @return Non-zero on success, zero on failure (an error requester is shown).
  */
 int file_save(EditorApp *app, Document *doc, const char *path);
+/**
+ * @brief Look for open files that another program changed or deleted.
+ *
+ * Compares each document's file with the date and size it had when it
+ * was loaded or saved. An unchanged document is loaded again (keeping
+ * the cursor's line), a changed one only if the user agrees; a deleted
+ * file marks its document changed, so it can be saved again. Each change
+ * is reported once. Called when the main window becomes active and when
+ * a Build ends.
+ *
+ * @param app The application state.
+ */
+void file_check_disk(EditorApp *app);
 /**
  * @brief Prompt the user for a file to open via an ASL requester.
  *
@@ -2689,6 +2714,13 @@ void navigate_back(EditorApp *app);
  * @param app The application state.
  */
 void navigate_line(EditorApp *app);
+/**
+ * @brief Edit/Comment Lines: comment the marked lines (or the cursor's
+ *        line) with the comment of the document's language, or uncomment
+ *        them if all are commented (commentcmd.c).
+ * @param app The application state.
+ */
+void comment_lines(EditorApp *app);
 /**
  * @brief Note where the active document's cursor is, so Go Back returns
  *        there after a jump made elsewhere (the output window).

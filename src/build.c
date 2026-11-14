@@ -412,6 +412,7 @@ static void finished(EditorApp *app)
         bj.done_hook = NULL;
         hook(app, bj.rc);
     }
+    file_check_disk(app);               /* the build may have written open files */
 }
 
 int build_save_documents(EditorApp *app)

@@ -2766,3 +2766,43 @@ MSG_OUT_NOFILE
 Die Datei "%s" dieser Meldung wurde nicht gefunden.
 ; The file "%s" of this message was not found.
 ;
+MSG_DISK_TITLE
+Datei geändert
+; File Changed
+;
+MSG_DISK_CHANGED
+"%s" wurde von einem anderen Programm geändert.\nNeu laden? Die Änderungen in TinyDev gehen verloren.
+; "%s" was changed by another program.\nLoad it again? Your changes in TinyDev are lost.
+;
+MSG_DISK_CHANGEDGADGETS
+Neu laden|Meine behalten
+; Load Again|Keep Mine
+;
+MSG_DISK_OVERWRITE
+"%s" wurde seit dem Laden von einem anderen Programm geändert.\nTrotzdem speichern?
+; "%s" was changed by another program since it was loaded.\nSave it anyway?
+;
+MSG_DISK_OVERWRITEGADGETS
+Speichern|Abbrechen
+; Save|Cancel
+;
+MSG_DISK_RELOADED
+Von einem anderen Programm geändert, neu geladen: %ld Datei(en).
+; Changed by another program, loaded again: %ld file(s).
+;
+MSG_DISK_GONE
+"%s" wurde von einem anderen Programm gelöscht.
+; "%s" was deleted by another program.
+;
+MSG_MENU_COMMENT
+Zeilen kommentieren
+; Comment Lines
+;
+MSG_COMMENT_NONE
+Der Dateityp dieses Dokuments kennt keine Kommentare.
+; The file type of this document has no comments.
+;
+MSG_PREFS_REOPEN
+Letztes Pro_jekt
+; Last pro_ject
+;

@@ -692,7 +692,17 @@
 #define MSG_GOTO_TITLE               687
 #define MSG_GOTO_WHERE               688
 #define MSG_OUT_NOFILE               689
-#define MSG_COUNT                    690
+#define MSG_DISK_TITLE               690
+#define MSG_DISK_CHANGED             691
+#define MSG_DISK_CHANGEDGADGETS      692
+#define MSG_DISK_OVERWRITE           693
+#define MSG_DISK_OVERWRITEGADGETS    694
+#define MSG_DISK_RELOADED            695
+#define MSG_DISK_GONE                696
+#define MSG_MENU_COMMENT             697
+#define MSG_COMMENT_NONE             698
+#define MSG_PREFS_REOPEN             699
+#define MSG_COUNT                    700
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -1387,6 +1397,16 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Go to Line",
     "Line (or line:column):",
     "The file \"%s\" of this message was not found.",
+    "File Changed",
+    "\"%s\" was changed by another program.\nLoad it again? Your changes in TinyDev are lost.",
+    "Load Again|Keep Mine",
+    "\"%s\" was changed by another program since it was loaded.\nSave it anyway?",
+    "Save|Cancel",
+    "Changed by another program, loaded again: %ld file(s).",
+    "\"%s\" was deleted by another program.",
+    "Comment Lines",
+    "The file type of this document has no comments.",
+    "Last pro_ject",
 };
 #endif
 

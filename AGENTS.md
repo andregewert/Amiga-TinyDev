@@ -33,6 +33,9 @@ below the tree's root.
   "settings"), read at the start and written by the settings window and
   the tool window snapshot; the icon's tool types are not read, so an
   update may replace the icon. A file that cannot be read is never written.
+  The project open at the end of a session is kept as "lastproject"
+  (`settings_save_lastproject()`); with "reopenproject" `main.c` opens
+  it again at a start without files.
 - `src/appprefs.c`, `include/appprefs.h`: the portable reader and writer
   of those settings (the `Settings` structure, defaults, the JSON layout),
   keeping keys it does not know; no Amiga headers.
@@ -98,6 +101,11 @@ below the tree's root.
   Pascal or E (for the output window's jump); no Amiga headers.
 - `src/linediff.c`, `include/linediff.h`: the portable line diff (Myers
   in linear space) written as unified hunks; no Amiga headers.
+- `src/comment.c`, `include/comment.h`: the portable comment toggle: the
+  comment style of a language's lexical rules (line comment, comment
+  word, column comment or block) and commenting or uncommenting lines;
+  no Amiga headers. `src/commentcmd.c`: Edit/Comment Lines with it on
+  the marked lines or the cursor's line (MarkText/Replace).
 - `src/gitstatus.c`, `include/gitstatus.h`: the portable reader of
   am-git's status lines, a file's or drawer's state (ignoring case), the
   branch of `.git/HEAD`, the kinds of a diff's lines, a value of
@@ -242,7 +250,11 @@ below the tree's root.
 - `src/shell.c`: Project/New Shell: `NewShell` started asynchronously in
   the project drawer, its window from the setting SHELLWINDOW (a console
   handler, placed below the main window, or a whole window).
-- `src/fileio.c`: loading, line-ending preservation, requesters, and safe saves.
+- `src/fileio.c`: loading, line-ending preservation, requesters, and safe
+  saves; `file_check_disk()` notices files changed or deleted by other
+  programs (date and size from loading or saving, checked when the main
+  window becomes active and after a build job) and loads them again,
+  asking if the document has changes; saving over such a file asks too.
 - `src/tree.c`: connects `dirtree.gadget` to the editor (root selection,
   opening files, column visibility; the column is the tree with the buttons
   of `treeops.c`).
@@ -409,6 +421,7 @@ below the tree's root.
 - `tests/test_gitstatus.c`: host-native tests of the reading of am-git's status.
 - `tests/test_linediff.c`: host-native tests of the line diff.
 - `tests/test_buildmsg.c`: host-native tests of the reader of compiler messages.
+- `tests/test_comment.c`: host-native tests of the comment toggle.
 - `tests/test_sprout_tmpl.c`: host-native tests of Sprout's core (also
   reads the `template.json` of the templates that come with TinyDev).
 - `tests/test_sprout_lha.c`: host-native tests of the LhA reader with the

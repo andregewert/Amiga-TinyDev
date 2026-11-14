@@ -16,6 +16,8 @@
  *
  *   "settings": {
  *     "splash": true,
+ *     "reopenproject": false,
+ *     "lastproject": "",
  *     "scout": true,
  *     "toolbar": { "show": "images", "frames": false },
  *     "window": { "left": -1, "top": -1, "width": 0, "height": 0 },
@@ -36,6 +38,10 @@
  *   }
  *
  * - "splash": the splash window while starting;
+ * - "reopenproject": open the project of the last session at the start
+ *   (when no files are given);
+ * - "lastproject": the project (the folder tree's root) open when TinyDev
+ *   last quit, "" for none; written at the end of every session;
  * - "scout": analyse the sources with TinyDev-Scout;
  * - "toolbar": what its buttons show ("images", "both" or "text", at the
  *   next start) and frames around them;
@@ -106,6 +112,8 @@ typedef struct Settings {
     int tbmode;         /**< ToolbarMode, takes effect at the next start */
     int tbframes;       /**< frames around the toolbar buttons */
     int splash;         /**< splash window while starting */
+    int reopen;         /**< open the last project at the start */
+    char lastproject[256]; /**< the project open when TinyDev last quit; "" = none */
     int foldertree;     /**< folder tree shown at the start */
     int minimap;        /**< minimap shown at the start */
     int showinfo;       /**< the folder tree shows .info files */

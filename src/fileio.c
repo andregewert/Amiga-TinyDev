@@ -17,10 +17,15 @@
  * that is open already shows its tab. Once a directory is open, the
  * requesters for new files start in it (Save As of a named file starts in
  * its drawer).
+ *
+ * Every document remembers its file's date and size from loading or
+ * saving; file_check_disk() finds files changed by another program, and
+ * a save asks before it replaces such a file.
  */
 #include "editor.h"
 
 #include <dos/dos.h>
+#include <dos/dosextens.h>
 #include <libraries/asl.h>
 #include <proto/asl.h>
 #include <proto/dos.h>
@@ -56,6 +61,112 @@ static int canonical_path(const char *path, char *out, size_t size)
     UnLock(lock); return 1;
 }
 
+/**
+ * @brief Read a file's date and size.
+ * @param path The file.
+ * @param[out] date Its date.
+ * @param[out] size Its size.
+ * @return 1 if read, 0 if the file is gone, -1 if it could not be told.
+ */
+static int disk_stamp(const char *path, struct DateStamp *date, LONG *size)
+{
+    struct FileInfoBlock *fib;
+    BPTR lock;
+    int ok = -1;
+    if ((lock = Lock((STRPTR)path, ACCESS_READ)) == 0) return IoErr() == ERROR_OBJECT_NOT_FOUND ? 0 : -1;
+    if ((fib = (struct FileInfoBlock *)AllocDosObject(DOS_FIB, NULL)) != NULL) {
+        if (Examine(lock, fib) && fib->fib_DirEntryType < 0) {
+            *date = fib->fib_Date;
+            *size = fib->fib_Size;
+            ok = 1;
+        }
+        FreeDosObject(DOS_FIB, fib);
+    }
+    UnLock(lock);
+    return ok;
+}
+
+/**
+ * @brief Note a document's file's date and size, as it is now.
+ * @param doc The document (with a path).
+ */
+static void note_disk(Document *doc)
+{
+    doc->disk_known = doc->path != NULL && disk_stamp(doc->path, &doc->disk_date, &doc->disk_size) == 1;
+}
+
+/**
+ * @brief Tell whether a document's file differs from what was noted.
+ * @param doc The document.
+ * @param[out] state 1 if the file is there, 0 if it is gone, -1 if
+ *        unknown.
+ * @param[out] date Its date now (when there).
+ * @param[out] size Its size now (when there).
+ * @return Non-zero if it changed or is gone.
+ */
+static int disk_changed(Document *doc, int *state, struct DateStamp *date, LONG *size)
+{
+    *state = -1;
+    if (doc->path == NULL || !doc->disk_known) return 0;
+    *state = disk_stamp(doc->path, date, size);
+    if (*state == 0) return 1;
+    return *state == 1 && (*size != doc->disk_size || CompareDates(date, &doc->disk_date) != 0);
+}
+
+void file_check_disk(EditorApp *app)
+{
+    Document *doc;
+    long reloaded = 0;
+    char text[EDITOR_PATH_MAX + 200];
+    struct Process *me = (struct Process *)FindTask(NULL);
+    APTR old_window = me->pr_WindowPtr;
+    /* no "Please insert volume" for a file on a disk that was taken out:
+     * such a file counts as unknown, not as deleted */
+    me->pr_WindowPtr = (APTR)-1;
+    for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ != NULL;
+         doc = (Document *)doc->node.ln_Succ) {
+        struct DateStamp date;
+        LONG size;
+        int state;
+        ULONG y = 0;
+        me->pr_WindowPtr = (APTR)-1;
+        if (!disk_changed(doc, &state, &date, &size)) continue;
+        me->pr_WindowPtr = old_window;
+        if (state == 0) {
+            /* deleted: the text is still here, to be saved again */
+            doc->disk_known = 0;
+            if (!doc->dirty) document_set_dirty(app, doc, 1);
+            snprintf(text, sizeof(text), S(MSG_DISK_GONE), doc->title);
+            ui_status_message(app, text);
+            continue;
+        }
+        /* asked once per change */
+        doc->disk_date = date;
+        doc->disk_size = size;
+        if (doc->dirty) {
+            struct EasyStruct es = {sizeof(es), 0, NULL, NULL, NULL};
+            ULONG args[1];
+            es.es_Title = (STRPTR)S(MSG_DISK_TITLE);
+            es.es_TextFormat = (STRPTR)S(MSG_DISK_CHANGED);
+            es.es_GadgetFormat = (STRPTR)S(MSG_DISK_CHANGEDGADGETS);
+            args[0] = (ULONG)doc->title;
+            if (EasyRequestArgs(app->window, &es, NULL, args) != 1) continue;
+        }
+        GetAttr(GA_TEXTEDITOR_CursorY, doc->editor, &y);
+        if (file_load(app, doc, doc->path)) {
+            ++reloaded;
+            SetGadgetAttrs((struct Gadget *)doc->editor, doc == app->active ? app->window : NULL, NULL,
+                           GA_TEXTEDITOR_CursorY, y, GA_TEXTEDITOR_CursorX, 0, TAG_END);
+            if (doc == app->active) document_sync_scrollers(app, doc);
+        }
+    }
+    me->pr_WindowPtr = old_window;
+    if (reloaded > 0) {
+        snprintf(text, sizeof(text), S(MSG_DISK_RELOADED), reloaded);
+        ui_status_message(app, text);
+    }
+}
+
 int file_load(EditorApp *app, Document *doc, const char *path)
 {
     BPTR file = 0; struct FileInfoBlock *fib = NULL; char *data = NULL;
@@ -89,6 +200,9 @@ int file_load(EditorApp *app, Document *doc, const char *path)
     SetAttrs(doc->editor, GA_TEXTEDITOR_HasChanged, FALSE,
              GA_TEXTEDITOR_LineEndingExport, LINEENDING_LF, TAG_END);
     document_set_dirty(app, doc, 0); ok = 1;
+    doc->disk_date = fib->fib_Date;
+    doc->disk_size = fib->fib_Size;
+    doc->disk_known = 1;
     bookmarks_document_loaded(app, doc);
     scoutlink_document_saved(doc);
     if (app->window != NULL) {
@@ -208,6 +322,21 @@ int file_save(EditorApp *app, Document *doc, const char *path)
         snprintf(backup, sizeof(backup), "%s.ae%08lx.bak", canonical, doc->number) >= (int)sizeof(backup)) {
         ui_error(app, S(MSG_SAVE_FAILED), S(MSG_ERR_DESTTOOLONG)); return 0;
     }
+    if (doc->path != NULL && strcmp(doc->path, canonical) == 0) {
+        struct DateStamp date;
+        LONG size;
+        int state;
+        if (disk_changed(doc, &state, &date, &size) && state == 1) {
+            /* another program changed it since it was loaded */
+            struct EasyStruct es = {sizeof(es), 0, NULL, NULL, NULL};
+            ULONG args[1];
+            es.es_Title = (STRPTR)S(MSG_DISK_TITLE);
+            es.es_TextFormat = (STRPTR)S(MSG_DISK_OVERWRITE);
+            es.es_GadgetFormat = (STRPTR)S(MSG_DISK_OVERWRITEGADGETS);
+            args[0] = (ULONG)doc->title;
+            if (EasyRequestArgs(app->window, &es, NULL, args) != 1) return 0;
+        }
+    }
     text = (char *)DoMethod(doc->editor, GM_TEXTEDITOR_ExportText, NULL);
     if (text == NULL) { ui_error(app, S(MSG_SAVE_FAILED), S(MSG_ERR_EXPORT)); return 0; }
     length = (LONG)strlen(text);
@@ -253,6 +382,7 @@ int file_save(EditorApp *app, Document *doc, const char *path)
     else document_set_path(app, doc, canonical);
     SetAttrs(doc->editor, GA_TEXTEDITOR_HasChanged, FALSE, TAG_END);
     document_set_dirty(app, doc, 0);
+    note_disk(doc);
     bookmarks_save(app);                /* the lines of its bookmarks may have moved */
     scoutlink_document_saved(doc);
     build_document_saved(doc->path);    /* it may be the project file */

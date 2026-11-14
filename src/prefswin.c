@@ -105,7 +105,7 @@ extern struct Library *StringBase;         /* shared with the find window */
 enum {
     PG_LIST = 100,
     PG_WIDTH, PG_HEIGHT, PG_LEFT, PG_TOP, PG_CURSIZE, PG_AUTOSIZE, PG_SPLASH,
-    PG_FOLDERTREE, PG_MINIMAP, PG_HIDEINFO,
+    PG_REOPEN, PG_FOLDERTREE, PG_MINIMAP, PG_HIDEINFO,
     PG_COLOUR, PG_GITCOLOUR = PG_COLOUR + SCOL_COUNT, PG_DEFCOLOURS = PG_GITCOLOUR + GITCOL_COUNT,
     PG_TBMODE, PG_TBFRAMES,
     PG_PROJECTDIR, PG_CHOOSEPROJECT, PG_AUTHOR, PG_AUTHORMAIL,
@@ -199,7 +199,7 @@ static const LONG gitcolour_titles[GITCOL_COUNT] = {
 /** Objects of the open settings window. */
 static struct {
     Object *winobj, *root, *list, *page;
-    Object *width, *height, *left, *top, *splash, *foldertree, *minimap, *hideinfo;
+    Object *width, *height, *left, *top, *splash, *reopen, *foldertree, *minimap, *hideinfo;
     Object *colours[SCOL_COUNT];
     Object *gitcolours[GITCOL_COUNT];
     Object *tbmode, *tbframes;
@@ -479,6 +479,7 @@ static Object *build(EditorApp *app, const Settings *s)
     pw.left = integer(PG_LEFT, s->winleft, -1);
     pw.top = integer(PG_TOP, s->wintop, -1);
     pw.splash = checkbox(PG_SPLASH, S(MSG_PREFS_SPLASH), s->splash);
+    pw.reopen = checkbox(PG_REOPEN, S(MSG_PREFS_REOPEN), s->reopen);
     pw.foldertree = checkbox(PG_FOLDERTREE, S(MSG_PREFS_FOLDERTREE), s->foldertree);
     pw.minimap = checkbox(PG_MINIMAP, S(MSG_PREFS_MINIMAP), s->minimap);
     pw.hideinfo = checkbox(PG_HIDEINFO, S(MSG_PREFS_HIDEINFO), !s->showinfo);
@@ -513,6 +514,7 @@ static Object *build(EditorApp *app, const Settings *s)
             LAYOUT_AddChild, (ULONG)pw.splash, FIXED,
             LAYOUT_AddChild, (ULONG)pw.foldertree, FIXED,
             LAYOUT_AddChild, (ULONG)pw.minimap, FIXED,
+            LAYOUT_AddChild, (ULONG)pw.reopen, FIXED,
             LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_VIEWNOTE)), FIXED,
             LAYOUT_AddChild, (ULONG)pw.hideinfo, FIXED,
             TAG_END),
@@ -849,6 +851,7 @@ static void read_gadgets(Settings *s)
     s->winleft = (long)(LONG)get(pw.left, INTEGER_Number);
     s->wintop = (long)(LONG)get(pw.top, INTEGER_Number);
     s->splash = get(pw.splash, CHECKBOX_Checked) != 0;
+    s->reopen = get(pw.reopen, CHECKBOX_Checked) != 0;
     s->foldertree = get(pw.foldertree, CHECKBOX_Checked) != 0;
     s->showinfo = get(pw.hideinfo, CHECKBOX_Checked) == 0;
     s->minimap = get(pw.minimap, CHECKBOX_Checked) != 0;

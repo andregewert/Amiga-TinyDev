@@ -206,6 +206,8 @@ int appprefs_parse(Settings *s, const char *json)
     }
     if ((st = json_obj_get_obj(root, "settings")) != NULL) {
         get_bool(st, "splash", &s->splash);
+        get_bool(st, "reopenproject", &s->reopen);
+        get_string(st, "lastproject", 1, s->lastproject, sizeof(s->lastproject));
         get_bool(st, "scout", &s->scout);
         if ((o = json_obj_get_obj(st, "toolbar")) != NULL) {
             if ((v = json_obj_get(o, "show")) != NULL && v->type == JSON_STRING)
@@ -333,6 +335,8 @@ static int write_settings(JsonValue *st, const Settings *s)
     int i, *open;
 
     if (!json_obj_set(st, "splash", json_new_bool(s->splash)) ||
+        !json_obj_set(st, "reopenproject", json_new_bool(s->reopen)) ||
+        !json_obj_set(st, "lastproject", json_new_string(s->lastproject)) ||
         !json_obj_set(st, "scout", json_new_bool(s->scout)))
         return 0;
     if ((o = child_object(st, "toolbar")) == NULL ||

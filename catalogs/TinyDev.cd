@@ -2105,3 +2105,33 @@ Line (or line:column):
 MSG_OUT_NOFILE (//)
 The file "%s" of this message was not found.
 ;
+MSG_DISK_TITLE (//)
+File Changed
+;
+MSG_DISK_CHANGED (//)
+"%s" was changed by another program.\nLoad it again? Your changes in TinyDev are lost.
+;
+MSG_DISK_CHANGEDGADGETS (//)
+Load Again|Keep Mine
+;
+MSG_DISK_OVERWRITE (//)
+"%s" was changed by another program since it was loaded.\nSave it anyway?
+;
+MSG_DISK_OVERWRITEGADGETS (//)
+Save|Cancel
+;
+MSG_DISK_RELOADED (//)
+Changed by another program, loaded again: %ld file(s).
+;
+MSG_DISK_GONE (//)
+"%s" was deleted by another program.
+;
+MSG_MENU_COMMENT (//)
+Comment Lines
+;
+MSG_COMMENT_NONE (//)
+The file type of this document has no comments.
+;
+MSG_PREFS_REOPEN (//)
+Last pro_ject
+;

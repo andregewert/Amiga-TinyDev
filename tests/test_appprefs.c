@@ -18,6 +18,7 @@ static void test_parse(void)
 
     settings_default(&d);
     assert(d.tbmode == TBMODE_IMAGES && !d.tbframes && d.splash && d.foldertree && !d.minimap);
+    assert(!d.reopen && d.lastproject[0] == '\0');
     assert(d.winleft == -1 && d.winwidth == 0 && d.bmwin[0] == -1 && d.bmwin[2] == 0);
     assert(d.scout && strcmp(d.tempdir, "T:") == 0 && strcmp(d.shellwindow, "CON:") == 0);
     assert(d.colours[SCOL_KEYWORD] == settings_default_colours[SCOL_KEYWORD]);
@@ -37,6 +38,7 @@ static void test_parse(void)
     assert(appprefs_parse(&s,
         "{ \"settings\": {"
         "  \"splash\": false, \"scout\": false,"
+        "  \"reopenproject\": true, \"lastproject\": \"Work:Src/TinyDev\","
         "  \"toolbar\": { \"show\": \"both\", \"frames\": true },"
         "  \"window\": { \"left\": 10, \"top\": 20, \"width\": 640, \"height\": 400 },"
         "  \"view\": { \"foldertree\": false, \"minimap\": true, \"showinfo\": true },"
@@ -54,6 +56,7 @@ static void test_parse(void)
         "                 \"comment\": 5, \"macro\": \"#GGGGGG\" }"
         "} }") == 1);
     assert(!s.splash && !s.scout && s.tbmode == TBMODE_BOTH && s.tbframes);
+    assert(s.reopen && strcmp(s.lastproject, "Work:Src/TinyDev") == 0);
     assert(s.winleft == 10 && s.wintop == 20 && s.winwidth == 640 && s.winheight == 400);
     assert(!s.foldertree && s.minimap && s.showinfo);
     assert(s.bmlist && s.bmwin[0] == 700 && s.bmwin[1] == 30 && s.bmwin[2] == 200 && s.bmwin[3] == 300);
@@ -116,6 +119,8 @@ static void test_format(void)
     s.tbmode = TBMODE_TEXT;
     s.minimap = 1;
     s.winwidth = 800;
+    s.reopen = 1;
+    strcpy(s.lastproject, "DH1:Projekte/Test");
     s.symlist = 1;
     s.symwin[0] = 3; s.symwin[1] = 4; s.symwin[2] = 150; s.symwin[3] = 250;
     strcpy(s.author, "Andr\xe9");

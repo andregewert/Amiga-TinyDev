@@ -224,6 +224,41 @@ static void open_workbench_files(EditorApp *app, struct WBStartup *startup)
 }
 
 /**
+ * @brief Open the project of the last session (setting "lastproject"),
+ *        if its drawer still exists.
+ *
+ * Checked with a lock first, without DOS requesters, so a drawer on a
+ * volume that is not mounted is skipped quietly.
+ *
+ * @param app The application state.
+ */
+static void reopen_project(EditorApp *app)
+{
+    struct Process *me = (struct Process *)FindTask(NULL);
+    APTR old_window = me->pr_WindowPtr;
+    BPTR lock;
+    if (app->settings.lastproject[0] == '\0') return;
+    me->pr_WindowPtr = (APTR)-1;
+    lock = Lock((STRPTR)app->settings.lastproject, ACCESS_READ);
+    me->pr_WindowPtr = old_window;
+    if (lock == 0) return;
+    UnLock(lock);
+    tree_open_project(app, app->settings.lastproject);
+}
+
+/**
+ * @brief Remember the project open at the end of the session (or none)
+ *        in PROGDIR:TinyDev.json for the setting "reopenproject".
+ * @param app The application state.
+ */
+static void remember_project(EditorApp *app)
+{
+    char root[EDITOR_PATH_MAX];
+    if (app->tree == NULL || !tree_project_root(app, root, sizeof(root))) root[0] = '\0';
+    if (strcmp(root, app->settings.lastproject) != 0) settings_save_lastproject(root);
+}
+
+/**
  * @brief Program entry point for both Shell and Workbench launches.
  *
  * Initialises the application state, opens the required libraries, allocates
@@ -266,10 +301,15 @@ int main(int argc, char **argv)
     if (!ui_create(&app)) { fprintf(stderr, "TinyDev: could not create the ReAction window\n"); goto done; }
     if (argc == 0) open_workbench_files(&app, (struct WBStartup *)argv);
     else open_cli_files(&app, argc, argv);
+    /* not "no documents": ui_create() has made an empty one already */
+    if (app.settings.reopen &&
+        (argc == 0 ? ((struct WBStartup *)argv)->sm_NumArgs <= 1 : argc <= 1))
+        reopen_project(&app);
     if (IsListEmpty(&app.documents)) document_new(&app);
     if (!ft_ok) ui_error(&app, APP_NAME, S(MSG_ERR_FTPREFS_READ));
     scoutlink_start(&app);
     ui_run(&app); status = 0;
+    remember_project(&app);
 done:
     splash_close();
     ui_destroy(&app);
