@@ -493,7 +493,11 @@
 #define MSG_TREEOPS_DEL_DRAWER       488
 #define MSG_TREEOPS_DEL_FULL         489
 #define MSG_TREEOPS_DEL_GADGETS      490
-#define MSG_COUNT                    491
+#define MSG_PREFS_OUTFONTOWN         491
+#define MSG_PREFS_OUTFONT            492
+#define MSG_PREFS_OUTFONTNOTE        493
+#define MSG_PREFS_ASL_OUTFONT        494
+#define MSG_COUNT                    495
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -989,6 +993,10 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Delete the empty drawer\n%s?",
     "Delete the drawer\n%s\nwith %ld files and %ld drawers in it?",
     "Delete|Cancel",
+    "Own font for the output window",
+    "Font ",
+    "Otherwise the font of System Default Text (Font preferences).",
+    "Font of the output window",
 };
 #endif
 

@@ -1241,9 +1241,12 @@ void ui_apply_settings(EditorApp *app, const Settings *n)
 
     int scout = app->settings.scout;
     int showinfo = app->settings.showinfo;
+    int font = strcmp(app->settings.outfont, n->outfont) != 0 ||
+               app->settings.outfontsize != n->outfontsize;
 
     changed = memcmp(app->settings.colours, n->colours, sizeof(n->colours)) != 0;
     app->settings = *n;
+    if (font) outwin_font_changed(app);
     if (scout != n->scout) scoutlink_settings_changed(app);
     if (showinfo != n->showinfo) {
         tree_apply_info(app);

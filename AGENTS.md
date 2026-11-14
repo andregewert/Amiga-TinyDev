@@ -39,7 +39,7 @@ below the tree's root.
 - `src/prefswin.c`: the settings window (categories General with the groups
   Window and View, Colours, Toolbar, Project Defaults (drawer of new
   projects, author and e-mail address for the templates), Advanced with Scout, the drawer of
-  the temporary files and the Shell window, and File Types: Standard and
+  the temporary files, the Shell window and the output window's font, and File Types: Standard and
   Scout's languages in a hierarchical list sharing one page),
   built like Kickdown's.
 - `src/filetypes.c`, `include/filetypes.h`: the portable settings per
@@ -145,7 +145,8 @@ below the tree's root.
   (so commands added with `Path ... ADD` are found).
 - `src/outwin.c`: the output window, a tool window (View/Output Window,
   first placed below the main window, as wide as it): the build's lines
-  (kept also while it is closed, at most 2000), status line, Stop, Clear,
+  (in the system default text font or the setting "outputfont"; kept
+  also while it is closed, at most 2000), status line, Stop, Clear,
   copying the selected or all lines to the clipboard.
 - `src/toolwin.c`: placement of tool windows (remembered box pushed into
   the screen, otherwise docked right of the main window or over its right

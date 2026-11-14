@@ -22,6 +22,16 @@
  * silent, only a failure is reported. The window opens below the main
  * window, as wide as it (toolwin.c); its box is kept for the session and
  * written into TinyDev.json by View/Snapshot Tool Windows.
+ *
+ * The lines are shown in the system default text font (GfxBase->DefaultFont,
+ * set in Font preferences as "System Default Text", usually a monospaced
+ * one, so columns of compiler messages line up), or in the font of the
+ * setting "outputfont", which need not be monospaced. The font is opened
+ * here and kept open while the window is, and given to the listbrowser
+ * as GA_TextAttr; a font that cannot be opened falls back to the system
+ * default. A changed setting reopens the window (outwin_font_changed()).
+ * listbrowser.gadget lays its rows out in a GA_TextAttr font given at
+ * OM_NEW (seen on OS 3.2).
  */
 #include "editor.h"
 
@@ -41,12 +51,17 @@
 #include <proto/layout.h>
 #include <proto/button.h>
 #include <proto/listbrowser.h>
+#include <proto/graphics.h>
+#include <proto/diskfont.h>
+#include <graphics/gfxbase.h>
 #include <clib/alib_protos.h>
 
 #include <stdlib.h>
 #include <string.h>
 
 extern struct Library *ListBrowserBase;     /* shared with the settings window */
+/** diskfont.library, opened when first needed (main.c). */
+extern struct Library *DiskfontBase;
 
 enum { OG_LIST = 500, OG_STATUS, OG_STOP, OG_CLEAR, OG_COPYLINE, OG_COPYALL };
 
@@ -70,7 +85,51 @@ static struct {
     int escape;                     /* inside an escape sequence: 1 after ESC, 2 in CSI */
     char status_text[160];
     int running;                    /* Stop is not ghosted */
+    struct TextFont *font;          /* font of the lines, open while the window is */
+    struct TextAttr attr;           /* it as GA_TextAttr (ta_Name points to font_name) */
+    char font_name[64];
 } ow;
+
+/**
+ * @brief Open the font of the lines: that of the setting, else the system
+ *        default text font.
+ * @param app The application state (settings).
+ * @return The font's attributes for GA_TextAttr, or NULL if none could be
+ *         opened (the listbrowser then uses the screen's font).
+ */
+static struct TextAttr *open_font(EditorApp *app)
+{
+    const Settings *s = &app->settings;
+    struct TextFont *def = GfxBase->DefaultFont;
+    memset(&ow.attr, 0, sizeof(ow.attr));
+    ow.attr.ta_Name = (STRPTR)ow.font_name;
+    if (s->outfont[0] != '\0' && s->outfontsize > 0) {
+        if (DiskfontBase == NULL) DiskfontBase = OpenLibrary((STRPTR)"diskfont.library", 39);
+        strncpy(ow.font_name, s->outfont, sizeof(ow.font_name) - 1);
+        ow.font_name[sizeof(ow.font_name) - 1] = '\0';
+        ow.attr.ta_YSize = (UWORD)s->outfontsize;
+        ow.font = DiskfontBase != NULL ? OpenDiskFont(&ow.attr) : OpenFont(&ow.attr);
+        if (ow.font != NULL) return &ow.attr;
+    }
+    if (def == NULL || def->tf_Message.mn_Node.ln_Name == NULL) return NULL;
+    strncpy(ow.font_name, (const char *)def->tf_Message.mn_Node.ln_Name, sizeof(ow.font_name) - 1);
+    ow.font_name[sizeof(ow.font_name) - 1] = '\0';
+    ow.attr.ta_YSize = def->tf_YSize;
+    ow.attr.ta_Style = def->tf_Style;
+    ow.attr.ta_Flags = def->tf_Flags;
+    /* in memory as long as graphics.library runs; opened for the count */
+    ow.font = OpenFont(&ow.attr);
+    return ow.font != NULL ? &ow.attr : NULL;
+}
+
+/**
+ * @brief Close the font of the lines (after the window's gadgets are gone).
+ */
+static void close_font(void)
+{
+    if (ow.font != NULL) CloseFont(ow.font);
+    ow.font = NULL;
+}
 
 /**
  * @brief Open the class the window needs (once).
@@ -330,6 +389,7 @@ int outwin_is_open(void)
 void outwin_open(EditorApp *app)
 {
     WORD box[4];
+    struct TextAttr *attr;
     if (ow.win != NULL) {
         WindowToFront(ow.win);
         return;
@@ -337,8 +397,10 @@ void outwin_open(EditorApp *app)
     if (app->window == NULL || !open_classes(app)) return;
     toolwin_box(app, app->out_box, MIN_WIDTH, MIN_HEIGHT, 1, box);
 
+    attr = open_font(app);
     ow.list = NewObject(LISTBROWSER_GetClass(), NULL, GA_ID, OG_LIST, GA_RelVerify, TRUE,
         GA_ReadOnly, FALSE,
+        attr != NULL ? GA_TextAttr : TAG_IGNORE, (ULONG)attr,
         LISTBROWSER_Labels, (ULONG)&ow.lines,
         LISTBROWSER_ShowSelected, TRUE,
         LISTBROWSER_AutoWheel, TRUE,
@@ -394,6 +456,7 @@ void outwin_open(EditorApp *app)
         if (ow.winobj != NULL) DisposeObject(ow.winobj);
         ow.winobj = NULL;
         ow.list = ow.status = ow.stop = ow.copy_line = ow.copy_all = ow.root = NULL;
+        close_font();
         return;
     }
     /* a remembered box may be too small for the buttons */
@@ -425,6 +488,14 @@ void outwin_close(EditorApp *app)
     ow.winobj = NULL;
     ow.win = NULL;
     ow.list = ow.status = ow.stop = ow.copy_line = ow.copy_all = ow.root = NULL;
+    close_font();
+}
+
+void outwin_font_changed(EditorApp *app)
+{
+    if (ow.win == NULL) return;
+    outwin_close(app);                  /* keeps the box */
+    outwin_open(app);
 }
 
 ULONG outwin_sigmask(void)

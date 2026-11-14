@@ -1393,6 +1393,12 @@ void outwin_remember(EditorApp *app);
  */
 void outwin_close(EditorApp *app);
 /**
+ * @brief Show the lines in the font of the settings: reopens the output
+ *        window if it is open (nothing happens otherwise).
+ * @param app The application state.
+ */
+void outwin_font_changed(EditorApp *app);
+/**
  * @brief Tell whether the output window is open.
  * @return Non-zero if it is open.
  */

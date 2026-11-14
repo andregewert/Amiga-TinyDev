@@ -21,6 +21,7 @@ static void test_parse(void)
     assert(d.winleft == -1 && d.winwidth == 0 && d.bmwin[0] == -1 && d.bmwin[2] == 0);
     assert(d.scout && strcmp(d.tempdir, "T:") == 0 && strcmp(d.shellwindow, "CON:") == 0);
     assert(d.colours[SCOL_KEYWORD] == settings_default_colours[SCOL_KEYWORD]);
+    assert(d.outfont[0] == '\0' && d.outfontsize == 0);
 
     /* not an object: nothing changes */
     s = d;
@@ -44,6 +45,7 @@ static void test_parse(void)
         "    \"problems\": 3 },"
         "  \"tempdir\": \"RAM:\", \"shellwindow\": \"\", \"projectdir\": \"Work:Projects\","
         "  \"author\": \"Andr\xe9 Gewert\", \"authormail\": \"a@b.c\","
+        "  \"outputfont\": { \"name\": \"Holstein.font\", \"size\": 16 },"
         "  \"colours\": { \"text\": \"#102030\", \"keyword\": \"A0B0C0\", \"string\": \"#12345\","
         "                 \"comment\": 5, \"macro\": \"#GGGGGG\" }"
         "} }") == 1);
@@ -63,6 +65,7 @@ static void test_parse(void)
     assert(s.colours[SCOL_STRING] == settings_default_colours[SCOL_STRING]);
     assert(s.colours[SCOL_COMMENT] == settings_default_colours[SCOL_COMMENT]);
     assert(s.colours[SCOL_MACRO] == settings_default_colours[SCOL_MACRO]);
+    assert(strcmp(s.outfont, "Holstein.font") == 0 && s.outfontsize == 16);
     assert(strcmp(s.icon_name, "PROGDIR:TinyDev") == 0);
 
     /* wrong values and an unknown toolbar mode keep what is there */
@@ -70,7 +73,7 @@ static void test_parse(void)
     assert(appprefs_parse(&s,
         "{ \"settings\": { \"splash\": 0, \"toolbar\": { \"show\": \"IMAGES\" },"
         "  \"window\": { \"left\": -5, \"width\": -1, \"height\": \"x\" },"
-        "  \"projectdir\": 7, \"view\": [] } }") == 1);
+        "  \"projectdir\": 7, \"view\": [], \"outputfont\": { \"name\": 1, \"size\": -2 } } }") == 1);
     assert(memcmp(&s, &d, sizeof(s)) == 0);
 
     /* a long text is cut to the setting's size */
@@ -108,6 +111,8 @@ static void test_format(void)
     s.symlist = 1;
     s.symwin[0] = 3; s.symwin[1] = 4; s.symwin[2] = 150; s.symwin[3] = 250;
     strcpy(s.author, "Andr\xe9");
+    strcpy(s.outfont, "Tamzen.font");
+    s.outfontsize = 15;
     s.colours[SCOL_TYPE] = 0x0a0b0c;
     strcpy(s.icon_name, "PROGDIR:TinyDev");
 
@@ -119,6 +124,7 @@ static void test_format(void)
     assert(strstr(text, "\"tempdir\": \"T:\"") != NULL);
     assert(strstr(text, "\"type\": \"#0A0B0C\"") != NULL);
     assert(strstr(text, "\"keyword\": \"#0030D0\"") != NULL);
+    assert(strstr(text, "\"name\": \"Tamzen.font\"") != NULL && strstr(text, "\"size\": 15") != NULL);
     assert(strstr(text, "PROGDIR:TinyDev") == NULL);    /* not a setting */
     settings_default(&r);
     assert(appprefs_parse(&r, text) == 1);

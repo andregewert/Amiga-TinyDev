@@ -26,6 +26,7 @@
  *     },
  *     "tempdir": "T:",
  *     "shellwindow": "CON:",
+ *     "outputfont": { "name": "", "size": 0 },
  *     "projectdir": "",
  *     "author": "",
  *     "authormail": "",
@@ -46,6 +47,9 @@
  * - "tempdir": the drawer of the temporary files;
  * - "shellwindow": the console of Project/New Shell, a handler (CON:) or
  *   a whole window;
+ * - "outputfont": the font of the output window's lines, a name with
+ *   ".font" and a size; "" (or size 0) is the system default text font,
+ *   the one Font preferences set for "System Default Text";
  * - "projectdir": the drawer suggested for new projects ("" = the parent
  *   of the current project);
  * - "author", "authormail": the author filled into templates;
@@ -104,6 +108,8 @@ typedef struct Settings {
     int scout;          /**< analyse the sources with TinyDev-Scout */
     char tempdir[256];  /**< drawer of the temporary files (default T:) */
     char shellwindow[256]; /**< console of Project/New Shell: a handler (CON:) or a whole window */
+    char outfont[64];      /**< font of the output window ("name.font"); "" = the system default text font */
+    long outfontsize;      /**< its size; 0 = the system default text font */
     char projectdir[256];  /**< drawer suggested for new projects; "" = the current project's parent */
     char author[128];      /**< the author for templates, Sprout's AUTHOR */
     char authormail[128];  /**< the author's e-mail address, Sprout's AUTHORMAIL */

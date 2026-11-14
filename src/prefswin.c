@@ -25,6 +25,10 @@
  * changed with SetPageGadgetAttrs(). Keyboard shortcuts are unique in the
  * whole window, in every language. The classes the window needs are
  * opened when it is first used and closed by prefs_cleanup().
+ *
+ * The page Advanced chooses the output window's font with getfont.gadget;
+ * its GETFONT_TextAttr is copied by the class (name included), so the
+ * settings only take the name and size when the window is left.
  */
 #include "editor.h"
 
@@ -33,6 +37,7 @@
 #include <gadgets/checkbox.h>
 #include <gadgets/chooser.h>
 #include <gadgets/getcolor.h>
+#include <gadgets/getfont.h>
 #include <gadgets/integer.h>
 #include <gadgets/layout.h>
 #include <gadgets/listbrowser.h>
@@ -47,7 +52,9 @@
 #include <proto/chooser.h>
 #include <proto/exec.h>
 #include <proto/getcolor.h>
+#include <proto/getfont.h>
 #include <proto/graphics.h>
+#include <graphics/gfxbase.h>
 #include <proto/integer.h>
 #include <proto/intuition.h>
 #include <proto/label.h>
@@ -76,6 +83,10 @@ struct Library *IntegerBase = NULL;
  * getcolor.gadget, opened with the window.
  */
 struct Library *GetColorBase = NULL;
+/**
+ * getfont.gadget, opened with the window.
+ */
+struct Library *GetFontBase = NULL;
 extern struct Library *StringBase;         /* shared with the find window */
 
 enum {
@@ -85,7 +96,7 @@ enum {
     PG_COLOUR, PG_DEFCOLOURS = PG_COLOUR + SCOL_COUNT,
     PG_TBMODE, PG_TBFRAMES,
     PG_PROJECTDIR, PG_CHOOSEPROJECT, PG_AUTHOR, PG_AUTHORMAIL,
-    PG_SCOUT, PG_TEMPDIR, PG_CHOOSETEMP, PG_SHELLWINDOW,
+    PG_SCOUT, PG_TEMPDIR, PG_CHOOSETEMP, PG_SHELLWINDOW, PG_OUTFONTOWN, PG_OUTFONT,
     PG_FT_NAME, PG_FT_STANDARD, PG_FT_TABSIZE, PG_FT_INDENTWITH, PG_FT_INDENT, PG_FT_AUTO,
     PG_FT_TABKEY, PG_FT_NUMBERS, PG_FT_CUTCOPY,
     PG_SAVE, PG_USE, PG_CANCEL
@@ -166,7 +177,7 @@ static struct {
     Object *colours[SCOL_COUNT];
     Object *tbmode, *tbframes;
     Object *projectdir, *author, *authormail;
-    Object *scout, *tempdir, *shellwindow;
+    Object *scout, *tempdir, *shellwindow, *outfontown, *outfont;
     Object *ft_name, *ft_standard, *ft_tabsize, *ft_indentwith, *ft_indent, *ft_auto,
            *ft_tabkey, *ft_numbers, *ft_cutcopy;
     FileTypes *ft;          /**< the settings per file type being edited */
@@ -188,6 +199,7 @@ static int open_classes(EditorApp *app)
         { &CheckBoxBase,    "gadgets/checkbox.gadget" },
         { &IntegerBase,     "gadgets/integer.gadget" },
         { &GetColorBase,    "gadgets/getcolor.gadget" },
+        { &GetFontBase,     "gadgets/getfont.gadget" },
         { &LabelBase,       "images/label.image" },
         { &StringBase,      "gadgets/string.gadget" },
     };
@@ -205,7 +217,7 @@ static int open_classes(EditorApp *app)
 
 void prefs_cleanup(void)
 {
-    struct Library **b[] = { &ListBrowserBase, &CheckBoxBase, &IntegerBase, &GetColorBase };
+    struct Library **b[] = { &ListBrowserBase, &CheckBoxBase, &IntegerBase, &GetColorBase, &GetFontBase };
     ULONG i;
     for (i = 0; i < sizeof(b) / sizeof(b[0]); ++i)
         if (*b[i] != NULL) {
@@ -347,6 +359,20 @@ static Object *popup(ULONG id, STRPTR *labels)
 }
 
 /**
+ * @brief The font the output window uses without a font of its own: the
+ *        system default text font.
+ * @param[out] ta Its attributes; ta_Name points into the font, which stays
+ *        in memory.
+ */
+static void default_font(struct TextAttr *ta)
+{
+    struct TextFont *f = GfxBase->DefaultFont;
+    memset(ta, 0, sizeof(*ta));
+    ta->ta_Name = f->tf_Message.mn_Node.ln_Name;
+    ta->ta_YSize = f->tf_YSize;
+}
+
+/**
  * @brief Build the window's contents from the settings.
  * @param app The application state.
  * @param s The settings shown.
@@ -355,8 +381,9 @@ static Object *popup(ULONG id, STRPTR *labels)
 static Object *build(EditorApp *app, const Settings *s)
 {
     Object *general, *colours, *toolbar, *project, *advanced, *filetypes;
+    struct TextAttr font;
     ULONG i;
-    int k;
+    int k, own_font;
 
     NewList(&pw.catlist);
     for (i = 0; i < NUMCATEGORIES; ++i) add_category(S(categories[i]), 1, 0, i);
@@ -495,6 +522,21 @@ static Object *build(EditorApp *app, const Settings *s)
     pw.scout = checkbox(PG_SCOUT, S(MSG_PREFS_SCOUT), s->scout);
     pw.tempdir = string(PG_TEMPDIR, s->tempdir, sizeof(s->tempdir));
     pw.shellwindow = string(PG_SHELLWINDOW, s->shellwindow, sizeof(s->shellwindow));
+    /* the output window's font: without one of its own the system's is
+     * shown, ghosted; any font may be chosen, not only monospaced ones */
+    own_font = s->outfont[0] != '\0' && s->outfontsize > 0;
+    default_font(&font);
+    if (own_font) {
+        font.ta_Name = (STRPTR)s->outfont;
+        font.ta_YSize = (UWORD)s->outfontsize;
+    }
+    pw.outfontown = checkbox(PG_OUTFONTOWN, S(MSG_PREFS_OUTFONTOWN), own_font);
+    pw.outfont = NewObject(GETFONT_GetClass(), NULL,
+        GA_ID, PG_OUTFONT, GA_RelVerify, TRUE, GA_Disabled, (ULONG)!own_font,
+        GETFONT_TextAttr, (ULONG)&font,          /* copied */
+        GETFONT_TitleText, (ULONG)S(MSG_PREFS_ASL_OUTFONT),
+        GETFONT_MaxHeight, 64,
+        TAG_END);
     advanced = NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(categories[4])),
         LAYOUT_AddChild, (ULONG)pw.scout, FIXED,
         LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
@@ -507,6 +549,11 @@ static Object *build(EditorApp *app, const Settings *s)
         CHILD_Label, (ULONG)label(S(MSG_PREFS_TEMPDIR)),
         LAYOUT_AddChild, (ULONG)pw.shellwindow, FIXED,
         CHILD_Label, (ULONG)label(S(MSG_PREFS_SHELLWINDOW)),
+        LAYOUT_AddChild, (ULONG)pw.outfontown, FIXED,
+        LAYOUT_AddChild, (ULONG)pw.outfont, FIXED,
+        CHILD_Label, (ULONG)label(S(MSG_PREFS_OUTFONT)),
+        LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_OUTFONTNOTE)),
+        FIXED,
         LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_ADVNOTE)),
         FIXED,
         LAYOUT_AddChild, (ULONG)filler(),
@@ -653,6 +700,16 @@ static void read_gadgets(Settings *s)
         const char *con = (const char *)get(pw.shellwindow, STRINGA_TextVal);
         strncpy(s->shellwindow, con != NULL && con[0] != '\0' ? con : "CON:", sizeof(s->shellwindow) - 1);
         s->shellwindow[sizeof(s->shellwindow) - 1] = '\0';
+    }
+    s->outfont[0] = '\0';
+    s->outfontsize = 0;
+    if (get(pw.outfontown, CHECKBOX_Checked)) {
+        const struct TextAttr *ta = (const struct TextAttr *)get(pw.outfont, GETFONT_TextAttr);
+        if (ta != NULL && ta->ta_Name != NULL && ta->ta_YSize > 0) {
+            strncpy(s->outfont, (const char *)ta->ta_Name, sizeof(s->outfont) - 1);
+            s->outfont[sizeof(s->outfont) - 1] = '\0';
+            s->outfontsize = ta->ta_YSize;
+        }
     }
 }
 
@@ -859,6 +916,18 @@ int prefs_dialog(EditorApp *app, Settings *s, FileTypes *ft)
                     set_page_gadget(pw.left, INTEGER_Number, (ULONG)-1);
                     set_page_gadget(pw.top, INTEGER_Number, (ULONG)-1);
                     break;
+                case PG_OUTFONTOWN:
+                    /* like ft_ghost(): the gadget is drawn anew */
+                    set_page_gadget(pw.outfont, GA_Disabled, (ULONG)!get(pw.outfontown, CHECKBOX_Checked));
+                    RefreshPageGadget((struct Gadget *)pw.outfont, pw.page, pw.win, NULL);
+                    break;
+                case PG_OUTFONT: {
+                    struct gfRequest msg;
+                    msg.MethodID = GFONT_REQUEST;
+                    msg.gfr_Window = pw.win;
+                    DoMethodA(pw.outfont, (Msg)&msg);
+                    break;
+                }
                 case PG_CHOOSETEMP:
                     choose_drawer(pw.tempdir, S(MSG_PREFS_ASL_TEMPDIR), "T:");
                     break;

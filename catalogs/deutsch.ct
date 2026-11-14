@@ -1970,3 +1970,19 @@ MSG_TREEOPS_DEL_GADGETS
 Löschen|Abbrechen
 ; Delete|Cancel
 ;
+MSG_PREFS_OUTFONTOWN
+Eigene Schrift für das Ausgabefenster
+; Own font for the output window
+;
+MSG_PREFS_OUTFONT
+Schrift 
+; Font 
+;
+MSG_PREFS_OUTFONTNOTE
+Sonst die Schrift für Standard-Systemtexte (Voreinsteller Font).
+; Otherwise the font of System Default Text (Font preferences).
+;
+MSG_PREFS_ASL_OUTFONT
+Schrift des Ausgabefensters
+; Font of the output window
+;

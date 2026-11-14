@@ -215,6 +215,10 @@ int appprefs_parse(Settings *s, const char *json)
             }
         get_string(st, "tempdir", 0, s->tempdir, sizeof(s->tempdir));
         get_string(st, "shellwindow", 0, s->shellwindow, sizeof(s->shellwindow));
+        if ((o = json_obj_get_obj(st, "outputfont")) != NULL) {
+            get_string(o, "name", 1, s->outfont, sizeof(s->outfont));
+            get_long(o, "size", 0, &s->outfontsize);
+        }
         get_string(st, "projectdir", 1, s->projectdir, sizeof(s->projectdir));
         get_string(st, "author", 1, s->author, sizeof(s->author));
         get_string(st, "authormail", 1, s->authormail, sizeof(s->authormail));
@@ -311,6 +315,10 @@ static int write_settings(JsonValue *st, const Settings *s)
         !json_obj_set(st, "projectdir", json_new_string(s->projectdir)) ||
         !json_obj_set(st, "author", json_new_string(s->author)) ||
         !json_obj_set(st, "authormail", json_new_string(s->authormail)))
+        return 0;
+    if ((o = child_object(st, "outputfont")) == NULL ||
+        !json_obj_set(o, "name", json_new_string(s->outfont)) ||
+        !json_obj_set(o, "size", json_new_int(s->outfontsize)))
         return 0;
     if ((o = child_object(st, "colours")) == NULL) return 0;
     for (i = 0; i < SCOL_COUNT; ++i) {
