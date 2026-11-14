@@ -221,8 +221,31 @@ version therefore hides a fresh build; check with
      `rm --cached`; taken back with `unstage`, at once, then the status
      anew), a one-line message, `commit -m`; a diff window with the
      changes since the last commit, made by TinyDev itself.
-  4. Fetch, pull and push with their output in the output window; remotes
-     through `am-git config` (it has no `remote` command).
+  4. Done (`git.c`, `build.c`, `projwin.c`): Fetch, Pull and Push in the
+     background with their output in the output window
+     (`build_run_job()`, one slot with Build); the remote "origin" on a
+     page of the project settings (read from `.git/config`, written with
+     `am-git config`, as am-git has no `remote` command); Pull saves the
+     documents, and afterwards those whose files changed (date or size)
+     are loaded again, a document changed meanwhile only if the user
+     agrees, and those whose files are gone are marked changed.
+     Git/Clone Repository... runs `am-git clone <url> <name>` the same way
+     in the drawer chosen (the name alone: am-git makes a drawer "." of
+     a path with "./") and opens the new drawer as the project if it
+     holds `.git` afterwards.
+     Git/Resolve Conflicts... lists the files with conflicts; marking one
+     as resolved is `am-git add` (it clears the conflict stages), and the
+     next `commit` makes the merge commit, as `.git/MERGE_HEAD` is there.
+     That commit may have no changes of its own (a conflict resolved
+     with one's own version leaves the index equal to HEAD, and the
+     status is empty): am-git refuses only an empty index or a conflict
+     left, so the commit window opens and commits while `MERGE_HEAD` is
+     there, whatever the status says.
+
+  am-git 0.12.1 is the latest release (Aminet and GitHub, 14.11.2026);
+  the sources on GitHub are at 0.12.3, unreleased. TinyDev works with
+  0.12.1 and keeps to what newer versions do as well; building am-git
+  ourselves is not worth it.
 
   Tried on the Amiga with am-git 0.12.1 (14.11.2026):
   - `status --porcelain` prints only `XY path` lines (index, work tree:
@@ -249,13 +272,27 @@ version therefore hides a fresh build; check with
     drops a new one. `add` does not stage a deletion. am-git ends with
     return code 0 even when a command fails ("add: failed"), so TinyDev
     reads the status afterwards instead of trusting the code.
+  - 0.12.1's merge (a Pull that is no fast-forward) writes the merged
+    files, conflict markers included, under `"./" + path`, so they land
+    in a drawer `.` while the project's files stay as they were (seen on
+    the Amiga; fixed in the unreleased sources with resolveWorkTree()).
+    TinyDev offers to move them to their places after a Pull and when
+    the conflict window opens. am-git has no `merge --abort`.
+  - fetch, pull and push take the URL of `remote.origin.url` when none
+    is given; push takes the branch of HEAD. `pull` without arguments
+    fails in 0.12.1 ("NullArgumentError ... during non-null
+    conversion", seen on the Amiga; fixed in the unreleased sources), so
+    TinyDev passes the URL and the branch of HEAD. Credentials for https come
+    from `AM_GIT_USERNAME`/`AM_GIT_PASSWORD`; with ssh, bebbossh asks
+    once per host whether to trust it, which TinyDev's runs (input
+    `NIL:`) cannot answer: that is done once in a Shell.
 
   Still to try: how long `status` takes on a real project on a 68030
-  (0.12.3 made it much faster, but it walks the tree). am-git wants a stack of
+  (the unreleased 0.12.3 makes it much faster, but it walks the tree). am-git wants a stack of
   100000 bytes, more than the 65536 of the Build scripts. Credentials stay
-  with am-git (`ENV:AM_GIT_NETRC`); TinyDev stores none. Pull and checkout
-  change files that may be open, so documents must be compared with the
-  disk afterwards.
+  with am-git (`ENV:AM_GIT_NETRC`); TinyDev stores none. Checkout and
+  merge change files that may be open, like Pull; they would need the
+  same comparison of the documents with the disk.
 - Claude in TinyDev, after the first release and strictly optional:
   TinyDev talks to the Claude API itself (HTTPS over `bsdsocket.library` and
   AmiSSL, `src/json.c`), as a separate part like Scout (a process of its

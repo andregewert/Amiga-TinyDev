@@ -858,7 +858,7 @@ MSG_BUILD_SCRIPT (//)
 The command could not be prepared in the drawer of the temporary files.
 ;
 MSG_BUILD_BUSY (//)
-A build is already running.
+A command is already running in the output window.
 ;
 MSG_BUILD_CHOSEN (//)
 %s now runs: %s
@@ -1721,6 +1721,9 @@ _Message
 MSG_GITC_NOTE (//)
 Only saved files are committed, the message is a single line.
 ;
+MSG_GITC_MERGENOTE (//)
+This commit completes the merge of the Pull, even without changes of its own.
+;
 MSG_GITC_COMMIT (//)
 C_ommit
 ;
@@ -1768,4 +1771,145 @@ The file is binary, its changes cannot be shown.
 ;
 MSG_GITDIFF_NOREAD (//)
 The file could not be read.
+;
+MSG_MENU_GIT_FETCH (//)
+Fetch
+;
+MSG_MENU_GIT_PULL (//)
+Pull
+;
+MSG_MENU_GIT_PUSH (//)
+Push
+;
+MSG_GIT_JOB_FETCH (//)
+Git Fetch
+;
+MSG_GIT_JOB_PULL (//)
+Git Pull
+;
+MSG_GIT_JOB_PUSH (//)
+Git Push
+;
+MSG_GIT_NOREMOTE (//)
+The project has no remote "origin".\nEnter its address in Project/Project Settings...\non the page Git.
+;
+MSG_GIT_PULLASK (//)
+The pull changed the file %s,\nbut its document has unsaved changes.\nLoad the file again and drop them?
+;
+MSG_GIT_PULLASKGADGETS (//)
+Load Again|Keep Document
+;
+MSG_GIT_PULLRELOADED (//)
+Pull: %ld document(s) loaded again.
+;
+MSG_GIT_PULLGONE (//)
+Pull: %ld document(s) loaded again, %ld file(s) deleted (documents marked changed).
+;
+MSG_PJ_CAT_GIT (//)
+Git
+;
+MSG_PJ_REMOTE (//)
+Remote (_origin) 
+;
+MSG_PJ_REMOTENOTE (//)
+Fetch, Pull and Push use this address. am-git keeps it in .git/config.
+;
+MSG_GIT_DETACHED (//)
+HEAD is not on a branch (detached).\nPull needs a branch: check one out first.
+;
+MSG_MENU_GIT_CLONE (//)
+Clone Repository...
+;
+MSG_GIT_JOB_CLONE (//)
+Git Clone
+;
+MSG_GITCL_TITLE (//)
+Clone Repository
+;
+MSG_GITCL_URL (//)
+_Address (URL) 
+;
+MSG_GITCL_DRAWER (//)
+_Drawer 
+;
+MSG_GITCL_CHOOSE (//)
+C_hoose...
+;
+MSG_GITCL_NAME (//)
+_Name 
+;
+MSG_GITCL_NOTE (//)
+am-git clones in the background (output window), then the drawer becomes the project.
+;
+MSG_GITCL_CLONE (//)
+C_lone
+;
+MSG_GITCL_ASL (//)
+Drawer for the repository
+;
+MSG_GITCL_NOURL (//)
+Please enter the address of the repository.
+;
+MSG_GITCL_BADNAME (//)
+Please enter a name for the new drawer (without / or :).
+;
+MSG_GITCL_NODRAWER (//)
+The drawer does not exist.
+;
+MSG_GITCL_EXISTS (//)
+%s\nexists already. Please choose another name.
+;
+MSG_GITCL_DONE (//)
+Repository cloned.
+;
+MSG_GITCL_FAILED (//)
+The repository could not be cloned.\nThe output window shows what am-git said.
+;
+MSG_MENU_GIT_CONFLICTS (//)
+Resolve Conflicts...
+;
+MSG_GITR_TITLE (//)
+Resolve Conflicts
+;
+MSG_GITR_LISTNOTE (//)
+Files with conflicts after the merge:
+;
+MSG_GITR_RESOLVED (//)
+resolved
+;
+MSG_GITR_RESOLVE (//)
+Mark as _Resolved
+;
+MSG_GITR_OPEN (//)
+_Open
+;
+MSG_GITR_COMMIT (//)
+Co_mmit...
+;
+MSG_GITR_NOTE (//)
+Open a file, clean up its markers <<<<<<< ======= >>>>>>>, save it, then mark it as resolved.
+;
+MSG_GITR_NONE (//)
+There are no conflicts.
+;
+MSG_GITR_UNSAVED (//)
+The file's document has unsaved changes.\nPlease save it first.
+;
+MSG_GITR_MARKERS (//)
+The file still holds conflict markers\n(<<<<<<<, ======= or >>>>>>>).\nMark it as resolved all the same?
+;
+MSG_GITR_MARKERSGADGETS (//)
+Mark|Cancel
+;
+MSG_GITR_LEFT (//)
+Not all conflicts are resolved yet.
+;
+MSG_GIT_DOTASK (//)
+am-git has written the merged files into a drawer "."\n(a mistake of am-git 0.12.1). Move them to their places?
+;
+MSG_GIT_DOTGADGETS (//)
+Move|Leave
+;
+MSG_GIT_DOTFAILED (//)
+Not all files of the drawer "." could be moved.
 ;

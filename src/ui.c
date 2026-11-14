@@ -334,9 +334,15 @@ static struct NewMenu menus[] = {
     {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_MENU)},    /* NM_TITLE with git: ui_update_git_menu() */
     {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_COMMIT)},
     {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_DIFF)},
+    {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_CONFLICTS)},
     {NM_IGNORE, NM_BARLABEL, NULL, 0, 0, UD(MID_GIT_BAR)},
+    {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_FETCH)},
+    {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_PULL)},
+    {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_PUSH)},
+    {NM_IGNORE, NM_BARLABEL, NULL, 0, 0, UD(MID_GIT_BAR2)},
     {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_REFRESH)},
     {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_INIT)},
+    {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_CLONE)},
     {NM_TITLE, NULL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_FOLDER_TREE)},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_LINE_NUMBERS)},
@@ -437,9 +443,15 @@ static const LONG menu_texts[] = {
     MSG_MENU_GIT,
     MSG_MENU_GIT_COMMIT,
     MSG_MENU_GIT_DIFF,
+    MSG_MENU_GIT_CONFLICTS,
+    -1,
+    MSG_MENU_GIT_FETCH,
+    MSG_MENU_GIT_PULL,
+    MSG_MENU_GIT_PUSH,
     -1,
     MSG_MENU_GIT_REFRESH,
     MSG_MENU_GIT_INIT,
+    MSG_MENU_GIT_CLONE,
     MSG_MENU_VIEW,
     MSG_MENU_TREE,
     MSG_MENU_LINENUMBERS,
@@ -1499,7 +1511,8 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_BUILD: case MID_RUN: case MID_DEBUG: case MID_STOP:
             build_action(app, id);
             break;
-        case MID_GIT_INIT: case MID_GIT_REFRESH: case MID_GIT_COMMIT: case MID_GIT_DIFF:
+        case MID_GIT_INIT: case MID_GIT_REFRESH: case MID_GIT_COMMIT: case MID_GIT_DIFF: case MID_GIT_CONFLICTS:
+        case MID_GIT_FETCH: case MID_GIT_PULL: case MID_GIT_PUSH: case MID_GIT_CLONE:
             git_menu(app, id);
             break;
         case MID_OUTPUT:

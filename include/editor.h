@@ -150,7 +150,13 @@ enum MenuId {
     MID_GIT_REFRESH,    /**< Git/Refresh Status: the tree's colours and the branch anew */
     MID_GIT_COMMIT,     /**< Git/Commit...: the commit window */
     MID_GIT_DIFF,       /**< Git/Show Changes of the File...: the active document's diff */
-    MID_GIT_BAR,        /**< the Git menu's separator (marks it in the table) */
+    MID_GIT_CONFLICTS,  /**< Git/Resolve Conflicts...: the conflict window */
+    MID_GIT_FETCH,      /**< Git/Fetch: am-git fetch in the background */
+    MID_GIT_PULL,       /**< Git/Pull: am-git pull in the background, documents compared */
+    MID_GIT_PUSH,       /**< Git/Push: am-git push in the background */
+    MID_GIT_BAR2,       /**< the Git menu's second separator */
+    MID_GIT_CLONE,      /**< Git/Clone Repository...: the clone window, am-git clone in the background */
+    MID_GIT_BAR,        /**< the Git menu's separator (last of the Git menu's IDs) */
     /* the File Type entries stay last: menu_action() takes the IDs from
      * MID_FT_AUTO on as file types */
     MID_FT_AUTO,        /**< File Type/Automatic: the language Scout detects */
@@ -1390,6 +1396,28 @@ void build_choose_command(EditorApp *app, int action, int index);
  */
 void build_stop(EditorApp *app);
 /**
+ * @brief Save the modified documents that have a name (before Build or
+ *        a git Pull).
+ * @param app The application state.
+ * @return Non-zero if all were saved (otherwise a message was shown).
+ */
+int build_save_documents(EditorApp *app);
+/**
+ * @brief Run a script in the background like Build: its output (and its
+ *        messages) in the output window, Stop sends Ctrl-C; only one runs
+ *        at a time, Build included.
+ * @param app The application state.
+ * @param name Its name in the output window's status and messages.
+ * @param text The script (lines ending with a line feed).
+ * @param dir The drawer it runs in.
+ * @param done Called when it has ended, with the return code (-1 if it
+ *        could not be started), or NULL.
+ * @return Non-zero if it was started (otherwise a message was shown and
+ *         @p done is not called).
+ */
+int build_run_job(EditorApp *app, const char *name, const char *text, const char *dir,
+                  void (*done)(EditorApp *app, LONG rc));
+/**
  * @brief Tell whether a build runs.
  * @return Non-zero if one runs.
  */
@@ -2019,6 +2047,50 @@ int git_is_repository(const char *drawer);
  * @return Non-zero if there is a repository.
  */
 int git_repository(EditorApp *app, char *root, size_t size);
+/**
+ * @brief The address of the remote "origin" of a repository, from its
+ *        .git/config.
+ * @param root The repository.
+ * @param[out] url The address, "" if there is none.
+ * @param size Size of @p url.
+ * @return Non-zero if there is one.
+ */
+int git_remote_url(const char *root, char *url, size_t size);
+/**
+ * @brief Move the files am-git 0.12.1 wrote into a drawer "." of the
+ *        repository to their places, if there is one and the user agrees.
+ *
+ * Its merge (after a Pull) writes the merged files, with conflict markers
+ * where changes clash, under "./path", which AmigaOS takes as a drawer
+ * named "."; the files in the project stay as they were. Fixed in
+ * am-git's unreleased sources.
+ *
+ * @param app The application state.
+ * @param root The repository.
+ */
+void git_fix_dot_drawer(EditorApp *app, const char *root);
+/**
+ * @brief Clone a repository in the background (am-git clone, output in
+ *        the output window); the new drawer becomes the project when done.
+ * @param app The application state.
+ * @param url The remote's address.
+ * @param drawer The drawer the repository's drawer is made in.
+ * @param name The new drawer's name (no path).
+ * @return Non-zero if it was started (otherwise a message was shown).
+ */
+int git_clone(EditorApp *app, const char *url, const char *drawer, const char *name);
+/**
+ * @brief Git/Clone Repository...: the modal window asking for the
+ *        address, the drawer and the name, then git_clone().
+ * @param app The application state.
+ */
+void gitwin_clone(EditorApp *app);
+/**
+ * @brief Git/Resolve Conflicts...: the modal window listing the files
+ *        with conflicts, to open them and mark them as resolved.
+ * @param app The application state.
+ */
+void gitwin_conflicts(EditorApp *app);
 /**
  * @brief The pen of a git state in the folder tree (setting "git"/"colours").
  * @param state The state (GitState of gitstatus.h).

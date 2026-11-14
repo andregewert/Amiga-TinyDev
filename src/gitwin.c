@@ -19,6 +19,20 @@
  * am-git commit -m with the message, a single line (am-git takes no line
  * breaks, see TECHNICAL.md). Documents not saved are not part of it.
  *
+ * The clone window (Git/Clone Repository...) asks for the remote's
+ * address, the drawer the repository goes into (the setting "projectdir",
+ * else the drawer above the current project) and the new drawer's name,
+ * suggested from the address ("repo" of ".../repo.git") until the name is
+ * typed; git_clone() then runs am-git clone in the background.
+ *
+ * The conflict window (Git/Resolve Conflicts...) lists the files that had
+ * a conflict when it opened, each "conflict" or "resolved". "Mark as
+ * Resolved" runs am-git add on the file (it clears the conflict stages of
+ * the index), after asking if the file still holds conflict markers;
+ * "Open" (or a double click) goes to the first marker in the editor and
+ * closes the window; "Commit..." goes on to the commit window, whose
+ * message is then the first line of .git/MERGE_MSG.
+ *
  * The diff window shows a file's changes since the last commit: the
  * file of HEAD from am-git show against the file on disk, compared by
  * linediff.c (am-git's own diff reads every working file as empty on the
@@ -40,6 +54,8 @@
 #include <images/label.h>
 #include <intuition/gadgetclass.h>
 #include <graphics/gfxbase.h>
+#include <libraries/asl.h>
+#include <proto/asl.h>
 #include <proto/button.h>
 #include <proto/dos.h>
 #include <proto/exec.h>
@@ -69,6 +85,8 @@ extern struct Library *StringBase;         /* shared with the find window */
 /** Gadget IDs. */
 enum {
     GC_LIST = 100, GC_ADDALL, GC_DIFF, GC_MESSAGE, GC_COMMIT, GC_CLOSE,
+    GK_URL, GK_DRAWER, GK_CHOOSE, GK_NAME, GK_CLONE, GK_CANCEL,
+    GR_LIST, GR_RESOLVE, GR_OPEN, GR_COMMIT, GR_CLOSE,
     GD_LIST, GD_CLOSE
 };
 
@@ -90,6 +108,7 @@ static struct {
     struct ColumnInfo cols[3];
     Object *winobj, *layout, *list, *message;
     struct Window *win;
+    int merging;                    /* .git/MERGE_HEAD is there */
 } gc;
 
 /* ---- helpers --------------------------------------------------------- */
@@ -636,6 +655,37 @@ static void list_clicked(void)
 }
 
 /**
+ * @brief The message a merge suggests: the first line of .git/MERGE_MSG
+ *        while .git/MERGE_HEAD is there (after a Pull with conflicts).
+ * @param root The repository.
+ * @param[out] msg The message, "" if there is none.
+ * @param size Size of @p msg.
+ * @return Non-zero while a merge is going on (.git/MERGE_HEAD is there).
+ */
+static int merge_message(const char *root, char *msg, size_t size)
+{
+    char path[EDITOR_PATH_MAX], *text = NULL;
+    BPTR lock;
+    size_t n = 0;
+    msg[0] = '\0';
+    strncpy(path, root, sizeof(path) - 1);
+    path[sizeof(path) - 1] = '\0';
+    if (!AddPart((STRPTR)path, (STRPTR)".git/MERGE_HEAD", sizeof(path)) ||
+        (lock = Lock((STRPTR)path, ACCESS_READ)) == 0)
+        return 0;
+    UnLock(lock);
+    *PathPart((STRPTR)path) = '\0';
+    if (!AddPart((STRPTR)path, (STRPTR)"MERGE_MSG", sizeof(path)) || datafile_read(path, &text) <= 0) return 1;
+    while (text[n] != '\0' && text[n] != '\n' && text[n] != '\r' && n + 1 < size) {
+        msg[n] = text[n];
+        ++n;
+    }
+    msg[n] = '\0';
+    free(text);
+    return 1;
+}
+
+/**
  * @brief Commit with the message entered.
  * @return Non-zero if committed (the window closes).
  */
@@ -650,8 +700,11 @@ static int commit(void)
         ActivateLayoutGadget((struct Gadget *)gc.layout, gc.win, NULL, (ULONG)gc.message);
         return 0;
     }
+    /* a merge may be committed with a tree equal to HEAD (a conflict
+       resolved with one's own version): am-git takes MERGE_HEAD as the
+       second parent and refuses only an empty index or a conflict left */
     for (i = 0; i < gc.status.count && !is_staged(&gc.status.entries[i]); ++i) ;
-    if (i >= gc.status.count) {
+    if (i >= gc.status.count && !gc.merging) {
         message(gc.win, S(MSG_GITC_NOTHING));
         return 0;
     }
@@ -668,6 +721,7 @@ static int commit(void)
 
 void gitwin_commit(EditorApp *app)
 {
+    char merge_msg[MESSAGE_MAX + 1];
     ULONG sig = 0, mainsig = 0, result;
     WORD code;
     int done = 0;
@@ -678,7 +732,8 @@ void gitwin_commit(EditorApp *app)
     gc.app = app;
     gitstatus_init(&gc.status);
     if (!git_repository(app, gc.root, sizeof(gc.root)) || !open_classes(app) || !read_status()) goto out;
-    if (gc.status.count == 0) {
+    gc.merging = merge_message(gc.root, merge_msg, sizeof(merge_msg));
+    if (gc.status.count == 0 && !gc.merging) {
         message(app->window, S(MSG_GITC_CLEAN));
         goto out;
     }
@@ -699,7 +754,7 @@ void gitwin_commit(EditorApp *app)
         TAG_END);
     gc.message = NewObject(STRING_GetClass(), NULL,
         GA_ID, GC_MESSAGE, GA_RelVerify, TRUE, GA_TabCycle, TRUE,
-        STRINGA_MaxChars, MESSAGE_MAX, STRINGA_TextVal, (ULONG)"", TAG_END);
+        STRINGA_MaxChars, MESSAGE_MAX, STRINGA_TextVal, (ULONG)merge_msg, TAG_END);
     gc.layout = NewObject(LAYOUT_GetClass(), NULL,
         LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
         LAYOUT_SpaceOuter, TRUE,
@@ -728,7 +783,7 @@ void gitwin_commit(EditorApp *app)
             TAG_END),
         LAYOUT_AddChild, (ULONG)gc.message, FIXED,
         CHILD_Label, (ULONG)label(S(MSG_GITC_MESSAGE)),
-        LAYOUT_AddImage, (ULONG)label(S(MSG_GITC_NOTE)), FIXED,
+        LAYOUT_AddImage, (ULONG)label(S(gc.merging ? MSG_GITC_MERGENOTE : MSG_GITC_NOTE)), FIXED,
         LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
             LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
             LAYOUT_AddChild, (ULONG)button(GC_COMMIT, S(MSG_GITC_COMMIT)),
@@ -797,4 +852,469 @@ out:
     memset(&gc, 0, sizeof(gc));
     /* staged or committed: the tree's colours change */
     git_status_request(app);
+}
+
+/* ---- the clone window ---------------------------------------------------- */
+
+/**
+ * @brief The name a repository's address suggests: its last part without
+ *        ".git" ("repo" of "https://host/user/repo.git").
+ * @param url The address.
+ * @param[out] name The name, "" if there is none.
+ * @param size Size of @p name.
+ */
+static void name_from_url(const char *url, char *name, size_t size)
+{
+    size_t len = strlen(url), start, n;
+    while (len > 0 && (url[len - 1] == '/' || url[len - 1] == ' ')) --len;
+    start = len;
+    while (start > 0 && url[start - 1] != '/' && url[start - 1] != ':') --start;
+    n = len - start;
+    if (n > 4 && strncmp(url + len - 4, ".git", 4) == 0) n -= 4;
+    if (n >= size) n = size - 1;
+    memcpy(name, url + start, n);
+    name[n] = '\0';
+}
+
+/**
+ * @brief Check the values of the clone window (a message for the first
+ *        that is wrong).
+ * @param win The clone window (messages).
+ * @param url The address.
+ * @param drawer The drawer.
+ * @param name The new drawer's name.
+ * @return Non-zero if they are right (the window closes, the clone starts).
+ */
+static int start_clone_check(struct Window *win, const char *url, const char *drawer, const char *name)
+{
+    char target[EDITOR_PATH_MAX], text[EDITOR_PATH_MAX + 120];
+    BPTR lock;
+    if (url[0] == '\0') {
+        message(win, S(MSG_GITCL_NOURL));
+        return 0;
+    }
+    if (name[0] == '\0' || strpbrk(name, "/:") != NULL) {
+        message(win, S(MSG_GITCL_BADNAME));
+        return 0;
+    }
+    if (drawer[0] == '\0' || (lock = Lock((STRPTR)drawer, ACCESS_READ)) == 0) {
+        message(win, S(MSG_GITCL_NODRAWER));
+        return 0;
+    }
+    UnLock(lock);
+    strncpy(target, drawer, sizeof(target) - 1);
+    target[sizeof(target) - 1] = '\0';
+    if (!AddPart((STRPTR)target, (STRPTR)name, sizeof(target))) {
+        message(win, S(MSG_ERR_PATHTOOLONG));
+        return 0;
+    }
+    if ((lock = Lock((STRPTR)target, ACCESS_READ)) != 0) {
+        UnLock(lock);
+        snprintf(text, sizeof(text), S(MSG_GITCL_EXISTS), target);
+        message(win, text);
+        return 0;
+    }
+    return 1;
+}
+
+void gitwin_clone(EditorApp *app)
+{
+    char drawer[EDITOR_PATH_MAX], suggested[128] = "", root[EDITOR_PATH_MAX];
+    Object *winobj, *layout, *url, *dir, *name;
+    struct Window *win = NULL;
+    ULONG sig = 0, mainsig = 0, result;
+    WORD code;
+    int done = 0, start = 0;
+    LONG w = TextLength(&app->screen->RastPort, (STRPTR)"n", 1);
+    char url_v[512], drawer_v[EDITOR_PATH_MAX], name_v[128];
+
+    if (!open_classes(app)) return;
+    /* where projects go: the setting, else the drawer above the project */
+    drawer[0] = '\0';
+    if (app->settings.projectdir[0] != '\0') {
+        strncpy(drawer, app->settings.projectdir, sizeof(drawer) - 1);
+        drawer[sizeof(drawer) - 1] = '\0';
+    } else if (tree_project_root(app, root, sizeof(root))) {
+        *PathPart((STRPTR)root) = '\0';
+        strcpy(drawer, root);
+    }
+    url = NewObject(STRING_GetClass(), NULL,
+        GA_ID, GK_URL, GA_RelVerify, TRUE, GA_TabCycle, TRUE,
+        STRINGA_MaxChars, sizeof(url_v) - 1, STRINGA_TextVal, (ULONG)"", TAG_END);
+    dir = NewObject(STRING_GetClass(), NULL,
+        GA_ID, GK_DRAWER, GA_RelVerify, TRUE, GA_TabCycle, TRUE,
+        STRINGA_MaxChars, sizeof(drawer_v) - 1, STRINGA_TextVal, (ULONG)drawer, TAG_END);
+    name = NewObject(STRING_GetClass(), NULL,
+        GA_ID, GK_NAME, GA_RelVerify, TRUE, GA_TabCycle, TRUE,
+        STRINGA_MaxChars, sizeof(name_v) - 1, STRINGA_TextVal, (ULONG)"", TAG_END);
+    layout = NewObject(LAYOUT_GetClass(), NULL,
+        LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
+        LAYOUT_SpaceOuter, TRUE,
+        LAYOUT_LeftSpacing, AREA_SPACING,
+        LAYOUT_RightSpacing, AREA_SPACING,
+        LAYOUT_TopSpacing, AREA_SPACING,
+        LAYOUT_BottomSpacing, AREA_SPACING,
+        LAYOUT_InnerSpacing, ROW_SPACING,
+        LAYOUT_DeferLayout, TRUE,
+        LAYOUT_AddChild, (ULONG)url, FIXED,
+        CHILD_Label, (ULONG)label(S(MSG_GITCL_URL)),
+        CHILD_MinWidth, (ULONG)(50 * w),
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+            LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+            LAYOUT_InnerSpacing, ROW_SPACING,
+            LAYOUT_AddChild, (ULONG)dir,
+            LAYOUT_AddChild, (ULONG)button(GK_CHOOSE, S(MSG_GITCL_CHOOSE)),
+            CHILD_WeightedWidth, 0,
+            TAG_END),
+        FIXED,
+        CHILD_Label, (ULONG)label(S(MSG_GITCL_DRAWER)),
+        LAYOUT_AddChild, (ULONG)name, FIXED,
+        CHILD_Label, (ULONG)label(S(MSG_GITCL_NAME)),
+        LAYOUT_AddImage, (ULONG)label(S(MSG_GITCL_NOTE)), FIXED,
+        LAYOUT_AddChild, (ULONG)filler(),
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+            LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+            LAYOUT_AddChild, (ULONG)button(GK_CLONE, S(MSG_GITCL_CLONE)),
+            CHILD_WeightedWidth, 0,
+            LAYOUT_AddChild, (ULONG)filler(),
+            LAYOUT_AddChild, (ULONG)button(GK_CANCEL, S(MSG_PREFS_CANCEL)),
+            CHILD_WeightedWidth, 0,
+            TAG_END),
+        FIXED,
+        TAG_END);
+    if (layout == NULL || (winobj = open_window(app, S(MSG_GITCL_TITLE), app->window, layout)) == NULL) return;
+    GetAttr(WINDOW_Window, winobj, (ULONG *)&win);
+    ActivateLayoutGadget((struct Gadget *)layout, win, NULL, (ULONG)url);
+
+    SetAttrs(app->window_object, WA_BusyPointer, TRUE, TAG_END);
+    GetAttr(WINDOW_SigMask, app->window_object, &mainsig);
+    GetAttr(WINDOW_SigMask, winobj, &sig);
+    while (!done) {
+        ULONG got = Wait(sig | mainsig);
+        if ((got & mainsig) != 0) drop_input(app->window_object);
+        while ((result = DoMethod(winobj, WM_HANDLEINPUT, &code)) != WMHI_LASTMSG) {
+            if ((result & WMHI_CLASSMASK) == WMHI_CLOSEWINDOW) { done = 1; continue; }
+            if ((result & WMHI_CLASSMASK) != WMHI_GADGETUP) continue;
+            switch (result & WMHI_GADGETMASK) {
+                case GK_URL: {
+                    /* suggest the name while it is empty or still the suggestion */
+                    const char *u = (const char *)get(url, STRINGA_TextVal);
+                    const char *n = (const char *)get(name, STRINGA_TextVal);
+                    if (u != NULL && (n == NULL || n[0] == '\0' || strcmp(n, suggested) == 0)) {
+                        name_from_url(u, suggested, sizeof(suggested));
+                        SetGadgetAttrs((struct Gadget *)name, win, NULL, STRINGA_TextVal, (ULONG)suggested, TAG_END);
+                    }
+                    break;
+                }
+                case GK_CHOOSE: {
+                    const char *cur = (const char *)get(dir, STRINGA_TextVal);
+                    struct FileRequester *fr = AllocAslRequestTags(ASL_FileRequest,
+                        ASLFR_TitleText, (ULONG)S(MSG_GITCL_ASL), ASLFR_DrawersOnly, TRUE, TAG_END);
+                    if (fr == NULL) break;
+                    if (AslRequestTags(fr, ASLFR_Window, (ULONG)win, ASLFR_SleepWindow, TRUE,
+                                       cur != NULL && cur[0] != '\0' ? ASLFR_InitialDrawer : TAG_IGNORE, (ULONG)cur,
+                                       TAG_END) && fr->fr_Drawer[0] != '\0')
+                        SetGadgetAttrs((struct Gadget *)dir, win, NULL, STRINGA_TextVal, (ULONG)fr->fr_Drawer, TAG_END);
+                    FreeAslRequest(fr);
+                    break;
+                }
+                case GK_CLONE: {
+                    const char *u = (const char *)get(url, STRINGA_TextVal);
+                    const char *d = (const char *)get(dir, STRINGA_TextVal);
+                    const char *n = (const char *)get(name, STRINGA_TextVal);
+                    /* copies: the clone starts after the window is gone */
+                    while (u != NULL && *u == ' ') ++u;
+                    strncpy(url_v, u != NULL ? u : "", sizeof(url_v) - 1);
+                    url_v[sizeof(url_v) - 1] = '\0';
+                    strncpy(drawer_v, d != NULL ? d : "", sizeof(drawer_v) - 1);
+                    drawer_v[sizeof(drawer_v) - 1] = '\0';
+                    strncpy(name_v, n != NULL ? n : "", sizeof(name_v) - 1);
+                    name_v[sizeof(name_v) - 1] = '\0';
+                    {
+                        size_t k = strlen(url_v);
+                        while (k > 0 && url_v[k - 1] == ' ') url_v[--k] = '\0';
+                    }
+                    if (start_clone_check(win, url_v, drawer_v, name_v)) done = start = 1;
+                    break;
+                }
+                case GK_CANCEL:
+                    done = 1;
+                    break;
+            }
+        }
+    }
+    SetAttrs(app->window_object, WA_BusyPointer, FALSE, TAG_END);
+    DisposeObject(winobj);                      /* the gadgets with it */
+    if (start) git_clone(app, url_v, drawer_v, name_v);
+}
+
+/* ---- the conflict window ----------------------------------------------- */
+
+/** The files that had a conflict when the conflict window opened. */
+static struct {
+    char **path;                /* relative to the repository */
+    int *resolved;              /* no longer a conflict in the status */
+    long count;
+} gk;
+
+/**
+ * @brief The first line of a text holding a conflict marker.
+ * @param text The text.
+ * @return The line (1-based), or 0 if there is none.
+ */
+static long marker_line(const char *text)
+{
+    const char *line = text;
+    long n = 1;
+    while (*line != '\0') {
+        if (strncmp(line, "<<<<<<< ", 8) == 0 || strncmp(line, ">>>>>>> ", 8) == 0 ||
+            (strncmp(line, "=======", 7) == 0 && (line[7] == '\n' || line[7] == '\r' || line[7] == '\0')))
+            return n;
+        while (*line != '\0' && *line != '\n') ++line;
+        if (*line == '\n') ++line;
+        ++n;
+    }
+    return 0;
+}
+
+/**
+ * @brief The first marker of a file of the repository.
+ * @param rel The file.
+ * @return Its line (1-based), 0 if none or it cannot be read.
+ */
+static long file_marker(const char *rel)
+{
+    char path[EDITOR_PATH_MAX], *text = NULL;
+    long line = 0;
+    strncpy(path, gc.root, sizeof(path) - 1);
+    path[sizeof(path) - 1] = '\0';
+    if (AddPart((STRPTR)path, (STRPTR)rel, sizeof(path)) && datafile_read(path, &text) > 0)
+        line = marker_line(text);
+    free(text);
+    return line;
+}
+
+/**
+ * @brief Note which of the files are no longer conflicts (gc.status read).
+ */
+static void update_resolved(void)
+{
+    long i;
+    for (i = 0; i < gk.count; ++i)
+        gk.resolved[i] = gitstatus_state(&gc.status, gk.path[i], 0) != GIT_ST_CONFLICT;
+}
+
+/**
+ * @brief Build the conflict list's nodes.
+ */
+static void make_conflict_nodes(void)
+{
+    long i;
+    NewList(&gc.nodes);
+    for (i = 0; i < gk.count; ++i) {
+        struct Node *n = AllocListBrowserNode(2,
+            LBNA_Column, 0, LBNCA_Text, (ULONG)S(gk.resolved[i] ? MSG_GITR_RESOLVED : MSG_GITC_ST_CONFLICT),
+            LBNA_Column, 1, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)gk.path[i],
+            TAG_END);
+        if (n != NULL) AddTail(&gc.nodes, n);
+    }
+}
+
+/**
+ * @brief Mark a file as resolved (am-git add), after the checks.
+ * @param i The file.
+ * @return Non-zero if the list changed.
+ */
+static int resolve(long i)
+{
+    char full[EDITOR_PATH_MAX];
+    Document *doc;
+    strncpy(full, gc.root, sizeof(full) - 1);
+    full[sizeof(full) - 1] = '\0';
+    if (gk.resolved[i] || !AddPart((STRPTR)full, (STRPTR)gk.path[i], sizeof(full))) return 0;
+    /* the file on disk counts: a changed document must be saved first */
+    if ((doc = document_find_path(gc.app, full)) != NULL && doc->dirty) {
+        message(gc.win, S(MSG_GITR_UNSAVED));
+        return 0;
+    }
+    if (file_marker(gk.path[i]) > 0) {
+        struct EasyStruct es = {sizeof(es), 0, NULL, NULL, NULL};
+        es.es_Title = (STRPTR)S(MSG_GIT_TITLE);
+        es.es_TextFormat = (STRPTR)S(MSG_GITR_MARKERS);
+        es.es_GadgetFormat = (STRPTR)S(MSG_GITR_MARKERSGADGETS);
+        if (EasyRequestArgs(gc.win, &es, NULL, NULL) != 1) return 0;
+    }
+    if (!run_on_file("add", gk.path[i]) || !read_status()) return 0;
+    update_resolved();
+    return 1;
+}
+
+/**
+ * @brief Free the list of the files.
+ */
+static void free_conflicts(void)
+{
+    long i;
+    for (i = 0; i < gk.count; ++i) free(gk.path[i]);
+    free(gk.path);
+    free(gk.resolved);
+    memset(&gk, 0, sizeof(gk));
+}
+
+void gitwin_conflicts(EditorApp *app)
+{
+    ULONG sig = 0, mainsig = 0, result;
+    WORD code;
+    int done = 0, then_commit = 0;
+    long i, open_line = 0, open_index = -1;
+    char open_path[EDITOR_PATH_MAX];
+    LONG w = TextLength(&app->screen->RastPort, (STRPTR)"n", 1);
+    ULONG h = app->screen->RastPort.TxHeight + 1U;
+
+    memset(&gc, 0, sizeof(gc));
+    memset(&gk, 0, sizeof(gk));
+    gc.app = app;
+    gitstatus_init(&gc.status);
+    if (!git_repository(app, gc.root, sizeof(gc.root)) || !open_classes(app)) goto out;
+    git_fix_dot_drawer(app, gc.root);       /* a Pull's files left in "." */
+    if (!read_status()) goto out;
+    for (i = 0; i < gc.status.count; ++i)
+        if (gc.status.entries[i].state == GIT_ST_CONFLICT) ++gk.count;
+    if (gk.count == 0) {
+        message(app->window, S(MSG_GITR_NONE));
+        goto out;
+    }
+    gk.path = calloc((size_t)gk.count, sizeof(char *));
+    gk.resolved = calloc((size_t)gk.count, sizeof(int));
+    if (gk.path == NULL || gk.resolved == NULL) {
+        gk.count = 0;
+        message(app->window, S(MSG_PJ_NOMEM));
+        goto out;
+    }
+    gk.count = 0;
+    for (i = 0; i < gc.status.count; ++i)
+        if (gc.status.entries[i].state == GIT_ST_CONFLICT &&
+            (gk.path[gk.count] = malloc(strlen(gc.status.entries[i].path) + 1)) != NULL)
+            strcpy(gk.path[gk.count++], gc.status.entries[i].path);
+    make_conflict_nodes();
+    gc.cols[0].ci_Width = 25;
+    gc.cols[0].ci_Title = (STRPTR)S(MSG_GITC_COL_STATE);
+    gc.cols[1].ci_Width = 75;
+    gc.cols[1].ci_Title = (STRPTR)S(MSG_GITC_COL_FILE);
+    gc.cols[2].ci_Width = -1;
+    gc.list = NewObject(LISTBROWSER_GetClass(), NULL,
+        GA_ID, GR_LIST, GA_RelVerify, TRUE,
+        LISTBROWSER_Labels, (ULONG)&gc.nodes,
+        LISTBROWSER_ColumnInfo, (ULONG)gc.cols,
+        LISTBROWSER_ColumnTitles, TRUE,
+        LISTBROWSER_ShowSelected, TRUE,
+        LISTBROWSER_Selected, 0,
+        LISTBROWSER_AutoFit, TRUE,
+        TAG_END);
+    gc.layout = NewObject(LAYOUT_GetClass(), NULL,
+        LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
+        LAYOUT_SpaceOuter, TRUE,
+        LAYOUT_LeftSpacing, AREA_SPACING,
+        LAYOUT_RightSpacing, AREA_SPACING,
+        LAYOUT_TopSpacing, AREA_SPACING,
+        LAYOUT_BottomSpacing, AREA_SPACING,
+        LAYOUT_InnerSpacing, AREA_SPACING,
+        LAYOUT_DeferLayout, TRUE,
+        LAYOUT_AddImage, (ULONG)label(S(MSG_GITR_LISTNOTE)), FIXED,
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+            LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+            LAYOUT_InnerSpacing, AREA_SPACING,
+            LAYOUT_AddChild, (ULONG)gc.list,
+            CHILD_MinWidth, (ULONG)(46 * w),
+            CHILD_MinHeight, 8 * h,
+            LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+                LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
+                LAYOUT_InnerSpacing, ROW_SPACING,
+                LAYOUT_AddChild, (ULONG)button(GR_RESOLVE, S(MSG_GITR_RESOLVE)), FIXED,
+                LAYOUT_AddChild, (ULONG)button(GR_OPEN, S(MSG_GITR_OPEN)), FIXED,
+                LAYOUT_AddChild, (ULONG)filler(),
+                TAG_END),
+            CHILD_WeightedWidth, 0,
+            TAG_END),
+        LAYOUT_AddImage, (ULONG)label(S(MSG_GITR_NOTE)), FIXED,
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+            LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+            LAYOUT_AddChild, (ULONG)button(GR_COMMIT, S(MSG_GITR_COMMIT)),
+            CHILD_WeightedWidth, 0,
+            LAYOUT_AddChild, (ULONG)filler(),
+            LAYOUT_AddChild, (ULONG)button(GR_CLOSE, S(MSG_GITWIN_CLOSE)),
+            CHILD_WeightedWidth, 0,
+            TAG_END),
+        FIXED,
+        TAG_END);
+    if (gc.layout == NULL || (gc.winobj = open_window(app, S(MSG_GITR_TITLE), app->window, gc.layout)) == NULL) {
+        gc.winobj = NULL;
+        FreeListBrowserList(&gc.nodes);
+        goto out;
+    }
+    GetAttr(WINDOW_Window, gc.winobj, (ULONG *)&gc.win);
+    ++modal_open;
+
+    SetAttrs(app->window_object, WA_BusyPointer, TRUE, TAG_END);
+    GetAttr(WINDOW_SigMask, app->window_object, &mainsig);
+    GetAttr(WINDOW_SigMask, gc.winobj, &sig);
+    while (!done) {
+        ULONG got = Wait(sig | mainsig);
+        if ((got & mainsig) != 0) drop_input(app->window_object);
+        while ((result = DoMethod(gc.winobj, WM_HANDLEINPUT, &code)) != WMHI_LASTMSG) {
+            LONG sel;
+            if ((result & WMHI_CLASSMASK) == WMHI_CLOSEWINDOW) { done = 1; continue; }
+            if ((result & WMHI_CLASSMASK) != WMHI_GADGETUP) continue;
+            sel = (LONG)get(gc.list, LISTBROWSER_Selected);
+            switch (result & WMHI_GADGETMASK) {
+                case GR_LIST:
+                    if ((get(gc.list, LISTBROWSER_RelEvent) & LBRE_DOUBLECLICK) == 0) break;
+                    /* fall through: a double click opens the file */
+                case GR_OPEN:
+                    if (sel < 0 || sel >= gk.count) { message(gc.win, S(MSG_GITC_NOSELECTION)); break; }
+                    open_index = sel;
+                    done = 1;
+                    break;
+                case GR_RESOLVE:
+                    if (sel < 0 || sel >= gk.count) { message(gc.win, S(MSG_GITC_NOSELECTION)); break; }
+                    if (resolve(sel)) {
+                        SetGadgetAttrs((struct Gadget *)gc.list, gc.win, NULL, LISTBROWSER_Labels, ~0UL, TAG_END);
+                        FreeListBrowserList(&gc.nodes);
+                        make_conflict_nodes();
+                        /* on to the next conflict */
+                        for (i = 0; i < gk.count && gk.resolved[(sel + i) % gk.count]; ++i) ;
+                        if (i < gk.count) sel = (sel + i) % gk.count;
+                        SetGadgetAttrs((struct Gadget *)gc.list, gc.win, NULL,
+                            LISTBROWSER_Labels, (ULONG)&gc.nodes, LISTBROWSER_Selected, (ULONG)sel, TAG_END);
+                    }
+                    break;
+                case GR_COMMIT:
+                    for (i = 0; i < gk.count && gk.resolved[i]; ++i) ;
+                    if (i < gk.count) message(gc.win, S(MSG_GITR_LEFT));
+                    else done = then_commit = 1;
+                    break;
+                case GR_CLOSE:
+                    done = 1;
+                    break;
+            }
+        }
+    }
+    --modal_open;
+    SetAttrs(app->window_object, WA_BusyPointer, FALSE, TAG_END);
+    if (open_index >= 0) {
+        strncpy(open_path, gc.root, sizeof(open_path) - 1);
+        open_path[sizeof(open_path) - 1] = '\0';
+        if (!AddPart((STRPTR)open_path, (STRPTR)gk.path[open_index], sizeof(open_path))) open_index = -1;
+        else open_line = file_marker(gk.path[open_index]);
+    }
+
+out:
+    if (gc.winobj != NULL) DisposeObject(gc.winobj);       /* the gadgets with it */
+    if (gc.nodes.lh_Head != NULL) FreeListBrowserList(&gc.nodes);
+    gitstatus_clear(&gc.status);
+    memset(&gc, 0, sizeof(gc));
+    free_conflicts();
+    git_status_request(app);
+    if (open_index >= 0) document_go_to(app, open_path, open_line > 0 ? open_line : 1, 1);
+    else if (then_commit) gitwin_commit(app);
 }

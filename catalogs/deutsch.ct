@@ -1106,8 +1106,8 @@ Das Kommando konnte im Verzeichnis für temporäre Dateien nicht vorbereitet werde
 ; The command could not be prepared in the drawer of the temporary files.
 ;
 MSG_BUILD_BUSY
-Es läuft bereits ein Erstellen.
-; A build is already running.
+Im Ausgabefenster läuft bereits ein Befehl.
+; A command is already running in the output window.
 MSG_BUILD_CHOSEN
 %s führt jetzt aus: %s
 ; %s now runs: %s
@@ -2254,6 +2254,10 @@ MSG_GITC_NOTE
 Nur gespeicherte Dateien kommen in den Commit, die Nachricht ist einzeilig.
 ; Only saved files are committed, the message is a single line.
 ;
+MSG_GITC_MERGENOTE
+Dieser Commit schließt den Merge des Pulls ab, auch ohne eigene Änderungen.
+; This commit completes the merge of the Pull, even without changes of its own.
+;
 MSG_GITC_COMMIT
 C_ommit
 ; C_ommit
@@ -2317,4 +2321,192 @@ Die Datei ist binär, ihre Änderungen lassen sich nicht zeigen.
 MSG_GITDIFF_NOREAD
 Die Datei konnte nicht gelesen werden.
 ; The file could not be read.
+;
+MSG_MENU_GIT_FETCH
+Fetch
+; Fetch
+;
+MSG_MENU_GIT_PULL
+Pull
+; Pull
+;
+MSG_MENU_GIT_PUSH
+Push
+; Push
+;
+MSG_GIT_JOB_FETCH
+Git Fetch
+; Git Fetch
+;
+MSG_GIT_JOB_PULL
+Git Pull
+; Git Pull
+;
+MSG_GIT_JOB_PUSH
+Git Push
+; Git Push
+;
+MSG_GIT_NOREMOTE
+Das Projekt hat kein Remote "origin".\nSeine Adresse kommt unter Projekt/Projekteinstellungen...\nauf die Seite Git.
+; The project has no remote "origin".\nEnter its address in Project/Project Settings...\non the page Git.
+;
+MSG_GIT_PULLASK
+Der Pull hat die Datei %s geändert,\naber ihr Dokument hat ungespeicherte Änderungen.\nDatei neu laden und sie verwerfen?
+; The pull changed the file %s,\nbut its document has unsaved changes.\nLoad the file again and drop them?
+;
+MSG_GIT_PULLASKGADGETS
+Neu laden|Dokument behalten
+; Load Again|Keep Document
+;
+MSG_GIT_PULLRELOADED
+Pull: %ld Dokument(e) neu geladen.
+; Pull: %ld document(s) loaded again.
+;
+MSG_GIT_PULLGONE
+Pull: %ld Dokument(e) neu geladen, %ld Datei(en) gelöscht (Dokumente als geändert markiert).
+; Pull: %ld document(s) loaded again, %ld file(s) deleted (documents marked changed).
+;
+MSG_PJ_CAT_GIT
+Git
+; Git
+;
+MSG_PJ_REMOTE
+_Remote (origin) 
+; Remote (_origin) 
+;
+MSG_PJ_REMOTENOTE
+Fetch, Pull und Push nutzen diese Adresse. am-git hält sie in .git/config.
+; Fetch, Pull and Push use this address. am-git keeps it in .git/config.
+;
+MSG_GIT_DETACHED
+HEAD steht auf keinem Branch (detached).\nPull braucht einen Branch: erst einen auschecken.
+; HEAD is not on a branch (detached).\nPull needs a branch: check one out first.
+;
+MSG_MENU_GIT_CLONE
+Repository klonen...
+; Clone Repository...
+;
+MSG_GIT_JOB_CLONE
+Git Clone
+; Git Clone
+;
+MSG_GITCL_TITLE
+Repository klonen
+; Clone Repository
+;
+MSG_GITCL_URL
+Adresse (_URL) 
+; _Address (URL) 
+;
+MSG_GITCL_DRAWER
+_Schublade 
+; _Drawer 
+;
+MSG_GITCL_CHOOSE
+_Wählen...
+; C_hoose...
+;
+MSG_GITCL_NAME
+_Name 
+; _Name 
+;
+MSG_GITCL_NOTE
+am-git klont im Hintergrund (Ausgabefenster), danach wird die Schublade zum Projekt.
+; am-git clones in the background (output window), then the drawer becomes the project.
+;
+MSG_GITCL_CLONE
+_Klonen
+; C_lone
+;
+MSG_GITCL_ASL
+Schublade für das Repository
+; Drawer for the repository
+;
+MSG_GITCL_NOURL
+Bitte die Adresse des Repositorys eingeben.
+; Please enter the address of the repository.
+;
+MSG_GITCL_BADNAME
+Bitte einen Namen für die neue Schublade eingeben (ohne / und :).
+; Please enter a name for the new drawer (without / or :).
+;
+MSG_GITCL_NODRAWER
+Die Schublade gibt es nicht.
+; The drawer does not exist.
+;
+MSG_GITCL_EXISTS
+%s\ngibt es schon. Bitte einen anderen Namen wählen.
+; %s\nexists already. Please choose another name.
+;
+MSG_GITCL_DONE
+Repository geklont.
+; Repository cloned.
+;
+MSG_GITCL_FAILED
+Das Repository konnte nicht geklont werden.\nIm Ausgabefenster steht, was am-git meldet.
+; The repository could not be cloned.\nThe output window shows what am-git said.
+;
+MSG_MENU_GIT_CONFLICTS
+Konflikte lösen...
+; Resolve Conflicts...
+;
+MSG_GITR_TITLE
+Konflikte lösen
+; Resolve Conflicts
+;
+MSG_GITR_LISTNOTE
+Dateien mit Konflikten nach dem Merge:
+; Files with conflicts after the merge:
+;
+MSG_GITR_RESOLVED
+gelöst
+; resolved
+;
+MSG_GITR_RESOLVE
+Als _gelöst markieren
+; Mark as _Resolved
+;
+MSG_GITR_OPEN
+Ö_ffnen
+; _Open
+;
+MSG_GITR_COMMIT
+Co_mmit...
+; Co_mmit...
+;
+MSG_GITR_NOTE
+Datei öffnen, Marken <<<<<<< ======= >>>>>>> bereinigen, speichern, dann als gelöst markieren.
+; Open a file, clean up its markers <<<<<<< ======= >>>>>>>, save it, then mark it as resolved.
+;
+MSG_GITR_NONE
+Es gibt keine Konflikte.
+; There are no conflicts.
+;
+MSG_GITR_UNSAVED
+Das Dokument der Datei hat ungespeicherte Änderungen.\nBitte erst speichern.
+; The file's document has unsaved changes.\nPlease save it first.
+;
+MSG_GITR_MARKERS
+Die Datei enthält noch Konfliktmarken\n(<<<<<<<, ======= oder >>>>>>>).\nTrotzdem als gelöst markieren?
+; The file still holds conflict markers\n(<<<<<<<, ======= or >>>>>>>).\nMark it as resolved all the same?
+;
+MSG_GITR_MARKERSGADGETS
+Markieren|Abbrechen
+; Mark|Cancel
+;
+MSG_GITR_LEFT
+Noch sind nicht alle Konflikte gelöst.
+; Not all conflicts are resolved yet.
+;
+MSG_GIT_DOTASK
+am-git hat die zusammengeführten Dateien in eine Schublade "."\ngeschrieben (ein Fehler von am-git 0.12.1). An ihren Platz verschieben?
+; am-git has written the merged files into a drawer "."\n(a mistake of am-git 0.12.1). Move them to their places?
+;
+MSG_GIT_DOTGADGETS
+Verschieben|Lassen
+; Move|Leave
+;
+MSG_GIT_DOTFAILED
+Nicht alle Dateien der Schublade "." ließen sich verschieben.
+; Not all files of the drawer "." could be moved.
 ;

@@ -60,7 +60,13 @@ below the tree's root.
   within 2 s after a run: am-git writes into `.git`) and on Git/Refresh
   Status; it colours the tree through `DIRTREE_PenHook` (colours of the
   setting "git"/"colours") and puts the branch (`.git/HEAD`) into the
-  status line.
+  status line. Git/Fetch, Pull and Push run in the background with
+  `build_run_job()` (output window) against the remote "origin" of
+  `.git/config`; Pull saves the documents first, offers to move what
+  am-git 0.12.1 wrote into a drawer "." to its place
+  (`git_fix_dot_drawer()`) and afterwards loads the documents whose
+  files changed again. Git/Clone Repository... runs
+  `am-git clone` that way and opens the new drawer as the project.
 - `src/gitwin.c`: the modal windows of the Git menu: Git/Commit... (the
   changed files of `status --porcelain` with check boxes ("selected"): a
   click stages with `add` (`rm --cached` for a deleted file) or takes back
@@ -69,12 +75,16 @@ below the tree's root.
   since the last commit (Git/Show Changes of the File... or from the
   commit window: HEAD's file from `show --text-blob` or `show` against
   the file on disk, compared with `linediff.c`, coloured lines in the
-  system default text font).
+  system default text font), the clone window (address, drawer,
+  name suggested from the address) and the conflict window (the files
+  with conflicts, Open goes to the first marker, Mark as Resolved runs
+  `add`, Commit... goes on with the message of `.git/MERGE_MSG`).
 - `src/linediff.c`, `include/linediff.h`: the portable line diff (Myers
   in linear space) written as unified hunks; no Amiga headers.
 - `src/gitstatus.c`, `include/gitstatus.h`: the portable reader of
   am-git's status lines, a file's or drawer's state (ignoring case), the
-  branch of `.git/HEAD` and the kinds of a diff's lines; no Amiga headers.
+  branch of `.git/HEAD`, the kinds of a diff's lines and a value of
+  `.git/config`; no Amiga headers.
 - `src/filetypes.c`, `include/filetypes.h`: the portable settings per
   file type (tab size, indentation, automatic indentation, Tab key, line
   numbers, cutting lines): reading and writing the "filetypes" of
@@ -116,7 +126,9 @@ below the tree's root.
   (Project/Project Settings...), built like the settings window: a page per
   action with a listbrowser of its commands (checkbox = default), buttons
   beside the page, and a modal window to edit one command; "Save" writes
-  `project.json` with `projconf_format()`.
+  `project.json` with `projconf_format()`. With git on and a repository,
+  a page Git holds the remote "origin"'s address (read from `.git/config`,
+  written with `am-git config`).
 - `src/newproj.c`: the modal wizard Project/New Project... (and, for
   file templates, Project/New File from Template...): the templates and
   their icons from `Sprout LIST ICON`, a page gadget with the template
@@ -140,7 +152,9 @@ below the tree's root.
   (placeholders replaced, "Stack 65536" first). Build runs in a process
   of its own (synchronous `SystemTags()`, return code by message) with
   its output in a file in `T:` read every 0.25 s (timer.device) into the
-  output window; Stop sends Ctrl-C to its Shell. Run and Debug start
+  output window; Stop sends Ctrl-C to its Shell. `build_run_job()` runs
+  another script that way (git's Fetch, Pull, Push), one at a time with
+  Build. Run and Debug start
   detached in a console window. A submenu per action in the Build menu
   (slots of the table in `ui.c`, filled by `build_commands_poll()`) chooses
   the default command and saves it in `project.json`.
@@ -222,7 +236,7 @@ below the tree's root.
   the built-in entry symbols; `dirtree_sort.c` the portable natural order
   (host-tested in `tests/test_dirtree_sort.c`). Options: file pattern,
   name hook (shown names), pen hook (a text colour per entry, asked when
-  an entry is read and on `DIRTREE_UpdatePens`), sort order, hiding
+  an entry is read and on `DIRTREE_UpdatePens`, kept when selected), sort order, hiding
   directories without shown files. It watches the root and the expanded
   directories with `StartNotify()` (port and signal of the creating task,
   `DIRTREE_SignalMask`); the application answers the signal with

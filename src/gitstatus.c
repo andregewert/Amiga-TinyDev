@@ -259,3 +259,75 @@ int gitdiff_line_kind(const char *line, size_t length, int in_header)
     if (length >= 1 && line[0] == '-') return GIT_DIFF_REMOVED;
     return GIT_DIFF_CONTEXT;
 }
+
+/**
+ * @brief Compare a name ignoring ASCII case.
+ * @param a The name in the file (need not be terminated).
+ * @param n Its length.
+ * @param b The name looked for.
+ * @return Non-zero if equal.
+ */
+static int name_is(const char *a, size_t n, const char *b)
+{
+    size_t i;
+    for (i = 0; i < n; ++i) {
+        char x = a[i], y = b[i];
+        if (y == '\0') return 0;
+        if (x >= 'A' && x <= 'Z') x = (char)(x - 'A' + 'a');
+        if (y >= 'A' && y <= 'Z') y = (char)(y - 'A' + 'a');
+        if (x != y) return 0;
+    }
+    return b[n] == '\0';
+}
+
+int gitconfig_get(const char *text, const char *section, const char *sub, const char *key,
+                  char *out, size_t size)
+{
+    const char *line = text;
+    int in_section = 0, found = 0;
+    while (*line != '\0') {
+        const char *end = line, *p = line;
+        while (*end != '\0' && *end != '\n') ++end;
+        while (p < end && (*p == ' ' || *p == '\t')) ++p;
+        if (p < end && *p == '[') {
+            /* [section] or [section "sub"] */
+            const char *n = ++p;
+            while (p < end && *p != ']' && *p != ' ' && *p != '\t' && *p != '"') ++p;
+            in_section = name_is(n, (size_t)(p - n), section);
+            while (p < end && (*p == ' ' || *p == '\t')) ++p;
+            if (p < end && *p == '"') {
+                const char *q = ++p;
+                while (p < end && *p != '"') ++p;
+                in_section = in_section && sub != NULL && (size_t)(p - q) == strlen(sub) &&
+                             memcmp(q, sub, (size_t)(p - q)) == 0;
+            } else if (sub != NULL) {
+                in_section = 0;
+            }
+        } else if (in_section && p < end && *p != '#' && *p != ';') {
+            const char *k = p;
+            size_t n = 0;
+            int quoted = 0;
+            while (p < end && *p != '=' && *p != ' ' && *p != '\t') ++p;
+            if (name_is(k, (size_t)(p - k), key)) {
+                while (p < end && (*p == ' ' || *p == '\t')) ++p;
+                if (p < end && *p == '=') ++p;
+                while (p < end && (*p == ' ' || *p == '\t')) ++p;
+                found = 1;
+                for (; p < end; ++p) {
+                    char c = *p;
+                    if (c == '"') { quoted = !quoted; continue; }
+                    if (!quoted && (c == '#' || c == ';')) break;
+                    if (c == '\\' && p + 1 < end) c = *++p;
+                    else if (c == '\r') continue;
+                    if (n + 1 >= size) { found = 0; break; }
+                    out[n++] = c;
+                }
+                /* spaces at the end outside quotes go */
+                while (n > 0 && (out[n - 1] == ' ' || out[n - 1] == '\t') && !quoted) --n;
+                if (size > 0) out[n < size ? n : size - 1] = '\0';
+            }
+        }
+        line = *end == '\n' ? end + 1 : end;
+    }
+    return found;
+}

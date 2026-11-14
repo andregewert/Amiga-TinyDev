@@ -34,6 +34,22 @@
  * DIRTREE_PenHook (pens obtained from the setting "git"/"colours"); the
  * branch, read from .git/HEAD, goes to the status line.
  *
+ * Git/Fetch, Pull and Push run in the background like Build
+ * (build_run_job()), their output in the output window, with the remote
+ * "origin" of .git/config (set in the project settings). No status runs
+ * meanwhile; one follows. Pull saves the documents first and remembers
+ * the date and size of their files; afterwards a changed file is loaded
+ * again (a document changed meanwhile only if the user agrees) and the
+ * document of a deleted file is marked changed. am-git asks nothing for
+ * https (the credentials come from its environment variables), but
+ * bebbossh's question whether to trust a new host would find no input:
+ * that is answered once in a Shell. am-git 0.12.1 writes the files of a
+ * merge into a drawer "." (git_fix_dot_drawer()); after a Pull TinyDev offers
+ * to move them to their places, before the documents are compared. Git/Clone Repository... runs
+ * "am-git clone <url> <name>" the same way in the drawer chosen (the name
+ * alone, as am-git's paths with "./" make drawers named "."), and opens
+ * the new drawer as the project when it holds .git afterwards.
+ *
  * Seen on the Amiga with am-git 0.12.1: file names come through as the
  * bytes on disk (ISO-8859-1), so no conversion is needed; commit messages
  * have a single line (see TECHNICAL.md).
@@ -50,6 +66,7 @@
 #include <proto/utility.h>
 #include <proto/layout.h>
 #include <gadgets/dirtree.h>
+#include <gadgets/texteditor.h>
 #include <clib/alib_protos.h>
 
 #include "gitstatus.h"
@@ -86,7 +103,20 @@ static struct {
     int pens_open;                      /* the pens are obtained */
     struct Screen *pen_screen;          /* the screen they are obtained on */
     struct Hook pen_hook;               /* DIRTREE_PenHook */
+    int job;                            /* Fetch, Pull, Push or Clone runs (build_run_job()) */
+    char clone_target[EDITOR_PATH_MAX]; /* the drawer a Clone makes, "" if none runs */
+    struct PullDoc *pull_docs;          /* the documents' files when a Pull started */
+    long pull_count;                    /* their number */
+    int pulling;                        /* the job is a Pull */
+    char job_root[EDITOR_PATH_MAX];     /* the repository of Fetch, Pull or Push */
 } gs;
+
+/** A document's file as it was when a Pull started. */
+typedef struct PullDoc {
+    char path[EDITOR_PATH_MAX];         /**< the file (the document's path) */
+    struct DateStamp date;              /**< its date */
+    LONG size;                          /**< its size */
+} PullDoc;
 
 /**
  * @brief Put a string in double quotes for the Shell (BCPL escapes: *",
@@ -125,6 +155,26 @@ int git_quote(char *out, size_t size, const char *s)
 }
 
 /**
+ * @brief The text of a script that runs am-git: "Stack 100000", then the
+ *        command with its arguments.
+ * @param app The application state (the command).
+ * @param args am-git's arguments, quoted as needed.
+ * @param[out] text The script.
+ * @param size Size of @p text.
+ * @return Non-zero if it fitted.
+ */
+static int script_text(EditorApp *app, const char *args, char *text, size_t size)
+{
+    char cmd[sizeof(app->settings.gitcommand) * 2 + 4];
+    const char *command = app->settings.gitcommand[0] != '\0' ? app->settings.gitcommand : "am-git";
+    /* a name without spaces stays as it is, so the Shell searches the path
+     * for it as for any command */
+    if (strpbrk(command, " \"*;") == NULL) strcpy(cmd, command);
+    else if (!quote(cmd, sizeof(cmd), command)) return 0;
+    return snprintf(text, size, "Stack %ld\n%s %s\n", (long)GIT_STACK, cmd, args) < (int)size;
+}
+
+/**
  * @brief Write the script that runs am-git.
  * @param app The application state (the command).
  * @param script The script's name.
@@ -133,19 +183,12 @@ int git_quote(char *out, size_t size, const char *s)
  */
 static int write_script(EditorApp *app, const char *script, const char *args)
 {
-    char cmd[sizeof(app->settings.gitcommand) * 2 + 4], line[40];
-    const char *command = app->settings.gitcommand[0] != '\0' ? app->settings.gitcommand : "am-git";
+    char text[sizeof(app->settings.gitcommand) * 2 + EDITOR_PATH_MAX * 2 + 64];
     BPTR fh;
     int ok;
-
-    /* a name without spaces stays as it is, so the Shell searches the path
-     * for it as for any command */
-    if (strpbrk(command, " \"*;") == NULL) strcpy(cmd, command);
-    else if (!quote(cmd, sizeof(cmd), command)) return 0;
+    if (!script_text(app, args, text, sizeof(text))) return 0;
     if ((fh = Open((STRPTR)script, MODE_NEWFILE)) == 0) return 0;
-    snprintf(line, sizeof(line), "Stack %ld\n", (long)GIT_STACK);
-    ok = FPuts(fh, (STRPTR)line) == 0 && FPuts(fh, (STRPTR)cmd) == 0 && FPutC(fh, ' ') >= 0 &&
-         FPuts(fh, (STRPTR)args) == 0 && FPutC(fh, '\n') >= 0;
+    ok = FPuts(fh, (STRPTR)text) == 0;
     ok = Close(fh) && ok;
     if (!ok) DeleteFile((STRPTR)script);
     return ok;
@@ -346,6 +389,10 @@ static void status_start(EditorApp *app)
     struct Process *proc;
 
     if (!git_enabled(app) || !tree_project_root(app, root, sizeof(root)) || !git_is_repository(root)) return;
+    if (gs.job) {               /* after Fetch, Pull or Push (job_done()) */
+        gs.pending = 1;
+        return;
+    }
     strcpy(gs.run_root, root);
     if (!temp_name(app, ".script", gs.script, sizeof(gs.script)) ||
         !temp_name(app, ".txt", gs.output, sizeof(gs.output))) {
@@ -395,7 +442,7 @@ void git_status_request(EditorApp *app)
 void git_tree_changed(EditorApp *app)
 {
     ULONG secs = 0, micros = 0;
-    if (!git_enabled(app) || gs.running || gs.root[0] == '\0') return;
+    if (!git_enabled(app) || gs.running || gs.job || gs.root[0] == '\0') return;
     CurrentTime(&secs, &micros);
     if (secs >= gs.finished && secs - gs.finished < GIT_QUIET) return;
     status_start(app);
@@ -534,6 +581,9 @@ void git_cleanup(EditorApp *app)
     if (gs.port != NULL) DeleteMsgPort(gs.port);
     gs.port = NULL;
     gitstatus_clear(&gs.status);
+    free(gs.pull_docs);
+    gs.pull_docs = NULL;
+    gs.pull_count = 0;
     git_release_pens(app);
 }
 
@@ -557,6 +607,353 @@ LONG git_pen(int state)
     return gs.pens_open && state > GIT_ST_CLEAN && state < GIT_ST_COUNT ? gs.pens[state] : -1;
 }
 
+/* ---- Fetch, Pull and Push ---------------------------------------------------- */
+
+int git_remote_url(const char *root, char *url, size_t size)
+{
+    char path[EDITOR_PATH_MAX], *text = NULL;
+    int found = 0;
+    strncpy(path, root, sizeof(path) - 1);
+    path[sizeof(path) - 1] = '\0';
+    if (AddPart((STRPTR)path, (STRPTR)".git/config", sizeof(path)) && datafile_read(path, &text) > 0)
+        found = gitconfig_get(text, "remote", "origin", "url", url, size);
+    free(text);
+    if (!found && size > 0) url[0] = '\0';
+    return found;
+}
+
+/**
+ * @brief Remember the date and size of the files of the open documents in
+ *        the repository (before a Pull).
+ * @param app The application state.
+ * @param root The repository.
+ */
+static void snapshot_documents(EditorApp *app, const char *root)
+{
+    Document *doc;
+    long n = 0;
+    free(gs.pull_docs);
+    gs.pull_docs = NULL;
+    gs.pull_count = 0;
+    for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ != NULL; doc = (Document *)doc->node.ln_Succ)
+        ++n;
+    if (n == 0 || (gs.pull_docs = malloc(sizeof(PullDoc) * (size_t)n)) == NULL) return;
+    for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ != NULL; doc = (Document *)doc->node.ln_Succ) {
+        PullDoc *p = &gs.pull_docs[gs.pull_count];
+        struct FileInfoBlock *fib;
+        BPTR lock;
+        if (doc->path == NULL || gitstatus_relative(root, doc->path) == NULL ||
+            strlen(doc->path) >= sizeof(p->path) || (lock = Lock((STRPTR)doc->path, ACCESS_READ)) == 0)
+            continue;
+        if ((fib = AllocDosObject(DOS_FIB, NULL)) != NULL && Examine(lock, fib)) {
+            strcpy(p->path, doc->path);
+            p->date = fib->fib_Date;
+            p->size = fib->fib_Size;
+            ++gs.pull_count;
+        }
+        if (fib != NULL) FreeDosObject(DOS_FIB, fib);
+        UnLock(lock);
+    }
+}
+
+/**
+ * @brief After a Pull: load the documents whose files changed again and
+ *        mark those whose files are gone as changed.
+ * @param app The application state.
+ */
+static void compare_documents(EditorApp *app)
+{
+    long i, reloaded = 0, gone = 0;
+    char text[200];
+    for (i = 0; i < gs.pull_count; ++i) {
+        const PullDoc *p = &gs.pull_docs[i];
+        Document *doc = document_find_path(app, p->path);
+        struct FileInfoBlock *fib;
+        BPTR lock;
+        int same = 0;
+        ULONG y = 0;
+        if (doc == NULL) continue;                  /* closed meanwhile */
+        if ((lock = Lock((STRPTR)p->path, ACCESS_READ)) == 0) {
+            if (!doc->dirty) {
+                document_set_dirty(app, doc, 1);    /* to save it again or close it */
+                ++gone;
+            }
+            continue;
+        }
+        if ((fib = AllocDosObject(DOS_FIB, NULL)) != NULL && Examine(lock, fib))
+            same = fib->fib_Size == p->size && CompareDates(&fib->fib_Date, &p->date) == 0;
+        else
+            same = 1;                               /* cannot tell: leave it */
+        if (fib != NULL) FreeDosObject(DOS_FIB, fib);
+        UnLock(lock);
+        if (same) continue;
+        if (doc->dirty) {
+            /* changed in the editor while the Pull ran */
+            struct EasyStruct es = {sizeof(es), 0, NULL, NULL, NULL};
+            ULONG args[1];
+            es.es_Title = (STRPTR)S(MSG_GIT_TITLE);
+            es.es_TextFormat = (STRPTR)S(MSG_GIT_PULLASK);
+            es.es_GadgetFormat = (STRPTR)S(MSG_GIT_PULLASKGADGETS);
+            args[0] = (ULONG)FilePart((STRPTR)p->path);
+            if (EasyRequestArgs(app->window, &es, NULL, args) != 1) continue;
+        }
+        GetAttr(GA_TEXTEDITOR_CursorY, doc->editor, &y);
+        if (file_load(app, doc, p->path)) {
+            ++reloaded;
+            SetGadgetAttrs((struct Gadget *)doc->editor, doc == app->active ? app->window : NULL, NULL,
+                           GA_TEXTEDITOR_CursorY, y, GA_TEXTEDITOR_CursorX, 0, TAG_END);
+        }
+    }
+    free(gs.pull_docs);
+    gs.pull_docs = NULL;
+    gs.pull_count = 0;
+    if (gone > 0) snprintf(text, sizeof(text), S(MSG_GIT_PULLGONE), reloaded, gone);
+    else if (reloaded > 0) snprintf(text, sizeof(text), S(MSG_GIT_PULLRELOADED), reloaded);
+    else return;
+    ui_status_message(app, text);
+}
+
+/** An entry of a drawer, collected before anything in it is moved. */
+typedef struct DotEntry {
+    struct DotEntry *next;              /**< the next one */
+    int directory;                      /**< it is a drawer */
+    char name[108];                     /**< its name */
+} DotEntry;
+
+/**
+ * @brief Move what is in a drawer into another, replacing files there;
+ *        the emptied drawers are deleted.
+ *
+ * The names are collected first: ExNext() must not run while the
+ * drawer changes.
+ *
+ * @param from The drawer emptied.
+ * @param to The drawer filled (made if needed).
+ * @return Non-zero if everything was moved.
+ */
+static int move_contents(const char *from, const char *to)
+{
+    char src[EDITOR_PATH_MAX], dst[EDITOR_PATH_MAX];
+    struct FileInfoBlock *fib = AllocDosObject(DOS_FIB, NULL);
+    DotEntry *list = NULL, *e;
+    BPTR lock;
+    int ok = 1;
+    if (fib == NULL) return 0;
+    if ((lock = Lock((STRPTR)from, ACCESS_READ)) == 0) {
+        FreeDosObject(DOS_FIB, fib);
+        return 0;
+    }
+    if (Examine(lock, fib))
+        while (ExNext(lock, fib)) {
+            if ((e = malloc(sizeof(*e))) == NULL) { ok = 0; break; }
+            e->directory = fib->fib_DirEntryType > 0;
+            strncpy(e->name, fib->fib_FileName, sizeof(e->name) - 1);
+            e->name[sizeof(e->name) - 1] = '\0';
+            e->next = list;
+            list = e;
+        }
+    UnLock(lock);
+    FreeDosObject(DOS_FIB, fib);
+    if ((lock = Lock((STRPTR)to, ACCESS_READ)) != 0) UnLock(lock);
+    else if ((lock = CreateDir((STRPTR)to)) != 0) UnLock(lock);
+    else ok = 0;
+    while (list != NULL) {
+        e = list;
+        list = e->next;
+        strcpy(src, from);
+        strcpy(dst, to);
+        if (ok && AddPart((STRPTR)src, (STRPTR)e->name, sizeof(src)) &&
+            AddPart((STRPTR)dst, (STRPTR)e->name, sizeof(dst))) {
+            if (e->directory) {
+                ok = move_contents(src, dst) && ok;
+            } else {
+                DeleteFile((STRPTR)dst);            /* may not be there */
+                if (!Rename((STRPTR)src, (STRPTR)dst)) ok = 0;
+            }
+        } else {
+            ok = 0;
+        }
+        free(e);
+    }
+    if (ok && !DeleteFile((STRPTR)from)) ok = 0;
+    return ok;
+}
+
+void git_fix_dot_drawer(EditorApp *app, const char *root)
+{
+    struct EasyStruct es = {sizeof(es), 0, NULL, NULL, NULL};
+    char dot[EDITOR_PATH_MAX];
+    BPTR lock;
+    strncpy(dot, root, sizeof(dot) - 1);
+    dot[sizeof(dot) - 1] = '\0';
+    if (!AddPart((STRPTR)dot, (STRPTR)".", sizeof(dot)) || (lock = Lock((STRPTR)dot, ACCESS_READ)) == 0) return;
+    UnLock(lock);
+    es.es_Title = (STRPTR)S(MSG_GIT_TITLE);
+    es.es_TextFormat = (STRPTR)S(MSG_GIT_DOTASK);
+    es.es_GadgetFormat = (STRPTR)S(MSG_GIT_DOTGADGETS);
+    if (EasyRequestArgs(app->window, &es, NULL, NULL) != 1) return;
+    if (!move_contents(dot, root)) ui_error(app, S(MSG_GIT_TITLE), S(MSG_GIT_DOTFAILED));
+}
+
+/**
+ * @brief The end of Fetch, Pull or Push (build_run_job()).
+ * @param app The application state.
+ * @param rc The return code (am-git returns 0 also when it failed).
+ */
+static void job_done(EditorApp *app, LONG rc)
+{
+    ULONG micros;
+    gs.job = 0;
+    CurrentTime(&gs.finished, &micros);    /* its own writes into .git start no status */
+    if (gs.pulling && rc != -1) git_fix_dot_drawer(app, gs.job_root);
+    gs.pulling = 0;
+    if (gs.pull_docs != NULL) {
+        if (rc != -1) compare_documents(app);
+        free(gs.pull_docs);
+        gs.pull_docs = NULL;
+        gs.pull_count = 0;
+    }
+    if (gs.root[0] != '\0') read_branch(gs.root);
+    git_status_request(app);
+}
+
+/**
+ * @brief The branch HEAD is on (not a detached HEAD).
+ * @param root The repository.
+ * @param[out] branch The branch.
+ * @param size Size of @p branch.
+ * @return Non-zero if HEAD is on a branch.
+ */
+static int head_branch(const char *root, char *branch, size_t size)
+{
+    char path[EDITOR_PATH_MAX], *text = NULL;
+    int ok = 0;
+    strncpy(path, root, sizeof(path) - 1);
+    path[sizeof(path) - 1] = '\0';
+    if (AddPart((STRPTR)path, (STRPTR)".git/HEAD", sizeof(path)) && datafile_read(path, &text) > 0)
+        ok = strncmp(text, "ref: refs/heads/", 16) == 0 && gitstatus_head(text, branch, size);
+    free(text);
+    return ok;
+}
+
+/**
+ * @brief Git/Fetch, Git/Pull or Git/Push in the background.
+ *
+ * Pull gets the address and the branch: am-git 0.12.1, the latest
+ * release, fails without them ("NullArgumentError"; fixed in its
+ * unreleased sources).
+ * @param app The application state.
+ * @param id MID_GIT_FETCH, MID_GIT_PULL or MID_GIT_PUSH.
+ */
+static void remote_action(EditorApp *app, ULONG id)
+{
+    char root[EDITOR_PATH_MAX], url[512], branch[128], args[1400];
+    char text[sizeof(app->settings.gitcommand) * 2 + sizeof(args) + 32];
+    LONG name = id == MID_GIT_FETCH ? MSG_GIT_JOB_FETCH : id == MID_GIT_PULL ? MSG_GIT_JOB_PULL : MSG_GIT_JOB_PUSH;
+    if (!git_repository(app, root, sizeof(root))) return;
+    if (gs.job || build_running()) {
+        outwin_open(app);
+        ui_set_menu_check(app, MID_OUTPUT, outwin_is_open());
+        ui_error(app, S(name), S(MSG_BUILD_BUSY));
+        return;
+    }
+    if (!git_remote_url(root, url, sizeof(url))) {
+        ui_error(app, S(MSG_GIT_TITLE), S(MSG_GIT_NOREMOTE));
+        return;
+    }
+    strcpy(args, id == MID_GIT_FETCH ? "fetch" : id == MID_GIT_PULL ? "pull" : "push");
+    if (id == MID_GIT_PULL) {
+        size_t n;
+        if (!head_branch(root, branch, sizeof(branch))) {
+            ui_error(app, S(name), S(MSG_GIT_DETACHED));
+            return;
+        }
+        n = strlen(args);
+        args[n++] = ' ';
+        if (!git_quote(args + n, sizeof(args) - n, url) || (n = strlen(args)) + 2 > sizeof(args)) {
+            ui_error(app, S(name), S(MSG_BUILD_SCRIPT));
+            return;
+        }
+        args[n++] = ' ';
+        if (!git_quote(args + n, sizeof(args) - n, branch)) {
+            ui_error(app, S(name), S(MSG_BUILD_SCRIPT));
+            return;
+        }
+    }
+    if (!script_text(app, args, text, sizeof(text))) {
+        ui_error(app, S(name), S(MSG_BUILD_SCRIPT));
+        return;
+    }
+    /* Pull changes files: the documents go to disk first, then are compared */
+    if (id == MID_GIT_PULL) {
+        if (!build_save_documents(app)) return;
+        snapshot_documents(app, root);
+    }
+    gs.job = 1;
+    gs.pulling = id == MID_GIT_PULL;
+    strcpy(gs.job_root, root);
+    if (!build_run_job(app, S(name), text, root, job_done)) {
+        gs.job = gs.pulling = 0;
+        free(gs.pull_docs);
+        gs.pull_docs = NULL;
+        gs.pull_count = 0;
+    }
+}
+
+/**
+ * @brief The end of a Clone: the new drawer becomes the project if it is
+ *        a repository now (am-git returns 0 also when it failed).
+ * @param app The application state.
+ * @param rc The return code.
+ */
+static void clone_done(EditorApp *app, LONG rc)
+{
+    char target[EDITOR_PATH_MAX];
+    ULONG micros;
+    gs.job = 0;
+    CurrentTime(&gs.finished, &micros);
+    strcpy(target, gs.clone_target);
+    gs.clone_target[0] = '\0';
+    if (rc == 0 && git_is_repository(target)) {
+        if (tree_open_project(app, target)) ui_status_message(app, S(MSG_GITCL_DONE));
+    } else if (rc != -1) {
+        ui_error(app, S(MSG_GIT_TITLE), S(MSG_GITCL_FAILED));
+    }
+}
+
+int git_clone(EditorApp *app, const char *url, const char *drawer, const char *name)
+{
+    char args[1400], text[sizeof(app->settings.gitcommand) * 2 + sizeof(args) + 32];
+    size_t n;
+    if (gs.job || build_running()) {
+        outwin_open(app);
+        ui_set_menu_check(app, MID_OUTPUT, outwin_is_open());
+        ui_error(app, S(MSG_GIT_JOB_CLONE), S(MSG_BUILD_BUSY));
+        return 0;
+    }
+    strncpy(gs.clone_target, drawer, sizeof(gs.clone_target) - 1);
+    gs.clone_target[sizeof(gs.clone_target) - 1] = '\0';
+    /* the drawer's name only, run in the drawer above it: am-git turns
+     * paths with "./" into drawers named "." */
+    strcpy(args, "clone ");
+    n = strlen(args);
+    if (!AddPart((STRPTR)gs.clone_target, (STRPTR)name, sizeof(gs.clone_target)) ||
+        !git_quote(args + n, sizeof(args) - n, url) || (n = strlen(args)) + 2 > sizeof(args) ||
+        (args[n++] = ' ', !git_quote(args + n, sizeof(args) - n, name)) ||
+        !script_text(app, args, text, sizeof(text))) {
+        gs.clone_target[0] = '\0';
+        ui_error(app, S(MSG_GIT_JOB_CLONE), S(MSG_BUILD_SCRIPT));
+        return 0;
+    }
+    gs.job = 1;
+    if (!build_run_job(app, S(MSG_GIT_JOB_CLONE), text, drawer, clone_done)) {
+        gs.job = 0;
+        gs.clone_target[0] = '\0';
+        return 0;
+    }
+    return 1;
+}
+
 void git_menu(EditorApp *app, ULONG id)
 {
     if (!git_enabled(app)) return;
@@ -565,5 +962,8 @@ void git_menu(EditorApp *app, ULONG id)
         case MID_GIT_REFRESH: git_project_changed(app); break;
         case MID_GIT_COMMIT: gitwin_commit(app); break;
         case MID_GIT_DIFF: gitwin_diff_active(app); break;
+        case MID_GIT_FETCH: case MID_GIT_PULL: case MID_GIT_PUSH: remote_action(app, id); break;
+        case MID_GIT_CLONE: gitwin_clone(app); break;
+        case MID_GIT_CONFLICTS: gitwin_conflicts(app); break;
     }
 }

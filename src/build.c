@@ -28,6 +28,10 @@
  * output is that file. Only one build runs at a time; TinyDev waits for
  * it before quitting.
  *
+ * build_run_job() runs another script the same way (git's Fetch, Pull and
+ * Push), with the messages of the commands (pr_CES) in the output too, and
+ * calls a function at its end; it shares the one slot with Build.
+ *
  * Run and Debug start asynchronously in a console window of their own
  * and are independent of TinyDev; their scripts stay until TinyDev quits
  * (a script may still be running then and is left).
@@ -90,6 +94,8 @@ static struct {
     struct MsgPort *timer_port;
     struct timerequest *timer;
     int timer_open, timer_pending;
+    int errors;                         /* messages (pr_CES) into the output too */
+    void (*done_hook)(EditorApp *, LONG); /* called at the end (build_run_job()) */
 } bj;
 
 /** A script written for Run or Debug, deleted when TinyDev quits. */
@@ -291,6 +297,8 @@ static void build_process(void)
 {
     bj.rc = SystemTags((STRPTR)bj.command, SYS_Input, (ULONG)bj.in, SYS_Output, (ULONG)bj.out_w,
                        SYS_UserShell, TRUE, bj.path != 0 ? NP_Path : TAG_IGNORE, (ULONG)bj.path,
+                       bj.errors ? NP_Error : TAG_IGNORE, (ULONG)bj.out_w,
+                       bj.errors ? NP_CloseError : TAG_IGNORE, FALSE,
                        TAG_DONE);
     /* the Shell frees the path, unless it could not be started */
     if (bj.rc == -1) cmdpath_free(bj.path);
@@ -399,14 +407,14 @@ static void finished(EditorApp *app)
     if (bj.rc != 0 && !bj.stopping && app->screen != NULL) DisplayBeep(app->screen);
     bj.running = bj.stopping = bj.done = 0;
     release();
+    if (bj.done_hook != NULL) {
+        void (*hook)(EditorApp *, LONG) = bj.done_hook;
+        bj.done_hook = NULL;
+        hook(app, bj.rc);
+    }
 }
 
-/**
- * @brief Save the modified documents that have a name.
- * @param app The application state.
- * @return Non-zero if all were saved.
- */
-static int save_documents(EditorApp *app)
+int build_save_documents(EditorApp *app)
 {
     Document *doc;
     for (doc = (Document *)app->documents.lh_Head; doc->node.ln_Succ != NULL;
@@ -416,32 +424,16 @@ static int save_documents(EditorApp *app)
 }
 
 /**
- * @brief Start the Build action.
+ * @brief Start the script in bj.script in the build process (the common
+ *        part of Build and build_run_job()).
  * @param app The application state.
+ * @param lock The drawer it runs in; taken over (freed here or by the
+ *        process).
  */
-static void start_build(EditorApp *app)
+static void start_job(EditorApp *app, BPTR lock)
 {
     char text[200];
     struct Process *proc;
-    BPTR lock;
-
-    if (bj.running) {
-        outwin_open(app);
-        ui_set_menu_check(app, MID_OUTPUT, outwin_is_open());
-        report(app, PROJ_BUILD, S(MSG_BUILD_BUSY));
-        return;
-    }
-    if (!save_documents(app)) return;
-    /* the output of the last build goes now */
-    if (bj.output[0] != '\0') DeleteFile((STRPTR)bj.output);
-    bj.output[0] = '\0';
-    if (!temp_name(app, ".script", bj.script, sizeof(bj.script)) ||
-        !temp_name(app, ".out", bj.output, sizeof(bj.output))) {
-        bj.script[0] = bj.output[0] = '\0';
-        report(app, PROJ_BUILD, S(MSG_BUILD_SCRIPT));
-        return;
-    }
-    if ((lock = prepare(app, PROJ_BUILD, bj.script, bj.name)) == 0) return;
 
     snprintf(bj.command, sizeof(bj.command), "Execute \"%s\"", bj.script);
     if ((bj.port = CreateMsgPort()) == NULL || !open_timer() ||
@@ -449,7 +441,7 @@ static void start_build(EditorApp *app)
         (bj.out_w = Open((STRPTR)bj.output, MODE_READWRITE)) == 0) {
         UnLock(lock);
         release();
-        report(app, PROJ_BUILD, S(MSG_BUILD_SCRIPT));
+        ui_error(app, bj.name, S(MSG_BUILD_SCRIPT));
         return;
     }
     SetVBuf(bj.out_w, NULL, BUF_LINE, -1);
@@ -481,6 +473,74 @@ static void start_build(EditorApp *app)
     }
     bj.running = 1;
     start_timer();
+}
+
+/**
+ * @brief Start the Build action.
+ * @param app The application state.
+ */
+static void start_build(EditorApp *app)
+{
+    BPTR lock;
+
+    if (bj.running) {
+        outwin_open(app);
+        ui_set_menu_check(app, MID_OUTPUT, outwin_is_open());
+        report(app, PROJ_BUILD, S(MSG_BUILD_BUSY));
+        return;
+    }
+    if (!build_save_documents(app)) return;
+    /* the output of the last build goes now */
+    if (bj.output[0] != '\0') DeleteFile((STRPTR)bj.output);
+    bj.output[0] = '\0';
+    if (!temp_name(app, ".script", bj.script, sizeof(bj.script)) ||
+        !temp_name(app, ".out", bj.output, sizeof(bj.output))) {
+        bj.script[0] = bj.output[0] = '\0';
+        report(app, PROJ_BUILD, S(MSG_BUILD_SCRIPT));
+        return;
+    }
+    if ((lock = prepare(app, PROJ_BUILD, bj.script, bj.name)) == 0) return;
+    bj.errors = 0;
+    bj.done_hook = NULL;
+    start_job(app, lock);
+}
+
+int build_run_job(EditorApp *app, const char *name, const char *text, const char *dir,
+                  void (*done)(EditorApp *app, LONG rc))
+{
+    BPTR fh, lock;
+    int ok;
+
+    if (bj.running) {
+        outwin_open(app);
+        ui_set_menu_check(app, MID_OUTPUT, outwin_is_open());
+        ui_error(app, name, S(MSG_BUILD_BUSY));
+        return 0;
+    }
+    strncpy(bj.name, name, sizeof(bj.name) - 1);
+    bj.name[sizeof(bj.name) - 1] = '\0';
+    if (bj.output[0] != '\0') DeleteFile((STRPTR)bj.output);
+    bj.output[0] = '\0';
+    if (!temp_name(app, ".script", bj.script, sizeof(bj.script)) ||
+        !temp_name(app, ".out", bj.output, sizeof(bj.output)) ||
+        (fh = Open((STRPTR)bj.script, MODE_NEWFILE)) == 0) {
+        bj.script[0] = bj.output[0] = '\0';
+        ui_error(app, name, S(MSG_BUILD_SCRIPT));
+        return 0;
+    }
+    ok = FPuts(fh, (STRPTR)text) == 0;
+    ok = Close(fh) && ok;
+    if (!ok || (lock = Lock((STRPTR)dir, ACCESS_READ)) == 0) {
+        DeleteFile((STRPTR)bj.script);
+        bj.script[0] = '\0';
+        ui_error(app, name, S(MSG_BUILD_SCRIPT));
+        return 0;
+    }
+    bj.errors = 1;
+    bj.done_hook = done;
+    start_job(app, lock);
+    if (!bj.running) bj.done_hook = NULL;
+    return bj.running;
 }
 
 void build_stop(EditorApp *app)

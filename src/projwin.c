@@ -15,7 +15,10 @@
  * lists the include drawers (for TinyDev-Scout); Add and Edit choose a
  * drawer with the ASL requester (one in the project goes in relative to
  * it). After saving, Scout's session of the project is opened anew, so
- * the include drawers count.
+ * the include drawers count. With git on and a repository, a page Git
+ * holds the address of the remote "origin" (for Git/Fetch, Pull, Push):
+ * read from .git/config, written with am-git config when changed, not
+ * into project.json.
  *
  * The window edits a copy of the settings read when it opens. "Save"
  * reads the file again and replaces only the lists of the actions
@@ -76,19 +79,25 @@ enum {
     PJ_CATS = 100,
     PJ_LIST,                    /* + page */
     PJ_ADD = PJ_LIST + PROJ_ACTIONS + 1,
-    PJ_EDIT, PJ_REMOVE, PJ_UP, PJ_DOWN, PJ_SAVE, PJ_CANCEL, PJ_NAME
+    PJ_EDIT, PJ_REMOVE, PJ_UP, PJ_DOWN, PJ_SAVE, PJ_CANCEL, PJ_NAME, PJ_REMOTE
 };
 
 /** Gadget IDs of the command window. */
 enum { PE_NAME = 200, PE_COMMAND, PE_DIR, PE_CHOOSE, PE_DEFAULT, PE_OK, PE_CANCEL };
 
-/** Number of pages: one per action, then the include drawers. */
-#define PAGES (PROJ_ACTIONS + 1)
+/** Number of pages: one per action, the include drawers, git (only with
+ *  git on and a repository: pj.pages). */
+#define PAGES (PROJ_ACTIONS + 2)
 /** The page of the include drawers. */
 #define PAGE_INCLUDE PROJ_ACTIONS
+/** The page of git (the remote's address). */
+#define PAGE_GIT (PROJ_ACTIONS + 1)
+/** Longest address of the remote. */
+#define REMOTE_MAX 512
 
-/** Names of the categories (MSG_), in the order of ProjAction, then the include drawers. */
-static const LONG categories[PAGES] = { MSG_PJ_CAT_BUILD, MSG_PJ_CAT_RUN, MSG_PJ_CAT_DEBUG, MSG_PJ_CAT_INCLUDE };
+/** Names of the categories (MSG_), in the order of ProjAction, then the include drawers and git. */
+static const LONG categories[PAGES] = { MSG_PJ_CAT_BUILD, MSG_PJ_CAT_RUN, MSG_PJ_CAT_DEBUG, MSG_PJ_CAT_INCLUDE,
+                                        MSG_PJ_CAT_GIT };
 
 /**
  * @name Spacing
@@ -111,7 +120,9 @@ static struct {
     char title[EDITOR_PATH_MAX + 64];
     ProjConf conf;                      /* the settings edited */
     Object *winobj, *layout, *cats, *page, *lists[PAGES];
-    Object *add, *edit, *remove, *up, *down, *name;
+    Object *add, *edit, *remove, *up, *down, *name, *remote;
+    int pages;                          /* pages shown: PAGES with git, else without it */
+    char old_remote[REMOTE_MAX];        /* the remote's address when the window opened */
     struct Window *win;
     struct List catlist, nodes[PAGES];
     struct ColumnInfo columns[PAGES][3];
@@ -449,8 +460,11 @@ static int edit_command(long index)
  */
 static long selected(void)
 {
-    LONG sel = (LONG)get(pj.lists[pj.action], LISTBROWSER_Selected);
-    long count = pj.action == PAGE_INCLUDE ? pj.conf.include_count : pj.conf.count[pj.action];
+    LONG sel;
+    long count;
+    if (pj.action == PAGE_GIT) return -1;
+    sel = (LONG)get(pj.lists[pj.action], LISTBROWSER_Selected);
+    count = pj.action == PAGE_INCLUDE ? pj.conf.include_count : pj.conf.count[pj.action];
     return sel >= 0 && sel < count ? (long)sel : -1;
 }
 
@@ -460,8 +474,9 @@ static long selected(void)
 static void update_buttons(void)
 {
     long sel = selected();
-    long count = pj.action == PAGE_INCLUDE ? pj.conf.include_count : pj.conf.count[pj.action];
+    long count = pj.action == PAGE_GIT ? 0 : pj.action == PAGE_INCLUDE ? pj.conf.include_count : pj.conf.count[pj.action];
     struct { Object *o; int off; } b[] = {
+        { pj.add, pj.action == PAGE_GIT },
         { pj.edit, sel < 0 }, { pj.remove, sel < 0 },
         { pj.up, sel <= 0 }, { pj.down, sel < 0 || sel >= count - 1 },
     };
@@ -565,7 +580,7 @@ static ULONG list_width(EditorApp *app)
 {
     ULONG w = 0, t;
     int a;
-    for (a = 0; a < PAGES; ++a) {
+    for (a = 0; a < pj.pages; ++a) {
         t = (ULONG)TextLength(&app->screen->RastPort, (STRPTR)S(categories[a]),
                               (UWORD)strlen(S(categories[a])));
         if (t > w) w = t;
@@ -584,7 +599,7 @@ static Object *build(EditorApp *app)
     int a;
 
     NewList(&pj.catlist);
-    for (a = 0; a < PAGES; ++a) {
+    for (a = 0; a < pj.pages; ++a) {
         struct Node *n = AllocListBrowserNode(1, LBNCA_Text, (ULONG)S(categories[a]), TAG_END);
         if (n != NULL) AddTail(&pj.catlist, n);
     }
@@ -597,7 +612,7 @@ static Object *build(EditorApp *app)
         LISTBROWSER_VerticalProp, FALSE,
         TAG_END);
 
-    for (a = 0; a < PAGES; ++a) {
+    for (a = 0; a < PAGE_GIT; ++a) {
         struct ColumnInfo *ci = pj.columns[a];
         if (a == PAGE_INCLUDE) {
             ci[0].ci_Width = 100;
@@ -635,11 +650,29 @@ static Object *build(EditorApp *app)
             CHILD_MinHeight, lines(app, 8),
             TAG_END);
     }
+    pages[PAGE_GIT] = NULL;
+    if (pj.pages > PAGE_GIT) {
+        pj.remote = string(PJ_REMOTE, pj.old_remote, REMOTE_MAX - 1);
+        pages[PAGE_GIT] = NewObject(LAYOUT_GetClass(), NULL,
+            LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
+            LAYOUT_BevelStyle, BVS_GROUP,
+            LAYOUT_Label, (ULONG)S(MSG_PJ_CAT_GIT),
+            LAYOUT_SpaceOuter, TRUE,
+            LAYOUT_LeftSpacing, FRAME_SIDE, LAYOUT_RightSpacing, FRAME_SIDE,
+            LAYOUT_TopSpacing, FRAME_TOPBOT, LAYOUT_BottomSpacing, FRAME_TOPBOT,
+            LAYOUT_InnerSpacing, ROW_SPACING,
+            LAYOUT_AddChild, (ULONG)pj.remote, FIXED,
+            CHILD_Label, (ULONG)label(S(MSG_PJ_REMOTE)),
+            LAYOUT_AddImage, (ULONG)label(S(MSG_PJ_REMOTENOTE)), FIXED,
+            LAYOUT_AddChild, (ULONG)filler(),
+            TAG_END);
+    }
     pj.page = NewObject(PAGE_GetClass(), NULL,
         PAGE_Add, (ULONG)pages[0],
         PAGE_Add, (ULONG)pages[1],
         PAGE_Add, (ULONG)pages[2],
         PAGE_Add, (ULONG)pages[3],
+        pages[PAGE_GIT] != NULL ? PAGE_Add : TAG_IGNORE, (ULONG)pages[PAGE_GIT],
         PAGE_Current, 0,
         TAG_END);
 
@@ -765,6 +798,42 @@ static void list_event(void)
     } else update_buttons();
 }
 
+/**
+ * @brief Write a changed address of the remote "origin" with am-git
+ *        (config remote.origin.url, or --unset when emptied).
+ * @return Non-zero if nothing changed or it was written (otherwise a
+ *         message was shown).
+ */
+static int save_remote(void)
+{
+    char command[REMOTE_MAX * 2 + 40], *out = NULL;
+    const char *url;
+    size_t n;
+    LONG rc;
+    if (pj.remote == NULL) return 1;
+    url = (const char *)get(pj.remote, STRINGA_TextVal);
+    if (url == NULL) url = "";
+    while (*url == ' ') ++url;
+    if (strcmp(url, pj.old_remote) == 0) return 1;
+    if (url[0] == '\0') {
+        strcpy(command, "config --unset remote.origin.url");
+    } else {
+        strcpy(command, "config remote.origin.url ");
+        n = strlen(command);
+        if (!git_quote(command + n, sizeof(command) - n, url)) return 0;
+    }
+    rc = git_run(pj.app, pj.root, command, &out);
+    SetAttrs(pj.app->window_object, WA_BusyPointer, TRUE, TAG_END);   /* git_run() took it away */
+    /* am-git returns 0 also on errors; they start with "config:" */
+    if (rc == -1) message(pj.win, S(MSG_GIT_NORUN));
+    else if (rc != 0 || (out != NULL && strncmp(out, "config", 6) == 0)) {
+        git_report(pj.app, pj.win, MSG_GIT_FAILED, out);
+        rc = 1;
+    }
+    free(out);
+    return rc == 0;
+}
+
 void project_settings(EditorApp *app)
 {
     ULONG sig = 0, mainsig = 0, result;
@@ -797,6 +866,9 @@ void project_settings(EditorApp *app)
         file_message(NULL, MSG_PJ_READ);
         return;
     }
+    /* the git page only with git on and a repository */
+    pj.pages = git_enabled(app) && git_is_repository(pj.root) ? PAGES : PAGE_GIT;
+    if (pj.pages > PAGE_GIT) git_remote_url(pj.root, pj.old_remote, sizeof(pj.old_remote));
     if (!open_classes(app) || (pj.layout = build(app)) == NULL) goto out;
 
     name = (const char *)FilePart((STRPTR)pj.root);
@@ -836,13 +908,14 @@ void project_settings(EditorApp *app)
             switch (id) {
                 case PJ_CATS:
                     a = (int)(LONG)get(pj.cats, LISTBROWSER_Selected);
-                    if (a < 0 || a >= PAGES) break;
+                    if (a < 0 || a >= pj.pages) break;
                     pj.action = a;
                     SetGadgetAttrs((struct Gadget *)pj.page, pj.win, NULL, PAGE_Current, (ULONG)a, TAG_END);
                     RethinkLayout((struct Gadget *)pj.layout, pj.win, NULL, TRUE);
                     update_buttons();
                     break;
                 case PJ_ADD:
+                    if (pj.action == PAGE_GIT) break;
                     if (pj.action == PAGE_INCLUDE) {
                         if (choose_include(-1)) refill(PAGE_INCLUDE, pj.conf.include_count - 1);
                     } else if (edit_command(-1)) refill(act, pj.conf.count[act] - 1);
@@ -875,7 +948,7 @@ void project_settings(EditorApp *app)
                         message(pj.win, S(MSG_PJ_NOMEM));
                         break;
                     }
-                    if (save()) {
+                    if (save_remote() && save()) {
                         done = 1;
                         scoutlink_project_opened(app);     /* the include drawers count */
                     }
@@ -894,7 +967,7 @@ void project_settings(EditorApp *app)
 out:
     if (pj.winobj != NULL) DisposeObject(pj.winobj);         /* the gadgets with it */
     if (pj.catlist.lh_Head != NULL) FreeListBrowserList(&pj.catlist);
-    for (a = 0; a < PAGES; ++a)
+    for (a = 0; a < PAGE_GIT; ++a)
         if (pj.nodes[a].lh_Head != NULL) FreeListBrowserList(&pj.nodes[a]);
     projconf_clear(&pj.conf);
     memset(&pj, 0, sizeof(pj));

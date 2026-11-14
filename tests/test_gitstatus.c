@@ -107,6 +107,37 @@ static void test_diff(void)
 }
 
 /**
+ * @brief Values of .git/config.
+ */
+static void test_config(void)
+{
+    static const char cfg[] =
+        "[core]\n"
+        "\trepositoryformatversion = 0\n"
+        "[remote \"upstream\"]\n"
+        "\turl = https://example.org/other.git\n"
+        "[Remote \"origin\"]\n"
+        "\tURL = https://github.com/user/repo.git ; a comment\n"
+        "\tfetch = +refs/heads/*:refs/remotes/origin/*\n"
+        "[branch \"main\"]\n"
+        "\tremote = origin\n"
+        "[user]\n"
+        "\tname = \"Andr\xE9 \\\"G\\\" # not a comment\"\r\n";
+    char v[64];
+    assert(gitconfig_get(cfg, "remote", "origin", "url", v, sizeof(v)) &&
+           strcmp(v, "https://github.com/user/repo.git") == 0);
+    assert(gitconfig_get(cfg, "remote", "upstream", "url", v, sizeof(v)) &&
+           strcmp(v, "https://example.org/other.git") == 0);
+    assert(!gitconfig_get(cfg, "remote", "ORIGIN", "url", v, sizeof(v)));
+    assert(!gitconfig_get(cfg, "remote", NULL, "url", v, sizeof(v)));
+    assert(gitconfig_get(cfg, "core", NULL, "repositoryformatversion", v, sizeof(v)) && strcmp(v, "0") == 0);
+    assert(gitconfig_get(cfg, "user", NULL, "name", v, sizeof(v)) &&
+           strcmp(v, "Andr\xE9 \"G\" # not a comment") == 0);
+    assert(!gitconfig_get(cfg, "remote", "origin", "url", v, 10));
+    assert(!gitconfig_get("", "remote", "origin", "url", v, sizeof(v)));
+}
+
+/**
  * @brief Run the tests.
  * @return 0.
  */
@@ -116,6 +147,7 @@ int main(void)
     test_relative();
     test_head();
     test_diff();
+    test_config();
     puts("git status tests passed");
     return 0;
 }

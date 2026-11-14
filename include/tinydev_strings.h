@@ -564,23 +564,71 @@
 #define MSG_GITC_DIFF                559
 #define MSG_GITC_MESSAGE             560
 #define MSG_GITC_NOTE                561
-#define MSG_GITC_COMMIT              562
-#define MSG_GITC_CLEAN               563
-#define MSG_GITC_NOMESSAGE           564
-#define MSG_GITC_NOTHING             565
-#define MSG_GITC_NOSELECTION         566
-#define MSG_GITC_FAILED              567
-#define MSG_GITC_DONE                568
-#define MSG_GITDIFF_TITLE            569
-#define MSG_GITDIFF_NONE             570
-#define MSG_GITDIFF_NOFILE           571
-#define MSG_GITDIFF_OUTSIDE          572
-#define MSG_GITDIFF_SINCE            573
-#define MSG_GITDIFF_NEW              574
-#define MSG_GITDIFF_DELETED          575
-#define MSG_GITDIFF_BINARY           576
-#define MSG_GITDIFF_NOREAD           577
-#define MSG_COUNT                    578
+#define MSG_GITC_MERGENOTE           562
+#define MSG_GITC_COMMIT              563
+#define MSG_GITC_CLEAN               564
+#define MSG_GITC_NOMESSAGE           565
+#define MSG_GITC_NOTHING             566
+#define MSG_GITC_NOSELECTION         567
+#define MSG_GITC_FAILED              568
+#define MSG_GITC_DONE                569
+#define MSG_GITDIFF_TITLE            570
+#define MSG_GITDIFF_NONE             571
+#define MSG_GITDIFF_NOFILE           572
+#define MSG_GITDIFF_OUTSIDE          573
+#define MSG_GITDIFF_SINCE            574
+#define MSG_GITDIFF_NEW              575
+#define MSG_GITDIFF_DELETED          576
+#define MSG_GITDIFF_BINARY           577
+#define MSG_GITDIFF_NOREAD           578
+#define MSG_MENU_GIT_FETCH           579
+#define MSG_MENU_GIT_PULL            580
+#define MSG_MENU_GIT_PUSH            581
+#define MSG_GIT_JOB_FETCH            582
+#define MSG_GIT_JOB_PULL             583
+#define MSG_GIT_JOB_PUSH             584
+#define MSG_GIT_NOREMOTE             585
+#define MSG_GIT_PULLASK              586
+#define MSG_GIT_PULLASKGADGETS       587
+#define MSG_GIT_PULLRELOADED         588
+#define MSG_GIT_PULLGONE             589
+#define MSG_PJ_CAT_GIT               590
+#define MSG_PJ_REMOTE                591
+#define MSG_PJ_REMOTENOTE            592
+#define MSG_GIT_DETACHED             593
+#define MSG_MENU_GIT_CLONE           594
+#define MSG_GIT_JOB_CLONE            595
+#define MSG_GITCL_TITLE              596
+#define MSG_GITCL_URL                597
+#define MSG_GITCL_DRAWER             598
+#define MSG_GITCL_CHOOSE             599
+#define MSG_GITCL_NAME               600
+#define MSG_GITCL_NOTE               601
+#define MSG_GITCL_CLONE              602
+#define MSG_GITCL_ASL                603
+#define MSG_GITCL_NOURL              604
+#define MSG_GITCL_BADNAME            605
+#define MSG_GITCL_NODRAWER           606
+#define MSG_GITCL_EXISTS             607
+#define MSG_GITCL_DONE               608
+#define MSG_GITCL_FAILED             609
+#define MSG_MENU_GIT_CONFLICTS       610
+#define MSG_GITR_TITLE               611
+#define MSG_GITR_LISTNOTE            612
+#define MSG_GITR_RESOLVED            613
+#define MSG_GITR_RESOLVE             614
+#define MSG_GITR_OPEN                615
+#define MSG_GITR_COMMIT              616
+#define MSG_GITR_NOTE                617
+#define MSG_GITR_NONE                618
+#define MSG_GITR_UNSAVED             619
+#define MSG_GITR_MARKERS             620
+#define MSG_GITR_MARKERSGADGETS      621
+#define MSG_GITR_LEFT                622
+#define MSG_GIT_DOTASK               623
+#define MSG_GIT_DOTGADGETS           624
+#define MSG_GIT_DOTFAILED            625
+#define MSG_COUNT                    626
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -859,7 +907,7 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "The command needs a document with a name ({file} or {base}).",
     "The drawer %s cannot be found.",
     "The command could not be prepared in the drawer of the temporary files.",
-    "A build is already running.",
+    "A command is already running in the output window.",
     "%s now runs: %s",
     "The project's commands have changed; the menu is now up to date.",
     "A build is running. Stop it and quit?",
@@ -1147,6 +1195,7 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Show C_hanges...",
     "_Message ",
     "Only saved files are committed, the message is a single line.",
+    "This commit completes the merge of the Pull, even without changes of its own.",
     "C_ommit",
     "There are no changes to commit.",
     "Please enter a message for the commit.",
@@ -1163,6 +1212,53 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Deleted file, as in the last commit:",
     "The file is binary, its changes cannot be shown.",
     "The file could not be read.",
+    "Fetch",
+    "Pull",
+    "Push",
+    "Git Fetch",
+    "Git Pull",
+    "Git Push",
+    "The project has no remote \"origin\".\nEnter its address in Project/Project Settings...\non the page Git.",
+    "The pull changed the file %s,\nbut its document has unsaved changes.\nLoad the file again and drop them?",
+    "Load Again|Keep Document",
+    "Pull: %ld document(s) loaded again.",
+    "Pull: %ld document(s) loaded again, %ld file(s) deleted (documents marked changed).",
+    "Git",
+    "Remote (_origin) ",
+    "Fetch, Pull and Push use this address. am-git keeps it in .git/config.",
+    "HEAD is not on a branch (detached).\nPull needs a branch: check one out first.",
+    "Clone Repository...",
+    "Git Clone",
+    "Clone Repository",
+    "_Address (URL) ",
+    "_Drawer ",
+    "C_hoose...",
+    "_Name ",
+    "am-git clones in the background (output window), then the drawer becomes the project.",
+    "C_lone",
+    "Drawer for the repository",
+    "Please enter the address of the repository.",
+    "Please enter a name for the new drawer (without / or :).",
+    "The drawer does not exist.",
+    "%s\nexists already. Please choose another name.",
+    "Repository cloned.",
+    "The repository could not be cloned.\nThe output window shows what am-git said.",
+    "Resolve Conflicts...",
+    "Resolve Conflicts",
+    "Files with conflicts after the merge:",
+    "resolved",
+    "Mark as _Resolved",
+    "_Open",
+    "Co_mmit...",
+    "Open a file, clean up its markers <<<<<<< ======= >>>>>>>, save it, then mark it as resolved.",
+    "There are no conflicts.",
+    "The file's document has unsaved changes.\nPlease save it first.",
+    "The file still holds conflict markers\n(<<<<<<<, ======= or >>>>>>>).\nMark it as resolved all the same?",
+    "Mark|Cancel",
+    "Not all conflicts are resolved yet.",
+    "am-git has written the merged files into a drawer \".\"\n(a mistake of am-git 0.12.1). Move them to their places?",
+    "Move|Leave",
+    "Not all files of the drawer \".\" could be moved.",
 };
 #endif
 

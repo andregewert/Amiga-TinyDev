@@ -2,7 +2,7 @@
  * @file gitstatus.h
  * @brief Portable reading of am-git's status and diff: the lines of
  *        "status --porcelain", a file's or drawer's state, the branch of
- *        .git/HEAD, the kinds of a diff's lines.
+ *        .git/HEAD, the kinds of a diff's lines, a value of .git/config.
  *
  * No Amiga headers, so the host tests can use it. am-git 0.12.1 prints
  * one line "XY path" per file (X the index, Y the work tree, "??" for an
@@ -117,5 +117,23 @@ enum GitDiffLine {
  * @return A GitDiffLine.
  */
 int gitdiff_line_kind(const char *line, size_t length, int in_header);
+
+/**
+ * @brief Read a value of a git configuration file (.git/config).
+ *
+ * Sections and keys are compared ignoring case, subsections exactly
+ * ([remote "origin"]). A value may be quoted ("..." with \" and \\);
+ * a comment (# or ;) outside quotes and spaces around it are left out.
+ *
+ * @param text The file.
+ * @param section The section, e.g. "remote".
+ * @param sub The subsection, e.g. "origin", or NULL for none.
+ * @param key The key, e.g. "url".
+ * @param[out] out The value (the last one if it is there several times).
+ * @param size Size of @p out.
+ * @return Non-zero if the key is there (and its value fitted).
+ */
+int gitconfig_get(const char *text, const char *section, const char *sub, const char *key,
+                  char *out, size_t size);
 
 #endif
