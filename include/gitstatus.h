@@ -1,8 +1,8 @@
 /**
  * @file gitstatus.h
- * @brief Portable reading of am-git's status: the lines of
+ * @brief Portable reading of am-git's status and diff: the lines of
  *        "status --porcelain", a file's or drawer's state, the branch of
- *        .git/HEAD.
+ *        .git/HEAD, the kinds of a diff's lines.
  *
  * No Amiga headers, so the host tests can use it. am-git 0.12.1 prints
  * one line "XY path" per file (X the index, Y the work tree, "??" for an
@@ -32,6 +32,8 @@ enum GitState {
 typedef struct GitStatusEntry {
     char *path;         /**< relative to the repository, '/' between drawers; a drawer ends with '/' */
     int state;          /**< GitState */
+    char index;         /**< the line's first letter: the index (' ', 'M', 'A', 'D', 'R', '?', ...) */
+    char worktree;      /**< its second letter: the work tree */
 } GitStatusEntry;
 
 /** The status of a repository: its changed files, sorted by path. */
@@ -55,8 +57,9 @@ void gitstatus_clear(GitStatus *st);
 /**
  * @brief Read the output of "am-git status --porcelain" into a status.
  *
- * Lines that are no status lines (messages) are left out; files deleted
- * in the work tree as well, as the tree does not show them.
+ * Lines that are no status lines (messages) are left out. A deleted file
+ * counts as changed (in the work tree) or staged (in the index); the tree
+ * does not show it, but its drawer takes its state.
  *
  * @param st The status (its old entries are freed).
  * @param text The output.
@@ -95,5 +98,24 @@ const char *gitstatus_relative(const char *root, const char *path);
  * @return Non-zero if the text was understood.
  */
 int gitstatus_head(const char *text, char *out, size_t size);
+
+/** Kinds of the lines of a diff, for colouring them. */
+enum GitDiffLine {
+    GIT_DIFF_CONTEXT = 0,   /**< an unchanged line (or anything else) */
+    GIT_DIFF_ADDED,         /**< "+..." */
+    GIT_DIFF_REMOVED,       /**< "-..." */
+    GIT_DIFF_HUNK,          /**< "@@ ... @@" */
+    GIT_DIFF_HEADER         /**< "diff --git", "index", "---", "+++", "new file mode", ... */
+};
+
+/**
+ * @brief The kind of a line of a unified diff.
+ * @param line The line (need not be terminated after its end).
+ * @param length Its length.
+ * @param in_header Non-zero while in a file's header (before its first
+ *        hunk), where "---" and "+++" name the files.
+ * @return A GitDiffLine.
+ */
+int gitdiff_line_kind(const char *line, size_t length, int in_header);
 
 #endif

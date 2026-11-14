@@ -119,6 +119,11 @@ int git_enabled(EditorApp *app)
     return app->settings.git;
 }
 
+int git_quote(char *out, size_t size, const char *s)
+{
+    return quote(out, size, s);
+}
+
 /**
  * @brief Write the script that runs am-git.
  * @param app The application state (the command).
@@ -184,14 +189,10 @@ done:
     return rc;
 }
 
-/**
- * @brief Show a failed command's output.
- * @param app The application state.
- * @param id The message (MSG_, with %s for the output).
- * @param output The output, or NULL.
- */
-static void report(EditorApp *app, LONG id, const char *output)
+void git_report(EditorApp *app, struct Window *win, LONG id, const char *output)
 {
+    struct EasyStruct es = {sizeof(es), 0, NULL, (STRPTR)"%s", NULL};
+    ULONG args[1];
     char shown[GIT_SHOWN + 4], *text;
     size_t n = output != NULL ? strlen(output) : 0;
     if (n > GIT_SHOWN) n = GIT_SHOWN;
@@ -201,16 +202,15 @@ static void report(EditorApp *app, LONG id, const char *output)
     if (output != NULL && strlen(output) > GIT_SHOWN) strcpy(shown + n, "...");
     if ((text = malloc(strlen(S(id)) + strlen(shown) + 1)) == NULL) return;
     sprintf(text, S(id), shown);
-    ui_error(app, S(MSG_GIT_TITLE), text);
+    es.es_Title = (STRPTR)S(MSG_GIT_TITLE);
+    es.es_GadgetFormat = (STRPTR)S(MSG_OK);
+    args[0] = (ULONG)text;
+    /* the output through "%s": a '%' in it is no format */
+    EasyRequestArgs(win != NULL ? win : app->window, &es, NULL, args);
     free(text);
 }
 
-/**
- * @brief Whether a drawer holds a repository (a ".git" in it).
- * @param drawer The drawer.
- * @return Non-zero if it does.
- */
-static int is_repository(const char *drawer)
+int git_is_repository(const char *drawer)
 {
     char path[EDITOR_PATH_MAX];
     BPTR lock;
@@ -239,9 +239,9 @@ int git_init(EditorApp *app, const char *drawer)
     }
     rc = git_run(app, full, args, &output);
     /* am-git may answer 0 although it failed: the drawer must hold .git */
-    ok = rc == 0 && is_repository(full);
+    ok = rc == 0 && git_is_repository(full);
     if (rc == -1) ui_error(app, S(MSG_GIT_TITLE), S(MSG_GIT_NORUN));
-    else if (!ok) report(app, MSG_GIT_INITFAILED, output);
+    else if (!ok) git_report(app, NULL, MSG_GIT_INITFAILED, output);
     else ui_status_message(app, S(MSG_GIT_CREATED));
     free(output);
     if (ok) git_project_changed(app);
@@ -263,7 +263,7 @@ static void init_project(EditorApp *app)
         ui_error(app, S(MSG_GIT_TITLE), S(MSG_GIT_NOPROJECT));
         return;
     }
-    if (is_repository(root)) {
+    if (git_is_repository(root)) {
         char text[EDITOR_PATH_MAX + 100];
         snprintf(text, sizeof(text), S(MSG_GIT_ALREADY), root);
         ui_error(app, S(MSG_GIT_TITLE), text);
@@ -345,7 +345,7 @@ static void status_start(EditorApp *app)
     BPTR lock = 0;
     struct Process *proc;
 
-    if (!git_enabled(app) || !tree_project_root(app, root, sizeof(root)) || !is_repository(root)) return;
+    if (!git_enabled(app) || !tree_project_root(app, root, sizeof(root)) || !git_is_repository(root)) return;
     strcpy(gs.run_root, root);
     if (!temp_name(app, ".script", gs.script, sizeof(gs.script)) ||
         !temp_name(app, ".txt", gs.output, sizeof(gs.output))) {
@@ -404,7 +404,7 @@ void git_tree_changed(EditorApp *app)
 void git_project_changed(EditorApp *app)
 {
     char root[EDITOR_PATH_MAX];
-    int repo = git_enabled(app) && tree_project_root(app, root, sizeof(root)) && is_repository(root);
+    int repo = git_enabled(app) && tree_project_root(app, root, sizeof(root)) && git_is_repository(root);
     /* a run of the old project is still taken, then dropped (gs.run_root) */
     gitstatus_clear(&gs.status);
     gs.root[0] = gs.branch[0] = '\0';
@@ -537,11 +537,33 @@ void git_cleanup(EditorApp *app)
     git_release_pens(app);
 }
 
+int git_repository(EditorApp *app, char *root, size_t size)
+{
+    if (!tree_project_root(app, root, (LONG)size)) {
+        ui_error(app, S(MSG_GIT_TITLE), S(MSG_GIT_NOPROJECT));
+        return 0;
+    }
+    if (!git_is_repository(root)) {
+        char text[EDITOR_PATH_MAX + 100];
+        snprintf(text, sizeof(text), S(MSG_GIT_NOREPO), root);
+        ui_error(app, S(MSG_GIT_TITLE), text);
+        return 0;
+    }
+    return 1;
+}
+
+LONG git_pen(int state)
+{
+    return gs.pens_open && state > GIT_ST_CLEAN && state < GIT_ST_COUNT ? gs.pens[state] : -1;
+}
+
 void git_menu(EditorApp *app, ULONG id)
 {
     if (!git_enabled(app)) return;
     switch (id) {
         case MID_GIT_INIT: init_project(app); break;
         case MID_GIT_REFRESH: git_project_changed(app); break;
+        case MID_GIT_COMMIT: gitwin_commit(app); break;
+        case MID_GIT_DIFF: gitwin_diff_active(app); break;
     }
 }

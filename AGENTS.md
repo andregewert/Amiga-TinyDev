@@ -61,9 +61,20 @@ below the tree's root.
   Status; it colours the tree through `DIRTREE_PenHook` (colours of the
   setting "git"/"colours") and puts the branch (`.git/HEAD`) into the
   status line.
+- `src/gitwin.c`: the modal windows of the Git menu: Git/Commit... (the
+  changed files of `status --porcelain` with check boxes ("selected"): a
+  click stages with `add` (`rm --cached` for a deleted file) or takes back
+  with `unstage` at once and reads the status again; "Select All" is
+  `add .`; a one-line message, `commit -m`) and the changes of a file
+  since the last commit (Git/Show Changes of the File... or from the
+  commit window: HEAD's file from `show --text-blob` or `show` against
+  the file on disk, compared with `linediff.c`, coloured lines in the
+  system default text font).
+- `src/linediff.c`, `include/linediff.h`: the portable line diff (Myers
+  in linear space) written as unified hunks; no Amiga headers.
 - `src/gitstatus.c`, `include/gitstatus.h`: the portable reader of
-  am-git's status lines, a file's or drawer's state (ignoring case) and
-  the branch of `.git/HEAD`; no Amiga headers.
+  am-git's status lines, a file's or drawer's state (ignoring case), the
+  branch of `.git/HEAD` and the kinds of a diff's lines; no Amiga headers.
 - `src/filetypes.c`, `include/filetypes.h`: the portable settings per
   file type (tab size, indentation, automatic indentation, Tab key, line
   numbers, cutting lines): reading and writing the "filetypes" of
@@ -356,6 +367,7 @@ below the tree's root.
 - `tests/test_filetypes.c`: host-native tests of the settings per file type.
 - `tests/test_appprefs.c`: host-native tests of the global settings.
 - `tests/test_gitstatus.c`: host-native tests of the reading of am-git's status.
+- `tests/test_linediff.c`: host-native tests of the line diff.
 - `tests/test_sprout_tmpl.c`: host-native tests of Sprout's core (also
   reads the `template.json` of the templates that come with TinyDev).
 - `tests/test_sprout_lha.c`: host-native tests of the LhA reader with the

@@ -148,6 +148,9 @@ enum MenuId {
     MID_GIT_MENU,       /**< the Git menu's title (marks it in the table) */
     MID_GIT_INIT,       /**< Git/Create Repository...: am-git init in the project */
     MID_GIT_REFRESH,    /**< Git/Refresh Status: the tree's colours and the branch anew */
+    MID_GIT_COMMIT,     /**< Git/Commit...: the commit window */
+    MID_GIT_DIFF,       /**< Git/Show Changes of the File...: the active document's diff */
+    MID_GIT_BAR,        /**< the Git menu's separator (marks it in the table) */
     /* the File Type entries stay last: menu_action() takes the IDs from
      * MID_FT_AUTO on as file types */
     MID_FT_AUTO,        /**< File Type/Automatic: the language Scout detects */
@@ -1984,6 +1987,56 @@ LONG git_run(EditorApp *app, const char *dir, const char *args, char **output);
  * @return Non-zero if the drawer is a repository now.
  */
 int git_init(EditorApp *app, const char *drawer);
+/**
+ * @brief Quote a text for the Shell (in double quotes, with BCPL escapes
+ *        for '"', '*' and line breaks).
+ * @param[out] out The quoted text.
+ * @param size Size of @p out.
+ * @param s The text.
+ * @return Non-zero if it fitted.
+ */
+int git_quote(char *out, size_t size, const char *s);
+/**
+ * @brief Show what am-git said when something failed, in a requester.
+ * @param app The application state.
+ * @param win The window it is shown over, NULL for the main window.
+ * @param id The catalog text, with a "%s" for the output.
+ * @param output am-git's output (cut if long), or NULL.
+ */
+void git_report(EditorApp *app, struct Window *win, LONG id, const char *output);
+/**
+ * @brief Whether a drawer is a git repository (it has ".git").
+ * @param drawer The drawer.
+ * @return Non-zero if it is.
+ */
+int git_is_repository(const char *drawer);
+/**
+ * @brief The project's drawer, if it is a repository; shows a message if
+ *        there is no project or it is not a repository.
+ * @param app The application state.
+ * @param[out] root The project's drawer.
+ * @param size Size of @p root.
+ * @return Non-zero if there is a repository.
+ */
+int git_repository(EditorApp *app, char *root, size_t size);
+/**
+ * @brief The pen of a git state in the folder tree (setting "git"/"colours").
+ * @param state The state (GitState of gitstatus.h).
+ * @return The pen, or -1 if there is none (clean, or the pens are not obtained).
+ */
+LONG git_pen(int state);
+/**
+ * @brief Git/Commit...: the modal commit window (the changed files with
+ *        check boxes to stage them, the message, Commit).
+ * @param app The application state.
+ */
+void gitwin_commit(EditorApp *app);
+/**
+ * @brief Git/Show Changes of the File...: the active document's changes
+ *        (staged and not staged) in a modal window.
+ * @param app The application state.
+ */
+void gitwin_diff_active(EditorApp *app);
 /**
  * @brief Run the status of the project again (in the background), if it
  *        is a repository and the git integration is on; while a run is

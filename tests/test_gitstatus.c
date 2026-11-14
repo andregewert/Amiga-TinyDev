@@ -6,6 +6,7 @@
 
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 /**
@@ -35,11 +36,17 @@ static void test_parse(void)
         "D  removed.c\n"
         "UU merge.c\n"
         "?? \"sp ace\\tx\\303.c\"\n") == 1);
-    assert(st.count == 6);
+    assert(st.count == 8);
     assert(gitstatus_state(&st, "src/main.c", 0) == GIT_ST_MODIFIED);
+    {
+        long k;
+        for (k = 0; k < st.count && strcmp(st.entries[k].path, "src/main.c") != 0; ++k) ;
+        assert(k < st.count && st.entries[k].index == 'M' && st.entries[k].worktree == 'M');
+    }
     assert(gitstatus_state(&st, "src/new.c", 0) == GIT_ST_STAGED);
     assert(gitstatus_state(&st, "old.c", 0) == GIT_ST_CLEAN);
-    assert(gitstatus_state(&st, "gone.c", 0) == GIT_ST_CLEAN);
+    assert(gitstatus_state(&st, "gone.c", 0) == GIT_ST_MODIFIED);
+    assert(gitstatus_state(&st, "removed.c", 0) == GIT_ST_STAGED);
     assert(gitstatus_state(&st, "merge.c", 0) == GIT_ST_CONFLICT);
     assert(gitstatus_state(&st, "sp ace\tx\303.c", 0) == GIT_ST_UNTRACKED);
     assert(gitstatus_state(&st, "src", 1) == GIT_ST_MODIFIED);
@@ -86,6 +93,20 @@ static void test_head(void)
 }
 
 /**
+ * @brief Diffs: the kinds of lines.
+ */
+static void test_diff(void)
+{
+    assert(gitdiff_line_kind("@@ -1 +1 @@", 11, 1) == GIT_DIFF_HUNK);
+    assert(gitdiff_line_kind("diff --git a/x b/x", 18, 0) == GIT_DIFF_HEADER);
+    assert(gitdiff_line_kind("--- a/x", 7, 1) == GIT_DIFF_HEADER);
+    assert(gitdiff_line_kind("--- a/x", 7, 0) == GIT_DIFF_REMOVED);
+    assert(gitdiff_line_kind("+y", 2, 0) == GIT_DIFF_ADDED);
+    assert(gitdiff_line_kind(" z", 2, 0) == GIT_DIFF_CONTEXT);
+    assert(gitdiff_line_kind("", 0, 0) == GIT_DIFF_CONTEXT);
+}
+
+/**
  * @brief Run the tests.
  * @return 0.
  */
@@ -94,6 +115,7 @@ int main(void)
     test_parse();
     test_relative();
     test_head();
+    test_diff();
     puts("git status tests passed");
     return 0;
 }

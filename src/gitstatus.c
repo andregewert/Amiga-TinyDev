@@ -1,6 +1,6 @@
 /**
  * @file gitstatus.c
- * @brief Portable reading of am-git's status (see gitstatus.h).
+ * @brief Portable reading of am-git's status and diff (see gitstatus.h).
  */
 #include "gitstatus.h"
 
@@ -70,9 +70,7 @@ static int state_of(char x, char y)
 {
     if (x == '?' && y == '?') return GIT_ST_UNTRACKED;
     if (x == 'U' || y == 'U' || (x == 'A' && y == 'A') || (x == 'D' && y == 'D')) return GIT_ST_CONFLICT;
-    if (y == 'D') return GIT_ST_CLEAN;              /* not on disk */
-    if (y == 'M' || y == 'T' || y == 'A') return GIT_ST_MODIFIED;
-    if (x == 'D') return GIT_ST_CLEAN;
+    if (y == 'M' || y == 'T' || y == 'A' || y == 'D') return GIT_ST_MODIFIED;
     if (strchr("MADRCT", x) != NULL && x != '\0') return GIT_ST_STAGED;
     return GIT_ST_CLEAN;
 }
@@ -107,7 +105,7 @@ static char *copy_path(const char *s, size_t n)
         memcpy(out, s, n);
         o = out + n;
     }
-    *o = '\0';
+    if (o != NULL) *o = '\0';
     return out;
 }
 
@@ -151,6 +149,8 @@ int gitstatus_parse(GitStatus *st, const char *text)
             }
             st->entries[st->count].path = p;
             st->entries[st->count].state = state;
+            st->entries[st->count].index = line[0];
+            st->entries[st->count].worktree = line[1];
             ++st->count;
         }
         line = end != NULL ? end + 1 : NULL;
@@ -248,4 +248,14 @@ int gitstatus_head(const char *text, char *out, size_t size)
     memcpy(out, text, n);
     out[n] = '\0';
     return 1;
+}
+
+int gitdiff_line_kind(const char *line, size_t length, int in_header)
+{
+    if (length >= 2 && line[0] == '@' && line[1] == '@') return GIT_DIFF_HUNK;
+    if (length >= 5 && memcmp(line, "diff ", 5) == 0) return GIT_DIFF_HEADER;
+    if (in_header) return GIT_DIFF_HEADER;
+    if (length >= 1 && line[0] == '+') return GIT_DIFF_ADDED;
+    if (length >= 1 && line[0] == '-') return GIT_DIFF_REMOVED;
+    return GIT_DIFF_CONTEXT;
 }

@@ -332,8 +332,11 @@ static struct NewMenu menus[] = {
     {NM_ITEM, NULL, NULL, NM_ITEMDISABLED, 0, UD(MID_PC_PARENT + PROJ_DEBUG)},
     PC_SLOTS(PROJ_DEBUG),
     {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_MENU)},    /* NM_TITLE with git: ui_update_git_menu() */
-    {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_INIT)},
+    {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_COMMIT)},
+    {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_DIFF)},
+    {NM_IGNORE, NM_BARLABEL, NULL, 0, 0, UD(MID_GIT_BAR)},
     {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_REFRESH)},
+    {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_INIT)},
     {NM_TITLE, NULL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_FOLDER_TREE)},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_LINE_NUMBERS)},
@@ -432,8 +435,11 @@ static const LONG menu_texts[] = {
     MSG_MENU_CMD_DEBUG,
     PC_NO_TEXTS,
     MSG_MENU_GIT,
-    MSG_MENU_GIT_INIT,
+    MSG_MENU_GIT_COMMIT,
+    MSG_MENU_GIT_DIFF,
+    -1,
     MSG_MENU_GIT_REFRESH,
+    MSG_MENU_GIT_INIT,
     MSG_MENU_VIEW,
     MSG_MENU_TREE,
     MSG_MENU_LINENUMBERS,
@@ -572,7 +578,7 @@ void ui_update_git_menu(EditorApp *app)
         /* the title and its items go together: an item without its title
          * would join the menu before */
         if (ud == MID_GIT_MENU) menus[i].nm_Type = on ? NM_TITLE : NM_IGNORE;
-        else if (ud > MID_GIT_MENU && ud <= MID_GIT_REFRESH) menus[i].nm_Type = on ? NM_ITEM : NM_IGNORE;
+        else if (ud > MID_GIT_MENU && ud <= MID_GIT_BAR) menus[i].nm_Type = on ? NM_ITEM : NM_IGNORE;
     }
     if (app->window_object != NULL) SetAttrs(app->window_object, WINDOW_NewMenu, (ULONG)menus, TAG_END);
 }
@@ -1493,7 +1499,7 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_BUILD: case MID_RUN: case MID_DEBUG: case MID_STOP:
             build_action(app, id);
             break;
-        case MID_GIT_INIT: case MID_GIT_REFRESH:
+        case MID_GIT_INIT: case MID_GIT_REFRESH: case MID_GIT_COMMIT: case MID_GIT_DIFF:
             git_menu(app, id);
             break;
         case MID_OUTPUT:

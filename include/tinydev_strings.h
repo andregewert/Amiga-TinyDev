@@ -544,7 +544,43 @@
 #define MSG_PREFS_TTL_GIT_STAGED     539
 #define MSG_PREFS_TTL_GIT_MODIFIED   540
 #define MSG_PREFS_TTL_GIT_CONFLICT   541
-#define MSG_COUNT                    542
+#define MSG_GIT_NOREPO               542
+#define MSG_GIT_FAILED               543
+#define MSG_MENU_GIT_COMMIT          544
+#define MSG_MENU_GIT_DIFF            545
+#define MSG_GITWIN_CLOSE             546
+#define MSG_GITC_TITLE               547
+#define MSG_GITC_LISTNOTE            548
+#define MSG_GITC_COL_STATE           549
+#define MSG_GITC_COL_FILE            550
+#define MSG_GITC_ST_NEW              551
+#define MSG_GITC_ST_ADDED            552
+#define MSG_GITC_ST_CHANGED          553
+#define MSG_GITC_ST_DELETED          554
+#define MSG_GITC_ST_RENAMED          555
+#define MSG_GITC_ST_CONFLICT         556
+#define MSG_GITC_ST_PARTLY           557
+#define MSG_GITC_ADDALL              558
+#define MSG_GITC_DIFF                559
+#define MSG_GITC_MESSAGE             560
+#define MSG_GITC_NOTE                561
+#define MSG_GITC_COMMIT              562
+#define MSG_GITC_CLEAN               563
+#define MSG_GITC_NOMESSAGE           564
+#define MSG_GITC_NOTHING             565
+#define MSG_GITC_NOSELECTION         566
+#define MSG_GITC_FAILED              567
+#define MSG_GITC_DONE                568
+#define MSG_GITDIFF_TITLE            569
+#define MSG_GITDIFF_NONE             570
+#define MSG_GITDIFF_NOFILE           571
+#define MSG_GITDIFF_OUTSIDE          572
+#define MSG_GITDIFF_SINCE            573
+#define MSG_GITDIFF_NEW              574
+#define MSG_GITDIFF_DELETED          575
+#define MSG_GITDIFF_BINARY           576
+#define MSG_GITDIFF_NOREAD           577
+#define MSG_COUNT                    578
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -1091,6 +1127,42 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Colour of staged files",
     "Colour of changed files",
     "Colour of files with conflicts",
+    "The project\n%s\nis not a git repository.\nGit/Create Repository... makes it one.",
+    "am-git failed.\nam-git says:\n\n%s",
+    "Commit...",
+    "Show Changes of the File...",
+    "_Close",
+    "Commit",
+    "Changed files (selected: part of the commit):",
+    "State",
+    "File",
+    "new",
+    "added",
+    "changed",
+    "deleted",
+    "renamed",
+    "conflict",
+    "changed, partly staged",
+    "Select _All",
+    "Show C_hanges...",
+    "_Message ",
+    "Only saved files are committed, the message is a single line.",
+    "C_ommit",
+    "There are no changes to commit.",
+    "Please enter a message for the commit.",
+    "No file is selected for the commit.",
+    "Please click a file in the list first.",
+    "The commit failed.\nam-git says:\n\n%s",
+    "Changes committed.",
+    "Changes of %s",
+    "The file has no changes since the last commit.",
+    "The document has not been saved yet.",
+    "The document is not in the project.",
+    "Changes since the last commit:",
+    "New file, not in the last commit:",
+    "Deleted file, as in the last commit:",
+    "The file is binary, its changes cannot be shown.",
+    "The file could not be read.",
 };
 #endif
 

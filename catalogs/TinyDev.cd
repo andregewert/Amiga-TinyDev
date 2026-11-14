@@ -1661,3 +1661,111 @@ Colour of changed files
 MSG_PREFS_TTL_GIT_CONFLICT (//)
 Colour of files with conflicts
 ;
+MSG_GIT_NOREPO (//)
+The project\n%s\nis not a git repository.\nGit/Create Repository... makes it one.
+;
+MSG_GIT_FAILED (//)
+am-git failed.\nam-git says:\n\n%s
+;
+MSG_MENU_GIT_COMMIT (//)
+Commit...
+;
+MSG_MENU_GIT_DIFF (//)
+Show Changes of the File...
+;
+MSG_GITWIN_CLOSE (//)
+_Close
+;
+MSG_GITC_TITLE (//)
+Commit
+;
+MSG_GITC_LISTNOTE (//)
+Changed files (selected: part of the commit):
+;
+MSG_GITC_COL_STATE (//)
+State
+;
+MSG_GITC_COL_FILE (//)
+File
+;
+MSG_GITC_ST_NEW (//)
+new
+;
+MSG_GITC_ST_ADDED (//)
+added
+;
+MSG_GITC_ST_CHANGED (//)
+changed
+;
+MSG_GITC_ST_DELETED (//)
+deleted
+;
+MSG_GITC_ST_RENAMED (//)
+renamed
+;
+MSG_GITC_ST_CONFLICT (//)
+conflict
+;
+MSG_GITC_ST_PARTLY (//)
+changed, partly staged
+;
+MSG_GITC_ADDALL (//)
+Select _All
+;
+MSG_GITC_DIFF (//)
+Show C_hanges...
+;
+MSG_GITC_MESSAGE (//)
+_Message 
+;
+MSG_GITC_NOTE (//)
+Only saved files are committed, the message is a single line.
+;
+MSG_GITC_COMMIT (//)
+C_ommit
+;
+MSG_GITC_CLEAN (//)
+There are no changes to commit.
+;
+MSG_GITC_NOMESSAGE (//)
+Please enter a message for the commit.
+;
+MSG_GITC_NOTHING (//)
+No file is selected for the commit.
+;
+MSG_GITC_NOSELECTION (//)
+Please click a file in the list first.
+;
+MSG_GITC_FAILED (//)
+The commit failed.\nam-git says:\n\n%s
+;
+MSG_GITC_DONE (//)
+Changes committed.
+;
+MSG_GITDIFF_TITLE (//)
+Changes of %s
+;
+MSG_GITDIFF_NONE (//)
+The file has no changes since the last commit.
+;
+MSG_GITDIFF_NOFILE (//)
+The document has not been saved yet.
+;
+MSG_GITDIFF_OUTSIDE (//)
+The document is not in the project.
+;
+MSG_GITDIFF_SINCE (//)
+Changes since the last commit:
+;
+MSG_GITDIFF_NEW (//)
+New file, not in the last commit:
+;
+MSG_GITDIFF_DELETED (//)
+Deleted file, as in the last commit:
+;
+MSG_GITDIFF_BINARY (//)
+The file is binary, its changes cannot be shown.
+;
+MSG_GITDIFF_NOREAD (//)
+The file could not be read.
+;

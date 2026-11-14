@@ -2174,3 +2174,147 @@ MSG_PREFS_TTL_GIT_CONFLICT
 Farbe von Dateien mit Konflikten
 ; Colour of files with conflicts
 ;
+MSG_GIT_NOREPO
+Das Projekt\n%s\nist kein Git-Repository.\nGit/Repository anlegen... macht eins daraus.
+; The project\n%s\nis not a git repository.\nGit/Create Repository... makes it one.
+;
+MSG_GIT_FAILED
+am-git ist gescheitert.\nam-git meldet:\n\n%s
+; am-git failed.\nam-git says:\n\n%s
+;
+MSG_MENU_GIT_COMMIT
+Commit...
+; Commit...
+;
+MSG_MENU_GIT_DIFF
+Änderungen der Datei zeigen...
+; Show Changes of the File...
+;
+MSG_GITWIN_CLOSE
+_Schließen
+; _Close
+;
+MSG_GITC_TITLE
+Commit
+; Commit
+;
+MSG_GITC_LISTNOTE
+Geänderte Dateien (ausgewählt: Teil des Commits):
+; Changed files (selected: part of the commit):
+;
+MSG_GITC_COL_STATE
+Zustand
+; State
+;
+MSG_GITC_COL_FILE
+Datei
+; File
+;
+MSG_GITC_ST_NEW
+neu
+; new
+;
+MSG_GITC_ST_ADDED
+hinzugefügt
+; added
+;
+MSG_GITC_ST_CHANGED
+geändert
+; changed
+;
+MSG_GITC_ST_DELETED
+gelöscht
+; deleted
+;
+MSG_GITC_ST_RENAMED
+umbenannt
+; renamed
+;
+MSG_GITC_ST_CONFLICT
+Konflikt
+; conflict
+;
+MSG_GITC_ST_PARTLY
+geändert, teils vorgemerkt
+; changed, partly staged
+;
+MSG_GITC_ADDALL
+_Alle auswählen
+; Select _All
+;
+MSG_GITC_DIFF
+Änderungen _zeigen...
+; Show C_hanges...
+;
+MSG_GITC_MESSAGE
+_Nachricht 
+; _Message 
+;
+MSG_GITC_NOTE
+Nur gespeicherte Dateien kommen in den Commit, die Nachricht ist einzeilig.
+; Only saved files are committed, the message is a single line.
+;
+MSG_GITC_COMMIT
+C_ommit
+; C_ommit
+;
+MSG_GITC_CLEAN
+Es gibt keine Änderungen für einen Commit.
+; There are no changes to commit.
+;
+MSG_GITC_NOMESSAGE
+Bitte eine Nachricht für den Commit eingeben.
+; Please enter a message for the commit.
+;
+MSG_GITC_NOTHING
+Keine Datei ist für den Commit ausgewählt.
+; No file is selected for the commit.
+;
+MSG_GITC_NOSELECTION
+Bitte zuerst eine Datei in der Liste anklicken.
+; Please click a file in the list first.
+;
+MSG_GITC_FAILED
+Der Commit ist gescheitert.\nam-git meldet:\n\n%s
+; The commit failed.\nam-git says:\n\n%s
+;
+MSG_GITC_DONE
+Änderungen committet.
+; Changes committed.
+;
+MSG_GITDIFF_TITLE
+Änderungen von %s
+; Changes of %s
+;
+MSG_GITDIFF_NONE
+Die Datei hat keine Änderungen seit dem letzten Commit.
+; The file has no changes since the last commit.
+;
+MSG_GITDIFF_NOFILE
+Das Dokument ist noch nicht gespeichert.
+; The document has not been saved yet.
+;
+MSG_GITDIFF_OUTSIDE
+Das Dokument liegt nicht im Projekt.
+; The document is not in the project.
+;
+MSG_GITDIFF_SINCE
+Änderungen seit dem letzten Commit:
+; Changes since the last commit:
+;
+MSG_GITDIFF_NEW
+Neue Datei, nicht im letzten Commit:
+; New file, not in the last commit:
+;
+MSG_GITDIFF_DELETED
+Gelöschte Datei, wie im letzten Commit:
+; Deleted file, as in the last commit:
+;
+MSG_GITDIFF_BINARY
+Die Datei ist binär, ihre Änderungen lassen sich nicht zeigen.
+; The file is binary, its changes cannot be shown.
+;
+MSG_GITDIFF_NOREAD
+Die Datei konnte nicht gelesen werden.
+; The file could not be read.
+;

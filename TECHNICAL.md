@@ -216,9 +216,11 @@ version therefore hides a fresh build; check with
   2. Done (`git.c`, `gitstatus.c`, `DIRTREE_PenHook`): the status in a
      process of its own, coloured entries in the tree, the branch from
      `.git/HEAD` in the status line.
-  3. A commit window built like the project settings: changed files with
-     check boxes, message, `add`, `unstage`, `commit -m`. A diff window
-     from `am-git diff` (a read-only editor with `+`/`-` lines coloured).
+  3. Done (`gitwin.c`, `linediff.c`): a modal commit window with the
+     changed files and check boxes (`add`, for a deleted file
+     `rm --cached`; taken back with `unstage`, at once, then the status
+     anew), a one-line message, `commit -m`; a diff window with the
+     changes since the last commit, made by TinyDev itself.
   4. Fetch, pull and push with their output in the output window; remotes
      through `am-git config` (it has no `remote` command).
 
@@ -234,6 +236,19 @@ version therefore hides a fresh build; check with
     header without a hunk.
   - `commit -m` takes one line: neither `*N` nor `\n` makes a line
     break, so the commit window asks for a single line.
+  - From am-git's sources (0.12.3): `diff` reads the work tree under
+    `"./" + path`, which AmigaOS does not know, so every working file
+    looks empty (a changed file shows only removed lines, a new one only
+    its header). TinyDev takes HEAD's file from `show --text-blob
+    HEAD:path` (0.12.3: a first line `text`, `binary` or `missing`) or
+    `show HEAD:path` (0.12.1: the bare contents) and diffs it with the
+    file on disk. A file of the index cannot be printed, so staged and
+    not staged changes are not told apart.
+  - `rm --cached` drops the index entry: for a tracked file that stages
+    its deletion. `unstage <path>` (0.12.1) puts back HEAD's entry, or
+    drops a new one. `add` does not stage a deletion. am-git ends with
+    return code 0 even when a command fails ("add: failed"), so TinyDev
+    reads the status afterwards instead of trusting the code.
 
   Still to try: how long `status` takes on a real project on a 68030
   (0.12.3 made it much faster, but it walks the tree). am-git wants a stack of
