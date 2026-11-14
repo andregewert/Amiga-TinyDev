@@ -21,6 +21,11 @@
  * and reconciles their children with the tree. Messages of a request that
  * was ended meanwhile are recognised by comparing pointers only.
  *
+ * DIRTREE_PenHook gives an entry its text pen when the entry is made and
+ * when DIRTREE_UpdatePens asks for all again (both on the application's
+ * process); the render hook only reads the pen kept in the entry, so the
+ * application's data behind the hook is never touched while rendering.
+ *
  * Copyright (c) 2026 André Gewert <agewert@ubergeek.de>
  * Released under the MIT License, see LICENSE.
  */
@@ -97,6 +102,7 @@ typedef struct TreeEntry {
     int expanded;           /**< directory children are loaded */
     int kind;               /**< DTI_ symbol, -1 for none */
     int seen;               /**< found again while a directory is reconciled */
+    LONG pen;               /**< text pen from DIRTREE_PenHook, -1 for TEXTPEN */
     Watch *watch;           /**< notification of an expanded directory, or NULL */
     char *name;             /**< file name, stored after the path */
     char *label;            /**< shown name (DIRTREE_NameHook), stored after the name */
@@ -131,6 +137,7 @@ typedef struct DirTreeData {
     char *pattern;              /**< parsed DIRTREE_Pattern, NULL for all files */
     char *exclude;              /**< parsed DIRTREE_ExcludePattern, NULL for none */
     struct Hook *name_hook;     /**< DIRTREE_NameHook or NULL */
+    struct Hook *pen_hook;      /**< DIRTREE_PenHook or NULL */
     char *label_buffer;         /**< buffer of the name hook (LABEL_MAX) */
     ULONG sort;                 /**< DIRTREE_Sort */
     int hide_empty;             /**< DIRTREE_HideEmpty */
@@ -234,6 +241,22 @@ static const char *shown_name(DirTreeData *d, const char *name, const char *path
 }
 
 /**
+ * @brief Ask DIRTREE_PenHook for an entry's text pen.
+ * @param d The instance data.
+ * @param entry The entry (not a placeholder).
+ * @return The pen, or -1 for TEXTPEN (also without a hook).
+ */
+static LONG entry_pen(DirTreeData *d, TreeEntry *entry)
+{
+    struct DirTreePenMsg msg;
+    if (d->pen_hook == NULL || entry->placeholder) return -1;
+    msg.dtpm_Path = (STRPTR)entry->path;
+    msg.dtpm_Name = (STRPTR)entry->name;
+    msg.dtpm_Directory = entry->directory;
+    return (LONG)CallHookPkt(d->pen_hook, d->self, &msg);
+}
+
+/**
  * @brief Create a listbrowser node that owns a new TreeEntry.
  * @param d The instance data (symbols).
  * @param name Display name.
@@ -252,6 +275,7 @@ static struct Node *new_node(DirTreeData *d, const char *name, const char *path,
     struct Node *node;
     if (entry == NULL) return NULL;
     entry->kind = kind;
+    entry->pen = entry_pen(d, entry);
     /* A column holds text or an image, not both; the render hook draws
      * symbol and name. The text stays for the listbrowser's own use. */
     node = AllocListBrowserNode(1,
@@ -791,7 +815,9 @@ static ULONG render_entry(struct Hook *hook __asm("a0"), struct Node *node __asm
     x = (WORD)(b->MinX + LEFT_PADDING);
     if (entry->directory && d->icons[DTI_DRAWER] != NULL) x = (WORD)(x + LEAF_OFFSET);
     bg = dri->dri_Pens[selected ? FILLPEN : BACKGROUNDPEN];
-    fg = dri->dri_Pens[selected ? FILLTEXTPEN : entry->placeholder ? SHADOWPEN : TEXTPEN];
+    fg = selected || entry->placeholder || entry->pen < 0
+         ? dri->dri_Pens[selected ? FILLTEXTPEN : entry->placeholder ? SHADOWPEN : TEXTPEN]
+         : (UWORD)entry->pen;
     SetAPen(rp, (UBYTE)bg);
     RectFill(rp, b->MinX, b->MinY, b->MaxX, b->MaxY);
 
@@ -1248,6 +1274,29 @@ static void change_title(Class *cl, Object *o, DirTreeData *d, struct GadgetInfo
 /* -- methods -------------------------------------------------------------- */
 
 /**
+ * @brief DIRTREE_UpdatePens: ask DIRTREE_PenHook for every entry's pen
+ *        again.
+ * @param d The instance data.
+ * @return Non-zero if a pen changed (the tree needs a redraw).
+ */
+static int update_pens(DirTreeData *d)
+{
+    struct Node *n;
+    int changed = 0;
+    for (n = d->nodes.lh_Head; n->ln_Succ != NULL; n = n->ln_Succ) {
+        TreeEntry *entry = node_entry(n);
+        LONG pen;
+        if (entry == NULL || entry->placeholder) continue;
+        pen = entry_pen(d, entry);
+        if (pen != entry->pen) {
+            entry->pen = pen;
+            changed = 1;
+        }
+    }
+    return changed;
+}
+
+/**
  * @brief OM_NEW: create the listbrowser, then set up the tree.
  * @param cl The class.
  * @param o The class object.
@@ -1328,6 +1377,7 @@ static ULONG om_new(Class *cl, Object *o, struct opSet *ops)
     d->hide_empty = (int)GetTagData(DIRTREE_HideEmpty, FALSE, ops->ops_AttrList);
     d->name_hook = (struct Hook *)GetTagData(DIRTREE_NameHook, 0, ops->ops_AttrList);
     if (d->name_hook != NULL) d->label_buffer = AllocVec(LABEL_MAX, MEMF_ANY);
+    d->pen_hook = (struct Hook *)GetTagData(DIRTREE_PenHook, 0, ops->ops_AttrList);
     d->pattern = parse_pattern((STRPTR)GetTagData(DIRTREE_Pattern, 0, ops->ops_AttrList));
     d->exclude = parse_pattern((STRPTR)GetTagData(DIRTREE_ExcludePattern, 0, ops->ops_AttrList));
     class_new_list((struct List *)&d->watches);
@@ -1387,7 +1437,7 @@ static ULONG om_set(Class *cl, Object *o, struct opSet *ops)
                  GetTagData(DIRTREE_HandleEvent, FALSE, ops->ops_AttrList);
     ULONG refresh_mode = ops->MethodID == OM_SET
                          ? GetTagData(DIRTREE_Refresh, 0, ops->ops_AttrList) : 0;
-    int refreshed = 0;
+    int refreshed = 0, pens = 0;
     struct TagItem *title_tag = NULL;
     if (ops->MethodID == OM_SET) {
         struct TagItem *hide = FindTagItem(DIRTREE_HideIcons, ops->ops_AttrList);
@@ -1414,9 +1464,11 @@ static ULONG om_set(Class *cl, Object *o, struct opSet *ops)
     if (ops->MethodID == OM_SET &&
         (title_tag = FindTagItem(DIRTREE_Title, ops->ops_AttrList)) != NULL)
         change_title(cl, o, d, ops->ops_GInfo, (const char *)title_tag->ti_Data);
+    if (ops->MethodID == OM_SET && GetTagData(DIRTREE_UpdatePens, FALSE, ops->ops_AttrList))
+        pens = update_pens(d);
     /* A new root or a changed tree needs a full redraw; otherwise follow
      * the listbrowser's request (e.g. scrolling through OM_UPDATE). */
-    if ((tag != NULL && ops->MethodID == OM_SET) || refreshed || title_tag != NULL ||
+    if ((tag != NULL && ops->MethodID == OM_SET) || refreshed || title_tag != NULL || pens ||
         (handle && d->event != DIRTREE_EV_NONE && d->event != DIRTREE_EV_ACTIVATE))
         render_self(cl, o, ops->ops_GInfo, GREDRAW_REDRAW);
     else if (result != 0)

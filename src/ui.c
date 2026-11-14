@@ -333,6 +333,7 @@ static struct NewMenu menus[] = {
     PC_SLOTS(PROJ_DEBUG),
     {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_MENU)},    /* NM_TITLE with git: ui_update_git_menu() */
     {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_INIT)},
+    {NM_IGNORE, NULL, NULL, 0, 0, UD(MID_GIT_REFRESH)},
     {NM_TITLE, NULL, NULL, 0, 0, NULL},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_FOLDER_TREE)},
     {NM_ITEM, NULL, NULL, CHECKIT | MENUTOGGLE, 0, UD(MID_LINE_NUMBERS)},
@@ -432,6 +433,7 @@ static const LONG menu_texts[] = {
     PC_NO_TEXTS,
     MSG_MENU_GIT,
     MSG_MENU_GIT_INIT,
+    MSG_MENU_GIT_REFRESH,
     MSG_MENU_VIEW,
     MSG_MENU_TREE,
     MSG_MENU_LINENUMBERS,
@@ -570,7 +572,7 @@ void ui_update_git_menu(EditorApp *app)
         /* the title and its items go together: an item without its title
          * would join the menu before */
         if (ud == MID_GIT_MENU) menus[i].nm_Type = on ? NM_TITLE : NM_IGNORE;
-        else if (ud > MID_GIT_MENU && ud <= MID_GIT_INIT) menus[i].nm_Type = on ? NM_ITEM : NM_IGNORE;
+        else if (ud > MID_GIT_MENU && ud <= MID_GIT_REFRESH) menus[i].nm_Type = on ? NM_ITEM : NM_IGNORE;
     }
     if (app->window_object != NULL) SetAttrs(app->window_object, WINDOW_NewMenu, (ULONG)menus, TAG_END);
 }
@@ -668,6 +670,7 @@ void ui_update_status(EditorApp *app)
                  S(MSG_STATUS), doc_count, (unsigned long)lines);
         append_indent(app, status_text, sizeof(status_text));
     }
+    git_append_status(app, status_text, sizeof(status_text));
     if (rect_selections(app) != rect_shown) {
         rect_shown = !rect_shown;
         ui_set_menu_check(app, MID_RECT, rect_shown);
@@ -936,8 +939,10 @@ int ui_create(EditorApp *app)
         DIRTREE_EmptyText, (ULONG)S(MSG_TREE_EMPTY),
         DIRTREE_UnavailableText, (ULONG)S(MSG_TREE_UNAVAILABLE),
         DIRTREE_HideIcons, (ULONG)!app->settings.showinfo,
+        DIRTREE_PenHook, (ULONG)git_pen_hook(),
         TAG_END);
     if (app->tree == NULL) return 0;
+    git_obtain_pens(app);
     if (treeops_create(app) == NULL) return 0;  /* the buttons above it */
     if (minimap_create_gadget(app) == NULL) return 0;
     if (!toolbar_create(app)) return 0;
@@ -1268,6 +1273,7 @@ void ui_apply_settings(EditorApp *app, const Settings *n)
 
     int scout = app->settings.scout;
     int git = app->settings.git;
+    int gitcolours = memcmp(app->settings.gitcolours, n->gitcolours, sizeof(n->gitcolours)) != 0;
     int showinfo = app->settings.showinfo;
     int font = strcmp(app->settings.outfont, n->outfont) != 0 ||
                app->settings.outfontsize != n->outfontsize;
@@ -1276,7 +1282,11 @@ void ui_apply_settings(EditorApp *app, const Settings *n)
     app->settings = *n;
     if (font) outwin_font_changed(app);
     if (scout != n->scout) scoutlink_settings_changed(app);
-    if (git != n->git) ui_update_git_menu(app);
+    if (gitcolours) git_obtain_pens(app);
+    if (git != n->git) {
+        ui_update_git_menu(app);
+        git_project_changed(app);
+    }
     if (showinfo != n->showinfo) {
         tree_apply_info(app);
         set_menu_checks(app, bmlist_is_open());
@@ -1483,7 +1493,7 @@ static void menu_action(EditorApp *app, ULONG id)
         case MID_BUILD: case MID_RUN: case MID_DEBUG: case MID_STOP:
             build_action(app, id);
             break;
-        case MID_GIT_INIT:
+        case MID_GIT_INIT: case MID_GIT_REFRESH:
             git_menu(app, id);
             break;
         case MID_OUTPUT:
@@ -1730,18 +1740,20 @@ int ui_run(EditorApp *app)
          * minimap_poll() at its end shows the new picture. */
         signals = Wait(mask | scroll_mask | minimap_mask | tree_mask | find_sigmask() |
                        bmlist_sigmask() | outwin_sigmask() | build_sigmask() | scoutlink_sigmask() |
-                       symlist_sigmask() | diaglist_sigmask() | complete_sigmask() |
+                       symlist_sigmask() | diaglist_sigmask() | complete_sigmask() | git_sigmask() |
                        SIGBREAKF_CTRL_C);
         /* See "Background updates and the mouse" in TECHNICAL.md. Only
          * during a build, whose timer wakes the loop again. */
         defer = build_running() && ui_mouse_held();
         build_handle(app, signals);
+        git_handle(app, signals);
         if (!defer) scoutlink_handle(app);
         /* a shown directory changed (a file was made, deleted, renamed) */
         if ((signals & tree_mask) != 0) tree_changed = 1;
         if (tree_changed && !defer) {
             tree_changed = 0;
             tree_refresh(app, 0);
+            git_tree_changed(app);
         }
         if ((signals & scroll_mask) != 0) document_scroll_live(app);
         if (signals & SIGBREAKF_CTRL_C) { if (close_all(app)) break; }
@@ -1832,6 +1844,7 @@ int ui_run(EditorApp *app)
 void ui_destroy(EditorApp *app)
 {
     build_cleanup(app);
+    git_cleanup(app);
     symlist_cleanup(app);
     diaglist_cleanup(app);
     complete_cleanup(app);

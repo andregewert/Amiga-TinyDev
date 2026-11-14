@@ -603,8 +603,8 @@ Farbe der Präprozessor-Zeilen
 ; Colour of preprocessor lines
 ;
 MSG_PREFS_COLOURNOTE
-Die Farben der Syntaxhervorhebung wirken sofort.
-; The colours of the syntax highlighting take effect at once.
+Änderungen wirken sofort.
+; Changes take effect at once.
 ;
 MSG_PREFS_DEFCOLOURS
 Standard_farben
@@ -2125,4 +2125,52 @@ Git-Repository angelegt.
 MSG_NP_GITINIT
 Git-Repository anlegen
 ; Create a git repository
+;
+MSG_MENU_GIT_REFRESH
+Status aktualisieren
+; Refresh Status
+;
+MSG_STATUS_GIT
+ · Git: %s
+;  · Git: %s
+;
+MSG_PREFS_GRP_SYNTAX
+Syntaxhervorhebung
+; Syntax highlighting
+;
+MSG_PREFS_GRP_GITCOLOURS
+Git-Status im Verzeichnisbaum
+; Git state in the folder tree
+;
+MSG_PREFS_COL_GIT_UNTRACKED
+Neu (unversioniert) 
+; New (untracked) 
+;
+MSG_PREFS_COL_GIT_STAGED
+Vorgemerkt 
+; Staged 
+;
+MSG_PREFS_COL_GIT_MODIFIED
+Geändert 
+; Changed 
+;
+MSG_PREFS_COL_GIT_CONFLICT
+Konflikt 
+; Conflict 
+;
+MSG_PREFS_TTL_GIT_UNTRACKED
+Farbe unversionierter Dateien
+; Colour of untracked files
+;
+MSG_PREFS_TTL_GIT_STAGED
+Farbe vorgemerkter Dateien
+; Colour of staged files
+;
+MSG_PREFS_TTL_GIT_MODIFIED
+Farbe geänderter Dateien
+; Colour of changed files
+;
+MSG_PREFS_TTL_GIT_CONFLICT
+Farbe von Dateien mit Konflikten
+; Colour of files with conflicts
 ;

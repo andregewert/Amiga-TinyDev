@@ -13,8 +13,9 @@
  * default. The
  * shown directories are watched, so the tree follows changes on disk.
  * A pattern can choose the files that are shown, a hook the names they
- * show (e.g. the titles of HTML files), and the entries can be sorted in
- * natural order with directories among the files.
+ * show (e.g. the titles of HTML files), another hook their colours (e.g.
+ * a version control state), and the entries can be sorted in natural
+ * order with directories among the files.
  *
  * - Public class name: "dirtree.gadget" (superclass: listbrowser.gadget)
  * - Library: SYS:Classes/Gadgets/dirtree.gadget
@@ -298,6 +299,32 @@
  */
 #define DIRTREE_Title           (DIRTREE_Dummy + 22)
 
+/**
+ * @brief Hook that gives an entry's text pen.
+ *
+ * Called with the object and a struct DirTreePenMsg for every file and
+ * directory when it is read, and for all entries again when
+ * #DIRTREE_UpdatePens is set (on the application's process, from OM_NEW
+ * or OM_SET). It returns a pen of the screen (the application obtains and
+ * releases it), or -1 for the normal text pen. The pen is kept with the
+ * entry: rendering does not call the hook. A selected entry is drawn in
+ * FILLTEXTPEN as before.
+ *
+ * Type: struct Hook *. Applicability: I. Default: NULL (TEXTPEN).
+ */
+#define DIRTREE_PenHook         (DIRTREE_Dummy + 23)
+
+/**
+ * @brief Ask #DIRTREE_PenHook for every entry's pen again, e.g. after the
+ *        data behind it changed.
+ *
+ * Set it to TRUE with SetGadgetAttrs() from the application's process;
+ * the tree is redrawn if a pen changed.
+ *
+ * Type: BOOL. Applicability: S.
+ */
+#define DIRTREE_UpdatePens      (DIRTREE_Dummy + 24)
+
 /** @} */
 
 /** @name Values of DIRTREE_Status */
@@ -335,6 +362,13 @@ struct DirTreeNameMsg {
     LONG   dtnm_Directory;  /**< non-zero for a directory */
     STRPTR dtnm_Buffer;     /**< buffer for the shown name (ISO-8859-1) */
     ULONG  dtnm_BufferSize; /**< its size, including the terminating NUL */
+};
+
+/** Message of #DIRTREE_PenHook: the entry whose text pen is asked for. */
+struct DirTreePenMsg {
+    STRPTR dtpm_Path;       /**< full path of the entry */
+    STRPTR dtpm_Name;       /**< its file name */
+    LONG   dtpm_Directory;  /**< non-zero for a directory */
 };
 
 #endif /* GADGETS_DIRTREE_H */

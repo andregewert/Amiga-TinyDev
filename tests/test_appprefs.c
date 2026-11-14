@@ -23,6 +23,7 @@ static void test_parse(void)
     assert(d.colours[SCOL_KEYWORD] == settings_default_colours[SCOL_KEYWORD]);
     assert(d.outfont[0] == '\0' && d.outfontsize == 0);
     assert(!d.git && strcmp(d.gitcommand, "am-git") == 0);
+    assert(d.gitcolours[GITCOL_CONFLICT] == settings_default_gitcolours[GITCOL_CONFLICT]);
 
     /* not an object: nothing changes */
     s = d;
@@ -47,7 +48,8 @@ static void test_parse(void)
         "  \"tempdir\": \"RAM:\", \"shellwindow\": \"\", \"projectdir\": \"Work:Projects\","
         "  \"author\": \"Andr\xe9 Gewert\", \"authormail\": \"a@b.c\","
         "  \"outputfont\": { \"name\": \"Holstein.font\", \"size\": 16 },"
-        "  \"git\": { \"enabled\": true, \"command\": \"Work:am-git/am-git\" },"
+        "  \"git\": { \"enabled\": true, \"command\": \"Work:am-git/am-git\","
+        "             \"colours\": { \"staged\": \"#010203\", \"modified\": \"x\" } },"
         "  \"colours\": { \"text\": \"#102030\", \"keyword\": \"A0B0C0\", \"string\": \"#12345\","
         "                 \"comment\": 5, \"macro\": \"#GGGGGG\" }"
         "} }") == 1);
@@ -69,6 +71,8 @@ static void test_parse(void)
     assert(s.colours[SCOL_MACRO] == settings_default_colours[SCOL_MACRO]);
     assert(strcmp(s.outfont, "Holstein.font") == 0 && s.outfontsize == 16);
     assert(s.git && strcmp(s.gitcommand, "Work:am-git/am-git") == 0);
+    assert(s.gitcolours[GITCOL_STAGED] == 0x010203);
+    assert(s.gitcolours[GITCOL_MODIFIED] == settings_default_gitcolours[GITCOL_MODIFIED]);
     assert(strcmp(s.icon_name, "PROGDIR:TinyDev") == 0);
 
     /* wrong values and an unknown toolbar mode keep what is there */
@@ -119,6 +123,7 @@ static void test_format(void)
     s.outfontsize = 15;
     s.git = 1;
     strcpy(s.gitcommand, "C:am-git");
+    s.gitcolours[GITCOL_UNTRACKED] = 0xABCDEF;
     s.colours[SCOL_TYPE] = 0x0a0b0c;
     strcpy(s.icon_name, "PROGDIR:TinyDev");
 
@@ -132,6 +137,7 @@ static void test_format(void)
     assert(strstr(text, "\"keyword\": \"#0030D0\"") != NULL);
     assert(strstr(text, "\"name\": \"Tamzen.font\"") != NULL && strstr(text, "\"size\": 15") != NULL);
     assert(strstr(text, "\"enabled\": true") != NULL && strstr(text, "\"command\": \"C:am-git\"") != NULL);
+    assert(strstr(text, "\"untracked\": \"#ABCDEF\"") != NULL);
     assert(strstr(text, "PROGDIR:TinyDev") == NULL);    /* not a setting */
     settings_default(&r);
     assert(appprefs_parse(&r, text) == 1);

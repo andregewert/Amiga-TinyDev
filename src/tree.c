@@ -64,6 +64,7 @@ static int load_directory(EditorApp *app, const char *path)
     bookmarks_project_opened(app);
     scoutlink_project_opened(app);
     build_commands_changed();
+    git_project_changed(app);
     return 1;
 }
 
@@ -177,6 +178,7 @@ int tree_close_project(EditorApp *app)
     bookmarks_project_opened(app);      /* saves those of the project */
     scoutlink_project_opened(app);      /* closes the session */
     build_commands_changed();
+    git_project_changed(app);
     return 1;
 }
 

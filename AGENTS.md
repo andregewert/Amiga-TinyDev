@@ -54,7 +54,16 @@ below the tree's root.
   runs am-git synchronously through a script with `Stack 100000` in the
   temporary drawer (output and messages into one file, read afterwards);
   Git/Create Repository... and the New Project wizard's check box run
-  `am-git init` with the drawer's full name (am-git needs it).
+  `am-git init` with the drawer's full name (am-git needs it). The status
+  (`status --porcelain`) runs in a process of its own (as in `build.c`)
+  when a repository is opened, after saving, on the tree's changes (not
+  within 2 s after a run: am-git writes into `.git`) and on Git/Refresh
+  Status; it colours the tree through `DIRTREE_PenHook` (colours of the
+  setting "git"/"colours") and puts the branch (`.git/HEAD`) into the
+  status line.
+- `src/gitstatus.c`, `include/gitstatus.h`: the portable reader of
+  am-git's status lines, a file's or drawer's state (ignoring case) and
+  the branch of `.git/HEAD`; no Amiga headers.
 - `src/filetypes.c`, `include/filetypes.h`: the portable settings per
   file type (tab size, indentation, automatic indentation, Tab key, line
   numbers, cutting lines): reading and writing the "filetypes" of
@@ -201,8 +210,9 @@ below the tree's root.
   (listbrowser subclass); `dirtree_icons.c` is its private image class with
   the built-in entry symbols; `dirtree_sort.c` the portable natural order
   (host-tested in `tests/test_dirtree_sort.c`). Options: file pattern,
-  name hook (shown names), sort order, hiding directories without shown
-  files. It watches the root and the expanded
+  name hook (shown names), pen hook (a text colour per entry, asked when
+  an entry is read and on `DIRTREE_UpdatePens`), sort order, hiding
+  directories without shown files. It watches the root and the expanded
   directories with `StartNotify()` (port and signal of the creating task,
   `DIRTREE_SignalMask`); the application answers the signal with
   `DIRTREE_Refresh`, which reconciles only the changed directories.
@@ -345,6 +355,7 @@ below the tree's root.
 - `tests/test_projconf.c`: host-native tests of the project settings.
 - `tests/test_filetypes.c`: host-native tests of the settings per file type.
 - `tests/test_appprefs.c`: host-native tests of the global settings.
+- `tests/test_gitstatus.c`: host-native tests of the reading of am-git's status.
 - `tests/test_sprout_tmpl.c`: host-native tests of Sprout's core (also
   reads the `template.json` of the templates that come with TinyDev).
 - `tests/test_sprout_lha.c`: host-native tests of the LhA reader with the

@@ -30,7 +30,8 @@
  *     "projectdir": "",
  *     "author": "",
  *     "authormail": "",
- *     "git": { "enabled": false, "command": "am-git" },
+ *     "git": { "enabled": false, "command": "am-git",
+ *              "colours": { "untracked": "#006400", "staged": "#0030B0", ... } },
  *     "colours": { "text": "#000000", "keyword": "#0030D0", ... }
  *   }
  *
@@ -56,8 +57,9 @@
  * - "author", "authormail": the author filled into templates;
  * - "git": the git integration through am-git: on or off, and the
  *   command that runs am-git (a name in the command path or a path; ""
- *   keeps "am-git"); am-git's own settings are environment variables,
- *   not kept here;
+ *   keeps "am-git"), and the colours of the git states in the folder tree
+ *   ("#RRGGBB", keys untracked, staged, modified and conflict); am-git's
+ *   own settings are environment variables, not kept here;
  * - "colours": the colours of the highlighting, "#RRGGBB", with the keys
  *   text, keyword, string, comment, preprocessor, type, function, macro,
  *   constant and variable.
@@ -87,6 +89,16 @@ enum SettingsColour {
     SCOL_CONSTANT,      /**< constants and numbers */
     SCOL_VARIABLE,      /**< parameters and script variables */
     SCOL_COUNT          /**< number of colours */
+};
+
+/** Colours of the git states in the folder tree, in this order (the
+ *  order of GitState in gitstatus.h, from GIT_ST_UNTRACKED on). */
+enum SettingsGitColour {
+    GITCOL_UNTRACKED = 0,   /**< files not in the repository */
+    GITCOL_STAGED,          /**< changes in the index only */
+    GITCOL_MODIFIED,        /**< changes in the work tree */
+    GITCOL_CONFLICT,        /**< unmerged files */
+    GITCOL_COUNT            /**< number of colours */
 };
 
 /** TinyDev's global settings, edited in the settings window. */
@@ -120,11 +132,14 @@ typedef struct Settings {
     char authormail[128];  /**< the author's e-mail address, Sprout's AUTHORMAIL */
     int git;               /**< the git integration through am-git is on */
     char gitcommand[256];  /**< the command that runs am-git (default "am-git") */
+    unsigned long gitcolours[GITCOL_COUNT]; /**< 0xRRGGBB, SettingsGitColour order */
     char icon_name[300];   /**< program icon without .info, for splash, About and AppIcon (not saved) */
 } Settings;
 
 /** Default colours, SettingsColour order. */
 extern const unsigned long settings_default_colours[SCOL_COUNT];
+/** Default colours of the git states, SettingsGitColour order. */
+extern const unsigned long settings_default_gitcolours[GITCOL_COUNT];
 
 /**
  * @brief Set the default settings.

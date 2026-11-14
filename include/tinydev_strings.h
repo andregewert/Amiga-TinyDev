@@ -532,7 +532,19 @@
 #define MSG_GIT_INITFAILED           527
 #define MSG_GIT_CREATED              528
 #define MSG_NP_GITINIT               529
-#define MSG_COUNT                    530
+#define MSG_MENU_GIT_REFRESH         530
+#define MSG_STATUS_GIT               531
+#define MSG_PREFS_GRP_SYNTAX         532
+#define MSG_PREFS_GRP_GITCOLOURS     533
+#define MSG_PREFS_COL_GIT_UNTRACKED  534
+#define MSG_PREFS_COL_GIT_STAGED     535
+#define MSG_PREFS_COL_GIT_MODIFIED   536
+#define MSG_PREFS_COL_GIT_CONFLICT   537
+#define MSG_PREFS_TTL_GIT_UNTRACKED  538
+#define MSG_PREFS_TTL_GIT_STAGED     539
+#define MSG_PREFS_TTL_GIT_MODIFIED   540
+#define MSG_PREFS_TTL_GIT_CONFLICT   541
+#define MSG_COUNT                    542
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -685,7 +697,7 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Colour of strings",
     "Colour of comments",
     "Colour of preprocessor lines",
-    "The colours of the syntax highlighting take effect at once.",
+    "Changes take effect at once.",
     "_Default colours",
     "D_isplay ",
     "Images",
@@ -1067,6 +1079,18 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "The repository could not be created.\nam-git says:\n\n%s",
     "Git repository created.",
     "Create a git repository",
+    "Refresh Status",
+    " \267 Git: %s",
+    "Syntax highlighting",
+    "Git state in the folder tree",
+    "New (untracked) ",
+    "Staged ",
+    "Changed ",
+    "Conflict ",
+    "Colour of untracked files",
+    "Colour of staged files",
+    "Colour of changed files",
+    "Colour of files with conflicts",
 };
 #endif
 

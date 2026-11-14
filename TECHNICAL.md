@@ -213,13 +213,9 @@ version therefore hides a fresh build; check with
      Git/Create Repository...; no `.gitignore` is written (whether `.info`
      files belong in the repository is the user's choice, and templates
      may bring one).
-  2. Status: `am-git status --porcelain` (branch, then `XY path`) in a
-     process of its own, as in `build.c`, at most one run at a time, after
-     saving and when the tree's notifications report a change. The parser
-     of its output stays portable and host-tested. The colours in the tree
-     need a generic option of `dirtree.gadget` (a colour per entry through
-     a hook, nothing about git in the class). The branch goes to the
-     status line.
+  2. Done (`git.c`, `gitstatus.c`, `DIRTREE_PenHook`): the status in a
+     process of its own, coloured entries in the tree, the branch from
+     `.git/HEAD` in the status line.
   3. A commit window built like the project settings: changed files with
      check boxes, message, `add`, `unstage`, `commit -m`. A diff window
      from `am-git diff` (a read-only editor with `+`/`-` lines coloured).

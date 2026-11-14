@@ -106,7 +106,7 @@ enum {
     PG_LIST = 100,
     PG_WIDTH, PG_HEIGHT, PG_LEFT, PG_TOP, PG_CURSIZE, PG_AUTOSIZE, PG_SPLASH,
     PG_FOLDERTREE, PG_MINIMAP, PG_HIDEINFO,
-    PG_COLOUR, PG_DEFCOLOURS = PG_COLOUR + SCOL_COUNT,
+    PG_COLOUR, PG_GITCOLOUR = PG_COLOUR + SCOL_COUNT, PG_DEFCOLOURS = PG_GITCOLOUR + GITCOL_COUNT,
     PG_TBMODE, PG_TBFRAMES,
     PG_PROJECTDIR, PG_CHOOSEPROJECT, PG_AUTHOR, PG_AUTHORMAIL,
     PG_SCOUT, PG_TEMPDIR, PG_CHOOSETEMP, PG_SHELLWINDOW, PG_OUTFONTOWN, PG_OUTFONT,
@@ -164,6 +164,15 @@ static const LONG colour_titles[SCOL_COUNT] = {
     MSG_PREFS_TTL_CONSTANT, MSG_PREFS_TTL_VARIABLE
 };
 
+/** Labels of the git colours, SettingsGitColour order. */
+static const LONG gitcolour_labels[GITCOL_COUNT] = {
+    MSG_PREFS_COL_GIT_UNTRACKED, MSG_PREFS_COL_GIT_STAGED, MSG_PREFS_COL_GIT_MODIFIED, MSG_PREFS_COL_GIT_CONFLICT
+};
+/** Titles of their colour requesters, SettingsGitColour order. */
+static const LONG gitcolour_titles[GITCOL_COUNT] = {
+    MSG_PREFS_TTL_GIT_UNTRACKED, MSG_PREFS_TTL_GIT_STAGED, MSG_PREFS_TTL_GIT_MODIFIED, MSG_PREFS_TTL_GIT_CONFLICT
+};
+
 /**
  * @name Spacing
  * In "virtual pixels" (layout.gadget scales them). The labels end with a
@@ -192,6 +201,7 @@ static struct {
     Object *winobj, *root, *list, *page;
     Object *width, *height, *left, *top, *splash, *foldertree, *minimap, *hideinfo;
     Object *colours[SCOL_COUNT];
+    Object *gitcolours[GITCOL_COUNT];
     Object *tbmode, *tbframes;
     Object *projectdir, *author, *authormail;
     Object *scout, *tempdir, *shellwindow, *outfontown, *outfont;
@@ -516,7 +526,16 @@ static Object *build(EditorApp *app, const Settings *s)
             GA_ID, PG_COLOUR + i, GA_RelVerify, TRUE,
             GETCOLOR_Screen, (ULONG)app->screen, GETCOLOR_Color, s->colours[i],
             GETCOLOR_TitleText, (ULONG)S(colour_titles[i]), TAG_END);
-    colours = NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(categories[1])),
+    for (i = 0; i < GITCOL_COUNT; ++i)
+        pw.gitcolours[i] = NewObject(GETCOLOR_GetClass(), NULL,
+            GA_ID, PG_GITCOLOUR + i, GA_RelVerify, TRUE,
+            GETCOLOR_Screen, (ULONG)app->screen, GETCOLOR_Color, s->gitcolours[i],
+            GETCOLOR_TitleText, (ULONG)S(gitcolour_titles[i]), TAG_END);
+    /* two groups: the highlighting, the git states in the tree */
+    colours = NewObject(LAYOUT_GetClass(), NULL,
+        LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
+        LAYOUT_InnerSpacing, AREA_SPACING,
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(MSG_PREFS_GRP_SYNTAX)),
         LAYOUT_AddChild, (ULONG)pw.colours[0], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[0])),
         LAYOUT_AddChild, (ULONG)pw.colours[1], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[1])),
         LAYOUT_AddChild, (ULONG)pw.colours[2], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[2])),
@@ -527,6 +546,15 @@ static Object *build(EditorApp *app, const Settings *s)
         LAYOUT_AddChild, (ULONG)pw.colours[7], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[7])),
         LAYOUT_AddChild, (ULONG)pw.colours[8], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[8])),
         LAYOUT_AddChild, (ULONG)pw.colours[9], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[9])),
+            TAG_END),
+        FIXED,
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(MSG_PREFS_GRP_GITCOLOURS)),
+            LAYOUT_AddChild, (ULONG)pw.gitcolours[0], FIXED, CHILD_Label, (ULONG)label(S(gitcolour_labels[0])),
+            LAYOUT_AddChild, (ULONG)pw.gitcolours[1], FIXED, CHILD_Label, (ULONG)label(S(gitcolour_labels[1])),
+            LAYOUT_AddChild, (ULONG)pw.gitcolours[2], FIXED, CHILD_Label, (ULONG)label(S(gitcolour_labels[2])),
+            LAYOUT_AddChild, (ULONG)pw.gitcolours[3], FIXED, CHILD_Label, (ULONG)label(S(gitcolour_labels[3])),
+            TAG_END),
+        FIXED,
         LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_COLOURNOTE)),
         FIXED,
         /* the button on the right, not across the page */
@@ -826,6 +854,8 @@ static void read_gadgets(Settings *s)
     s->minimap = get(pw.minimap, CHECKBOX_Checked) != 0;
     for (i = 0; i < SCOL_COUNT; ++i)
         s->colours[i] = get(pw.colours[i], GETCOLOR_Color) & 0xFFFFFFUL;
+    for (i = 0; i < GITCOL_COUNT; ++i)
+        s->gitcolours[i] = get(pw.gitcolours[i], GETCOLOR_Color) & 0xFFFFFFUL;
     s->tbmode = (int)get(pw.tbmode, CHOOSER_Selected);
     s->tbframes = get(pw.tbframes, CHECKBOX_Checked) != 0;
     s->scout = get(pw.scout, CHECKBOX_Checked) != 0;
@@ -1224,6 +1254,8 @@ int prefs_dialog(EditorApp *app, Settings *s, FileTypes *ft, GitEnv *genv)
                 case PG_DEFCOLOURS:
                     for (i = 0; i < SCOL_COUNT; ++i)
                         set_page_gadget(pw.colours[i], GETCOLOR_Color, settings_default_colours[i]);
+                    for (i = 0; i < GITCOL_COUNT; ++i)
+                        set_page_gadget(pw.gitcolours[i], GETCOLOR_Color, settings_default_gitcolours[i]);
                     break;
                 case PG_CURSIZE:
                     set_page_gadget(pw.width, INTEGER_Number, (ULONG)app->window->Width);
@@ -1281,11 +1313,12 @@ int prefs_dialog(EditorApp *app, Settings *s, FileTypes *ft, GitEnv *genv)
                     done = 1;
                     break;
                 default:
-                    if (id >= PG_COLOUR && id < PG_COLOUR + SCOL_COUNT) {
+                    if (id >= PG_COLOUR && id < PG_COLOUR + SCOL_COUNT + GITCOL_COUNT) {
                         struct gcRequest msg;
                         msg.MethodID = GCOLOR_REQUEST;
                         msg.gcr_Window = pw.win;
-                        DoMethodA(pw.colours[id - PG_COLOUR], (Msg)&msg);
+                        DoMethodA(id < PG_GITCOLOUR ? pw.colours[id - PG_COLOUR] : pw.gitcolours[id - PG_GITCOLOUR],
+                                  (Msg)&msg);
                     }
                     break;
             }

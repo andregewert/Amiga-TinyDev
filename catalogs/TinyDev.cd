@@ -457,7 +457,7 @@ MSG_PREFS_TTL_PREPROC (//)
 Colour of preprocessor lines
 ;
 MSG_PREFS_COLOURNOTE (//)
-The colours of the syntax highlighting take effect at once.
+Changes take effect at once.
 ;
 MSG_PREFS_DEFCOLOURS (//)
 _Default colours
@@ -1624,4 +1624,40 @@ Git repository created.
 ;
 MSG_NP_GITINIT (//)
 Create a git repository
+;
+MSG_MENU_GIT_REFRESH (//)
+Refresh Status
+;
+MSG_STATUS_GIT (//)
+ · Git: %s
+;
+MSG_PREFS_GRP_SYNTAX (//)
+Syntax highlighting
+;
+MSG_PREFS_GRP_GITCOLOURS (//)
+Git state in the folder tree
+;
+MSG_PREFS_COL_GIT_UNTRACKED (//)
+New (untracked) 
+;
+MSG_PREFS_COL_GIT_STAGED (//)
+Staged 
+;
+MSG_PREFS_COL_GIT_MODIFIED (//)
+Changed 
+;
+MSG_PREFS_COL_GIT_CONFLICT (//)
+Conflict 
+;
+MSG_PREFS_TTL_GIT_UNTRACKED (//)
+Colour of untracked files
+;
+MSG_PREFS_TTL_GIT_STAGED (//)
+Colour of staged files
+;
+MSG_PREFS_TTL_GIT_MODIFIED (//)
+Colour of changed files
+;
+MSG_PREFS_TTL_GIT_CONFLICT (//)
+Colour of files with conflicts
 ;

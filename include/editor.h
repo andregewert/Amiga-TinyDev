@@ -147,6 +147,7 @@ enum MenuId {
     MID_TREE_HIDE_INFO, /**< Project/Folder Tree/Hide Info Files (check item) */
     MID_GIT_MENU,       /**< the Git menu's title (marks it in the table) */
     MID_GIT_INIT,       /**< Git/Create Repository...: am-git init in the project */
+    MID_GIT_REFRESH,    /**< Git/Refresh Status: the tree's colours and the branch anew */
     /* the File Type entries stay last: menu_action() takes the IDs from
      * MID_FT_AUTO on as file types */
     MID_FT_AUTO,        /**< File Type/Automatic: the language Scout detects */
@@ -1983,6 +1984,68 @@ LONG git_run(EditorApp *app, const char *dir, const char *args, char **output);
  * @return Non-zero if the drawer is a repository now.
  */
 int git_init(EditorApp *app, const char *drawer);
+/**
+ * @brief Run the status of the project again (in the background), if it
+ *        is a repository and the git integration is on; while a run is
+ *        going, once more after it.
+ * @param app The application state.
+ */
+void git_status_request(EditorApp *app);
+/**
+ * @brief The folder tree reported a change: run the status again, unless
+ *        a run goes or one ended just now (am-git's own writes into .git).
+ * @param app The application state.
+ */
+void git_tree_changed(EditorApp *app);
+/**
+ * @brief The project changed (or the git integration was switched): drop
+ *        the old status, read the branch and run the status of the new
+ *        project if it is a repository.
+ * @param app The application state.
+ */
+void git_project_changed(EditorApp *app);
+/**
+ * @brief The signal of the status process, 0 while none runs.
+ * @return The signal mask.
+ */
+ULONG git_sigmask(void);
+/**
+ * @brief Take the result of a finished status run: colour the tree, run
+ *        again if that was asked for meanwhile.
+ * @param app The application state.
+ * @param signals The signals received.
+ */
+void git_handle(EditorApp *app, ULONG signals);
+/**
+ * @brief Append the project's branch to a status text (nothing without
+ *        git or a repository).
+ * @param app The application state.
+ * @param text The status text.
+ * @param size Size of @p text.
+ */
+void git_append_status(EditorApp *app, char *text, size_t size);
+/**
+ * @brief The folder tree's DIRTREE_PenHook: entries in the colours of
+ *        their git state.
+ * @return The hook (static).
+ */
+struct Hook *git_pen_hook(void);
+/**
+ * @brief Obtain the pens of the git states from the settings (again) and
+ *        let the tree use them.
+ * @param app The application state (screen, settings).
+ */
+void git_obtain_pens(EditorApp *app);
+/**
+ * @brief Release the pens of the git states.
+ * @param app The application state.
+ */
+void git_release_pens(EditorApp *app);
+/**
+ * @brief Wait for a status run, then free what git.c holds.
+ * @param app The application state.
+ */
+void git_cleanup(EditorApp *app);
 /**
  * @brief Carry out a command of the Git menu (MID_GIT_...).
  * @param app The application state.

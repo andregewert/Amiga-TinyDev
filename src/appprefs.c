@@ -28,6 +28,18 @@ const unsigned long settings_default_colours[SCOL_COUNT] = {
     0x8a5a00,                       /* parameters and variables: brown */
 };
 
+/** Default colours of the git states in the folder tree, SettingsGitColour
+ *  order: readable on the grey of the list's background. */
+const unsigned long settings_default_gitcolours[GITCOL_COUNT] = {
+    0x006400,                       /* untracked: green */
+    0x0030b0,                       /* staged: blue */
+    0xa04800,                       /* modified: orange brown */
+    0xc00000,                       /* conflict: red */
+};
+
+/** Keys of "git"/"colours", SettingsGitColour order. */
+static const char *const gitcolour_names[GITCOL_COUNT] = { "untracked", "staged", "modified", "conflict" };
+
 /** Values of "toolbar"/"show", in the order of enum ToolbarMode. */
 static const char *const tbmode_names[TBMODE_COUNT] = { "images", "both", "text" };
 
@@ -74,6 +86,7 @@ void settings_default(Settings *s)
     strcpy(s->shellwindow, "CON:");
     strcpy(s->gitcommand, "am-git");
     memcpy(s->colours, settings_default_colours, sizeof(s->colours));
+    memcpy(s->gitcolours, settings_default_gitcolours, sizeof(s->gitcolours));
 }
 
 /* -- reading --------------------------------------------------------------- */
@@ -226,6 +239,10 @@ int appprefs_parse(Settings *s, const char *json)
         if ((o = json_obj_get_obj(st, "git")) != NULL) {
             get_bool(o, "enabled", &s->git);
             get_string(o, "command", 0, s->gitcommand, sizeof(s->gitcommand));
+            if ((o = json_obj_get_obj(o, "colours")) != NULL)
+                for (i = 0; i < GITCOL_COUNT; ++i)
+                    if ((v = json_obj_get(o, gitcolour_names[i])) != NULL && v->type == JSON_STRING)
+                        parse_colour(v->u.str_val, &s->gitcolours[i]);
         }
         if ((o = json_obj_get_obj(st, "colours")) != NULL)
             for (i = 0; i < SCOL_COUNT; ++i)
@@ -281,6 +298,28 @@ static int set_box(JsonValue *o, const long box[4])
 }
 
 /**
+ * @brief Write colours as "#RRGGBB" into an object.
+ * @param o The object.
+ * @param names Their keys.
+ * @param rgb The colours (0xRRGGBB).
+ * @param count Their number.
+ * @return 1 on success, 0 if out of memory.
+ */
+static int set_colours(JsonValue *o, const char *const *names, const unsigned long *rgb, int count)
+{
+    static const char digits[] = "0123456789ABCDEF";
+    char hex[8];
+    int i, k;
+    for (i = 0; i < count; ++i) {
+        hex[0] = '#';
+        for (k = 0; k < 6; ++k) hex[1 + k] = digits[(rgb[i] >> (20 - 4 * k)) & 15];
+        hex[7] = '\0';
+        if (!json_obj_set(o, names[i], json_new_string(hex))) return 0;
+    }
+    return 1;
+}
+
+/**
  * @brief Write the settings into the "settings" object, keeping its other keys.
  * @param st The object.
  * @param s The settings.
@@ -292,7 +331,6 @@ static int write_settings(JsonValue *st, const Settings *s)
     JsonValue *o, *tw;
     long win[4];
     int i, *open;
-    char hex[8];
 
     if (!json_obj_set(st, "splash", json_new_bool(s->splash)) ||
         !json_obj_set(st, "scout", json_new_bool(s->scout)))
@@ -327,19 +365,12 @@ static int write_settings(JsonValue *st, const Settings *s)
         return 0;
     if ((o = child_object(st, "git")) == NULL ||
         !json_obj_set(o, "enabled", json_new_bool(s->git)) ||
-        !json_obj_set(o, "command", json_new_string(s->gitcommand)))
+        !json_obj_set(o, "command", json_new_string(s->gitcommand)) ||
+        (o = child_object(o, "colours")) == NULL ||
+        !set_colours(o, gitcolour_names, s->gitcolours, GITCOL_COUNT))
         return 0;
-    if ((o = child_object(st, "colours")) == NULL) return 0;
-    for (i = 0; i < SCOL_COUNT; ++i) {
-        static const char digits[] = "0123456789ABCDEF";
-        unsigned long rgb = s->colours[i];
-        int k;
-        hex[0] = '#';
-        for (k = 0; k < 6; ++k) hex[1 + k] = digits[(rgb >> (20 - 4 * k)) & 15];
-        hex[7] = '\0';
-        if (!json_obj_set(o, colour_names[i], json_new_string(hex))) return 0;
-    }
-    return 1;
+    return (o = child_object(st, "colours")) != NULL &&
+           set_colours(o, colour_names, s->colours, SCOL_COUNT);
 }
 
 char *appprefs_format(const Settings *s, const char *old_json)

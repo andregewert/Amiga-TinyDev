@@ -1,7 +1,7 @@
 /**
  * @file git.c
- * @brief git through am-git: running its commands and the Git menu
- *        (Git/Create Repository).
+ * @brief git through am-git: running its commands, the status in the
+ *        folder tree and the status line, and the Git menu.
  *
  * TinyDev links no git code: it runs am-git, the command of the setting
  * "git"/"command" (am-git, found in the command path, by default), and
@@ -20,6 +20,20 @@
  * so TinyDev always passes the project drawer's full name; a drawer that
  * is already a project can be made a repository as well.
  *
+ * The status ("am-git status --porcelain", read with gitstatus.c) runs
+ * in a process of its own, so TinyDev goes on meanwhile: when a project
+ * that holds .git is opened, after a document was saved, when the folder
+ * tree reports a change and on Git/Refresh Status. One run at a time; a
+ * request while it runs makes it run once more afterwards. A change the
+ * tree reports while a run goes or within GIT_QUIET seconds after it is
+ * left alone: am-git writes into .git, and an expanded .git in the tree
+ * would otherwise start one run after the other. The process
+ * calls SystemTags() synchronously and reports with a message, sent under
+ * Forbid() as in build.c, so it is gone before TinyDev can quit. The
+ * result colours the tree's entries through dirtree.gadget's
+ * DIRTREE_PenHook (pens obtained from the setting "git"/"colours"); the
+ * branch, read from .git/HEAD, goes to the status line.
+ *
  * Seen on the Amiga with am-git 0.12.1: file names come through as the
  * bytes on disk (ISO-8859-1), so no conversion is needed; commit messages
  * have a single line (see TECHNICAL.md).
@@ -32,6 +46,13 @@
 #include <proto/dos.h>
 #include <proto/exec.h>
 #include <proto/intuition.h>
+#include <proto/graphics.h>
+#include <proto/utility.h>
+#include <proto/layout.h>
+#include <gadgets/dirtree.h>
+#include <clib/alib_protos.h>
+
+#include "gitstatus.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -41,6 +62,31 @@
 #define GIT_STACK 100000
 /** The longest output shown in a message (characters). */
 #define GIT_SHOWN 1200
+/** Seconds after a status run in which the tree's changes start none. */
+#define GIT_QUIET 2
+
+/** State of the status runs and their result. */
+static struct {
+    int running;                        /* a status process runs */
+    int pending;                        /* run again when it is done */
+    char run_root[EDITOR_PATH_MAX];     /* the repository of the run */
+    char script[EDITOR_PATH_MAX];       /* its script */
+    char output[EDITOR_PATH_MAX];       /* its output */
+    char command[EDITOR_PATH_MAX + 16]; /* what the Shell runs */
+    struct MsgPort *port;               /* the process reports here */
+    struct Message msg;
+    LONG rc;                            /* return code (set by the process) */
+    BPTR in, out;                       /* NIL:, the output file */
+    BPTR path;                          /* command path for the Shell */
+    ULONG finished;                     /* when the last run ended (seconds) */
+    char root[EDITOR_PATH_MAX];         /* the repository the status is of, "" if none */
+    GitStatus status;                   /* its changed files */
+    char branch[64];                    /* its branch, "" if not known */
+    LONG pens[GIT_ST_COUNT];            /* pens of the states, -1 if none */
+    int pens_open;                      /* the pens are obtained */
+    struct Screen *pen_screen;          /* the screen they are obtained on */
+    struct Hook pen_hook;               /* DIRTREE_PenHook */
+} gs;
 
 /**
  * @brief Put a string in double quotes for the Shell (BCPL escapes: *",
@@ -198,6 +244,7 @@ int git_init(EditorApp *app, const char *drawer)
     else if (!ok) report(app, MSG_GIT_INITFAILED, output);
     else ui_status_message(app, S(MSG_GIT_CREATED));
     free(output);
+    if (ok) git_project_changed(app);
     return ok;
 }
 
@@ -230,10 +277,271 @@ static void init_project(EditorApp *app)
     git_init(app, root);
 }
 
+/* ---- the status --------------------------------------------------------- */
+
+/**
+ * @brief The status process: runs the script through the Shell and reports
+ *        the return code (see build.c's build_process()).
+ */
+static void status_process(void)
+{
+    gs.rc = SystemTags((STRPTR)gs.command, SYS_Input, (ULONG)gs.in, SYS_Output, (ULONG)gs.out,
+                       SYS_UserShell, TRUE, NP_Error, (ULONG)gs.out, NP_CloseError, FALSE,
+                       gs.path != 0 ? NP_Path : TAG_IGNORE, (ULONG)gs.path, TAG_DONE);
+    if (gs.rc == -1) cmdpath_free(gs.path);
+    gs.path = 0;
+    Forbid();
+    PutMsg(gs.port, &gs.msg);
+}
+
+/**
+ * @brief Close what a status run used and delete its files.
+ */
+static void status_release(void)
+{
+    if (gs.out != 0) Close(gs.out);
+    if (gs.in != 0) Close(gs.in);
+    gs.out = gs.in = 0;
+    if (gs.script[0] != '\0') DeleteFile((STRPTR)gs.script);
+    if (gs.output[0] != '\0') DeleteFile((STRPTR)gs.output);
+    gs.script[0] = gs.output[0] = '\0';
+}
+
+/**
+ * @brief Read the branch of the repository from .git/HEAD.
+ * @param root The repository's drawer.
+ */
+static void read_branch(const char *root)
+{
+    char path[EDITOR_PATH_MAX], *text = NULL;
+    gs.branch[0] = '\0';
+    strcpy(path, root);
+    if (!AddPart((STRPTR)path, (STRPTR)".git/HEAD", sizeof(path))) return;
+    if (datafile_read(path, &text) > 0) gitstatus_head(text, gs.branch, sizeof(gs.branch));
+    free(text);
+}
+
+/**
+ * @brief Let the folder tree ask for its entries' pens again.
+ * @param app The application state.
+ */
+static void update_tree(EditorApp *app)
+{
+    if (app->tree == NULL) return;
+    /* the tree may be on the hidden page of its column */
+    if (app->window != NULL)
+        SetPageGadgetAttrs((struct Gadget *)app->tree, app->tree_column, app->window, NULL,
+                           DIRTREE_UpdatePens, TRUE, TAG_END);
+    else SetAttrs(app->tree, DIRTREE_UpdatePens, TRUE, TAG_END);
+}
+
+/**
+ * @brief Start a status run of the project, if it is a repository.
+ * @param app The application state.
+ */
+static void status_start(EditorApp *app)
+{
+    char root[EDITOR_PATH_MAX];
+    BPTR lock = 0;
+    struct Process *proc;
+
+    if (!git_enabled(app) || !tree_project_root(app, root, sizeof(root)) || !is_repository(root)) return;
+    strcpy(gs.run_root, root);
+    if (!temp_name(app, ".script", gs.script, sizeof(gs.script)) ||
+        !temp_name(app, ".txt", gs.output, sizeof(gs.output))) {
+        gs.script[0] = gs.output[0] = '\0';
+        return;
+    }
+    if (!write_script(app, gs.script, "status --porcelain")) {
+        gs.script[0] = '\0';
+        status_release();
+        return;
+    }
+    snprintf(gs.command, sizeof(gs.command), "Execute \"%s\"", gs.script);
+    if ((gs.port == NULL && (gs.port = CreateMsgPort()) == NULL) ||
+        (lock = Lock((STRPTR)root, ACCESS_READ)) == 0 ||
+        (gs.in = Open((STRPTR)"NIL:", MODE_OLDFILE)) == 0 ||
+        (gs.out = Open((STRPTR)gs.output, MODE_NEWFILE)) == 0) {
+        if (lock != 0) UnLock(lock);
+        status_release();
+        return;
+    }
+    memset(&gs.msg, 0, sizeof(gs.msg));
+    gs.msg.mn_Node.ln_Type = NT_MESSAGE;
+    gs.msg.mn_Length = sizeof(gs.msg);
+    gs.rc = -1;
+    /* the lock and the path go to the process, which frees them */
+    gs.path = cmdpath_copy();
+    proc = CreateNewProcTags(NP_Entry, (ULONG)status_process, NP_Name, (ULONG)"TinyDev Git Status",
+                             NP_StackSize, 8192, NP_CurrentDir, (ULONG)lock, TAG_DONE);
+    if (proc == NULL) {
+        UnLock(lock);
+        cmdpath_free(gs.path);
+        gs.path = 0;
+        status_release();
+        return;
+    }
+    gs.running = 1;
+    gs.pending = 0;
+}
+
+void git_status_request(EditorApp *app)
+{
+    if (!git_enabled(app)) return;
+    if (gs.running) gs.pending = 1;
+    else status_start(app);
+}
+
+void git_tree_changed(EditorApp *app)
+{
+    ULONG secs = 0, micros = 0;
+    if (!git_enabled(app) || gs.running || gs.root[0] == '\0') return;
+    CurrentTime(&secs, &micros);
+    if (secs >= gs.finished && secs - gs.finished < GIT_QUIET) return;
+    status_start(app);
+}
+
+void git_project_changed(EditorApp *app)
+{
+    char root[EDITOR_PATH_MAX];
+    int repo = git_enabled(app) && tree_project_root(app, root, sizeof(root)) && is_repository(root);
+    /* a run of the old project is still taken, then dropped (gs.run_root) */
+    gitstatus_clear(&gs.status);
+    gs.root[0] = gs.branch[0] = '\0';
+    if (repo) {
+        strcpy(gs.root, root);
+        read_branch(root);
+    }
+    update_tree(app);
+    if (repo) git_status_request(app);
+}
+
+ULONG git_sigmask(void)
+{
+    return gs.running && gs.port != NULL ? 1UL << gs.port->mp_SigBit : 0;
+}
+
+void git_handle(EditorApp *app, ULONG signals)
+{
+    char *text = NULL;
+    if (!gs.running || gs.port == NULL || (signals & (1UL << gs.port->mp_SigBit)) == 0) return;
+    if (GetMsg(gs.port) == NULL) return;
+    gs.running = 0;
+    {
+        ULONG micros;
+        CurrentTime(&gs.finished, &micros);
+    }
+    if (gs.out != 0) {
+        Close(gs.out);
+        gs.out = 0;
+    }
+    /* only the result of the project still open counts */
+    if (gs.rc == 0 && gs.root[0] != '\0' && Stricmp((STRPTR)gs.run_root, (STRPTR)gs.root) == 0 &&
+        datafile_read(gs.output, &text) >= 0) {
+        if (!gitstatus_parse(&gs.status, text != NULL ? text : "")) gitstatus_clear(&gs.status);
+        read_branch(gs.root);
+        update_tree(app);
+    }
+    free(text);
+    status_release();
+    if (gs.pending) status_start(app);
+}
+
+void git_append_status(EditorApp *app, char *text, size_t size)
+{
+    size_t n = strlen(text);
+    if (!git_enabled(app) || gs.root[0] == '\0' || gs.branch[0] == '\0') return;
+    snprintf(text + n, size - n, S(MSG_STATUS_GIT), gs.branch);
+}
+
+/* ---- the pens of the tree ------------------------------------------------ */
+
+/**
+ * @brief DIRTREE_PenHook: the pen of an entry's git state.
+ * @param hook The hook.
+ * @param tree The folder tree.
+ * @param msg The entry.
+ * @return A pen, or -1 for the normal one.
+ */
+static ULONG pen_entry(struct Hook *hook, Object *tree, struct DirTreePenMsg *msg)
+{
+    const char *rel;
+    int state;
+    (void)hook;
+    (void)tree;
+    if (!gs.pens_open || gs.root[0] == '\0' || gs.status.count == 0) return (ULONG)-1;
+    if ((rel = gitstatus_relative(gs.root, (const char *)msg->dtpm_Path)) == NULL) return (ULONG)-1;
+    /* the repository itself is not part of its status */
+    if (Strnicmp((STRPTR)rel, (STRPTR)".git", 4) == 0 && (rel[4] == '\0' || rel[4] == '/')) return (ULONG)-1;
+    state = gitstatus_state(&gs.status, rel, msg->dtpm_Directory != 0);
+    return state > GIT_ST_CLEAN && state < GIT_ST_COUNT ? (ULONG)gs.pens[state] : (ULONG)-1;
+}
+
+struct Hook *git_pen_hook(void)
+{
+    gs.pen_hook.h_Entry = (ULONG (*)())HookEntry;
+    gs.pen_hook.h_SubEntry = (ULONG (*)())pen_entry;
+    return &gs.pen_hook;
+}
+
+/**
+ * @brief A colour from 0xRRGGBB to the 32-bit value of a gun.
+ * @param rgb The colour.
+ * @param shift 16 for red, 8 for green, 0 for blue.
+ * @return The gun's value.
+ */
+static ULONG gun(unsigned long rgb, int shift)
+{
+    return (ULONG)((rgb >> shift) & 0xFF) * 0x01010101UL;
+}
+
+void git_release_pens(EditorApp *app)
+{
+    int i;
+    (void)app;
+    if (!gs.pens_open || gs.pen_screen == NULL) return;
+    for (i = GIT_ST_UNTRACKED; i < GIT_ST_COUNT; ++i)
+        if (gs.pens[i] >= 0) ReleasePen(gs.pen_screen->ViewPort.ColorMap, (ULONG)gs.pens[i]);
+    gs.pens_open = 0;
+    gs.pen_screen = NULL;
+}
+
+void git_obtain_pens(EditorApp *app)
+{
+    int i;
+    git_release_pens(app);
+    if (app->screen == NULL) return;
+    gs.pens[GIT_ST_CLEAN] = -1;
+    for (i = GIT_ST_UNTRACKED; i < GIT_ST_COUNT; ++i) {
+        unsigned long rgb = app->settings.gitcolours[i - GIT_ST_UNTRACKED];
+        gs.pens[i] = ObtainBestPen(app->screen->ViewPort.ColorMap, gun(rgb, 16), gun(rgb, 8), gun(rgb, 0),
+                                   OBP_Precision, PRECISION_GUI, TAG_END);
+    }
+    gs.pen_screen = app->screen;
+    gs.pens_open = 1;
+    update_tree(app);
+}
+
+void git_cleanup(EditorApp *app)
+{
+    /* the process reports before it ends: wait for it */
+    while (gs.running) {
+        gs.pending = 0;
+        WaitPort(gs.port);
+        git_handle(app, 1UL << gs.port->mp_SigBit);
+    }
+    status_release();
+    if (gs.port != NULL) DeleteMsgPort(gs.port);
+    gs.port = NULL;
+    gitstatus_clear(&gs.status);
+    git_release_pens(app);
+}
+
 void git_menu(EditorApp *app, ULONG id)
 {
     if (!git_enabled(app)) return;
     switch (id) {
         case MID_GIT_INIT: init_project(app); break;
+        case MID_GIT_REFRESH: git_project_changed(app); break;
     }
 }
