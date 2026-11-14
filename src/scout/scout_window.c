@@ -61,6 +61,10 @@ struct Library *ListBrowserBase = NULL;
 /** label.image. */
 struct Library *LabelBase = NULL;
 
+/** The version of TinyDev-Scout.catalog (the "## version" line of the
+ *  .ct files); OpenCatalog() takes only this one. */
+#define SCOUT_CATALOG_VERSION 1
+
 /** Gadget IDs. */
 enum {
     GID_STATE = 1, GID_RUNNING, GID_QUEUE, GID_MEMORY, GID_COMMANDS, GID_ANALYSES, GID_TIMEOUTS, GID_CACHED,
@@ -697,7 +701,8 @@ int scout_window_init(ScoutServer *srv)
     (void)srv;
     if ((LocaleBase = (struct LocaleBase *)OpenLibrary((STRPTR)"locale.library", 38)) != NULL)
         sw.catalog = OpenCatalog(NULL, (STRPTR)"TinyDev-Scout.catalog",
-                                 OC_BuiltInLanguage, (ULONG)"english", TAG_END);
+                                 OC_BuiltInLanguage, (ULONG)"english",
+                                 OC_Version, SCOUT_CATALOG_VERSION, TAG_END);
     if ((sw.timer_port = CreateMsgPort()) == NULL) return 0;
     sw.timer = (struct timerequest *)CreateIORequest(sw.timer_port, sizeof(struct timerequest));
     if (!sw.timer) return 0;

@@ -32,6 +32,9 @@ struct RxsLib *RexxSysBase = NULL;
 /** libnix swaps to a stack of this size at the start (-Wl,-u,___stkinit). */
 unsigned long __stack = 16384;
 
+/** The version string, for the Shell command Version. */
+static const char version_tag[] __attribute__((used)) = "$VER: TinyDev-Scout " SCOUT_VERSION " (14.11.2026)";
+
 ScoutServer g_scout;
 
 /** Scout was started from a Shell (not from the Workbench). */

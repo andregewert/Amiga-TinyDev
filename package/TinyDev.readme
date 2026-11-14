@@ -46,6 +46,13 @@ Features
    (NOT a simple keyword list)
  - Find and replace (Amiga+F) in multiple documents; supports regular
    expressions
+ - Go to definition, open included files, problem list
+ - Build, Run and Debug commands per project, with an output window
+ - Project templates for C (vbcc, gcc, SAS/C), assembler (vasm, BAsm),
+   AmigaE, Free Pascal, ACE BASIC and ARexx; the C, E and assembler
+   templates start a debug build in BDebug (Barfly), EDBG or CodeProbe
+ - Git integration through am-git (experimental): status in the folder
+   tree, commit, branches, history, tags, fetch, pull and push
  - Integrated documentation (work in progress)
     - The HelpViewer is a simple but functional tool for displaying the
       supplied documentation
@@ -70,6 +77,10 @@ drawer removes TinyDev. For an update, choose the same place; your settings
 stay. TinyDev also runs directly from the archive, as it finds all its
 parts next to it. html.gadget must be installed in SYS:Classes/Gadgets/ or
 lie in the drawer Classes/Gadgets of TinyDev.
+
+Compilers, assemblers and debuggers are not included; the templates call
+them by name, so they must be in the command path. The Git menu needs
+am-git, BDebug comes with Barfly (both on Aminet).
 
 Contents
 --------
@@ -155,6 +166,15 @@ Funktionen
    (KEINE einfache Keyword-Liste)
  - Suchen und Ersetzen (Amiga+F) in mehreren Dokumenten; Unterstützung für
    reguläre Ausdrücke
+ - Gehe zur Definition, eingebundene Dateien öffnen, Problemliste
+ - Befehle zum Erstellen, Ausführen und Debuggen pro Projekt, mit
+   Ausgabefenster
+ - Projektvorlagen für C (vbcc, gcc, SAS/C), Assembler (vasm, BAsm),
+   AmigaE, Free Pascal, ACE BASIC und ARexx; die Vorlagen für C, E und
+   Assembler starten einen Debug-Build in BDebug (Barfly), EDBG oder
+   CodeProbe
+ - Git-Integration mit am-git (experimentell): Status im Verzeichnisbaum,
+   Commit, Zweige, Verlauf, Tags, Fetch, Pull und Push
  - Integrierte Dokumentation (in Arbeit)
     - Der HelpViewer ist ein einfaches, aber funktionales Werkzeug für die
       Anzeige der mitgelieferten Dokumentation
@@ -180,6 +200,10 @@ Einstellungen bleiben erhalten. TinyDev läuft auch direkt aus dem Archiv,
 da es alle seine Teile neben sich findet. html.gadget muss in
 SYS:Classes/Gadgets/ installiert sein oder in der Schublade
 Classes/Gadgets von TinyDev liegen.
+
+Compiler, Assembler und Debugger liegen nicht bei; die Vorlagen rufen sie
+über ihren Namen auf, sie müssen also im Befehlspfad liegen. Das Menü
+Git braucht am-git, BDebug gehört zu Barfly (beide im Aminet).
 
 Inhalt
 ------

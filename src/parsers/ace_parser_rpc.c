@@ -345,6 +345,9 @@ int ace_parser_handle_request(const char *request, JsonWriter *response)
 /** libnix swaps to a stack of this size at the start (-Wl,-u,___stkinit). */
 unsigned long __stack = 32768;
 
+/** The version string, for the Shell command Version. */
+static const char version_tag[] __attribute__((used)) = "$VER: ace_parser 1.0 (14.11.2026)";
+
 /**
  * @brief Check for Ctrl-C (ace_parser_should_stop()); the signal is cleared.
  * @return Non-zero if it came.

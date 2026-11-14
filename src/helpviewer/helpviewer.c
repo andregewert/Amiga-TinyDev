@@ -83,6 +83,9 @@
 static const char version[] = "$VER: HelpViewer 1.0 (20.10.2026)";
 /** The version as the About requester shows it. */
 #define HV_VERSION "1.0 (20.10.2026)"
+/** The version of HelpViewer.catalog (the "## version" line of the .ct
+ *  files); OpenCatalog() takes only this one. */
+#define HV_CATALOG_VERSION 1
 
 /** libnix swaps to a stack of this size at the start (-Wl,-u,___stkinit). */
 unsigned long __stack = 32768;
@@ -1452,7 +1455,8 @@ int main(void)
     }
     if ((LocaleBase = (struct LocaleBase *)OpenLibrary((STRPTR)"locale.library", 38)) != NULL)
         hv.catalog = OpenCatalog(NULL, (STRPTR)"HelpViewer.catalog",
-                                 OC_BuiltInLanguage, (ULONG)"english", TAG_END);
+                                 OC_BuiltInLanguage, (ULONG)"english",
+                                 OC_Version, HV_CATALOG_VERSION, TAG_END);
 
     AslBase = OpenLibrary((STRPTR)"asl.library", 38);
     if ((WindowBase = OpenLibrary((STRPTR)"window.class", 44)) == NULL) missing = "window.class";

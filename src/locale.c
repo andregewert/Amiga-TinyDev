@@ -18,12 +18,19 @@
 #include <proto/exec.h>
 #include <proto/locale.h>
 
+/** Defines msg_builtin[] (the English texts) in this file. */
 #define TINYDEV_STRINGS
 #include "editor.h"
 
-/* No OC_Version until the first release: the catalogs are built together
- * with the program, and the strings may still be reordered. With the
- * release, a catalog version is set here and in the .ct files. */
+/**
+ * The version of TinyDev.catalog (the "## version" line of the .ct files).
+ *
+ * OpenCatalog() takes only a catalog of this version, so an old catalog
+ * cannot show wrong texts. New strings go to the end of TinyDev.cd; if
+ * strings are removed or reordered, this number and the .ct files
+ * change together.
+ */
+#define CATALOG_VERSION 1
 
 /**
  * locale.library, NULL if it is not available.
@@ -39,6 +46,7 @@ void locale_open(void)
     if ((LocaleBase = (struct LocaleBase *)OpenLibrary((STRPTR)"locale.library", 38)) == NULL) return;
     catalog = OpenCatalog(NULL, (STRPTR)"TinyDev.catalog",
                           OC_BuiltInLanguage, (ULONG)"english",
+                          OC_Version, CATALOG_VERSION,
                           TAG_END);
 }
 

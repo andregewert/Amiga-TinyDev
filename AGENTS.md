@@ -572,8 +572,10 @@ make test
 - Every text TinyDev shows comes from the catalog: add it to
   `catalogs/TinyDev.cd` and translate it in `catalogs/deutsch.ct`, use it as
   `S(MSG_...)`. Keep the format specifiers in translations and the `_`
-  shortcuts unique per window in every language. Strings may be reordered
-  until the first release (no catalog version yet).
+  shortcuts unique per window in every language. New strings go to the end:
+  OpenCatalog() asks for catalog version 1 (`CATALOG_VERSION` in
+  `src/locale.c`, likewise for HelpViewer and Scout); removing or
+  reordering strings raises it there and in the `.ct` files.
 
 - Project data goes to the visible directory `<project>/.tinydev/` (made
   when first needed), as files the user may edit by hand: JSON in
