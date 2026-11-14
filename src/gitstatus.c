@@ -499,6 +499,45 @@ static int is_sha(const char *s)
     return 1;
 }
 
+int gittext_to_utf8(const char *in, char *out, size_t size)
+{
+    size_t n = 0;
+    for (; *in != '\0'; ++in) {
+        unsigned char c = (unsigned char)*in;
+        if (c < 0x80) {
+            if (n + 1 >= size) break;
+            out[n++] = (char)c;
+        } else {
+            if (n + 2 >= size) break;
+            out[n++] = (char)(0xC0 | (c >> 6));
+            out[n++] = (char)(0x80 | (c & 0x3F));
+        }
+    }
+    if (size > 0) out[n < size ? n : size - 1] = '\0';
+    return *in == '\0' && size > 0;
+}
+
+void gittext_from_utf8(char *s)
+{
+    unsigned char *r = (unsigned char *)s, *w = (unsigned char *)s;
+    while (*r != '\0') {
+        unsigned char c = *r;
+        int more = c >= 0xC2 && c <= 0xDF ? 1 : c >= 0xE0 && c <= 0xEF ? 2 : c >= 0xF0 && c <= 0xF4 ? 3 : 0;
+        int k;
+        for (k = 1; k <= more && (r[k] & 0xC0) == 0x80; ++k) ;
+        if (more == 0 || k <= more) {
+            *w++ = *r++;                    /* ASCII, or no UTF-8: as it is */
+        } else if (more == 1 && c <= 0xC3) {
+            *w++ = (unsigned char)(((c & 0x03) << 6) | (r[1] & 0x3F));
+            r += 2;
+        } else {
+            *w++ = '?';                     /* beyond ISO-8859-1 */
+            r += more + 1;
+        }
+    }
+    *w = '\0';
+}
+
 int gitlog_parse(GitLog *log, const char *text)
 {
     const char *line = text;
@@ -535,12 +574,14 @@ int gitlog_parse(GitLog *log, const char *text)
                 return 0;
             }
             gitlog_author(raw, cur->author, len - 8 + 1, &cur->time, &cur->tz);
+            gittext_from_utf8(cur->author);
             free(raw);
         } else if (cur != NULL && cur->subject == NULL && len >= 4 && memcmp(line, "    ", 4) == 0) {
             if ((cur->subject = copy_n(line + 4, len - 4)) == NULL) {
                 gitlog_clear(log);
                 return 0;
             }
+            gittext_from_utf8(cur->subject);
         }
         line = end != NULL ? end + 1 : NULL;
     }

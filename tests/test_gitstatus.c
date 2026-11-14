@@ -176,6 +176,29 @@ static void test_branches(void)
 }
 
 /**
+ * @brief ISO-8859-1 and UTF-8.
+ */
+static void test_utf8(void)
+{
+    char u[32], s[64];
+    assert(gittext_to_utf8("Andr\xE9 \xFF!", u, sizeof(u)) && strcmp(u, "Andr\xC3\xA9 \xC3\xBF!") == 0);
+    assert(!gittext_to_utf8("\xE9\xE9", u, 4) && strcmp(u, "\xC3\xA9") == 0);
+    assert(gittext_to_utf8("", u, sizeof(u)) && u[0] == '\0');
+    strcpy(s, "Andr\xC3\xA9 G\xC3\xBC");
+    gittext_from_utf8(s);
+    assert(strcmp(s, "Andr\xE9 G\xFC") == 0);
+    strcpy(s, "Andr\xE9 \xC3x \xC3");       /* ISO-8859-1, broken UTF-8 */
+    gittext_from_utf8(s);
+    assert(strcmp(s, "Andr\xE9 \xC3x \xC3") == 0);
+    strcpy(s, "\xE2\x82\xAC" "5 \xF0\x9F\x98\x80!");   /* euro sign, emoji */
+    gittext_from_utf8(s);
+    assert(strcmp(s, "?5 ?!") == 0);
+    strcpy(s, "\xC5\x81\xC0\x80");            /* beyond Latin-1; overlong */
+    gittext_from_utf8(s);
+    assert(strcmp(s, "?\xC0\x80") == 0);
+}
+
+/**
  * @brief The output of "am-git log" and "am-git show", dates.
  */
 static void test_log(void)
@@ -207,7 +230,7 @@ static void test_log(void)
     gitlog_init(&log);
     assert(gitlog_parse(&log,
         "commit 0123456789abcdef0123456789abcdef01234567\n"
-        "Author: Andr\xE9 <a@b.c> 1731600000 +0100\n"
+        "Author: Andr\xC3\xA9 <a@b.c> 1731600000 +0100\n"
         "\n"
         "    Merge branch 'dummy-1'\n"
         "    \n"
@@ -262,6 +285,7 @@ int main(void)
     test_diff();
     test_config();
     test_branches();
+    test_utf8();
     test_log();
     puts("git status tests passed");
     return 0;

@@ -244,6 +244,7 @@ void git_report(EditorApp *app, struct Window *win, LONG id, const char *output)
     while (n > 0 && (shown[n - 1] == '\n' || shown[n - 1] == '\r' || shown[n - 1] == ' ')) --n;
     shown[n] = '\0';
     if (output != NULL && strlen(output) > GIT_SHOWN) strcpy(shown + n, "...");
+    gittext_from_utf8(shown);       /* names and messages of commits; others stay */
     if ((text = malloc(strlen(S(id)) + strlen(shown) + 1)) == NULL) return;
     sprintf(text, S(id), shown);
     es.es_Title = (STRPTR)S(MSG_GIT_TITLE);

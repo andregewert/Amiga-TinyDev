@@ -175,6 +175,27 @@ int gitbranch_valid(const char *name);
  */
 int gitref_packed(const char *text, const char *ref, char *sha, size_t size);
 
+/**
+ * @brief Encode an ISO-8859-1 text as UTF-8, as git keeps names and
+ *        messages in commits.
+ * @param in The text.
+ * @param[out] out The UTF-8 text (twice as long at most).
+ * @param size Size of @p out.
+ * @return Non-zero if it fitted.
+ */
+int gittext_to_utf8(const char *in, char *out, size_t size);
+
+/**
+ * @brief Decode a UTF-8 text to ISO-8859-1, in place.
+ *
+ * Characters beyond ISO-8859-1 become '?'. Bytes that are no valid UTF-8
+ * stay as they are: a name or message written in ISO-8859-1 (as by
+ * am-git, which passes bytes on) still reads right.
+ *
+ * @param s The text; it gets no longer.
+ */
+void gittext_from_utf8(char *s);
+
 /** A commit of "am-git log". */
 typedef struct GitLogEntry {
     char sha[41];               /**< the commit */
@@ -207,7 +228,7 @@ void gitlog_clear(GitLog *log);
  *        <sha>", "Author: ...", the message indented by four spaces).
  *
  * Other header lines (such as "Date:") and messages ("log: ...") are
- * left out.
+ * left out. Author and subject are decoded with gittext_from_utf8().
  *
  * @param log The log (its commits are replaced).
  * @param text The output.

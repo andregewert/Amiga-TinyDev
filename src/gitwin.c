@@ -755,6 +755,7 @@ static int merge_message(const char *root, char *msg, size_t size)
         ++n;
     }
     msg[n] = '\0';
+    gittext_from_utf8(msg);
     free(text);
     return 1;
 }
@@ -766,7 +767,7 @@ static int merge_message(const char *root, char *msg, size_t size)
 static int commit(void)
 {
     const char *msg = (const char *)get(gc.message, STRINGA_TextVal);
-    char command[MESSAGE_MAX * 2 + 32], *out = NULL;
+    char command[MESSAGE_MAX * 4 + 32], utf8[MESSAGE_MAX * 2 + 1], *out = NULL;
     long i;
     LONG rc;
     if (msg == NULL || msg[0] == '\0') {
@@ -782,8 +783,9 @@ static int commit(void)
         message(gc.win, S(MSG_GITC_NOTHING));
         return 0;
     }
+    /* git keeps messages as UTF-8; am-git passes the bytes on */
     strcpy(command, "commit -m ");
-    if (!git_quote(command + 10, sizeof(command) - 10, msg)) return 0;
+    if (!gittext_to_utf8(msg, utf8, sizeof(utf8)) || !git_quote(command + 10, sizeof(command) - 10, utf8)) return 0;
     rc = run(gc.app, gc.root, command, &out);
     if (rc == -1) message(gc.win, S(MSG_GIT_NORUN));
     else if (rc != 0) git_report(gc.app, gc.win, MSG_GITC_FAILED, out);

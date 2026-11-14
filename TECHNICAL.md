@@ -288,6 +288,17 @@ version therefore hides a fresh build; check with
   - File names come through as the bytes on disk (ISO-8859-1 `ö` as
     0xF6), not as UTF-8: TinyDev needs no conversion, but such names
     look wrong in other git clients.
+  - am-git passes names and messages on as bytes too: an author name or
+    commit message in ISO-8859-1 lands in the commit as such, where git
+    and GitHub expect UTF-8 (and commits made elsewhere read as UTF-8
+    bytes in TinyDev). So TinyDev writes `AM_GIT_USER_NAME`,
+    `AM_GIT_USER_EMAIL` and the message of `commit -m` as UTF-8, and
+    decodes the authors and messages of `log`, `.git/MERGE_MSG` and the
+    output shown after a failure (`gittext_to_utf8()`,
+    `gittext_from_utf8()` in `gitstatus.c`: bytes that are no valid
+    UTF-8 stay, so older ISO-8859-1 commits still read right; characters
+    beyond ISO-8859-1 become `?`). File names, branch names and file
+    contents stay bytes: they are names and contents on the Amiga's disk.
   - `diff` shows the work tree against the index only (a staged new file
     is missing) and has no path argument; an untracked file may show a
     header without a hunk.
