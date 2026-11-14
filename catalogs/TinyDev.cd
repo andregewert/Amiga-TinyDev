@@ -1527,7 +1527,7 @@ MSG_PREFS_GRP_GITTOOL (//)
 am-git
 ;
 MSG_PREFS_GIT_ENABLE (//)
-Git integration through am-git
+Git integration through am-git (experimental)
 ;
 MSG_PREFS_GIT_COMMAND (//)
 Command 

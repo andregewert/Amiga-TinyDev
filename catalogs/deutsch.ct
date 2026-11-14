@@ -1995,8 +1995,8 @@ am-git
 ; am-git
 ;
 MSG_PREFS_GIT_ENABLE
-Git-Integration mit am-git
-; Git integration through am-git
+Git-Integration mit am-git (experimentell)
+; Git integration through am-git (experimental)
 ;
 MSG_PREFS_GIT_COMMAND
 Befehl 

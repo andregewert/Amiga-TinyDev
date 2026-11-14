@@ -1190,7 +1190,7 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Font of the output window",
     "Git",
     "am-git",
-    "Git integration through am-git",
+    "Git integration through am-git (experimental)",
     "Command ",
     "Choose am-git",
     "am-git comes from Aminet; https needs AmiSSL.\nWithout a path the command is looked for in the command path.",
