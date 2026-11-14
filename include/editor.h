@@ -2119,6 +2119,18 @@ int git_head_branch(const char *root, char *branch, size_t size);
  */
 int git_job_running(void);
 /**
+ * @brief After the folder tree deleted a file or drawer: stage the
+ *        deletion of what was tracked of it (am-git rm --cached on the
+ *        files the status reports deleted, the entry's icon among them).
+ *
+ * Only with git on, in a repository and with no Fetch, Pull or Push
+ * running; otherwise the deletion waits in the commit window.
+ *
+ * @param app The application state.
+ * @param path The deleted file or drawer.
+ */
+void git_deleted(EditorApp *app, const char *path);
+/**
  * @brief After a synchronous command changed the repository (a branch
  *        switched, a merge): the branch in the status line is read again
  *        and the status runs again.

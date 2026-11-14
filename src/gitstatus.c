@@ -362,6 +362,8 @@ int gitbranch_valid(const char *name)
     return 1;
 }
 
+static int is_sha(const char *s);
+
 int gitref_packed(const char *text, const char *ref, char *sha, size_t size)
 {
     const char *line = text;
@@ -374,6 +376,8 @@ int gitref_packed(const char *text, const char *ref, char *sha, size_t size)
         if (k == 40 && len == 41 + rl && line[40] == ' ' && memcmp(line + 41, ref, rl) == 0 && size > 40) {
             memcpy(sha, line, 40);
             sha[40] = '\0';
+            /* an annotated tag: the commit it peels to follows */
+            if (end != NULL && end[1] == '^' && is_sha(end + 2)) memcpy(sha, end + 2, 40);
             return 1;
         }
         if (end == NULL) break;

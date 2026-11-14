@@ -938,6 +938,65 @@ int git_clone(EditorApp *app, const char *url, const char *drawer, const char *n
     return 1;
 }
 
+/**
+ * @brief Run "am-git rm --cached" on the files of a status that a
+ *        deletion took away.
+ * @param app The application state.
+ * @param root The repository.
+ * @param st Its status after the deletion.
+ * @param rel The deleted entry, relative to the repository.
+ */
+static void stage_deleted(EditorApp *app, const char *root, const GitStatus *st, const char *rel)
+{
+    char command[480];
+    size_t base, n, rl = strlen(rel);
+    long i;
+    strcpy(command, "rm --cached");
+    base = n = strlen(command);
+    for (i = 0; i <= st->count; ++i) {
+        const GitStatusEntry *e = i < st->count ? &st->entries[i] : NULL;
+        char quoted[EDITOR_PATH_MAX + 8];
+        int match = 0;
+        size_t q = 0;
+        if (e != NULL && e->worktree == 'D') {
+            const char *p = e->path;
+            /* the entry itself, its icon, or what was in the drawer */
+            match = Stricmp((STRPTR)p, (STRPTR)rel) == 0 ||
+                    (Strnicmp((STRPTR)p, (STRPTR)rel, (LONG)rl) == 0 &&
+                     (p[rl] == '/' || Stricmp((STRPTR)(p + rl), (STRPTR)".info") == 0));
+            if (match && (!git_quote(quoted, sizeof(quoted), p) || (q = strlen(quoted)) + base + 2 > sizeof(command)))
+                match = 0;
+        }
+        /* a line full, or the end: run what is there */
+        if ((e == NULL || (match && n + 1 + q >= sizeof(command))) && n > base) {
+            git_run(app, root, command, NULL);
+            n = base;
+            command[n] = '\0';
+        }
+        if (match) {
+            command[n++] = ' ';
+            strcpy(command + n, quoted);
+            n += q;
+        }
+    }
+}
+
+void git_deleted(EditorApp *app, const char *path)
+{
+    char root[EDITOR_PATH_MAX], *out = NULL;
+    const char *rel;
+    GitStatus st;
+    if (!git_enabled(app) || gs.job || !tree_project_root(app, root, sizeof(root)) || !git_is_repository(root) ||
+        (rel = gitstatus_relative(root, path)) == NULL || rel[0] == '\0')
+        return;
+    gitstatus_init(&st);
+    if (git_run(app, root, "status --porcelain", &out) == 0 && gitstatus_parse(&st, out != NULL ? out : ""))
+        stage_deleted(app, root, &st, rel);
+    free(out);
+    gitstatus_clear(&st);
+    git_changed(app);
+}
+
 int git_job_running(void)
 {
     return gs.job;

@@ -744,6 +744,7 @@ void treeops_delete(EditorApp *app)
         SetAttrs(app->window_object, WA_BusyPointer, FALSE, TAG_END);
         walk_message(app, w);
         documents_deleted(app, path);           /* some of it may be gone */
+        git_deleted(app, path);
         FreeVec(w);
         return;
     }
@@ -751,7 +752,10 @@ void treeops_delete(EditorApp *app)
         LONG error = IoErr();
         SetAttrs(app->window_object, WA_BusyPointer, FALSE, TAG_END);
         dos_message(app, MSG_TREEOPS_ERR_DELETE, path, error);
-        if (drawer) documents_deleted(app, path);
+        if (drawer) {
+            documents_deleted(app, path);
+            git_deleted(app, path);
+        }
         FreeVec(w);
         return;
     }
@@ -759,6 +763,7 @@ void treeops_delete(EditorApp *app)
     DeleteFile((STRPTR)icon);                   /* if it has one */
     SetAttrs(app->window_object, WA_BusyPointer, FALSE, TAG_END);
     documents_deleted(app, path);
+    git_deleted(app, path);                     /* staged, if it was tracked */
     FreeVec(w);
 }
 

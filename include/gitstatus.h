@@ -166,7 +166,8 @@ int gitbranch_valid(const char *name);
 
 /**
  * @brief The commit a ref points at in a packed-refs file
- *        (lines "<sha> <ref>").
+ *        (lines "<sha> <ref>"; for an annotated tag, the commit of the
+ *        "^<sha>" line after it).
  * @param text The file (.git/packed-refs).
  * @param ref The ref, e.g. "refs/heads/main".
  * @param[out] sha Its commit (40 hex digits).

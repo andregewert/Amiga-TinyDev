@@ -2048,3 +2048,48 @@ Changes of the commit %s:
 MSG_GITH_NODIFF (//)
 The commit did not change the text of the file.
 ;
+MSG_GITH_COL_TAGS (//)
+Tags
+;
+MSG_GITH_TAG (//)
+Set _Tag...
+;
+MSG_GITH_UNTAG (//)
+_Delete Tag...
+;
+MSG_GITH_NOCOMMIT (//)
+Please click a commit first.
+;
+MSG_GITH_TAGTITLE (//)
+New Tag
+;
+MSG_GITH_TAGWHERE (//)
+At the commit %s (stays local: am-git cannot push tags):
+;
+MSG_GITH_BADTAG (//)
+%s\nis not a valid tag name: no spaces, no characters\nsuch as ~ ^ : ? * [ #, no .. and no . or / at the start or end.
+;
+MSG_GITH_TAGEXISTS (//)
+There is a tag %s already.
+;
+MSG_GITH_TAGGED (//)
+Tag %s set.
+;
+MSG_GITH_NOTAG (//)
+The commit has no tag.
+;
+MSG_GITH_UNTAGTITLE (//)
+Delete Tag
+;
+MSG_GITH_UNTAGWHICH (//)
+Which tag (%s)?
+;
+MSG_GITH_NOSUCHTAG (//)
+The commit has no tag %s.
+;
+MSG_GITH_UNTAGASK (//)
+Delete the tag %s?
+;
+MSG_GITH_UNTAGGED (//)
+Tag %s deleted.
+;

@@ -2690,3 +2690,63 @@ MSG_GITH_NODIFF
 Der Commit hat den Text der Datei nicht geändert.
 ; The commit did not change the text of the file.
 ;
+MSG_GITH_COL_TAGS
+Tags
+; Tags
+;
+MSG_GITH_TAG
+_Tag setzen...
+; Set _Tag...
+;
+MSG_GITH_UNTAG
+Tag _löschen...
+; _Delete Tag...
+;
+MSG_GITH_NOCOMMIT
+Bitte zuerst einen Commit anklicken.
+; Please click a commit first.
+;
+MSG_GITH_TAGTITLE
+Neuer Tag
+; New Tag
+;
+MSG_GITH_TAGWHERE
+Am Commit %s (bleibt lokal: am-git kann keine Tags pushen):
+; At the commit %s (stays local: am-git cannot push tags):
+;
+MSG_GITH_BADTAG
+%s\nist kein gültiger Name für einen Tag: keine Leerzeichen, keine Zeichen\nwie ~ ^ : ? * [ #, kein .. und kein . oder / am Anfang oder Ende.
+; %s\nis not a valid tag name: no spaces, no characters\nsuch as ~ ^ : ? * [ #, no .. and no . or / at the start or end.
+;
+MSG_GITH_TAGEXISTS
+Einen Tag %s gibt es schon.
+; There is a tag %s already.
+;
+MSG_GITH_TAGGED
+Tag %s gesetzt.
+; Tag %s set.
+;
+MSG_GITH_NOTAG
+Der Commit hat keinen Tag.
+; The commit has no tag.
+;
+MSG_GITH_UNTAGTITLE
+Tag löschen
+; Delete Tag
+;
+MSG_GITH_UNTAGWHICH
+Welcher Tag (%s)?
+; Which tag (%s)?
+;
+MSG_GITH_NOSUCHTAG
+Der Commit hat keinen Tag %s.
+; The commit has no tag %s.
+;
+MSG_GITH_UNTAGASK
+Den Tag %s löschen?
+; Delete the tag %s?
+;
+MSG_GITH_UNTAGGED
+Tag %s gelöscht.
+; Tag %s deleted.
+;

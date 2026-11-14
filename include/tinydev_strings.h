@@ -673,7 +673,22 @@
 #define MSG_GITH_NOFILE              668
 #define MSG_GITH_HEADING             669
 #define MSG_GITH_NODIFF              670
-#define MSG_COUNT                    671
+#define MSG_GITH_COL_TAGS            671
+#define MSG_GITH_TAG                 672
+#define MSG_GITH_UNTAG               673
+#define MSG_GITH_NOCOMMIT            674
+#define MSG_GITH_TAGTITLE            675
+#define MSG_GITH_TAGWHERE            676
+#define MSG_GITH_BADTAG              677
+#define MSG_GITH_TAGEXISTS           678
+#define MSG_GITH_TAGGED              679
+#define MSG_GITH_NOTAG               680
+#define MSG_GITH_UNTAGTITLE          681
+#define MSG_GITH_UNTAGWHICH          682
+#define MSG_GITH_NOSUCHTAG           683
+#define MSG_GITH_UNTAGASK            684
+#define MSG_GITH_UNTAGGED            685
+#define MSG_COUNT                    686
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -1349,6 +1364,21 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Please click a file of the commit first.",
     "Changes of the commit %s:",
     "The commit did not change the text of the file.",
+    "Tags",
+    "Set _Tag...",
+    "_Delete Tag...",
+    "Please click a commit first.",
+    "New Tag",
+    "At the commit %s (stays local: am-git cannot push tags):",
+    "%s\nis not a valid tag name: no spaces, no characters\nsuch as ~ ^ : ? * [ #, no .. and no . or / at the start or end.",
+    "There is a tag %s already.",
+    "Tag %s set.",
+    "The commit has no tag.",
+    "Delete Tag",
+    "Which tag (%s)?",
+    "The commit has no tag %s.",
+    "Delete the tag %s?",
+    "Tag %s deleted.",
 };
 #endif
 

@@ -173,6 +173,9 @@ static void test_branches(void)
     assert(!gitref_packed("0123456789abcdef0123456789abcdef01234567 refs/heads/main\n",
                           "refs/heads/mai", sha, sizeof(sha)));
     assert(!gitref_packed("", "refs/heads/main", sha, sizeof(sha)));
+    assert(gitref_packed("0123456789abcdef0123456789abcdef01234567 refs/tags/v1\n"
+                         "^89abcdef0123456789abcdef0123456789abcdef\n",
+                         "refs/tags/v1", sha, sizeof(sha)) && sha[0] == '8');
 }
 
 /**

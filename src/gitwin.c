@@ -57,7 +57,11 @@
  * one runs "am-git show <sha>" for the files it changed against its first
  * parent; "Show Changes" (or a double click) shows a file's diff: the
  * file of the parent against the file of the commit, both from am-git
- * show, compared by linediff.c.
+ * show, compared by linediff.c. A column shows the tags of each commit
+ * ("am-git tag", their commits from .git/refs/tags or packed-refs);
+ * "Set Tag..." tags the selected commit (am-git tag name sha), "Delete
+ * Tag..." removes one of its tags (am-git tag -d, which sees loose tags
+ * only). am-git cannot push tags; fetch brings the remote's tags.
  *
  * The diff window shows a file's changes since the last commit: the
  * file of HEAD from am-git show against the file on disk, compared by
@@ -115,7 +119,7 @@ enum {
     GR_LIST, GR_RESOLVE, GR_OPEN, GR_COMMIT, GR_CLOSE,
     GD_LIST, GD_CLOSE,
     GB_LIST, GB_SWITCH, GB_NEW, GB_DELETE, GB_MERGE, GB_CLOSE,
-    GH_LIST, GH_FILES, GH_DIFF, GH_CLOSE
+    GH_LIST, GH_FILES, GH_DIFF, GH_TAG, GH_UNTAG, GH_CLOSE
 };
 
 /** @name Spacing, in "virtual pixels", as in the settings window */
@@ -1700,18 +1704,23 @@ static int switch_branch(const char *name)
 }
 
 /**
- * @brief The commit a branch points at (its file in .git/refs/heads, else
+ * @brief The commit a ref points at (its file in .git, else
  *        .git/packed-refs).
- * @param name The branch.
+ *
+ * The file of an annotated tag holds the tag object, not its commit
+ * (only packed-refs tells the commit): such a tag matches no commit.
+ *
+ * @param kind "heads" or "tags".
+ * @param name The branch or tag.
  * @param[out] sha The commit, "" if not found.
  * @param size Size of @p sha (at least 41).
  */
-static void branch_commit(const char *name, char *sha, size_t size)
+static void ref_commit(const char *kind, const char *name, char *sha, size_t size)
 {
     char path[EDITOR_PATH_MAX], ref[300], *text = NULL;
     size_t n;
     sha[0] = '\0';
-    snprintf(ref, sizeof(ref), "refs/heads/%s", name);
+    snprintf(ref, sizeof(ref), "refs/%s/%s", kind, name);
     strncpy(path, gc.root, sizeof(path) - 1);
     path[sizeof(path) - 1] = '\0';
     if (!AddPart((STRPTR)path, (STRPTR)".git", sizeof(path))) return;
@@ -1751,13 +1760,13 @@ static int merge_branch(const char *name)
     const char *cur = gb.name[gb.current];
     int result = 0;
     if (!work_tree_free() || !untracked_ok(MSG_GITB_UNTRACKEDMERGE)) return 0;
-    branch_commit(cur, before, sizeof(before));
+    ref_commit("heads", cur, before, sizeof(before));
     git_documents_snapshot(gc.app, gc.root);
     if (!run_on_branch("merge", name, &out)) {
         git_documents_reload(gc.app);
         return 0;
     }
-    branch_commit(cur, after, sizeof(after));
+    ref_commit("heads", cur, after, sizeof(after));
     if (merge_message(gc.root, msg, sizeof(msg))) {
         status_with(MSG_GITB_CONFLICTS, name, NULL);
         result = 2;
@@ -1980,17 +1989,115 @@ out:
 /** Most commits the history window shows. */
 #define HISTORY_MAX 200
 
+/** A tag and its commit. */
+typedef struct HistoryTag {
+    char *name;                 /**< the tag (allocated) */
+    char sha[41];               /**< its commit, "" if not known */
+} HistoryTag;
+
 /** The history window's data. */
 static struct {
     GitLog log;                 /* the commits */
+    HistoryTag *tags;           /* the tags */
+    long tag_count;
     GitShow show;               /* the files of the selected one */
     long shown;                 /* the commit gh.show is of, -1 if none */
     struct List files;          /* the file list's nodes */
-    struct ColumnInfo cols[5];  /* the commit list's columns */
+    struct ColumnInfo cols[6];  /* the commit list's columns */
     struct ColumnInfo fcols[3]; /* the file list's columns */
     Object *files_list;
     char note[160];             /* the line above the commits */
 } gh;
+
+/**
+ * @brief Free the list of the tags.
+ */
+static void free_tags(void)
+{
+    long i;
+    for (i = 0; i < gh.tag_count; ++i) free(gh.tags[i].name);
+    free(gh.tags);
+    gh.tags = NULL;
+    gh.tag_count = 0;
+}
+
+/**
+ * @brief Read the tags ("am-git tag", a name per line) and their commits.
+ * @return Non-zero on success (otherwise a message was shown).
+ */
+static int read_tags(void)
+{
+    char *out = NULL;
+    const char *line;
+    long cap = 0;
+    LONG rc = run(gc.app, gc.root, "tag", &out);
+    struct Window *win = gc.win != NULL ? gc.win : gc.app->window;
+    free_tags();
+    if (rc == -1) {
+        message(win, S(MSG_GIT_NORUN));
+        return 0;
+    }
+    if (rc != 0) {
+        git_report(gc.app, gc.win, MSG_GIT_FAILED, out);
+        free(out);
+        return 0;
+    }
+    for (line = out; line != NULL && *line != '\0';) {
+        const char *end = strchr(line, '\n');
+        size_t len = end != NULL ? (size_t)(end - line) : strlen(line);
+        char name[256];
+        if (len > 0 && line[len - 1] == '\r') --len;
+        /* a name has no ':' or spaces; "tag: ..." is a message */
+        if (len > 0 && len < sizeof(name) && memchr(line, ':', len) == NULL && memchr(line, ' ', len) == NULL) {
+            HistoryTag *t;
+            memcpy(name, line, len);
+            name[len] = '\0';
+            if (gh.tag_count == cap) {
+                long ncap = cap > 0 ? cap * 2 : 8;
+                HistoryTag *p = realloc(gh.tags, (size_t)ncap * sizeof(*p));
+                if (p == NULL) break;
+                gh.tags = p;
+                cap = ncap;
+            }
+            t = &gh.tags[gh.tag_count];
+            if ((t->name = malloc(len + 1)) == NULL) break;
+            strcpy(t->name, name);
+            ref_commit("tags", name, t->sha, sizeof(t->sha));
+            ++gh.tag_count;
+        }
+        line = end != NULL ? end + 1 : NULL;
+    }
+    free(out);
+    return 1;
+}
+
+/**
+ * @brief The tags of a commit, separated by ", ".
+ * @param sha The commit.
+ * @param[out] out The tags, "" if none.
+ * @param size Size of @p out.
+ * @return How many tags it has.
+ */
+static long commit_tags(const char *sha, char *out, size_t size)
+{
+    long i, count = 0;
+    size_t n = 0;
+    out[0] = '\0';
+    for (i = 0; i < gh.tag_count; ++i) {
+        size_t len;
+        if (strcmp(gh.tags[i].sha, sha) != 0) continue;
+        ++count;
+        len = strlen(gh.tags[i].name);
+        if (n + len + 3 >= size) continue;
+        if (n > 0) {
+            strcpy(out + n, ", ");
+            n += 2;
+        }
+        strcpy(out + n, gh.tags[i].name);
+        n += len;
+    }
+    return count;
+}
 
 /**
  * @brief Build the commit list's nodes.
@@ -2001,19 +2108,120 @@ static void make_log_nodes(void)
     NewList(&gc.nodes);
     for (i = 0; i < gh.log.count; ++i) {
         const GitLogEntry *e = &gh.log.entries[i];
-        char short_sha[8], date[20];
+        char short_sha[8], date[20], tags[120];
         struct Node *n;
         strncpy(short_sha, e->sha, 7);
         short_sha[7] = '\0';
         gitlog_date(e->time, e->tz, date, sizeof(date));
-        n = AllocListBrowserNode(4,
+        commit_tags(e->sha, tags, sizeof(tags));
+        n = AllocListBrowserNode(5,
             LBNA_Column, 0, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)short_sha,
             LBNA_Column, 1, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)date,
             LBNA_Column, 2, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)(e->author != NULL ? e->author : ""),
-            LBNA_Column, 3, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)(e->subject != NULL ? e->subject : ""),
+            LBNA_Column, 3, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)tags,
+            LBNA_Column, 4, LBNCA_CopyText, TRUE, LBNCA_Text, (ULONG)(e->subject != NULL ? e->subject : ""),
             TAG_END);
         if (n != NULL) AddTail(&gc.nodes, n);
     }
+}
+
+/**
+ * @brief Read the tags again and show them in the commit list, keeping
+ *        the selection.
+ */
+static void refill_log(void)
+{
+    LONG sel = (LONG)get(gc.list, LISTBROWSER_Selected), top = (LONG)get(gc.list, LISTBROWSER_Top);
+    SetGadgetAttrs((struct Gadget *)gc.list, gc.win, NULL, LISTBROWSER_Labels, ~0UL, TAG_END);
+    FreeListBrowserList(&gc.nodes);
+    read_tags();
+    make_log_nodes();
+    SetGadgetAttrs((struct Gadget *)gc.list, gc.win, NULL,
+        LISTBROWSER_Labels, (ULONG)&gc.nodes, LISTBROWSER_Selected, (ULONG)sel, LISTBROWSER_Top, (ULONG)top,
+        TAG_END);
+}
+
+/**
+ * @brief Find a tag.
+ * @param name The tag.
+ * @return Its index in gh.tags, or -1.
+ */
+static long find_tag(const char *name)
+{
+    long i;
+    for (i = 0; i < gh.tag_count; ++i)
+        if (strcmp(gh.tags[i].name, name) == 0) return i;
+    return -1;
+}
+
+/**
+ * @brief Ask for a name and tag a commit (am-git tag name sha).
+ * @param i The commit.
+ */
+static void set_tag(long i)
+{
+    char name[100] = "", where[160], short_sha[8], command[300], *out = NULL;
+    size_t n;
+    LONG rc;
+    strncpy(short_sha, gh.log.entries[i].sha, 7);
+    short_sha[7] = '\0';
+    snprintf(where, sizeof(where), S(MSG_GITH_TAGWHERE), short_sha);
+    for (;;) {
+        if (!treeops_ask_name(gc.app, gc.winobj, S(MSG_GITH_TAGTITLE), where, name, sizeof(name))) return;
+        if (!gitbranch_valid(name)) message_with(gc.win, MSG_GITH_BADTAG, name, NULL);
+        else if (find_tag(name) >= 0) message_with(gc.win, MSG_GITH_TAGEXISTS, name, NULL);
+        else break;
+    }
+    strcpy(command, "tag ");
+    n = strlen(command);
+    if (!git_quote(command + n, sizeof(command) - n, name) || (n = strlen(command)) + 42 > sizeof(command)) {
+        message(gc.win, S(MSG_BUILD_SCRIPT));
+        return;
+    }
+    snprintf(command + n, sizeof(command) - n, " %s", gh.log.entries[i].sha);
+    rc = run(gc.app, gc.root, command, &out);
+    if (rc == -1) message(gc.win, S(MSG_GIT_NORUN));
+    else if (rc != 0) git_report(gc.app, gc.win, MSG_GIT_FAILED, out);
+    else {
+        refill_log();
+        if (find_tag(name) >= 0) status_with(MSG_GITH_TAGGED, name, NULL);
+        else git_report(gc.app, gc.win, MSG_GIT_FAILED, out);
+    }
+    free(out);
+}
+
+/**
+ * @brief Delete a tag of a commit (am-git tag -d), after asking; with
+ *        several tags, the name is asked for.
+ * @param i The commit.
+ */
+static void delete_tag(long i)
+{
+    char tags[200], name[100] = "", *out = NULL;
+    long count = commit_tags(gh.log.entries[i].sha, tags, sizeof(tags)), k;
+    if (count == 0) {
+        message(gc.win, S(MSG_GITH_NOTAG));
+        return;
+    }
+    for (k = 0; k < gh.tag_count && strcmp(gh.tags[k].sha, gh.log.entries[i].sha) != 0; ++k) ;
+    strncpy(name, gh.tags[k].name, sizeof(name) - 1);
+    if (count > 1) {
+        char where[260];
+        snprintf(where, sizeof(where), S(MSG_GITH_UNTAGWHICH), tags);
+        for (;;) {
+            if (!treeops_ask_name(gc.app, gc.winobj, S(MSG_GITH_UNTAGTITLE), where, name, sizeof(name))) return;
+            k = find_tag(name);
+            if (k >= 0 && strcmp(gh.tags[k].sha, gh.log.entries[i].sha) == 0) break;
+            message_with(gc.win, MSG_GITH_NOSUCHTAG, name, NULL);
+        }
+    } else if (!ask_with(MSG_GITH_UNTAGASK, MSG_GITB_DELGADGETS, name)) {
+        return;
+    }
+    if (!run_on_branch("tag -d", name, &out)) return;
+    refill_log();
+    if (find_tag(name) < 0) status_with(MSG_GITH_UNTAGGED, name, NULL);
+    else git_report(gc.app, gc.win, MSG_GIT_FAILED, out);
+    free(out);
 }
 
 /**
@@ -2092,6 +2300,7 @@ void gitwin_history(EditorApp *app)
         message(app->window, S(MSG_GITH_NONE));
         goto out;
     }
+    read_tags();
     if (!git_head_branch(gc.root, branch, sizeof(branch))) strcpy(branch, "HEAD");
     snprintf(gh.note, sizeof(gh.note), S(MSG_GITH_LISTNOTE), branch, (long)HISTORY_MAX);
     make_log_nodes();
@@ -2100,11 +2309,13 @@ void gitwin_history(EditorApp *app)
     gh.cols[0].ci_Title = (STRPTR)S(MSG_GITH_COL_COMMIT);
     gh.cols[1].ci_Width = 18;
     gh.cols[1].ci_Title = (STRPTR)S(MSG_GITH_COL_DATE);
-    gh.cols[2].ci_Width = 20;
+    gh.cols[2].ci_Width = 18;
     gh.cols[2].ci_Title = (STRPTR)S(MSG_GITH_COL_AUTHOR);
-    gh.cols[3].ci_Width = 52;
-    gh.cols[3].ci_Title = (STRPTR)S(MSG_GITH_COL_MESSAGE);
-    gh.cols[4].ci_Width = -1;
+    gh.cols[3].ci_Width = 10;
+    gh.cols[3].ci_Title = (STRPTR)S(MSG_GITH_COL_TAGS);
+    gh.cols[4].ci_Width = 44;
+    gh.cols[4].ci_Title = (STRPTR)S(MSG_GITH_COL_MESSAGE);
+    gh.cols[5].ci_Width = -1;
     gh.fcols[0].ci_Width = 20;
     gh.fcols[0].ci_Title = (STRPTR)S(MSG_GITC_COL_STATE);
     gh.fcols[1].ci_Width = 80;
@@ -2149,7 +2360,12 @@ void gitwin_history(EditorApp *app)
         CHILD_WeightedHeight, 35,
         LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
             LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+            LAYOUT_InnerSpacing, ROW_SPACING,
             LAYOUT_AddChild, (ULONG)button(GH_DIFF, S(MSG_GITH_DIFF)),
+            CHILD_WeightedWidth, 0,
+            LAYOUT_AddChild, (ULONG)button(GH_TAG, S(MSG_GITH_TAG)),
+            CHILD_WeightedWidth, 0,
+            LAYOUT_AddChild, (ULONG)button(GH_UNTAG, S(MSG_GITH_UNTAG)),
             CHILD_WeightedWidth, 0,
             LAYOUT_AddChild, (ULONG)filler(),
             LAYOUT_AddChild, (ULONG)button(GH_CLOSE, S(MSG_GITWIN_CLOSE)),
@@ -2193,6 +2409,13 @@ void gitwin_history(EditorApp *app)
                     show_commit_diff(app, gc.root, gh.log.entries[gh.shown].sha, gh.show.parent,
                                      &gh.show.files[sel], gc.win, gc.winobj);
                     break;
+                case GH_TAG:
+                case GH_UNTAG:
+                    sel = (LONG)get(gc.list, LISTBROWSER_Selected);
+                    if (sel < 0 || sel >= gh.log.count) message(gc.win, S(MSG_GITH_NOCOMMIT));
+                    else if ((result & WMHI_GADGETMASK) == GH_TAG) set_tag(sel);
+                    else delete_tag(sel);
+                    break;
                 case GH_CLOSE:
                     done = 1;
                     break;
@@ -2206,6 +2429,7 @@ out:
     if (gc.winobj != NULL) DisposeObject(gc.winobj);       /* the gadgets with it */
     if (gc.nodes.lh_Head != NULL) FreeListBrowserList(&gc.nodes);
     if (gh.files.lh_Head != NULL) FreeListBrowserList(&gh.files);
+    free_tags();
     gitstatus_clear(&gc.status);
     gitlog_clear(&gh.log);
     gitshow_clear(&gh.show);

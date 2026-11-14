@@ -67,6 +67,9 @@ below the tree's root.
   (`git_fix_dot_drawer()`) and afterwards loads the documents whose
   files changed again. Git/Clone Repository... runs
   `am-git clone` that way and opens the new drawer as the project.
+  `git_deleted()`: after the folder tree deleted an entry, the tracked
+  files it took away (deleted in the status) are staged with
+  `rm --cached`.
 - `src/gitwin.c`: the modal windows of the Git menu: Git/Commit... (the
   changed files of `status --porcelain` with check boxes ("selected"): a
   click stages with `add` (`rm --cached` for a deleted file) or takes back
@@ -86,7 +89,10 @@ below the tree's root.
   checked in `.git`, as am-git returns 0 also on failure) and the
   history window (Git/History...: `log -n 200`, the files of the
   selected commit from `show <sha>`, a file's diff from `show
-  <sha>:<path>` of the commit and its first parent, in the diff window).
+  <sha>:<path>` of the commit and its first parent, in the diff window;
+  a column of tags from `tag` and `.git/refs/tags`/`packed-refs`, Set
+  Tag... `tag <name> <sha>`, Delete Tag... `tag -d`; am-git cannot push
+  tags).
 - `src/linediff.c`, `include/linediff.h`: the portable line diff (Myers
   in linear space) written as unified hunks; no Amiga headers.
 - `src/gitstatus.c`, `include/gitstatus.h`: the portable reader of

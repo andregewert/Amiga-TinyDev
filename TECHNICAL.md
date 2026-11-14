@@ -275,6 +275,24 @@ version therefore hides a fresh build; check with
      `show <sha>:<path>` and `show <parent>:<path>`. Read in the 0.12.3
      sources; `show <commit>` is older than 0.12.1, its exact output
      there is not checked.
+  7. Done (`gitwin.c`, `git.c`): tags in the history window, a column
+     of each commit's tags (`am-git tag` lists the names; their commits
+     come from `.git/refs/tags/<name>` or `packed-refs`, where the `^`
+     line after an annotated tag gives its commit; a loose annotated tag
+     holds the tag object and matches no commit). Set Tag... runs
+     `tag <name> <sha>` (lightweight), Delete Tag... `tag -d <name>`,
+     which sees loose tags only. am-git's `push` sends the branch only,
+     so tags stay local; `fetch` brings the remote's tags, but only when
+     it downloads objects: with nothing new to fetch it ends at
+     "Already up-to-date." before writing any ref (0.12.1 and the 0.12.3
+     sources), so a tag set on the server on a commit that is already
+     here never arrives (seen on the Amiga). am-git has no `ls-remote`
+     either; a fresh clone writes the tags.
+     Deleting in the folder tree (`treeops.c`) stages the deletion of
+     what was tracked: `git_deleted()` reads the status afterwards and
+     runs `rm --cached` on the files reported deleted (`worktree` `D`)
+     that are the entry, its icon or below it (am-git's `rm` takes files
+     only and does not recurse), a few per line.
 
   am-git 0.12.1 is the latest release (Aminet and GitHub, 14.11.2026);
   the sources on GitHub are at 0.12.3, unreleased. TinyDev works with
