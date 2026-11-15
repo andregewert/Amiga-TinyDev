@@ -1,4 +1,4 @@
-Short:        Text editor for programmers on OS 3.2
+Short:        Simple IDE for programmers on OS 3.2
 Author:       André Gewert <agewert@ubergeek.de>
 Uploader:     André Gewert <agewert@ubergeek.de>
 Type:         text/edit
@@ -7,18 +7,18 @@ Architecture: m68k-amigaos >= 3.2.0
 Requires:     AmigaOS 3.2, dev/gui/html_gadget.lha (1.2, for the help)
 Distribution: Aminet
 
-TinyDev is a compact native text editor for programmers on AmigaOS 3.2,
-built with ReAction. It runs on a 68000, but is meant for a 68030 or
-faster.
+TinyDev is a simple development environment for programmers on AmigaOS
+3.2, built with ReAction. It supports multiple programming languages, comes
+with various project templates and offers basic git support through am-git.
+External build tools (like make or smake) can be integrated through
+configurable commands. External debuggers (BDebug, CodeProbe, EDBG) can be
+started with a mouse click for many project types, too.
 
 TinyDev is meant to be run on real hardware, not only in emulators and on
 PiStorm machines. Benchmark is my good old Amiga 2000, equipped with
-a TF356 (68030, 64MB RAM) and a GBAPII++.
-
-In the future, TinyDev aims to be a simple but complete development
-environment for AmigaOS 3.2. It supports multiple programming languages
-through a simple extendable JSON-based protocol. External build tools
-(like make or smake) can be integrated through configurable commands.
+a TF356 (68030, 64MB RAM) and a GBAPII++. Some features (e.g. the git
+integration) are somewhat sluggish there. On my A1200 with a Warp 1240 the
+application runs quite smoothly overall.
 
 The user interface supports localization via AmigaOS catalogs. Currently,
 next to built-in English texts, a German catalog is included.
@@ -36,7 +36,9 @@ Features
    scroll.
  - Simple project management
  - File and project templates
- - Syntax highlighting for various languages
+ - Syntax highlighting and simple code analysis for various languages
+   Currently: ACE BASIC, AmigaDOS, AmigaE, AmigaGuide, ARexx, Assembler, C,
+   Free Pascal, HTML, JSON, Makefile, Markdown, XML
  - Two monospaced bitmap fonts for the screen: Holstein (sizes 16 and 17,
    derived from DejaVu Sans Mono) and Tamzen (15 and 16)
  - Bookmark management
@@ -78,6 +80,9 @@ stay. TinyDev also runs directly from the archive, as it finds all its
 parts next to it. html.gadget must be installed in SYS:Classes/Gadgets/ or
 lie in the drawer Classes/Gadgets of TinyDev.
 
+The installer does not change the user-startup. TinyDev needs no assigns
+of its own.
+
 Compilers, assemblers and debuggers are not included; the templates call
 them by name, so they must be in the command path. The Git menu needs
 am-git, BDebug comes with Barfly (both on Aminet).
@@ -105,6 +110,23 @@ Contents
  Source/              complete source code (C, cross compiled with
                       bebbo's amiga-gcc)
 
+What is not included
+--------------------
+TinyDev includes no programming languages, compilers, build tools or
+debuggers. Depending on your needs, the following tools should be
+installed. Most of them are available on Aminet; SAS/C, a commercial
+product, is to my knowledge no longer available, not even as so-called
+"abandonware".
+ - html.gadget for the help pages
+ - am-git for the git integration
+ - vbcc as C compiler
+ - GNU make as build system
+ - Barfly with BDebug (dev/asm/BarflyDisk2_00.lha) for assembler coding and
+   debugging (also of vbcc builds)
+ - EVO as compiler for AmigaE; includes EDBG for debugging
+ - Free Pascal (FPC) as Pascal compiler
+ - SAS/C as compiler with CodeProbe as debugger
+
 History
 -------
 1.0
@@ -124,19 +146,19 @@ Fonts/Tamzen.license.
 
 Deutsch
 =======
-TinyDev ist ein kompakter, nativer Texteditor für Programmierer unter
-AmigaOS 3.2, gebaut mit ReAction. Er läuft auf einem 68000, ist aber für
-einen 68030 oder schneller gedacht.
+TinyDev ist eine einfache Entwicklungsumgebung für Programmierer unter
+AmigaOS 3.2, gebaut mit ReAction. Es unterstützt mehrere
+Programmiersprachen, enthält verschiedene Projektvorlagen und integriert
+grundlegende git-Unterstützung mit Hilfe von am-git.
+Externe Build-Werkzeuge (wie make oder smake) lassen sich über konfigurierbare
+Befehle einbinden. Auch externe Debugger (BDebug, Code Probe, edbg) lassen
+sich bei vielen Projekttypen per Mausklick starten.
 
 TinyDev ist für den Einsatz auf echter Hardware gedacht, nicht nur für
 Emulatoren und PiStorm-Rechner. Maßstab ist mein guter alter Amiga 2000,
 ausgestattet mit einer TF356 (68030, 64 MB RAM) und einer GBAPII++.
-
-Künftig soll TinyDev eine einfache, aber vollständige Entwicklungsumgebung
-für AmigaOS 3.2 werden. Über ein einfaches, erweiterbares JSON-basiertes
-Protokoll unterstützt es mehrere Programmiersprachen. Externe
-Build-Werkzeuge (wie make oder smake) lassen sich über konfigurierbare
-Befehle einbinden.
+Manche Funktionen (bspw. die git-Integration) sind dort etwas träge.
+Auf meinem A1200 mit Warp 1240 läuft die Anwendung insgesamt recht rund.
 
 Die Benutzeroberfläche lässt sich über AmigaOS-Kataloge lokalisieren.
 Neben den eingebauten englischen Texten liegt derzeit ein deutscher
@@ -155,7 +177,9 @@ Funktionen
    darin scrollt das Dokument.
  - Einfache Projektverwaltung
  - Datei- und Projekt-Vorlagen
- - Syntax-Highlighting für verschiedene Sprachen
+ - Syntax-Highlighting und einfache Code-Analyse für verschiedene Sprachen
+   Aktuell: ACE BASIC, AmigaDOS, AmigaE, AmigaGuide, ARexx, Assembler, C,
+   Free Pascal, HTML, JSON, Makefile, Markdown, XML
  - Zwei Bitmap-Schriften mit fester Zeichenbreite für den Bildschirm:
    Holstein (Größen 16 und 17, abgeleitet von DejaVu Sans Mono) und
    Tamzen (15 und 16)
@@ -201,6 +225,9 @@ da es alle seine Teile neben sich findet. html.gadget muss in
 SYS:Classes/Gadgets/ installiert sein oder in der Schublade
 Classes/Gadgets von TinyDev liegen.
 
+Der Installer modifiziert nicht die user-startup. TinyDev benötigt keine
+eigenen Assigns.
+
 Compiler, Assembler und Debugger liegen nicht bei; die Vorlagen rufen sie
 über ihren Namen auf, sie müssen also im Befehlspfad liegen. Das Menü
 Git braucht am-git, BDebug gehört zu Barfly (beide im Aminet).
@@ -229,6 +256,23 @@ Inhalt
                       NewIcons (und Skripte, die sie an ihren Platz bringen)
  Source/              vollständiger Quellcode (C, cross-kompiliert mit
                       bebbos amiga-gcc)
+
+Was nicht enthalten ist
+-----------------------
+TinyDev enthält keine Programmiersprachen, Compiler, Build-Tools oder
+Debugger. Je nach persönlichen Anforderungen sollten folgende Tools
+installiert sein. Das meiste ist im Aminet verfügbar; SAS/C als
+kommerzielles Produkt ist meines Wissens nicht mehr verfügbar, auch nicht
+als sogenannte "Abandonware".
+ - html.gadget für die Hilfeseiten
+ - am-git für git-Integration
+ - vbcc als C-Compiler
+ - GNU make als Build-System
+ - Barfly mit BDebug (dev/asm/BarflyDisk2_00.lha) für Assembler-Coding und
+   Debugging (auch von vbcc-Builds)
+ - EVO als Compiler für AmigaE; enthält edbg für Debugging
+ - Free Pascal (FPC) als Pascal-Compiler
+ - SAS/C als Compiler mit Code Probe als Debugger
 
 Versionsgeschichte
 ------------------

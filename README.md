@@ -1,16 +1,16 @@
 # ![TinyDev](logo.png)
 
-TinyDev is a compact native text editor for programmers on AmigaOS 3.2,
-built with ReAction. It runs on a 68000, but is meant for a 68030 or
-faster.
+TinyDev is a simple development environment for programmers on AmigaOS 3.2,
+built with ReAction. It supports multiple programming languages, comes with
+various project templates and offers basic git support through am-git.
+External build tools (like `make` or `smake`) can be integrated through
+configurable commands. External debuggers (BDebug, CodeProbe, EDBG) can be
+started with a mouse click for many project types, too.
 
 TinyDev is meant to be run on real hardware, not only in emulators and on PiStorm machines.
 Benchmark is my good old Amiga 2000, equipped with a TF356 (68030, 64MB RAM) and a GBAPII++.
-
-In the future, TinyDev aims to be a simple but complete development environment
-for AmigaOS 3.2. It supports multiple programming languages through a simple
-extendable JSON-based protocol. External build tools (like `make` or `smake`) can
-be integrated through configurable commands.
+Some features (e.g. the git integration) are somewhat sluggish there. On my A1200
+with a Warp 1240 the application runs quite smoothly overall.
 
 The user interface supports localization via AmigaOS catalogs. Currently, next to
 built-in English texts, a German catalog is included.
@@ -29,7 +29,9 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
   scroll.
 - Simple project management
 - File and project templates
-- Syntax highlighting for various languages
+- Syntax highlighting and simple code analysis for various languages  
+  Currently: ACE BASIC, AmigaDOS, AmigaE, AmigaGuide, ARexx, Assembler, C,
+  Free Pascal, HTML, JSON, Makefile, Markdown, XML
 - Bookmark management
 - Static source code analysis
 - Symbol list
@@ -69,6 +71,26 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
 Double-click `Install` in the archive. Everything goes into one drawer, so
 deleting the drawer removes TinyDev; for an update, choose the same place
 again and your settings stay. TinyDev also runs directly from the archive.
+
+The installer does not change the user-startup. TinyDev needs no assigns of
+its own.
+
+## What is not included
+
+TinyDev includes no programming languages, compilers, build tools or
+debuggers. Depending on your needs, the following tools should be installed.
+Most of them are available on Aminet; SAS/C, a commercial product, is to my
+knowledge no longer available, not even as so-called "abandonware".
+
+- html.gadget for the help pages
+- am-git for the git integration
+- vbcc as C compiler
+- GNU make as build system
+- Barfly with BDebug (`dev/asm/BarflyDisk2_00.lha`) for assembler coding and
+  debugging (also of vbcc builds)
+- EVO as compiler for AmigaE; includes EDBG for debugging
+- Free Pascal (FPC) as Pascal compiler
+- SAS/C as compiler with CodeProbe as debugger
 
 ## Regular expressions
 
