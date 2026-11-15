@@ -69,11 +69,15 @@ and tokens are read by the editor's hook and by the minimap's render
 process: rules stay until TinyDev quits, token maps are swapped under
 `Forbid()` and the old one is freed only at the next swap.
 
-The main window is always a smart refresh window, whatever the user's
-ReAction preference says: `texteditor.gadget` scrolls with `ScrollRasterBF()`
-and draws only the rows that are new, so in a simple refresh window the part
-coming up from under another window is left to a later refresh, which does
-not fit the text any more when scrolling goes on. `listbrowser.gadget`
+The main window's refresh method is the user's ReAction preference.
+`texteditor.gadget` scrolls with `ScrollRasterBF()` and draws only the rows
+that are new, so in a simple refresh window the part coming up from under
+another window is left to a later refresh, which does not fit the text any
+more when scrolling goes on: lines above the other window may look
+smeared until the editor is drawn again (the Text Editor of OS 3.2, with
+the same gadget, shows it; TinyDev did not on a real 68030 later on). Forcing smart refresh there cured that, but made
+every click into the partly covered window take one to two seconds on a
+68030, so it was taken back. `listbrowser.gadget`
 scrolls the same way, so every window with a list (the tool windows, find,
 completion, the settings, project settings and template windows, and the
 HelpViewer) asks for smart refresh too (`WA_SmartRefresh`); a new window
