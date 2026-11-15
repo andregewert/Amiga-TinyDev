@@ -82,14 +82,18 @@ debuggers. Depending on your needs, the following tools should be installed.
 Most of them are available on Aminet; SAS/C, a commercial product, is to my
 knowledge no longer available, not even as so-called "abandonware".
 
-- html.gadget for the help pages
-- am-git for the git integration
-- vbcc as C compiler
-- GNU make as build system
-- Barfly with BDebug (`dev/asm/BarflyDisk2_00.lha`) for assembler coding and
-  debugging (also of vbcc builds)
-- EVO as compiler for AmigaE; includes EDBG for debugging
-- Free Pascal (FPC) as Pascal compiler
+- [html.gadget](https://aminet.net/package/dev/gui/html_gadget) for the help pages
+- [am-git](https://aminet.net/package/dev/misc/am-git) for the git integration
+- vbcc as C compiler ([compiler](https://aminet.net/package/dev/c/vbcc_bin_amigaos68k),
+  [target](https://aminet.net/package/dev/c/vbcc_target_m68k-amiga))
+- [GNU make](https://aminet.net/package/dev/c/make-4.4.1) as build system
+- [Barfly with BDebug](https://aminet.net/package/dev/asm/BarflyDisk2_00)
+  for assembler coding and debugging (also of vbcc builds)
+- [EVO](https://aminet.net/package/dev/e/evo) as compiler for AmigaE; includes
+  EDBG for debugging
+- [Free Pascal](https://aminet.net/package/dev/lang/fpc-3.2.2-m68k-amiga)
+  (FPC) as Pascal compiler
+- [ACE BASIC](https://aminet.net/package/dev/basic/ace-basic) as BASIC compiler
 - SAS/C as compiler with CodeProbe as debugger
 
 ## Regular expressions

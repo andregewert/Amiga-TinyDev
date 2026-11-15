@@ -121,10 +121,10 @@ product, is to my knowledge no longer available, not even as so-called
  - am-git for the git integration
  - vbcc as C compiler
  - GNU make as build system
- - Barfly with BDebug (dev/asm/BarflyDisk2_00.lha) for assembler coding and
-   debugging (also of vbcc builds)
+ - Barfly with BDebug for assembler coding and debugging (also of vbcc builds)
  - EVO as compiler for AmigaE; includes EDBG for debugging
  - Free Pascal (FPC) as Pascal compiler
+ - ACE BASIC as BASIC compiler
  - SAS/C as compiler with CodeProbe as debugger
 
 History
@@ -268,10 +268,10 @@ als sogenannte "Abandonware".
  - am-git für git-Integration
  - vbcc als C-Compiler
  - GNU make als Build-System
- - Barfly mit BDebug (dev/asm/BarflyDisk2_00.lha) für Assembler-Coding und
-   Debugging (auch von vbcc-Builds)
+ - Barfly mit BDebug für Assembler-Coding und Debugging (auch von vbcc-Builds)
  - EVO als Compiler für AmigaE; enthält edbg für Debugging
  - Free Pascal (FPC) als Pascal-Compiler
+ - ACE BASIC als BASIC-Compiler
  - SAS/C als Compiler mit Code Probe als Debugger
 
 Versionsgeschichte
