@@ -59,8 +59,8 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
 
 - AmigaOS 3.2 (ReAction classes V47).
 - `dirtree.gadget` and `minimap.gadget` (included)
-- AISS (`TBImages:`) for the toolbar images; without them the buttons show
-  text.
+- [AISS](https://aminet.net/package/util/misc/aissclassic) (`TBImages:`) for
+  the toolbar images; without them the buttons show text.
 - For the help: html.gadget from the
   [HTML gadget](https://github.com/andregewert/Amiga-HTML-Gadget) project.
 - Optional: [openurl.library](https://github.com/jens-maus/libopenurl), for
