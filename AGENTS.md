@@ -46,7 +46,8 @@ below the tree's root.
   (am-git on or off, its command, and am-git's environment variables with
   a window of its own for the lines of `AM_GIT_NETRC`), and File Types: Standard and
   Scout's languages in a hierarchical list sharing one page),
-  built like Kickdown's.
+  built like Kickdown's; it opens on the page shown when it was last
+  closed ("prefspage", `settings_save_prefspage()`) if that page is there.
 - `src/gitenv.c`: am-git's environment variables (`AM_GIT_USER_NAME`,
   `AM_GIT_USER_EMAIL`, `AM_GIT_USERNAME`, `AM_GIT_PASSWORD`, `AM_GIT_SSH`,
   `AM_GIT_NETRC`), read from `ENV:` (else `ENVARC:`) and written by the
@@ -506,6 +507,10 @@ below the tree's root.
 - `tools/mkdist.py`: `make dist` builds `dist/TinyDev.lha` from `bin/`,
   the README, the sources (built without git) and icons, with
   `amiga-devkit/tools/distlib.py`.
+- `tests/prefs_default.c`: host tool of `make dist`, writes
+  `build/TinyDev.json`, the settings of a new installation (the defaults,
+  with Makefiles indented with tabs); the Installer copies it only into a
+  drawer without one.
 - `README.md`: for users, short, maintained by the user (see `CLAUDE.md`).
 - `TECHNICAL.md`: notes that concern several modules (event flow between
   TinyDev and its classes, scrolling and highlighting, editor colours and
@@ -623,8 +628,8 @@ make test
   selection.
 - Syntax scanning and the search engine (`src/search.c`) must remain usable
   independently of Amiga headers so the host test binaries can compile.
-- Syntax highlighting is suspended while a scrollbar is actively dragged and
-  must be restored (with a redraw) when the drag ends. The end is the
+- With the setting "scrollplain", syntax highlighting is suspended while a
+  scrollbar is actively dragged and must be restored (with a redraw) when the drag ends. The end is the
   scroller's GADGETUP or two IntuiTicks without a scroll signal (the scroller
   sends no GADGETUP when the button is released outside it).
 - `minimap.gadget` renders in its own process and only while it has a size;

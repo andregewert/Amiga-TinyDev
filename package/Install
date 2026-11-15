@@ -105,6 +105,9 @@
 (P_COPYFILE "mdtohtml")
 (P_COPYFILE "TinyDev.readme")
 (P_COPYFILE "LICENSE")
+; the default settings only into a new installation: an update keeps them
+(if (= (exists (tackon #dest "TinyDev.json")) 0)
+    (P_COPYFILE "TinyDev.json"))
 (P_COPYDIR "parsers")
 (P_COPYDIR "Classes")
 (P_COPYDIR "Catalogs")

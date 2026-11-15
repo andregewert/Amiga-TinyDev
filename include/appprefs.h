@@ -18,10 +18,12 @@
  *     "splash": true,
  *     "reopenproject": false,
  *     "lastproject": "",
+ *     "prefspage": "general",
  *     "scout": true,
  *     "toolbar": { "show": "images", "frames": false },
  *     "window": { "left": -1, "top": -1, "width": 0, "height": 0 },
- *     "view": { "foldertree": true, "minimap": false, "showinfo": false },
+ *     "view": { "foldertree": true, "minimap": false, "showinfo": false,
+ *               "scrollplain": false },
  *     "toolwindows": {
  *       "bookmarks": { "open": false, "left": -1, "top": -1, "width": 0, "height": 0 },
  *       "output": { ... }, "symbols": { ... }, "problems": { ... }
@@ -42,13 +44,18 @@
  *   (when no files are given);
  * - "lastproject": the project (the folder tree's root) open when TinyDev
  *   last quit, "" for none; written at the end of every session;
+ * - "prefspage": the page the settings window showed when it was last
+ *   closed, opened again next time if it is there ("general", "colours",
+ *   "toolbar", "project", "advanced", "git", "filetypes", "standard" or
+ *   "language/<id>" with a language of Scout);
  * - "scout": analyse the sources with TinyDev-Scout;
  * - "toolbar": what its buttons show ("images", "both" or "text", at the
  *   next start) and frames around them;
  * - "window": the main window at the start; width and height 0 are
  *   automatic, left and top -1 centre it;
  * - "view": the view at the start (the View menu changes it for the
- *   session only) and whether the folder tree shows .info files;
+ *   session only), whether the folder tree shows .info files and whether
+ *   the highlighting pauses while a scroller or the minimap is dragged;
  * - "toolwindows": the tool windows as View/Snapshot Tool Windows left
  *   them: open at the start, and their box (width 0: placed beside or
  *   below the main window);
@@ -114,9 +121,11 @@ typedef struct Settings {
     int splash;         /**< splash window while starting */
     int reopen;         /**< open the last project at the start */
     char lastproject[256]; /**< the project open when TinyDev last quit; "" = none */
+    char prefspage[64];    /**< the settings window's page when last closed ("" = the first) */
     int foldertree;     /**< folder tree shown at the start */
     int minimap;        /**< minimap shown at the start */
     int showinfo;       /**< the folder tree shows .info files */
+    int scrollplain;    /**< no highlighting while a scroller or the minimap is dragged */
     long winwidth;      /**< width of the main window at the start: 0 = automatic */
     long winheight;     /**< its height: 0 = automatic */
     long winleft;       /**< its left edge: -1 = centred */

@@ -2062,9 +2062,9 @@ MSG_PREFS_GIT_NETRC_LINES
 %ld Zeilen
 ; %ld lines
 ;
-MSG_PREFS_GIT_NOTE
-Das sind Umgebungsvariablen von am-git: Benutzen schreibt sie\nnach ENV:, Speichern auch nach ENVARC:. Sie gelten auch auﬂerhalb von TinyDev.
-; These are am-git's environment variables: Use writes them\nto ENV:, Save also to ENVARC:. They count outside TinyDev too.
+MSG_PREFS_SCROLLPLAIN
+Hervorhebung beim Scrollen a_ussetzen
+; Pause highli_ghting while scrolling
 ;
 MSG_GITNETRC_TITLE
 Zug‰nge pro Server (AM_GIT_NETRC)
@@ -2375,8 +2375,8 @@ _Remote (origin)
 ; Remote (_origin) 
 ;
 MSG_PJ_REMOTENOTE
-Fetch, Pull und Push nutzen diese Adresse. am-git h‰lt sie in .git/config.
-; Fetch, Pull and Push use this address. am-git keeps it in .git/config.
+Fetch, Pull und Push nutzen diese Adresse.
+; Fetch, Pull and Push use this address.
 ;
 MSG_GIT_DETACHED
 HEAD steht auf keinem Branch (detached).\nPull braucht einen Branch: erst einen auschecken.
@@ -2805,4 +2805,8 @@ Der Dateityp dieses Dokuments kennt keine Kommentare.
 MSG_PREFS_REOPEN
 Letztes Pro_jekt
 ; Last pro_ject
+;
+MSG_PREFS_DEFGITCOLOURS
+Standardfa_rben
+; D_efault colours
 ;

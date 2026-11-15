@@ -11,6 +11,7 @@
  *
  * To keep dragging a scrollbar as smooth as the editor's own wheel
  * scrolling, syntax highlighting is suspended while a scrollbar is dragged
+ * (only with the setting "scrollplain")
  * and restored with a full redraw when the drag ends: at the scroller's
  * GADGETUP or after two IntuiTicks without a scroll signal (the scroller
  * sends no GADGETUP when the button is released outside it).
@@ -661,7 +662,7 @@ void document_scroll_live(EditorApp *app)
 {
     app->scrollbar_dragging = 1;
     app->scroll_idle_ticks = 0;
-    if (app->active != NULL && !app->scrolling) {
+    if (app->settings.scrollplain && app->active != NULL && !app->scrolling) {
         set_highlight_enabled(app, app->active, 0);
         app->scrolling = 1;
     }
@@ -696,7 +697,7 @@ void document_scroll_tick(EditorApp *app)
 
 void document_suspend_highlight(EditorApp *app)
 {
-    if (app->active != NULL && !app->scrolling) {
+    if (app->settings.scrollplain && app->active != NULL && !app->scrolling) {
         set_highlight_enabled(app, app->active, 0);
         app->scrolling = 1;
     }

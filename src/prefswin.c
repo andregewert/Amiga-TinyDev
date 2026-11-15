@@ -105,8 +105,8 @@ extern struct Library *StringBase;         /* shared with the find window */
 enum {
     PG_LIST = 100,
     PG_WIDTH, PG_HEIGHT, PG_LEFT, PG_TOP, PG_CURSIZE, PG_AUTOSIZE, PG_SPLASH,
-    PG_REOPEN, PG_FOLDERTREE, PG_MINIMAP, PG_HIDEINFO,
-    PG_COLOUR, PG_GITCOLOUR = PG_COLOUR + SCOL_COUNT, PG_DEFCOLOURS = PG_GITCOLOUR + GITCOL_COUNT,
+    PG_REOPEN, PG_FOLDERTREE, PG_MINIMAP, PG_HIDEINFO, PG_SCROLLPLAIN,
+    PG_COLOUR, PG_GITCOLOUR = PG_COLOUR + SCOL_COUNT, PG_DEFCOLOURS = PG_GITCOLOUR + GITCOL_COUNT, PG_DEFGITCOLOURS,
     PG_TBMODE, PG_TBFRAMES,
     PG_PROJECTDIR, PG_CHOOSEPROJECT, PG_AUTHOR, PG_AUTHORMAIL,
     PG_SCOUT, PG_TEMPDIR, PG_CHOOSETEMP, PG_SHELLWINDOW, PG_OUTFONTOWN, PG_OUTFONT,
@@ -135,6 +135,13 @@ static const LONG categories[] = {
 #define UD_FILETYPES 100        /**< "File Types" (shows Standard) */
 #define UD_STANDARD 101         /**< Standard */
 #define UD_LANGUAGE 102         /**< the first of Scout's languages (in their order) */
+
+/** Names of the categories' pages in the setting "prefspage", categories' order. */
+static const char *const page_names[NUMCATEGORIES] = {
+    "general", "colours", "toolbar", "project", "advanced", "git"
+};
+/** Prefix of a language's page in "prefspage", followed by its identifier. */
+#define PAGE_LANGUAGE "language/"
 
 /** Labels of the chooser "Indent with" (indent with spaces, with tabs). */
 static const LONG indentwith_texts[2] = { MSG_PREFS_FT_SPACES, MSG_PREFS_FT_TABS };
@@ -199,7 +206,7 @@ static const LONG gitcolour_titles[GITCOL_COUNT] = {
 /** Objects of the open settings window. */
 static struct {
     Object *winobj, *root, *list, *page;
-    Object *width, *height, *left, *top, *splash, *reopen, *foldertree, *minimap, *hideinfo;
+    Object *width, *height, *left, *top, *splash, *reopen, *foldertree, *minimap, *hideinfo, *scrollplain;
     Object *colours[SCOL_COUNT];
     Object *gitcolours[GITCOL_COUNT];
     Object *tbmode, *tbframes;
@@ -330,6 +337,78 @@ static Object *filler(void)
 }
 
 /**
+ * @brief A group of colour fields with its button "Default colours" on
+ *        the right, at the bottom.
+ * @param columns The fields (colour_columns()).
+ * @param id The button's gadget ID.
+ * @param text Its text.
+ * @return The horizontal group.
+ */
+static Object *defaults_beside(Object *columns, ULONG id, const char *text)
+{
+    return NewObject(LAYOUT_GetClass(), NULL,
+        LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
+        LAYOUT_AddChild, (ULONG)columns,
+        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
+            LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
+            LAYOUT_AddChild, (ULONG)filler(),
+            LAYOUT_AddChild, (ULONG)button(id, text),
+            CHILD_WeightedHeight, 0,
+            TAG_END),
+        CHILD_WeightedWidth, 0,
+        TAG_END);
+}
+
+/** Colour fields per column on the page Colours. */
+#define COLOURS_PER_COLUMN 5
+
+/**
+ * @brief Colour fields in columns of #COLOURS_PER_COLUMN, each a small
+ *        swatch with its label on the left, the rest of the row empty.
+ *
+ * Swatches across the whole page looked like a wall of colour bars; small
+ * ones side by side let the labels lead.
+ *
+ * @param fields The getcolor gadgets (taken over by the group).
+ * @param labels Their labels' catalog numbers.
+ * @param count Their number.
+ * @param width The width of a swatch in pixels.
+ * @return The horizontal group, or NULL if out of memory.
+ */
+static Object *colour_columns(Object **fields, const LONG *labels, int count, ULONG width)
+{
+    struct TagItem row[2 * 5 * COLOURS_PER_COLUMN + 4];
+    Object *columns[(SCOL_COUNT + COLOURS_PER_COLUMN - 1) / COLOURS_PER_COLUMN];
+    int c, i, n, ncol = (count + COLOURS_PER_COLUMN - 1) / COLOURS_PER_COLUMN;
+    if (ncol > (int)(sizeof(columns) / sizeof(columns[0])))
+        ncol = (int)(sizeof(columns) / sizeof(columns[0]));
+    for (c = 0; c < ncol; ++c) {
+        n = 0;
+        row[n].ti_Tag = LAYOUT_Orientation;  row[n++].ti_Data = LAYOUT_ORIENT_VERT;
+        row[n].ti_Tag = LAYOUT_InnerSpacing; row[n++].ti_Data = ROW_SPACING;
+        for (i = c * COLOURS_PER_COLUMN; i < count && i < (c + 1) * COLOURS_PER_COLUMN; ++i) {
+            row[n].ti_Tag = LAYOUT_AddChild;      row[n++].ti_Data = (ULONG)fields[i];
+            row[n].ti_Tag = CHILD_WeightedHeight; row[n++].ti_Data = 0;
+            row[n].ti_Tag = CHILD_MinWidth;       row[n++].ti_Data = width;
+            row[n].ti_Tag = CHILD_MaxWidth;       row[n++].ti_Data = width;
+            row[n].ti_Tag = CHILD_Label;          row[n++].ti_Data = (ULONG)label(S(labels[i]));
+        }
+        row[n].ti_Tag = TAG_END; row[n].ti_Data = 0;
+        columns[c] = NewObjectA(LAYOUT_GetClass(), NULL, row);
+    }
+    n = 0;
+    row[n].ti_Tag = LAYOUT_Orientation;  row[n++].ti_Data = LAYOUT_ORIENT_HORIZ;
+    row[n].ti_Tag = LAYOUT_InnerSpacing; row[n++].ti_Data = 4 * AREA_SPACING;
+    for (c = 0; c < ncol; ++c) {
+        row[n].ti_Tag = LAYOUT_AddChild;     row[n++].ti_Data = (ULONG)columns[c];
+        row[n].ti_Tag = CHILD_WeightedWidth; row[n++].ti_Data = 0;
+    }
+    row[n].ti_Tag = LAYOUT_AddChild; row[n++].ti_Data = (ULONG)filler();
+    row[n].ti_Tag = TAG_END; row[n].ti_Data = 0;
+    return NewObjectA(LAYOUT_GetClass(), NULL, row);
+}
+
+/**
  * @brief Width of the category list: its longest entry plus margins.
  * @param app The application state (screen font).
  * @return The width in pixels.
@@ -453,7 +532,7 @@ static Object *build(EditorApp *app, const Settings *s)
 {
     Object *general, *colours, *toolbar, *project, *advanced, *git, *filetypes;
     struct TextAttr font;
-    ULONG i;
+    ULONG i, swatch;
     int k, own_font;
 
     NewList(&pw.catlist);
@@ -483,6 +562,7 @@ static Object *build(EditorApp *app, const Settings *s)
     pw.foldertree = checkbox(PG_FOLDERTREE, S(MSG_PREFS_FOLDERTREE), s->foldertree);
     pw.minimap = checkbox(PG_MINIMAP, S(MSG_PREFS_MINIMAP), s->minimap);
     pw.hideinfo = checkbox(PG_HIDEINFO, S(MSG_PREFS_HIDEINFO), !s->showinfo);
+    pw.scrollplain = checkbox(PG_SCROLLPLAIN, S(MSG_PREFS_SCROLLPLAIN), s->scrollplain);
     general = NewObject(LAYOUT_GetClass(), NULL,
         LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
         LAYOUT_InnerSpacing, AREA_SPACING,
@@ -517,6 +597,7 @@ static Object *build(EditorApp *app, const Settings *s)
             LAYOUT_AddChild, (ULONG)pw.reopen, FIXED,
             LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_VIEWNOTE)), FIXED,
             LAYOUT_AddChild, (ULONG)pw.hideinfo, FIXED,
+            LAYOUT_AddChild, (ULONG)pw.scrollplain, FIXED,
             TAG_END),
         FIXED,
         LAYOUT_AddChild, (ULONG)filler(),
@@ -533,39 +614,23 @@ static Object *build(EditorApp *app, const Settings *s)
             GA_ID, PG_GITCOLOUR + i, GA_RelVerify, TRUE,
             GETCOLOR_Screen, (ULONG)app->screen, GETCOLOR_Color, s->gitcolours[i],
             GETCOLOR_TitleText, (ULONG)S(gitcolour_titles[i]), TAG_END);
-    /* two groups: the highlighting, the git states in the tree */
+    /* two groups: the highlighting, the git states in the tree; swatches
+     * about three lines' height wide */
+    swatch = 3U * (app->screen->RastPort.TxHeight + 1U);
     colours = NewObject(LAYOUT_GetClass(), NULL,
         LAYOUT_Orientation, LAYOUT_ORIENT_VERT,
         LAYOUT_InnerSpacing, AREA_SPACING,
         LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(MSG_PREFS_GRP_SYNTAX)),
-        LAYOUT_AddChild, (ULONG)pw.colours[0], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[0])),
-        LAYOUT_AddChild, (ULONG)pw.colours[1], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[1])),
-        LAYOUT_AddChild, (ULONG)pw.colours[2], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[2])),
-        LAYOUT_AddChild, (ULONG)pw.colours[3], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[3])),
-        LAYOUT_AddChild, (ULONG)pw.colours[4], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[4])),
-        LAYOUT_AddChild, (ULONG)pw.colours[5], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[5])),
-        LAYOUT_AddChild, (ULONG)pw.colours[6], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[6])),
-        LAYOUT_AddChild, (ULONG)pw.colours[7], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[7])),
-        LAYOUT_AddChild, (ULONG)pw.colours[8], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[8])),
-        LAYOUT_AddChild, (ULONG)pw.colours[9], FIXED, CHILD_Label, (ULONG)label(S(colour_labels[9])),
+            LAYOUT_AddChild, (ULONG)defaults_beside(colour_columns(pw.colours, colour_labels, SCOL_COUNT, swatch),
+                                                    PG_DEFCOLOURS, S(MSG_PREFS_DEFCOLOURS)),
             TAG_END),
         FIXED,
         LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL, PAGE_GROUP(S(MSG_PREFS_GRP_GITCOLOURS)),
-            LAYOUT_AddChild, (ULONG)pw.gitcolours[0], FIXED, CHILD_Label, (ULONG)label(S(gitcolour_labels[0])),
-            LAYOUT_AddChild, (ULONG)pw.gitcolours[1], FIXED, CHILD_Label, (ULONG)label(S(gitcolour_labels[1])),
-            LAYOUT_AddChild, (ULONG)pw.gitcolours[2], FIXED, CHILD_Label, (ULONG)label(S(gitcolour_labels[2])),
-            LAYOUT_AddChild, (ULONG)pw.gitcolours[3], FIXED, CHILD_Label, (ULONG)label(S(gitcolour_labels[3])),
+            LAYOUT_AddChild, (ULONG)defaults_beside(colour_columns(pw.gitcolours, gitcolour_labels, GITCOL_COUNT, swatch),
+                                                    PG_DEFGITCOLOURS, S(MSG_PREFS_DEFGITCOLOURS)),
             TAG_END),
         FIXED,
         LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_COLOURNOTE)),
-        FIXED,
-        /* the button on the right, not across the page */
-        LAYOUT_AddChild, (ULONG)NewObject(LAYOUT_GetClass(), NULL,
-            LAYOUT_Orientation, LAYOUT_ORIENT_HORIZ,
-            LAYOUT_AddChild, (ULONG)filler(),
-            LAYOUT_AddChild, (ULONG)button(PG_DEFCOLOURS, S(MSG_PREFS_DEFCOLOURS)),
-            CHILD_WeightedWidth, 0,
-            TAG_END),
         FIXED,
         LAYOUT_AddChild, (ULONG)filler(),
         TAG_END);
@@ -711,7 +776,6 @@ static Object *build(EditorApp *app, const Settings *s)
             CHILD_Label, (ULONG)label(S(MSG_PREFS_GIT_NETRC)),
             TAG_END),
         FIXED,
-        LAYOUT_AddImage, (ULONG)label(S(MSG_PREFS_GIT_NOTE)), FIXED,
         LAYOUT_AddChild, (ULONG)filler(),
         TAG_END);
 
@@ -855,6 +919,7 @@ static void read_gadgets(Settings *s)
     s->foldertree = get(pw.foldertree, CHECKBOX_Checked) != 0;
     s->showinfo = get(pw.hideinfo, CHECKBOX_Checked) == 0;
     s->minimap = get(pw.minimap, CHECKBOX_Checked) != 0;
+    s->scrollplain = get(pw.scrollplain, CHECKBOX_Checked) != 0;
     for (i = 0; i < SCOL_COUNT; ++i)
         s->colours[i] = get(pw.colours[i], GETCOLOR_Color) & 0xFFFFFFUL;
     for (i = 0; i < GITCOL_COUNT; ++i)
@@ -1171,6 +1236,65 @@ static int ft_store(void)
 }
 
 /**
+ * @brief The name of the selected category's page for "prefspage".
+ * @param[out] out The name ("" if nothing is selected).
+ * @param size Its size.
+ */
+static void page_name(char *out, size_t size)
+{
+    struct Node *n = (struct Node *)get(pw.list, LISTBROWSER_SelectedNode);
+    ULONG ud = 0;
+    const char *name = "";
+    out[0] = '\0';
+    if (n == NULL) return;
+    GetListBrowserNodeAttrs(n, LBNA_UserData, (ULONG)&ud, TAG_END);
+    if (ud < NUMCATEGORIES) name = page_names[ud];
+    else if (ud == UD_FILETYPES) name = "filetypes";
+    else if (ud == UD_STANDARD) name = "standard";
+    else if ((int)(ud - UD_LANGUAGE) < scoutlink_language_count()) {
+        const char *id = scoutlink_language_id((int)(ud - UD_LANGUAGE));
+        if (strlen(PAGE_LANGUAGE) + strlen(id) < size) {
+            strcpy(out, PAGE_LANGUAGE);
+            strcat(out, id);
+        }
+        return;
+    }
+    if (strlen(name) < size) strcpy(out, name);
+}
+
+/**
+ * @brief Select the page of "prefspage" before the window opens, if
+ *        it is there (a language only while Scout knows it); otherwise
+ *        the first page stays.
+ * @param name The page's name.
+ */
+static void restore_page(const char *name)
+{
+    ULONG ud = (ULONG)~0UL, page = PAGE_FILETYPES, nud = 0;
+    struct Node *n;
+    LONG index = 0;
+    int k;
+    for (k = 0; k < NUMCATEGORIES; ++k)
+        if (strcmp(name, page_names[k]) == 0) ud = (ULONG)k;
+    if (strcmp(name, "filetypes") == 0) ud = UD_FILETYPES;
+    else if (strcmp(name, "standard") == 0) ud = UD_STANDARD;
+    else if (strncmp(name, PAGE_LANGUAGE, strlen(PAGE_LANGUAGE)) == 0)
+        for (k = 0; k < scoutlink_language_count(); ++k)
+            if (strcmp(name + strlen(PAGE_LANGUAGE), scoutlink_language_id(k)) == 0)
+                ud = (ULONG)(UD_LANGUAGE + k);
+    if (ud == (ULONG)~0UL || ud == 0) return;
+    for (n = pw.catlist.lh_Head; n->ln_Succ != NULL; n = n->ln_Succ, ++index) {
+        GetListBrowserNodeAttrs(n, LBNA_UserData, (ULONG)&nud, TAG_END);
+        if (nud == ud) break;
+    }
+    if (n->ln_Succ == NULL) return;
+    if (ud < NUMCATEGORIES) page = ud;
+    else pw.ft_current = ud >= UD_LANGUAGE ? (int)(ud - UD_LANGUAGE) : -1;
+    SetAttrs(pw.list, LISTBROWSER_Selected, (ULONG)index, LISTBROWSER_MakeVisible, (ULONG)index, TAG_END);
+    SetAttrs(pw.page, PAGE_Current, page, TAG_END);
+}
+
+/**
  * @brief Show the page of the category selected in the list.
  */
 static void select_category(void)
@@ -1209,6 +1333,7 @@ int prefs_dialog(EditorApp *app, Settings *s, FileTypes *ft, GitEnv *genv)
     if ((pw.netrc = malloc(strlen(genv->value[GITENV_NETRC]) + 1)) == NULL) goto out;
     strcpy(pw.netrc, genv->value[GITENV_NETRC]);
     if ((pw.root = build(app, s)) == NULL) goto out;
+    restore_page(s->prefspage);
     ft_show();
 
     pw.winobj = NewObject(WINDOW_GetClass(), NULL,
@@ -1255,10 +1380,17 @@ int prefs_dialog(EditorApp *app, Settings *s, FileTypes *ft, GitEnv *genv)
                     ft_ghost();
                     break;
                 case PG_DEFCOLOURS:
-                    for (i = 0; i < SCOL_COUNT; ++i)
+                    /* getcolor.gadget does not draw a colour set this way */
+                    for (i = 0; i < SCOL_COUNT; ++i) {
                         set_page_gadget(pw.colours[i], GETCOLOR_Color, settings_default_colours[i]);
-                    for (i = 0; i < GITCOL_COUNT; ++i)
+                        RefreshPageGadget((struct Gadget *)pw.colours[i], pw.page, pw.win, NULL);
+                    }
+                    break;
+                case PG_DEFGITCOLOURS:
+                    for (i = 0; i < GITCOL_COUNT; ++i) {
                         set_page_gadget(pw.gitcolours[i], GETCOLOR_Color, settings_default_gitcolours[i]);
+                        RefreshPageGadget((struct Gadget *)pw.gitcolours[i], pw.page, pw.win, NULL);
+                    }
                     break;
                 case PG_CURSIZE:
                     set_page_gadget(pw.width, INTEGER_Number, (ULONG)app->window->Width);
@@ -1328,6 +1460,12 @@ int prefs_dialog(EditorApp *app, Settings *s, FileTypes *ft, GitEnv *genv)
         }
     }
     SetAttrs(app->window_object, WA_BusyPointer, FALSE, TAG_END);
+    /* the page shown, for the next time, whatever the window's result */
+    page_name(s->prefspage, sizeof(s->prefspage));
+    if (strcmp(s->prefspage, app->settings.prefspage) != 0) {
+        strcpy(app->settings.prefspage, s->prefspage);
+        settings_save_prefspage(s->prefspage);
+    }
 
 out:
     if (pw.winobj != NULL) DisposeObject(pw.winobj);         /* the gadgets with it */

@@ -1577,8 +1577,8 @@ MSG_PREFS_GIT_NETRC_ONE (//)
 MSG_PREFS_GIT_NETRC_LINES (//)
 %ld lines
 ;
-MSG_PREFS_GIT_NOTE (//)
-These are am-git's environment variables: Use writes them\nto ENV:, Save also to ENVARC:. They count outside TinyDev too.
+MSG_PREFS_SCROLLPLAIN (//)
+Pause highli_ghting while scrolling
 ;
 MSG_GITNETRC_TITLE (//)
 Logins per server (AM_GIT_NETRC)
@@ -1812,7 +1812,7 @@ MSG_PJ_REMOTE (//)
 Remote (_origin) 
 ;
 MSG_PJ_REMOTENOTE (//)
-Fetch, Pull and Push use this address. am-git keeps it in .git/config.
+Fetch, Pull and Push use this address.
 ;
 MSG_GIT_DETACHED (//)
 HEAD is not on a branch (detached).\nPull needs a branch: check one out first.
@@ -2134,4 +2134,7 @@ The file type of this document has no comments.
 ;
 MSG_PREFS_REOPEN (//)
 Last pro_ject
+;
+MSG_PREFS_DEFGITCOLOURS (//)
+D_efault colours
 ;

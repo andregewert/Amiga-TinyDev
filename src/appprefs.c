@@ -208,6 +208,7 @@ int appprefs_parse(Settings *s, const char *json)
         get_bool(st, "splash", &s->splash);
         get_bool(st, "reopenproject", &s->reopen);
         get_string(st, "lastproject", 1, s->lastproject, sizeof(s->lastproject));
+        get_string(st, "prefspage", 1, s->prefspage, sizeof(s->prefspage));
         get_bool(st, "scout", &s->scout);
         if ((o = json_obj_get_obj(st, "toolbar")) != NULL) {
             if ((v = json_obj_get(o, "show")) != NULL && v->type == JSON_STRING)
@@ -224,6 +225,7 @@ int appprefs_parse(Settings *s, const char *json)
         get_bool(o, "foldertree", &s->foldertree);
         get_bool(o, "minimap", &s->minimap);
         get_bool(o, "showinfo", &s->showinfo);
+        get_bool(o, "scrollplain", &s->scrollplain);
         if ((o = json_obj_get_obj(st, "toolwindows")) != NULL)
             for (i = 0; i < 4; ++i) {
                 long *box = toolwin(s, i, &open);
@@ -337,6 +339,7 @@ static int write_settings(JsonValue *st, const Settings *s)
     if (!json_obj_set(st, "splash", json_new_bool(s->splash)) ||
         !json_obj_set(st, "reopenproject", json_new_bool(s->reopen)) ||
         !json_obj_set(st, "lastproject", json_new_string(s->lastproject)) ||
+        !json_obj_set(st, "prefspage", json_new_string(s->prefspage)) ||
         !json_obj_set(st, "scout", json_new_bool(s->scout)))
         return 0;
     if ((o = child_object(st, "toolbar")) == NULL ||
@@ -348,7 +351,8 @@ static int write_settings(JsonValue *st, const Settings *s)
     if ((o = child_object(st, "view")) == NULL ||
         !json_obj_set(o, "foldertree", json_new_bool(s->foldertree)) ||
         !json_obj_set(o, "minimap", json_new_bool(s->minimap)) ||
-        !json_obj_set(o, "showinfo", json_new_bool(s->showinfo)))
+        !json_obj_set(o, "showinfo", json_new_bool(s->showinfo)) ||
+        !json_obj_set(o, "scrollplain", json_new_bool(s->scrollplain)))
         return 0;
     if ((tw = child_object(st, "toolwindows")) == NULL) return 0;
     for (i = 0; i < 4; ++i) {

@@ -18,7 +18,7 @@ static void test_parse(void)
 
     settings_default(&d);
     assert(d.tbmode == TBMODE_IMAGES && !d.tbframes && d.splash && d.foldertree && !d.minimap);
-    assert(!d.reopen && d.lastproject[0] == '\0');
+    assert(!d.scrollplain && !d.reopen && d.lastproject[0] == '\0' && d.prefspage[0] == '\0');
     assert(d.winleft == -1 && d.winwidth == 0 && d.bmwin[0] == -1 && d.bmwin[2] == 0);
     assert(d.scout && strcmp(d.tempdir, "T:") == 0 && strcmp(d.shellwindow, "CON:") == 0);
     assert(d.colours[SCOL_KEYWORD] == settings_default_colours[SCOL_KEYWORD]);
@@ -38,10 +38,10 @@ static void test_parse(void)
     assert(appprefs_parse(&s,
         "{ \"settings\": {"
         "  \"splash\": false, \"scout\": false,"
-        "  \"reopenproject\": true, \"lastproject\": \"Work:Src/TinyDev\","
+        "  \"reopenproject\": true, \"lastproject\": \"Work:Src/TinyDev\", \"prefspage\": \"language/c\","
         "  \"toolbar\": { \"show\": \"both\", \"frames\": true },"
         "  \"window\": { \"left\": 10, \"top\": 20, \"width\": 640, \"height\": 400 },"
-        "  \"view\": { \"foldertree\": false, \"minimap\": true, \"showinfo\": true },"
+        "  \"view\": { \"foldertree\": false, \"minimap\": true, \"showinfo\": true, \"scrollplain\": true },"
         "  \"toolwindows\": {"
         "    \"bookmarks\": { \"open\": true, \"left\": 700, \"top\": 30, \"width\": 200, \"height\": 300 },"
         "    \"output\": { \"open\": true },"
@@ -57,8 +57,9 @@ static void test_parse(void)
         "} }") == 1);
     assert(!s.splash && !s.scout && s.tbmode == TBMODE_BOTH && s.tbframes);
     assert(s.reopen && strcmp(s.lastproject, "Work:Src/TinyDev") == 0);
+    assert(strcmp(s.prefspage, "language/c") == 0);
     assert(s.winleft == 10 && s.wintop == 20 && s.winwidth == 640 && s.winheight == 400);
-    assert(!s.foldertree && s.minimap && s.showinfo);
+    assert(!s.foldertree && s.minimap && s.showinfo && s.scrollplain);
     assert(s.bmlist && s.bmwin[0] == 700 && s.bmwin[1] == 30 && s.bmwin[2] == 200 && s.bmwin[3] == 300);
     assert(s.outlist && s.outwin[2] == 0);
     /* a box without a height is not taken */
@@ -121,6 +122,7 @@ static void test_format(void)
     s.winwidth = 800;
     s.reopen = 1;
     strcpy(s.lastproject, "DH1:Projekte/Test");
+    strcpy(s.prefspage, "git");
     s.symlist = 1;
     s.symwin[0] = 3; s.symwin[1] = 4; s.symwin[2] = 150; s.symwin[3] = 250;
     strcpy(s.author, "Andr\xe9");

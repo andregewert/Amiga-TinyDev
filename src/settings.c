@@ -12,7 +12,8 @@
  * changes the view of the session, not the settings. The tool windows are
  * written by View/Snapshot Tool Windows and View/Unsnapshot Tool Windows
  * only (settings_save_toolwindows()), and the project open at the end of
- * a session is written alone (settings_save_lastproject()).
+ * a session and the settings window's page are written alone
+ * (settings_save_lastproject(), settings_save_prefspage()).
  *
  * A file that cannot be read at the start (ftprefs_load() reports it) is
  * never written, so nothing in it is lost; TinyDev then uses the
@@ -108,10 +109,18 @@ int settings_save_toolwindows(const Settings *cur)
     return settings_save(&s, NULL);
 }
 
-int settings_save_lastproject(const char *path)
+/**
+ * @brief Write one text setting into PROGDIR:TinyDev.json, the others as
+ *        they are in the file; nothing is written if it is unchanged.
+ * @param field Which: 0 "lastproject", 1 "prefspage".
+ * @param value The new value.
+ * @return Non-zero on success (or nothing to write).
+ */
+static int save_text(int field, const char *value)
 {
     Settings s;
-    char *text = NULL;
+    char *text = NULL, *dest;
+    size_t size;
     int r;
     if (unreadable) return 0;
     settings_default(&s);
@@ -121,8 +130,20 @@ int settings_save_lastproject(const char *path)
         return 0;
     }
     free(text);
-    if (strcmp(s.lastproject, path) == 0) return 1;
-    strncpy(s.lastproject, path, sizeof(s.lastproject) - 1);
-    s.lastproject[sizeof(s.lastproject) - 1] = '\0';
+    if (field == 0) { dest = s.lastproject; size = sizeof(s.lastproject); }
+    else { dest = s.prefspage; size = sizeof(s.prefspage); }
+    if (strcmp(dest, value) == 0) return 1;
+    strncpy(dest, value, size - 1);
+    dest[size - 1] = '\0';
     return settings_save(&s, NULL);
+}
+
+int settings_save_lastproject(const char *path)
+{
+    return save_text(0, path);
+}
+
+int settings_save_prefspage(const char *page)
+{
+    return save_text(1, page);
 }

@@ -47,8 +47,10 @@ gadgets while that lock is held.
 
 ## Scrolling, highlighting and the minimap viewport
 
-While a scrollbar is dragged, the syntax highlighting is suspended and the
-minimap's viewport box is not updated; both come back (with a full redraw)
+With the setting "view"/"scrollplain" (off by default: on a 68030 the
+switching looked irritating and saved little), the syntax highlighting is
+suspended while a scrollbar is dragged and the minimap's viewport box is
+not updated; both come back (with a full redraw)
 when the drag ends. The end is the scroller's `GADGETUP` or two IntuiTicks
 without a scroll signal (`document.c`, `ui.c`). A drag in the minimap
 suspends the highlighting in the same way until the button is released.

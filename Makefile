@@ -512,8 +512,17 @@ icons:
 	python3 tools/mkicons.py
 
 # Aminet archive dist/TinyDev.lha (+ TinyDev.readme), see tools/mkdist.py
-dist: all
+dist: all $(BUILD_DIR)/TinyDev.json
 	python3 tools/mkdist.py
+
+# the settings a new installation starts with (never bin/TinyDev.json:
+# that one holds the settings of the user's own test runs)
+$(BUILD_DIR)/TinyDev.json: $(BUILD_DIR)/prefs_default
+	./$(BUILD_DIR)/prefs_default $@
+
+$(BUILD_DIR)/prefs_default: src/appprefs.c src/filetypes.c src/json.c tests/prefs_default.c include/appprefs.h include/filetypes.h include/json.h
+	@mkdir -p $(dir $@)
+	$(HOST_CC) -Iinclude -std=c99 -O2 -Wall -Wextra -Wshadow -Wconversion -o $@ src/appprefs.c src/filetypes.c src/json.c tests/prefs_default.c
 
 clean:
 	rm -rf $(BUILD_DIR) $(BIN_DIR) dist

@@ -196,11 +196,15 @@ static void update_copy_buttons(void)
 static void show_lines(void)
 {
     if (ow.win == NULL) return;
-    SetGadgetAttrs((struct Gadget *)ow.list, ow.win, NULL,
-                   LISTBROWSER_Labels, (ULONG)&ow.lines,
-                   LISTBROWSER_Selected, (ULONG)ow.selected,
-                   ow.count > 0 ? LISTBROWSER_MakeVisible : TAG_IGNORE, (ULONG)(ow.count - 1),
-                   TAG_END);
+    /* listbrowser.gadget asks for the refresh by its return value instead
+     * of drawing itself in some cases, e.g. when the list becomes empty
+     * (Clear left the old lines standing) */
+    if (SetGadgetAttrs((struct Gadget *)ow.list, ow.win, NULL,
+                       LISTBROWSER_Labels, (ULONG)&ow.lines,
+                       LISTBROWSER_Selected, (ULONG)ow.selected,
+                       ow.count > 0 ? LISTBROWSER_MakeVisible : TAG_IGNORE, (ULONG)(ow.count - 1),
+                       TAG_END) != 0)
+        RefreshGList((struct Gadget *)ow.list, ow.win, NULL, 1);
     update_copy_buttons();
 }
 

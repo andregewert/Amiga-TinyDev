@@ -59,6 +59,8 @@ def main():
     copy(b('package', NAME + '.readme'), os.path.join(PKG, NAME + '.readme'))
     copy(b('package', 'Install'), os.path.join(PKG, 'Install'))
     copy(b('LICENSE'), os.path.join(PKG, 'LICENSE'))
+    # the settings of a new installation (Makefiles indented with tabs)
+    copy(b('build', 'TinyDev.json'), os.path.join(PKG, 'TinyDev.json'))
     # bin/ is laid out as on the Amiga: programs, classes, catalogs, help
     for f in ('TinyDev', 'TinyDev-Scout', 'HelpViewer', 'Sprout', 'mdtohtml', os.path.join('parsers', 'c_parser'),
               os.path.join('parsers', 'dos_parser'), os.path.join('parsers', 'make_parser'),

@@ -516,7 +516,7 @@
 #define MSG_PREFS_GIT_NETRC_NONE     511
 #define MSG_PREFS_GIT_NETRC_ONE      512
 #define MSG_PREFS_GIT_NETRC_LINES    513
-#define MSG_PREFS_GIT_NOTE           514
+#define MSG_PREFS_SCROLLPLAIN        514
 #define MSG_GITNETRC_TITLE           515
 #define MSG_GITNETRC_NOTE            516
 #define MSG_GITNETRC_TOOLONG         517
@@ -702,7 +702,8 @@
 #define MSG_MENU_COMMENT             697
 #define MSG_COMMENT_NONE             698
 #define MSG_PREFS_REOPEN             699
-#define MSG_COUNT                    700
+#define MSG_PREFS_DEFGITCOLOURS      700
+#define MSG_COUNT                    701
 
 /* the built-in (English) strings, defined where TINYDEV_STRINGS is set */
 #ifdef TINYDEV_STRINGS
@@ -1221,7 +1222,7 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "none",
     "1 line",
     "%ld lines",
-    "These are am-git's environment variables: Use writes them\nto ENV:, Save also to ENVARC:. They count outside TinyDev too.",
+    "Pause highli_ghting while scrolling",
     "Logins per server (AM_GIT_NETRC)",
     "One line per server: machine <host> login <name> password <token>\nA line default login <name> password <token> counts for all others.",
     "The logins are too long (at most %ld characters).",
@@ -1299,7 +1300,7 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "%ld document(s) loaded again, %ld file(s) deleted (documents marked changed).",
     "Git",
     "Remote (_origin) ",
-    "Fetch, Pull and Push use this address. am-git keeps it in .git/config.",
+    "Fetch, Pull and Push use this address.",
     "HEAD is not on a branch (detached).\nPull needs a branch: check one out first.",
     "Clone Repository...",
     "Git Clone",
@@ -1407,6 +1408,7 @@ static const char *const msg_builtin[MSG_COUNT] = {
     "Comment Lines",
     "The file type of this document has no comments.",
     "Last pro_ject",
+    "D_efault colours",
 };
 #endif
 

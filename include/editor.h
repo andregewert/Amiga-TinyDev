@@ -396,6 +396,13 @@ int settings_save_toolwindows(const Settings *cur);
  * @return Non-zero on success (or nothing to write).
  */
 int settings_save_lastproject(const char *path);
+/**
+ * @brief Write the settings window's page at its closing ("prefspage")
+ *        into PROGDIR:TinyDev.json, like settings_save_lastproject().
+ * @param page The page's name (see appprefs.h).
+ * @return Non-zero on success (or nothing to write).
+ */
+int settings_save_prefspage(const char *page);
 /** am-git's environment variables, edited on the settings window's page Git (gitenv.c). */
 enum GitEnvVar {
     GITENV_USER_NAME = 0,   /**< AM_GIT_USER_NAME: the name in commits */
@@ -1099,8 +1106,8 @@ void document_scroll(EditorApp *app, int horizontal);
 /**
  * @brief Handle an intermediate scrollbar drag update.
  *
- * On the first live update the highlighter hook is switched off (setting the
- * shared scrolling flag) so the rapid redraws that follow the mouse stay fast;
+ * On the first live update the highlighter hook is switched off, with the
+ * setting "scrollplain" (setting the shared scrolling flag), so the rapid redraws that follow the mouse stay fast;
  * the position of both the vertical and horizontal axes is then mirrored onto
  * the editor.
  *
@@ -1137,7 +1144,8 @@ void document_scroll_tick(EditorApp *app);
 /**
  * @brief Suspend the syntax highlighter during an interactive minimap drag.
  *
- * Behaves exactly like a scrollbar drag, disabling the highlighter on the
+ * Behaves exactly like a scrollbar drag (only with the setting
+ * "scrollplain"), disabling the highlighter on the
  * active document so the rapid re-scrolls that follow the mouse stay fast. The
  * shared app->scrolling flag also tells minimap_poll() not to re-render the
  * viewport overlay until the drag has finished.
