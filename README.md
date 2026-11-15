@@ -32,12 +32,21 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
 - Syntax highlighting and simple code analysis for various languages  
   Currently: ACE BASIC, AmigaDOS, AmigaE, AmigaGuide, ARexx, Assembler, C,
   Free Pascal, HTML, JSON, Makefile, Markdown, XML
+- Two monospaced bitmap fonts for the screen: Holstein (sizes 16 and 17,
+  derived from DejaVu Sans Mono) and Tamzen (15 and 16)
 - Bookmark management
 - Static source code analysis
 - Symbol list
 - Auto-completion based on the symbols found  
 (**not** a simple keyword list)
 - Find and replace (Amiga+F) in multiple documents; supports regular expressions
+- Go to definition, open included files, problem list
+- Build, Run and Debug commands per project, with an output window
+- Project templates for C (vbcc, gcc, SAS/C), assembler (vasm, BAsm),
+  AmigaE, Free Pascal, ACE BASIC and ARexx; the C, E and assembler
+  templates start a debug build in BDebug (Barfly), EDBG or CodeProbe
+- Git integration through am-git (experimental): status in the folder
+  tree, commit, branches, history, tags, fetch, pull and push
 - Integrated documentation (work in progress)
     - The `HelpViewer` is a simple but functional tool for displaying the
       supplied documentation
