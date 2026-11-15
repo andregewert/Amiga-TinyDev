@@ -1,8 +1,0 @@
-# BDebug settings for {$NAME}.debug, read in addition to BDebug's
-# global configuration (which opens no source window).
-
-# Show the source and do not ask for the path of sources that are
-# missing (those of the linked libraries).
-OPENSOURCEWINDOWS=1
-SOURCEWINDOW=0/353/498/126/PC
-DONOTPOPPATHREQUEST

@@ -10,7 +10,6 @@
     { "name": "With arguments", "command": "{$NAME} Amiga 3" }
   ],
   "debug": [
-    { "name": "EDBG", "command": "EDBG {$NAME}.debug", "default": true },
-    { "name": "BDebug", "command": "BDebug {$NAME}.debug" }
+    { "name": "EDBG", "command": "EDBG {$NAME}.debug", "default": true }
   ]
 }

@@ -330,9 +330,11 @@ below the tree's root.
   with `template.json` and `files/`, ISO-8859-1); the program projects in C, E and assembler
   build a `{$NAME}.debug` (ec: the program itself) with debug information
   (the Build command "Debug build"); the Debug action only starts the
-  debugger on it: BDebug of Barfly (a `.bdebug` file beside it opens the
-  source window and stops at `_main`; BAsm is the Assembler template's
-  second choice), EDBG for E, CodeProbe (cpr) also for SAS/C; `make` copies them to
+  debugger on it: BDebug of Barfly for C and assembler (a `.bdebug` file
+  beside it opens the source window and stops at `_main`; BAsm is the
+  Assembler template's second choice), EDBG for E (BDebug cannot read E's
+  debug builds), CodeProbe (cpr) also for SAS/C; ReActionApp offers no
+  SAS/C (its standard installation lacks the NDK 3.2); `make` copies them to
   `bin/Templates/` with `cp` and checks them with `charcheck-templates`,
   as their names may contain `{$...}`, which make and the Shell would
   expand; `make dist` packs each into `Templates/<Id>.lha`.
