@@ -23,7 +23,7 @@ struct HintInfo;
 /** @{ */
 #define APP_NAME "TinyDev"                  /**< name of the program (windows, requesters) */
 #define PREFS_FILE "PROGDIR:" APP_NAME ".json" /**< TinyDev's settings: global (appprefs.h) and per file type (filetypes.h) */
-#define APP_VERSION "1.0 (18.10.2026)"      /**< version and date; changes only with a release */
+#define APP_VERSION "1.0 (15.11.2026)"      /**< version and date; changes only with a release */
 /** @} */
 
 /** @name Limits */

@@ -1,4 +1,4 @@
-/* $VER: tdscout_query.rexx 1.1 (18.10.2026) TinyDev Scout Query Example */
+/* $VER: tdscout_query.rexx 1.1 (15.11.2026) TinyDev Scout Query Example */
 /*
  * Sends one command to TinyDev-Scout and shows its result (JSON) or error.
  * Usage: rx tdscout_query.rexx <command and arguments>

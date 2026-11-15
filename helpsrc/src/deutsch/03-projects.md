@@ -1,5 +1,34 @@
 # Projektverwaltung
 
+TinyDev betrachtet grundsätzlich jedes Verzeichnis als Projekt,
+d. h. jedes existierende Verzeichnis kann *als Projekt* geöffnet
+werden. Es müssen keine TinyDev-spezifischen Projektdateien vorhanden
+sein. Allerdings legt TinyDev (ungefragt) einen Unterordner
+`.tinydev` und bestimmte Dateien an, wenn projektbezogene Einstellungen
+(wie bspw. Lesezeichen) gespeichert werden.
+
+Sobald ein Verzeichnis bzw. Projekt geöffnet worden ist, zeigt der
+Verzeichnisbaum den zugehörigen Inhalt an, wobei standardmäßig `.info`-Dateien
+ausgeblendet werden. Außerdem steht nun der Menüpunkt
+*Projekt / Projekteinstellungen* zur Verfügung.
+
+## Projekte erstellen
+...
+
+## Projekteinstellungen
+
+In den Projekteinstellungen stehen folgende Einstellungen
+zur Verfügung:
+
+### Erstellen, Ausführen, Debuggen
+...
+
+### Include-Verzeichnisse
+...
+
+### Git
+...
+
 ## Sprout
 
 `Sprout` creates a project from a template: it makes the project drawer,

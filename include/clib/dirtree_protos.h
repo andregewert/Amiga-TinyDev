@@ -4,7 +4,7 @@
 #define CLIB_DIRTREE_PROTOS_H
 
 /*
-**   $VER: dirtree_protos.h 1.0 $Id: dirtree_lib.sfd 1.0 (18.10.2026) $
+**   $VER: dirtree_protos.h 1.0 $Id: dirtree_lib.sfd 1.0 (15.11.2026) $
 **
 **   C prototypes. For use with 32 bit integers only.
 **

@@ -1,48 +1,64 @@
 # Introduction
 
-`TinyDev` is an advanced editor intended primarily for programmers. It was
-developed around the `TextEdit` gadget of AmigaOS 3.2 and therefore requires
+TinyDev is an advanced editor intended primarily for programmers. It was
+developed around the `texteditor` gadget of AmigaOS 3.2 and therefore requires
 at least AmigaOS 3.2. It does not work on older versions of the system.
 
-Among other things, `TinyDev` offers the following features:
+Among other things, TinyDev offers the following features:
 
-- ReAction-based user interface with support for translations  
-(English built in; German catalogs are included)
+- ReAction-based user interface with support for translations
+- Settings per file type
 - Integrated directory browser
-- Minimap
+- Minimap: a coloured overview of the document; click or drag in it to
+  scroll.
 - Simple project management
 - File and project templates
-- Syntax highlighting for various languages
+- Syntax highlighting and simple code analysis for various languages  
+  Currently: ACE BASIC, AmigaDOS, AmigaE, AmigaGuide, ARexx, Assembler, C,
+  Free Pascal, HTML, JSON, Makefile, Markdown, XML
+- Two monospaced bitmap fonts for the screen: Holstein (sizes 16 and 17,
+  derived from DejaVu Sans Mono) and Tamzen (15 and 16)
 - Bookmark management
 - Static source code analysis
 - Symbol list
 - Auto-completion based on the symbols found  
 (**not** a simple keyword list)
-- Find and replace (Amiga+F) in multiple documents; supports regular expressions
+- Find and replace in multiple documents; supports regular expressions
+- Go to definition, open included files, problem list
+- Build, Run and Debug commands per project, with an output window
+- Project templates for C (vbcc, gcc, SAS/C), assembler (vasm, BAsm),
+  AmigaE, Free Pascal, ACE BASIC and ARexx; the C, E and assembler
+  templates start a debug build in BDebug (Barfly), EDBG or CodeProbe
+- Git integration through am-git (experimental): status in the folder
+  tree, commit, branches, history, tags, fetch, pull and push
 - Integrated documentation (work in progress)
     - The `HelpViewer` is a simple but functional tool for displaying the
       supplied documentation
-    - `TinyDev` includes a project template and all the tools needed to
+    - TinyDev includes a project template and all the tools needed to
       create and edit your own help pages
-- Extensibility without changing `TinyDev`:
+- Extensibility without changing TinyDev:
     - You can add your own templates
     - You can add your own source code parsers
 - Reusable components:
     - The ReAction classes `dirtree` and `minimap` can be used in your own
       ReAction applications
     - The source code analysis tools (Scout) are designed so that they can
-      be integrated into your own applications through a simple JSON-based
-      protocol
+      be integrated into your own applications through a simple protocol
+      (ARexx and JSON)
     - The `HelpViewer` is designed as a general-purpose tool. Its license
       allows it to be embedded in other projects
 
 
 ## Requirements
 
-`TinyDev` requires AmigaOS 3.2. It does not work on older versions of the
+TinyDev requires AmigaOS 3.2. It does not work on older versions of the
 system. It has only been tested on AmigaOS 3.2.3.
 
-The `HelpViewer` needs the ReAction class `htmlgadget`. It is
+The toolbar icons need [AISS](http://aminet.net/package/util/misc/aiss46)
+or [AISS Classic](http://aminet.net/package/util/misc/aissclassic).
+Without AISS, TinyDev works, but shows no images in the toolbar.
+
+The `HelpViewer` needs the ReAction class `html.gadget`. It is
 [available](http://aminet.net/package/dev/gui/html_gadget) on Aminet or from
 its [GitHub page](https://github.com/andregewert/Amiga-HTML-Gadget).
 
@@ -59,5 +75,8 @@ into the target drawer. Optionally, a copy of the Markdown converter
 Catalogs, gadgets and parsers are loaded from the application drawer and do
 not have to be copied to the system partition. The commodity for source code
 analysis (`TinyDev-Scout`) does not have to be copied to `WBStartup` either.
-Starting it automatically would hardly be useful anyway: `TinyDev` starts the
+Starting it automatically would hardly be useful anyway: TinyDev starts the
 commodity itself when needed (from the application drawer).
+
+The installer does not change the `user-startup`. TinyDev needs no assigns
+of its own.

@@ -39,7 +39,7 @@ now Claude Opus 5.5 only). I will try to manually check and improve the generate
 - Symbol list
 - Auto-completion based on the symbols found  
 (**not** a simple keyword list)
-- Find and replace (Amiga+F) in multiple documents; supports regular expressions
+- Find and replace in multiple documents; supports regular expressions
 - Go to definition, open included files, problem list
 - Build, Run and Debug commands per project, with an output window
 - Project templates for C (vbcc, gcc, SAS/C), assembler (vasm, BAsm),

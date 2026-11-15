@@ -1,4 +1,4 @@
-; $VER: test_save.script 1.0 (05.11.2026)
+; $VER: test_save.script 1.0 (15.11.2026)
 ; Does what TinyDev does when it saves a file, many times over, without
 ; TinyDev: if the file system is damaged afterwards, TinyDev is not the
 ; cause.

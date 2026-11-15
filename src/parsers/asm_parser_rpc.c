@@ -339,7 +339,7 @@ int asm_parser_handle_request(const char *request, JsonWriter *response)
 unsigned long __stack = 32768;
 
 /** The version string, for the Shell command Version. */
-static const char version_tag[] __attribute__((used)) = "$VER: asm_parser 1.0 (14.11.2026)";
+static const char version_tag[] __attribute__((used)) = "$VER: asm_parser 1.0 (15.11.2026)";
 
 /**
  * @brief Check for Ctrl-C (asm_parser_should_stop()); the signal is cleared.

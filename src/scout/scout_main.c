@@ -33,7 +33,7 @@ struct RxsLib *RexxSysBase = NULL;
 unsigned long __stack = 16384;
 
 /** The version string, for the Shell command Version. */
-static const char version_tag[] __attribute__((used)) = "$VER: TinyDev-Scout " SCOUT_VERSION " (14.11.2026)";
+static const char version_tag[] __attribute__((used)) = "$VER: TinyDev-Scout " SCOUT_VERSION " (15.11.2026)";
 
 ScoutServer g_scout;
 

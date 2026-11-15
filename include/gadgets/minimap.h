@@ -44,7 +44,7 @@
  *   NULL (or another editor). This waits for a running job.
  */
 /*
-**  $VER: minimap.h 1.0 (18.10.2026)
+**  $VER: minimap.h 1.0 (15.11.2026)
 **  Copyright (c) 2026 André Gewert <agewert@ubergeek.de>, MIT License
 */
 #ifndef GADGETS_MINIMAP_H

@@ -1,4 +1,4 @@
-/* $VER: test_scout.rexx 1.0 (28.10.2026) TinyDev-Scout test run */
+/* $VER: test_scout.rexx 1.0 (15.11.2026) TinyDev-Scout test run */
 /*
  * Tests the commands of TinyDev-Scout with the sample sources in
  * tests/data/c_parser/ and shows PASS or FAIL for each.

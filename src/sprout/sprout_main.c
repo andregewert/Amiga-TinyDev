@@ -39,7 +39,7 @@
 unsigned long __stack = 32768;
 
 /** The version string for the Version command. */
-static const char version[] __attribute__((used)) = "$VER: Sprout 1.0 (31.10.2026)";
+static const char version[] __attribute__((used)) = "$VER: Sprout 1.0 (15.11.2026)";
 
 /** The size of path buffers. */
 #define PATHMAX 512

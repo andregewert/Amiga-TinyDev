@@ -20,6 +20,6 @@
 /**
  * Date of the release (DD.MM.YYYY) for the version string.
  */
-#define LIBDATE     "18.10.2026"
+#define LIBDATE     "15.11.2026"
 
 #endif

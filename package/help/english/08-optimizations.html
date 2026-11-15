@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Speed Optimisations</title>
+</head>
+<body>
+<table width="100%" border="0">
+    <tr>
+        <!--<td><h1>Speed Optimisations</h1></td>-->
+        <td align="right">
+            <img src="../assets/logo-150.gif" alt="TinyDev">
+        </td>
+    </tr>
+</table>
+<hr>
+
+<h1 id="speed-optimisations">Speed Optimisations</h1>
+<p>Some functions of TinyDev need comparatively much processing power, fast
+mass storage or a lot of RAM.</p>
+<p>In general, graphics output on AGA screens is rather slow. If TinyDev is
+used on an AGA screen, reducing the number of colours of the Workbench
+screen can help to speed up the user interface.</p>
+<p>To make TinyDev faster on slow Amigas, the following can be tried:</p>
+<ul>
+<li><p><strong>Toolbar</strong><br>
+Loading the AISS images for the toolbar takes some time. To make
+TinyDev start faster, the toolbar can be switched to text only under
+<em>Settings / Toolbar</em>.</p>
+</li>
+<li><p><strong>Scrolling</strong><br>
+If scrolling in the text editor is too slow, first try switching on
+the option &raquo;Pause highlighting while scrolling&laquo; under
+<em>Settings / General</em>.</p>
+</li>
+<li><p><strong>Source analysis</strong><br>
+With Scout, TinyDev includes a modular and powerful system for source
+analysis. However, this analysis takes time, above all on slow hard
+disks and other mass storage. It can be made faster in three steps:</p>
+<ul>
+<li>The drawer for temporary files should be on a fast drive. By
+default, <code>T:</code> is used. This assign should point to a drawer in the
+RAM Disk.</li>
+<li>The files in the include drawers are analysed as well. With large
+collections of includes (e.g. the NDK of AmigaOS) it can make sense to
+remove them under <em>Project Settings / Include Drawers</em> (if they are
+listed there).</li>
+<li>The source analysis with Scout can also be switched off completely
+under <em>Settings / Advanced</em>. Then, however, syntax highlighting, the
+symbol list, the problem list and other features no longer work.</li>
+</ul>
+</li>
+<li><p><strong>Git integration</strong><br>
+Running am-git in the background to keep the file status up to date
+takes quite a lot of time. If this makes TinyDev too slow, switch the
+git integration off again under <em>Settings / Git</em>. am-git can still be
+used from the Shell then.</p>
+</li>
+</ul>
+
+
+<br>
+<br>
+<br>
+<hr>
+<table width="100%" border="0">
+    <tr>
+        <td align="center">
+            <small>&copy; 2026 Andr&eacute; Gewert<br>
+            <a href="https://www.ubergeek.de/">www.ubergeek.de</a></small>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

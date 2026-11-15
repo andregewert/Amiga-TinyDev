@@ -1,5 +1,31 @@
 # Project Management
 
+TinyDev treats every drawer as a project, i.e. any existing drawer can be
+opened *as a project*. No TinyDev-specific project files are needed.
+However, TinyDev creates (without asking) a drawer `.tinydev` and certain
+files in it when it saves settings that belong to the project (such as
+bookmarks).
+
+Once a drawer or project has been opened, the folder tree shows its
+contents; `.info` files are hidden by default. The menu item
+*Project / Project Settings* is now available as well.
+
+## Creating projects
+...
+
+## Project settings
+
+The project settings offer the following settings:
+
+### Build, Run, Debug
+...
+
+### Include drawers
+...
+
+### Git
+...
+
 ## Sprout
 
 `Sprout` creates a project from a template: it makes the project drawer,

@@ -1,7 +1,7 @@
 Short:        Simple IDE for programmers on OS 3.2
 Author:       André Gewert <agewert@ubergeek.de>
 Uploader:     André Gewert <agewert@ubergeek.de>
-Type:         text/edit
+Type:         dev/misc
 Version:      1.0
 Architecture: m68k-amigaos >= 3.2.0
 Requires:     AmigaOS 3.2, dev/gui/html_gadget.lha (1.2, for the help)
@@ -46,8 +46,7 @@ Features
  - Symbol list
  - Auto-completion based on the symbols found
    (NOT a simple keyword list)
- - Find and replace (Amiga+F) in multiple documents; supports regular
-   expressions
+ - Find and replace in multiple documents; supports regular expressions
  - Go to definition, open included files, problem list
  - Build, Run and Debug commands per project, with an output window
  - Project templates for C (vbcc, gcc, SAS/C), assembler (vasm, BAsm),
@@ -188,7 +187,7 @@ Funktionen
  - Symbolliste
  - Auto-Vervollständigung anhand gefundener Symbole
    (KEINE einfache Keyword-Liste)
- - Suchen und Ersetzen (Amiga+F) in mehreren Dokumenten; Unterstützung für
+ - Suchen und Ersetzen in mehreren Dokumenten; Unterstützung für
    reguläre Ausdrücke
  - Gehe zur Definition, eingebundene Dateien öffnen, Problemliste
  - Befehle zum Erstellen, Ausführen und Debuggen pro Projekt, mit

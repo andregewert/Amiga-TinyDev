@@ -4,7 +4,7 @@
 #define CLIB_MINIMAP_PROTOS_H
 
 /*
-**   $VER: minimap_protos.h 1.0 $Id: minimap_lib.sfd 1.0 (18.10.2026) $
+**   $VER: minimap_protos.h 1.0 $Id: minimap_lib.sfd 1.0 (15.11.2026) $
 **
 **   C prototypes. For use with 32 bit integers only.
 **

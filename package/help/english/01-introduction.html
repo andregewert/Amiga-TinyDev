@@ -16,32 +16,44 @@
 <hr>
 
 <h1 id="introduction">Introduction</h1>
-<p><code>TinyDev</code> is an advanced editor intended primarily for programmers. It was
-developed around the <code>TextEdit</code> gadget of AmigaOS 3.2 and therefore requires
+<p>TinyDev is an advanced editor intended primarily for programmers. It was
+developed around the <code>texteditor</code> gadget of AmigaOS 3.2 and therefore requires
 at least AmigaOS 3.2. It does not work on older versions of the system.</p>
-<p>Among other things, <code>TinyDev</code> offers the following features:</p>
+<p>Among other things, TinyDev offers the following features:</p>
 <ul>
-<li>ReAction-based user interface with support for translations<br>
-(English built in; German catalogs are included)</li>
+<li>ReAction-based user interface with support for translations</li>
+<li>Settings per file type</li>
 <li>Integrated directory browser</li>
-<li>Minimap</li>
+<li>Minimap: a coloured overview of the document; click or drag in it to
+scroll.</li>
 <li>Simple project management</li>
 <li>File and project templates</li>
-<li>Syntax highlighting for various languages</li>
+<li>Syntax highlighting and simple code analysis for various languages<br>
+Currently: ACE BASIC, AmigaDOS, AmigaE, AmigaGuide, ARexx, Assembler, C,
+Free Pascal, HTML, JSON, Makefile, Markdown, XML</li>
+<li>Two monospaced bitmap fonts for the screen: Holstein (sizes 16 and 17,
+derived from DejaVu Sans Mono) and Tamzen (15 and 16)</li>
 <li>Bookmark management</li>
 <li>Static source code analysis</li>
 <li>Symbol list</li>
 <li>Auto-completion based on the symbols found<br>
 (<strong>not</strong> a simple keyword list)</li>
-<li>Find and replace (Amiga+F) in multiple documents; supports regular expressions</li>
+<li>Find and replace in multiple documents; supports regular expressions</li>
+<li>Go to definition, open included files, problem list</li>
+<li>Build, Run and Debug commands per project, with an output window</li>
+<li>Project templates for C (vbcc, gcc, SAS/C), assembler (vasm, BAsm),
+AmigaE, Free Pascal, ACE BASIC and ARexx; the C, E and assembler
+templates start a debug build in BDebug (Barfly), EDBG or CodeProbe</li>
+<li>Git integration through am-git (experimental): status in the folder
+tree, commit, branches, history, tags, fetch, pull and push</li>
 <li>Integrated documentation (work in progress)<ul>
 <li>The <code>HelpViewer</code> is a simple but functional tool for displaying the
 supplied documentation</li>
-<li><code>TinyDev</code> includes a project template and all the tools needed to
+<li>TinyDev includes a project template and all the tools needed to
 create and edit your own help pages</li>
 </ul>
 </li>
-<li>Extensibility without changing <code>TinyDev</code>:<ul>
+<li>Extensibility without changing TinyDev:<ul>
 <li>You can add your own templates</li>
 <li>You can add your own source code parsers</li>
 </ul>
@@ -50,17 +62,20 @@ create and edit your own help pages</li>
 <li>The ReAction classes <code>dirtree</code> and <code>minimap</code> can be used in your own
 ReAction applications</li>
 <li>The source code analysis tools (Scout) are designed so that they can
-be integrated into your own applications through a simple JSON-based
-protocol</li>
+be integrated into your own applications through a simple protocol
+(ARexx and JSON)</li>
 <li>The <code>HelpViewer</code> is designed as a general-purpose tool. Its license
 allows it to be embedded in other projects</li>
 </ul>
 </li>
 </ul>
 <h2 id="requirements">Requirements</h2>
-<p><code>TinyDev</code> requires AmigaOS 3.2. It does not work on older versions of the
+<p>TinyDev requires AmigaOS 3.2. It does not work on older versions of the
 system. It has only been tested on AmigaOS 3.2.3.</p>
-<p>The <code>HelpViewer</code> needs the ReAction class <code>htmlgadget</code>. It is
+<p>The toolbar icons need <a href="http://aminet.net/package/util/misc/aiss46">AISS</a>
+or <a href="http://aminet.net/package/util/misc/aissclassic">AISS Classic</a>.
+Without AISS, TinyDev works, but shows no images in the toolbar.</p>
+<p>The <code>HelpViewer</code> needs the ReAction class <code>html.gadget</code>. It is
 <a href="http://aminet.net/package/dev/gui/html_gadget">available</a> on Aminet or from
 its <a href="https://github.com/andregewert/Amiga-HTML-Gadget">GitHub page</a>.</p>
 <p>To open Internet links from the <code>HelpViewer</code>, you need
@@ -72,8 +87,10 @@ into the target drawer. Optionally, a copy of the Markdown converter
 <p>Catalogs, gadgets and parsers are loaded from the application drawer and do
 not have to be copied to the system partition. The commodity for source code
 analysis (<code>TinyDev-Scout</code>) does not have to be copied to <code>WBStartup</code> either.
-Starting it automatically would hardly be useful anyway: <code>TinyDev</code> starts the
+Starting it automatically would hardly be useful anyway: TinyDev starts the
 commodity itself when needed (from the application drawer).</p>
+<p>The installer does not change the <code>user-startup</code>. TinyDev needs no assigns
+of its own.</p>
 
 
 <br>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="ISO-8859-1">
+<title>Geschwindigkeits-Optimierungen</title>
+</head>
+<body>
+<table width="100%" border="0">
+    <tr>
+        <!--<td><h1>Geschwindigkeits-Optimierungen</h1></td>-->
+        <td align="right">
+            <img src="../assets/logo-150.gif" alt="TinyDev">
+        </td>
+    </tr>
+</table>
+<hr>
+
+<h1 id="geschwindigkeits-optimierungen">Geschwindigkeits-Optimierungen</h1>
+<p>Einige Funktionen von TinyDev benötigen vergleichsweise viel
+Rechenleistung, einen schnellen Massenspeicher oder viel RAM.</p>
+<p>Generell gilt, dass die Grafikausgabe auf AGA-Screens ziemlich langsam
+ist. Wird TinyDev auf einem AGA-Screen genutzt, kann es helfen,
+die Anzahl der Farben des Workbench-Screens zu reduzieren, um die
+Benutzeroberfläche zu beschleunigen.</p>
+<p>Um auf langsamen Amigas die Ausführungsgeschwindigkeit weiter zu
+erhöhen, können folgende Dinge ausprobiert werden:</p>
+<ul>
+<li><p><strong>Symbolleiste</strong><br>
+Das Laden der AISS-Symbole für die Symbolleiste benötigt etwas
+Zeit. Um den Programmstart zu beschleunigen, kann unter
+<em>Einstellungen / Werkzeugleiste</em> auf eine reine Text-Darstellung
+umgeschaltet werden.</p>
+</li>
+<li><p><strong>Scrolling</strong><br>
+Wenn die Geschwindigkeit beim Scrollen im Text-Editor zu langsam
+ist, kann zunächst versucht werden, unter <em>Einstellungen / Allgemein</em>
+die Option &raquo;Hervorhebung beim Scrollen aussetzen&laquo;
+eingeschaltet werden.</p>
+</li>
+<li><p><strong>Quelltext-Analyse</strong><br>
+TinyDev enthält mit Scout ein modulares und mächtiges System für die
+Quelltext-Analyse. Allerdings benötigt diese Analyse Zeit, vor allem
+auf langsamen Festplatten / Massenspeichern. Die Geschwindigkeit kann
+in drei Stufen erhöht werden:</p>
+<ul>
+<li>Der Pfad für temporäre Dateien sollte auf einem schnellen Laufwerk
+liegen. Als Standardeinstellung wird <code>T:</code> verwendet. Dieses Assign
+sollte auf ein Verzeichnis in der RAM Disk zeigen.</li>
+<li>Auch Dateien in den Include-Verzeichnissen werden analysiert.
+Bei großen Include-Sammlungen (bspw. im NDK von AmigaOS) kann es
+sinnvoll sein, diese unter <em>Projekteinstellungen / Include-Verzeichnisse</em>
+zu entfernen (falls sie dort aufgeführt sind).</li>
+<li>Die Quellcode-Analyse mit Scout kann in <em>Einstellungen / Erweitert</em>
+auch vollständig abgeschaltet werden. Dann funktionieren allerdings
+Syntax-Highlighting, Symbolliste, Problemliste und andere Features nicht mehr.</li>
+</ul>
+</li>
+<li><p><strong>Git-Integration</strong><br>
+Die Ausführung von am-git im Hintergrund, um den Dateistatus
+automatisch auf dem aktuellen Stand zu halten, benötigt relativ
+viel Zeit. Wenn TinyDev dadurch zu langsam wird, sollte die
+Git-Integration über <em>Einstellungen / Git</em> wieder ausgeschaltet
+werden. am-git kann dann immer noch über die Shell verwendet werden.</p>
+</li>
+</ul>
+
+
+<br>
+<br>
+<br>
+<hr>
+<table width="100%" border="0">
+    <tr>
+        <td align="center">
+            <small>&copy; 2026 Andr&eacute; Gewert<br>
+            <a href="https://www.ubergeek.de/">www.ubergeek.de</a></small>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

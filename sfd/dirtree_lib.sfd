@@ -1,4 +1,4 @@
-==id $Id: dirtree_lib.sfd 1.0 (18.10.2026) $
+==id $Id: dirtree_lib.sfd 1.0 (15.11.2026) $
 * "dirtree.gadget"
 ==base _DirTreeBase
 ==basetype struct Library *

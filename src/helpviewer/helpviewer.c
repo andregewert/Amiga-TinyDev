@@ -80,9 +80,9 @@
 #include "htmltitle.h"
 
 /** Version string for the Version command; changes only with a release. */
-static const char version[] = "$VER: HelpViewer 1.0 (20.10.2026)";
+static const char version[] = "$VER: HelpViewer 1.0 (15.11.2026)";
 /** The version as the About requester shows it. */
-#define HV_VERSION "1.0 (20.10.2026)"
+#define HV_VERSION "1.0 (15.11.2026)"
 /** The version of HelpViewer.catalog (the "## version" line of the .ct
  *  files); OpenCatalog() takes only this one. */
 #define HV_CATALOG_VERSION 1

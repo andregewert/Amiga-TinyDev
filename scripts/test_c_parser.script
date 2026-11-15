@@ -1,4 +1,4 @@
-; $VER: test_c_parser.script 1.1 (19.09.2026)
+; $VER: test_c_parser.script 1.1 (15.11.2026)
 ; Demonstration and automated test script for the standalone C parser (c_parser)
 ;
 ; Usage: Execute scripts/test_c_parser.script [PARSER=<path>] [FILE=<path>]
