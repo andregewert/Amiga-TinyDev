@@ -16,63 +16,8 @@
 <hr>
 
 <h1 id="einführung">Einführung</h1>
-<p>TinyDev ist ein erweiterter Editor, der in erster Linie für Programmierer
-gedacht ist. Er wurde um das <code>texteditor</code>-Gadget aus AmigaOS 3.2 herum
-entwickelt und benötigt deshalb mindestens AmigaOS 3.2. Auf älteren
-Systemversionen funktioniert er nicht.</p>
-<p>TinyDev bietet u. a. folgende Funktionen:</p>
-<ul>
-<li>ReAction-basierte Benutzeroberfläche mit Unterstützung für Übersetzungen</li>
-<li>Einstellungen pro Dateityp</li>
-<li>Integrierter Verzeichnis-Browser</li>
-<li>Minimap: eine farbige Übersicht des Dokuments; ein Klick oder Ziehen
-darin scrollt das Dokument.</li>
-<li>Einfache Projektverwaltung</li>
-<li>Datei- und Projekt-Vorlagen</li>
-<li>Syntax-Highlighting und einfache Code-Analyse für verschiedene Sprachen
-Aktuell: ACE BASIC, AmigaDOS, AmigaE, AmigaGuide, ARexx, Assembler, C,
-Free Pascal, HTML, JSON, Makefile, Markdown, XML</li>
-<li>Zwei Bitmap-Schriften mit fester Zeichenbreite für den Bildschirm:
-Holstein (Größen 16 und 17, abgeleitet von DejaVu Sans Mono) und
-Tamzen (15 und 16)</li>
-<li>Lesezeichenverwaltung</li>
-<li>Statische Quellcode-Analyse</li>
-<li>Symbolliste</li>
-<li>Auto-Vervollständigung anhand gefundener Symbole<br>
-(<strong>keine</strong> einfache Keyword-Liste)</li>
-<li>Suchen und Ersetzen in mehreren Dokumenten; Unterstützung für reguläre Ausdrücke</li>
-<li>Gehe zur Definition, eingebundene Dateien öffnen, Problemliste</li>
-<li>Befehle zum Erstellen, Ausführen und Debuggen pro Projekt, mit
-Ausgabefenster</li>
-<li>Projektvorlagen für C (vbcc, gcc, SAS/C), Assembler (vasm, BAsm),
-AmigaE, Free Pascal, ACE BASIC und ARexx; die Vorlagen für C, E und
-Assembler starten einen Debug-Build in BDebug (Barfly), EDBG oder
-CodeProbe</li>
-<li>Git-Integration mit am-git (experimentell); Status im Verzeichnisbaum,
-Commit, Zweige, Verlauf, Tags, Fetch, Pull und Push</li>
-<li>Integrierte Dokumentation (in Arbeit)<ul>
-<li>Der <code>HelpViewer</code> ist ein einfaches, aber funktionales
-Werkzeug für die Anzeige der mitgelieferten Dokumentation</li>
-<li>TinyDev enthält eine Projektvorlage und alle notwendigen Werkzeuge,
-um eigene Hilfeseiten zu erstellen und zu bearbeiten</li>
-</ul>
-</li>
-<li>Erweiterbarkeit ohne Anpassung von TinyDev:<ul>
-<li>Eigene Vorlagen können ergänzt werden</li>
-<li>Eigene Quellcode-Parser können ergänzt werden</li>
-</ul>
-</li>
-<li>Wiederverwendbare Komponenten:<ul>
-<li>Die ReAction-Klassen <code>dirtree</code> und <code>minimap</code> können in eigenen ReAction-Anwendungen
-genutzt werden</li>
-<li>Die Werkzeuge für die Quellcode-Analyse (Scout) sind so aufgebaut, dass sie
-über ein einfaches Protokoll (ARexx und JSON) in eigene Anwendungen
-eingebunden werden können</li>
-<li>Der <code>HelpViewer</code> ist als allgemeines Werkzeug konzipiert. Seine Lizenz
-erlaubt die Einbettung in fremde Projekte</li>
-</ul>
-</li>
-</ul>
+<p>TinyDev ist eine einfache Entwicklungsumgebung für Programmierer unter
+AmigaOS 3.2, gebaut mit ReAction.</p>
 <h2 id="anforderungen">Anforderungen</h2>
 <p>TinyDev benötigt AmigaOS 3.2. Auf älternen Systemversionen funktioniert
 TinyDev nicht. Getestet wurde er ausschließlich auf AmigaOS 3.2.3.</p>
@@ -85,17 +30,11 @@ Sie ist im Aminet <a href="http://aminet.net/package/dev/gui/html_gadget">verfüg
 oder über seine <a href="https://github.com/andregewert/Amiga-HTML-Gadget">github-Seite</a>.</p>
 <p>Sollen Internet-Links aus dem <code>HelpViewer</code> geöffnet werden, ist dafür
 <a href="http://aminet.net/package/comm/www/OpenURL-7.18">OpenURL</a> erforderlich.</p>
-<h2 id="installation">Installation</h2>
-<p>Für die Installation liegt ein Installationsskript vor. Alle benötigten Komponenten
-werden in das Zielverzeichnis installiert. Optional kann eine Kopie des
-Markdown-Konverters <code>mdtohtml</code> nach <code>c:</code> kopiert werden.</p>
-<p>Kataloge, Gadgets und Parser werden aus dem Anwendungsordner geladen und müssen
-nicht auf die Systempartition kopiert werden. Auch das Commodity für die
-Quellcode-Analyse (<code>TinyDev-Scout</code>) muss nicht nach <code>WBStartup</code> kopiert werden.
-Ein automatisches Starten dürfte ohnehin nicht sinnvoll sein. TinyDev startet
-das Commodity bei Bedarf selbst (aus dem Anwendungsordner).</p>
-<p>Der Installer modifiziert nicht die <code>user-startup</code>. TinyDev benötigt keine
-eigenen Assigns.</p>
+<p>TinyDev selbst enthält keine Compiler, keine Build-Werkzeuge und keinen
+Debugger. Diese Werkzeuge müssen separat installiert werden.
+Andererseits bringt TinyDev bereits fertige Projektvorlagen für einige
+Compilersysteme mit, sodass bei Vorhandensein dieser Systeme direkt
+<em>losgelegt</em> werden kann.</p>
 
 
 <br>

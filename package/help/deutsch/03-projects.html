@@ -37,20 +37,6 @@ zur Verfügung:</p>
 <p>...</p>
 <h3 id="git">Git</h3>
 <p>...</p>
-<h2 id="sprout">Sprout</h2>
-<p><code>Sprout</code> creates a project from a template: it makes the project drawer,
-copies the template&#x27;s files and fills in placeholders (<code>{$NAME}</code>) in file
-names and texts; files can depend on a value (e.g. a Makefile per
-compiler). A file template copies its files into an existing
-drawer instead. Templates are LhA archives (<code>&lt;name&gt;.lha</code>) or drawers in
-<code>Templates/</code>.</p>
-<pre><code>Sprout &lt;template&gt; &lt;project drawer&gt; [KEY=value ...] [VALUES &lt;file&gt;] [DIR &lt;drawer&gt;] [FORCE] [QUIET]
-Sprout LIST [DIR &lt;drawer&gt;]
-Sprout &lt;template&gt; INFO [ICON &lt;file&gt;]
-</code></pre>
-<p>For example <code>Sprout HelloWorld Work:Hello AUTHOR=Me</code>; keys may be written
-in any case, and <code>PROJECT=&lt;name&gt;</code> names the project (otherwise it is named
-after its drawer).</p>
 <h2 id="bookmarks-file">Bookmarks file</h2>
 <p>The bookmarks of a project are kept in <code>.tinydev/bookmarks.json</code> in the
 project directory, a file you may edit by hand (JSON, ISO-8859-1; <code>line</code>
