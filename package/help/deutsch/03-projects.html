@@ -26,51 +26,44 @@ sein. Allerdings legt TinyDev (ungefragt) einen Unterordner
 Verzeichnisbaum den zugehörigen Inhalt an, wobei standardmäßig <code>.info</code>-Dateien
 ausgeblendet werden. Außerdem steht nun der Menüpunkt
 <em>Projekt / Projekteinstellungen</em> zur Verfügung.</p>
-<h2 id="projekte-erstellen">Projekte erstellen</h2>
-<p>...</p>
+<h2 id="ein-neues-projekt-anlegen">Ein neues Projekt anlegen</h2>
+<p>Über den Menüpunkt <em>Projekt / Neues Projekt...</em> wird der Dialog für die
+Erstellung eines neuen Projektes geöffnet. Der Dialog erlaubt die Auswahl
+einer Projektvorlage einschließlich der Auswahl eine Zielverzeichnisses.</p>
+<p>Ist die Git-Integration eingeschaltet, lässt sich auf Wunsch das anzulegende
+Projektverzeichnis als Git-Repository initialisieren.</p>
+<p>Auf der zweiten Dialogseite werden - abhängig von der Vorlage - verschiedene
+Optionen abgefragt.</p>
 <h2 id="projekteinstellungen">Projekteinstellungen</h2>
-<p>In den Projekteinstellungen stehen folgende Einstellungen
-zur Verfügung:</p>
+<p>Im Dailog <em>Projekteinstellungen</em> (Menü: Projekt / Projekteinstellungen...)
+stehen folgende Einstellungen zur Verfügung:</p>
+<h3 id="projektname">Projektname</h3>
+<p>Der Projektname kann von Vorlagen ausgewertet werden und wird von TinyDev
+im <em>AppIcon</em> angezeigt, wenn die Anwendung ikonifiziert wird.</p>
 <h3 id="erstellen-ausführen-debuggen">Erstellen, Ausführen, Debuggen</h3>
-<p>...</p>
+<p>Die Einstellungen für diese drei Funktionen gleichen sich - der Unterschied
+liegt darin, dass jede der drei Aktionen einen eigenen Befehl in Symbolleiste,
+im Menü und in den Tastaturkürzeln besitzt.</p>
+<p>Für jede Aktion können AmigaDOS-Befehle hinterlegt werden, die beim Auslösen
+der Aktion ausgeführt werden. Mehrere Befehle müssen in jeweils einer
+einzelnen Zeile notiert werden. Die mitgeleiferten Projektvorlagen liefern
+gute Beispiele für mögliche Skripte.</p>
+<p>Es können jeweils mehrere Befehle für die Aktionen definiert werden und
+jeweils ein Standardwert festgelegt werden. Für die Aktion &raquo;Erstellen&ldquo;
+ist es beispielsweise üblich, zwischen Release Build und Debug Build zu
+unterscheiden. Ein schneller Wechsel zwischen den Einträgen ist über das
+Menü <em>Erstellen</em> möglich.</p>
 <h3 id="include-verzeichnisse">Include-Verzeichnisse</h3>
-<p>...</p>
+<p>An dieser Stelle können (und sollten!) Include-Verzeichnisse hinterlegt
+werden, die außerhalb des Projektes liegen und zusätzlich von Scout
+ausgewertet werden sollen, um bspw. Vorschläge für die Code-Vervollständigung
+machen zu können.</p>
+<p>Bei C-Projekten ist es sinnvoll, hier die Compiler-spezifischen
+Include-Verzeichnisse sowie das Verzeichnis <code>Include_H</code> des NDK zu
+hinterlegen. Zu beachten ist, dass die Quelltext-Analyse des NDK-Verzeichnisses
+auf langsamen Amiga eine Weile dauern kann.</p>
 <h3 id="git">Git</h3>
 <p>...</p>
-<h2 id="bookmarks-file">Bookmarks file</h2>
-<p>The bookmarks of a project are kept in <code>.tinydev/bookmarks.json</code> in the
-project directory, a file you may edit by hand (JSON, ISO-8859-1; <code>line</code>
-counts from 1, <code>text</code> finds the line again after changes outside TinyDev):</p>
-<pre><code>{
-  &quot;version&quot;: 1,
-  &quot;bookmarks&quot;: [
-    { &quot;file&quot;: &quot;src/ui.c&quot;, &quot;line&quot;: 99, &quot;text&quot;: &quot;void tree_handle_event(EditorApp *app)&quot; }
-  ]
-}
-</code></pre>
-<h2 id="project-file">Project file</h2>
-<p>The project settings are kept in <code>.tinydev/project.json</code> in the project
-directory, a file you may edit by hand and keep with the project (JSON,
-ISO-8859-1). <code>name</code> is the project&#x27;s name, shown by the icon of the
-iconified TinyDev (otherwise the directory&#x27;s name). Each action has a list of commands; <code>command</code> is a Shell
-command line or a list of lines run as a script, <code>name</code> and <code>dir</code> (relative
-to the project) are optional, <code>default</code> marks the command the action runs.
-<code>include</code> lists drawers with headers (relative to the project or absolute,
-e.g. the NDK&#x27;s) that TinyDev-Scout indexes for Go to Definition and
-completion. <code>{file}</code>, <code>{base}</code> (without extension) and <code>{project}</code> are
-replaced with the active document and the project directory, <code>{tinydev}</code> with
-TinyDev&#x27;s drawer (<code>&quot;{tinydev}mdtohtml&quot; ...</code>, as it is not on the command path):</p>
-<pre><code>{
-  &quot;version&quot;: 1,
-  &quot;name&quot;: &quot;TinyDev&quot;,
-  &quot;build&quot;: [
-    { &quot;name&quot;: &quot;Build&quot;, &quot;command&quot;: &quot;make&quot;, &quot;default&quot;: true },
-    { &quot;name&quot;: &quot;Clean&quot;, &quot;command&quot;: [&quot;Delete build ALL QUIET&quot;, &quot;Delete bin/TinyDev QUIET&quot;] }
-  ],
-  &quot;run&quot;: [ { &quot;command&quot;: &quot;TinyDev&quot;, &quot;dir&quot;: &quot;bin&quot; } ],
-  &quot;debug&quot;: []
-}
-</code></pre>
 
 
 <br>

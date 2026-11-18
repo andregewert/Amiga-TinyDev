@@ -18,8 +18,9 @@ Entwicklern wäre TinyDev ziemlich wertlos. An dieser Stelle
 möchte ich mich bei ein paar Personen bedanken, auch wenn diese
 Liste sicherlich noch beliebig erweitert werden könnte:
 
-- Martin &raquo;Mason&laquo; Merz für AISS und die TinyDev-Icons im
-  AmigaOS-Stil
+- Martin &raquo;Mason&laquo; Merz für AISS und die verschiedenen
+  Icons, die er mir freundlicherweise erstellt und zur Nutzung
+  bereitgestellt hat
 - Volker Barthelmann und Frank Wille für *vbcc*
 - Das AmigaOS 3.2-Team für das *texteditor.gadget*, das viele gute
   Funktionen mitbringt und nur so als Grundlage für TinyDev

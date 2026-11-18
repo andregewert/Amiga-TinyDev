@@ -10,7 +10,7 @@ TinyDev nicht. Getestet wurde er ausschließlich auf AmigaOS 3.2.3.
 
 Für die Icons in der Symbolleiste wird [AISS](http://aminet.net/package/util/misc/aiss46)
 oder [AISS Classic](http://aminet.net/package/util/misc/aissclassic)
-benötigt. Ohne AISS funktioniert `TinyDev`, zeigt in der Symbolleiste aber keine
+benötigt. Ohne AISS funktioniert TinyDev, zeigt in der Symbolleiste aber keine
 Bilder an.
 
 Für den `HelpViewer` ist die ReAction-Klasse `html.gadget` erforderlich.

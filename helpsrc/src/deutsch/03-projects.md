@@ -12,57 +12,56 @@ Verzeichnisbaum den zugehörigen Inhalt an, wobei standardmäßig `.info`-Dateien
 ausgeblendet werden. Außerdem steht nun der Menüpunkt
 *Projekt / Projekteinstellungen* zur Verfügung.
 
-## Projekte erstellen
-...
+## Ein neues Projekt anlegen
+
+Über den Menüpunkt *Projekt / Neues Projekt...* wird der Dialog für die
+Erstellung eines neuen Projektes geöffnet. Der Dialog erlaubt die Auswahl
+einer Projektvorlage einschließlich der Auswahl eine Zielverzeichnisses.
+
+Ist die Git-Integration eingeschaltet, lässt sich auf Wunsch das anzulegende
+Projektverzeichnis als Git-Repository initialisieren.
+
+Auf der zweiten Dialogseite werden - abhängig von der Vorlage - verschiedene
+Optionen abgefragt.
 
 ## Projekteinstellungen
 
-In den Projekteinstellungen stehen folgende Einstellungen
-zur Verfügung:
+Im Dailog *Projekteinstellungen* (Menü: Projekt / Projekteinstellungen...)
+stehen folgende Einstellungen zur Verfügung:
+
+### Projektname
+
+Der Projektname kann von Vorlagen ausgewertet werden und wird von TinyDev
+im *AppIcon* angezeigt, wenn die Anwendung ikonifiziert wird.
 
 ### Erstellen, Ausführen, Debuggen
-...
+
+Die Einstellungen für diese drei Funktionen gleichen sich - der Unterschied
+liegt darin, dass jede der drei Aktionen einen eigenen Befehl in Symbolleiste,
+im Menü und in den Tastaturkürzeln besitzt.
+
+Für jede Aktion können AmigaDOS-Befehle hinterlegt werden, die beim Auslösen
+der Aktion ausgeführt werden. Mehrere Befehle müssen in jeweils einer
+einzelnen Zeile notiert werden. Die mitgeleiferten Projektvorlagen liefern
+gute Beispiele für mögliche Skripte.
+
+Es können jeweils mehrere Befehle für die Aktionen definiert werden und
+jeweils ein Standardwert festgelegt werden. Für die Aktion &raquo;Erstellen&ldquo;
+ist es beispielsweise üblich, zwischen Release Build und Debug Build zu
+unterscheiden. Ein schneller Wechsel zwischen den Einträgen ist über das
+Menü *Erstellen* möglich.
 
 ### Include-Verzeichnisse
-...
+
+An dieser Stelle können (und sollten!) Include-Verzeichnisse hinterlegt
+werden, die außerhalb des Projektes liegen und zusätzlich von Scout
+ausgewertet werden sollen, um bspw. Vorschläge für die Code-Vervollständigung
+machen zu können.
+
+Bei C-Projekten ist es sinnvoll, hier die Compiler-spezifischen
+Include-Verzeichnisse sowie das Verzeichnis `Include_H` des NDK zu
+hinterlegen. Zu beachten ist, dass die Quelltext-Analyse des NDK-Verzeichnisses
+auf langsamen Amiga eine Weile dauern kann.
 
 ### Git
 ...
-
-## Bookmarks file
-
-The bookmarks of a project are kept in `.tinydev/bookmarks.json` in the
-project directory, a file you may edit by hand (JSON, ISO-8859-1; `line`
-counts from 1, `text` finds the line again after changes outside TinyDev):
-
-    {
-      "version": 1,
-      "bookmarks": [
-        { "file": "src/ui.c", "line": 99, "text": "void tree_handle_event(EditorApp *app)" }
-      ]
-    }
-
-## Project file
-
-The project settings are kept in `.tinydev/project.json` in the project
-directory, a file you may edit by hand and keep with the project (JSON,
-ISO-8859-1). `name` is the project's name, shown by the icon of the
-iconified TinyDev (otherwise the directory's name). Each action has a list of commands; `command` is a Shell
-command line or a list of lines run as a script, `name` and `dir` (relative
-to the project) are optional, `default` marks the command the action runs.
-`include` lists drawers with headers (relative to the project or absolute,
-e.g. the NDK's) that TinyDev-Scout indexes for Go to Definition and
-completion. `{file}`, `{base}` (without extension) and `{project}` are
-replaced with the active document and the project directory, `{tinydev}` with
-TinyDev's drawer (`"{tinydev}mdtohtml" ...`, as it is not on the command path):
-
-    {
-      "version": 1,
-      "name": "TinyDev",
-      "build": [
-        { "name": "Build", "command": "make", "default": true },
-        { "name": "Clean", "command": ["Delete build ALL QUIET", "Delete bin/TinyDev QUIET"] }
-      ],
-      "run": [ { "command": "TinyDev", "dir": "bin" } ],
-      "debug": []
-    }

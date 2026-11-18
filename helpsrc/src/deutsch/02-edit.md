@@ -17,7 +17,12 @@ verfügbar.
 ...
 
 ## Dateien durchsuchen
-...
+Die Suchfunktion ist in der Lage, neben der geöffneten Datei auch in
+*allen* geöffneten Dateien zu suchen oder in allen Projektdateien.
+
+Optional können reguläre Ausdrücke in der Suche verwendet werden.
+Dabei kommt die Syntax der *POSIX Extended Regular Expressions* zum
+Einsatz.
 
 ## Statuszeile
 
